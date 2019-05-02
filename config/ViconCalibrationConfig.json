@@ -1,0 +1,9 @@
+{
+  "bage_file": "/home/nick/bag_files/ig_scans/2019_04_11_Market_Square_Parking_Garage/ig_scan_2019-04-11-19-47-57.bag",
+  "initial_calibration": "initial_calibration_test.json",
+  "image_topics": ["/F1/image_raw", "/F2/image_raw", "/ximea_cam/image_raw"],
+  "image_frames": ["F1_link", "F2_link", "X1_link"],
+  "intrinsics": ["F1_test.json", "F2_test.json", "X1_test.json"],
+  "lidar_topics": ["/hvlp/velodyne_points", "/vvlp/velodyne_points"],
+  "lidar_topics": ["hvlp_link", "vvlp_link"]
+}

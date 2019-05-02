@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="2">
+    <name>vicon_calibration</name>
+    <version>1.0.0</version>
+    <description>Package for performing robot inspections</description>
+    <author email="nick@beamrobotics.io">Nick Charron</author>
+    <maintainer email="nick@beamrobotics.io">Nick Charron</maintainer>
+    <license>Beam Robotics Proprietary</license>
+
+    <buildtool_depend>catkin</buildtool_depend>
+
+    <!--<depend>eigen</depend>-->
+    <!--<depend>boost</depend>-->
+    <build_depend>libbeam</build_depend>
+    <depend>roscpp</depend>
+    <depend>geometry_msgs</depend>
+    <depend>nav_msgs</depend>
+    <depend>sensor_msgs</depend>
+    <depend>std_msgs</depend>
+    <depend>tf</depend>
+
+</package>

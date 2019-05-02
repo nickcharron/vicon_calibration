@@ -1,0 +1,18 @@
+{
+  "type": "pinhole_calibration",
+  "date": "2018_12_20",
+  "method": "matlab",
+  "calibration": [
+    {
+      "image_width": 1280,
+      "image_height": 1024,
+      "frame_id": "X1_link",
+      "camera_matrix": [1512.2275646310243, 0,  641.8600848323616,
+                        0, 1507.752312549922, 517.7949084156129,
+                        0, 0, 1],
+      "distortion_model": "radtan",
+      "rad_coeffs": [-0.2274654652942219, 0.17974500352564166, 0],
+      "tan_coeffs": [ 0.0001909369766975665,-0.001144568086724896]
+    }
+  ]
+}

@@ -1,9 +1,9 @@
-#include "vicon_calibration/GTSAMGraph.h"
 #include "vicon_calibration/CamCylExtractor.h"
+#include "vicon_calibration/GTSAMGraph.h"
 #include "vicon_calibration/LidarCylExtractor.h"
 #include <string>
 
-std::string getJSONFileName(std::string file_name){
+std::string getJSONFileName(std::string file_name) {
   std::string file_location = __FILE__;
   file_location.erase(file_location.end() - 23, file_location.end());
   file_location += "data/";
@@ -17,4 +17,4 @@ int main() {
   config_file = getJSONFileName("ViconCalibrationConfig.json");
 
   return 0;
- }
+}

@@ -5,5 +5,5 @@
   "image_frames": ["F1_link", "F2_link", "X1_link"],
   "intrinsics": ["F1_test.json", "F2_test.json", "X1_test.json"],
   "lidar_topics": ["/hvlp/velodyne_points", "/vvlp/velodyne_points"],
-  "lidar_topics": ["hvlp_link", "vvlp_link"]
+  "lidar_frames": ["hvlp_link", "vvlp_link"]
 }

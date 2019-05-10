@@ -1,4 +1,6 @@
 #pragma once
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
 
 namespace vicon_calibration {
 
@@ -8,9 +10,17 @@ namespace vicon_calibration {
 class LidarCylExtractor {
 public:
   LidarCylExtractor() = default;
+
+  LidarCylExtractor(pcl::PointCloud<pcl::PointXYZ>::Ptr& template_cloud);
+
   ~LidarCylExtractor() = default;
 
+  void SetTemplateCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr& template_cloud){
+    template_cloud_ = template_cloud;
+  }
+
 private:
+  pcl::PointCloud<pcl::PointXYZ>::Ptr template_cloud_;
 
 };
 

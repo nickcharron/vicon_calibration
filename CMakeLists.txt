@@ -16,12 +16,13 @@ find_package(rosbag REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(PCL REQUIRED)
+find_package(PCL 1.8 REQUIRED)
 find_package(beam REQUIRED utils calibration)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 
 # Add the core library
 add_subdirectory(src/lib)
+add_subdirectory(tests)
 
 # Add main executable
 add_executable(${PROJECT_NAME}_main

@@ -1,0 +1,15 @@
+{
+  "type": "extrinsic_calibration",
+  "date": "2018_12_20",
+  "method": "manual",
+  "calibrations": [
+        {
+        "to_frame": "vicon/roben/roben",
+        "from_frame": "m3d_link",
+        "transform": [1.00000,   0.00000,   0.00000,   -0.135,
+                      0.00000,   1.00000,   0.00000,   0.00000,
+                      0.00000,   0.00000,   1.00000,   0.184,
+                      0.00000,   0.00000,   0.00000,   1.00000]
+        }
+  ]
+}

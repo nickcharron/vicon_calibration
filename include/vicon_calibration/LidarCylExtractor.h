@@ -65,6 +65,15 @@ public:
   beam::Vec4 ExtractCylinder(beam::Affine3 TA_LIDAR_TARGET,
                              int measurement_num = 0);
 
+  /**
+   * @brief Calculate the transform measurement from aggregated cloud to target
+   * @param TA_LIDAR_TARGET transform from target to lidar
+   * target
+   * @param TA_TARGET_ESTIMATED transform from estimated target to target (ICP)
+   * @return transform from the aggrated cloud to measured target
+   */
+  beam::Vec4 CalculateMeasurement(beam::Affine3 TA_LIDAR_ESTIMATED);
+
   void ShowFinalTransformation();
 
 private:
@@ -75,16 +84,6 @@ private:
    * @return cropped cloud
    */
   PointCloudXYZ::Ptr CropPointCloud(beam::Affine3 TA_LIDAR_TARGET);
-
-  /**
-   * @brief Calculate the transform measurement from aggregated cloud to target
-   * @param TA_LIDAR_TARGET transform from target to lidar
-   * target
-   * @param TA_TARGET_ESTIMATED transform from estimated target to target (ICP)
-   * @return transform from the aggrated cloud to measured target
-   */
-  beam::Vec4 CalculateMeasurement(beam::Affine3 TA_LIDAR_TARGET,
-                                  beam::Affine3 TA_TARGET_ESTIMATED);
 
   // Functions for testing
   /**
@@ -114,7 +113,7 @@ private:
   PointCloudXYZ::Ptr template_cloud_;
   PointCloudXYZ::Ptr agg_cloud_;
   beam::Affine3 TA_LIDAR_VICON_;
-  beam::Affine3 TA_LIDAR_ESTIMATED_;
+  beam::Affine3 TA_LIDAR_ESTIMATED_; // Only used to output results for testing
   double height_{0.5};
   double radius_{0.0635};
   double threshold_{0.015}; // Threshold for cropping the the aggregated cloud

@@ -1,15 +1,12 @@
 #pragma once
 
+#include "vicon_calibration/utils.hpp"
+
 #include <beam_utils/math.hpp>
 
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
 namespace vicon_calibration {
-
-using PointCloudXYZ = pcl::PointCloud<pcl::PointXYZ>;
-using PointCloudXYZRGB = pcl::PointCloud<pcl::PointXYZRGB>;
 
 /**
  * @brief class for extracting cylinder measurements from lidar scan
@@ -21,27 +18,27 @@ public:
   /**
    * @brief Constructor
    * @param template_cloud template pointcloud of the cylinder target
-   * @param agg_cloud aggregated pointcloud (assume the cloud is already in
+   * @param scan aggregated pointcloud (assume the cloud is already in
    * lidar frame)
    */
-  LidarCylExtractor(PointCloudXYZ::Ptr &template_cloud,
-                    PointCloudXYZ::Ptr &agg_cloud);
+  LidarCylExtractor(PointCloud::Ptr &template_cloud,
+                    PointCloud::Ptr &scan);
 
   ~LidarCylExtractor() = default;
 
-  void SetTemplateCloud(PointCloudXYZ::Ptr &template_cloud) {
+  void SetTemplateCloud(PointCloud::Ptr &template_cloud) {
     template_cloud_ = template_cloud;
   }
 
-  void SetAggregatedCloud(PointCloudXYZ::Ptr &agg_cloud) {
-    agg_cloud_ = agg_cloud;
+  void SetScan(PointCloud::Ptr &scan) {
+    scan_ = scan;
   }
 
   /**
    * @brief Transforms the aggregated cloud to lidar frame and store the
    * transform
    */
-  void SetAggregatedCloudTransform(beam::Affine3 TA_LIDAR_VICON);
+  void SetScanTransform(beam::Affine3 TA_LIDAR_VICON);
 
   void SetHeight(double height) { height_ = height; }
 
@@ -51,9 +48,9 @@ public:
 
   void SetShowTransformation(bool show_transformation);
 
-  PointCloudXYZ::Ptr GetTemplateCloud() { return template_cloud_; }
+  PointCloud::Ptr GetTemplateCloud() { return template_cloud_; }
 
-  PointCloudXYZ::Ptr GetAggregatedCloud() { return agg_cloud_; }
+  PointCloud::Ptr GetAggregatedCloud() { return scan_; }
 
   /**
    * @brief Extract cylinder target from the aggregated cloud, then calculate
@@ -83,7 +80,7 @@ private:
    * target
    * @return cropped cloud
    */
-  PointCloudXYZ::Ptr CropPointCloud(beam::Affine3 TA_LIDAR_TARGET);
+  PointCloud::Ptr CropPointCloud(beam::Affine3 TA_LIDAR_TARGET);
 
   // Functions for testing
   /**
@@ -91,7 +88,7 @@ private:
    * @param cloud pointcloud to add
    * @param cloud_name name of the point cloud
    */
-  void AddColouredPointCloudToViewer(PointCloudXYZRGB::Ptr cloud,
+  void AddColouredPointCloudToViewer(PointCloudColor::Ptr cloud,
                                      std::string cloud_name);
 
   /**
@@ -99,7 +96,7 @@ private:
    * @param cloud pointcloud to add
    * @param cloud_name name of the point cloud
    */
-  void AddPointCloudToViewer(PointCloudXYZ::Ptr cloud, std::string cloud_name);
+  void AddPointCloudToViewer(PointCloud::Ptr cloud, std::string cloud_name);
 
   /**
    * @brief Colour a pointcloud
@@ -107,11 +104,11 @@ private:
    * @param r,g,b rgb values of the colour
    * @return coloured pointcloud
    */
-  PointCloudXYZRGB::Ptr ColourPointCloud(PointCloudXYZ::Ptr &cloud, int r,
+  PointCloudColor::Ptr ColourPointCloud(PointCloud::Ptr &cloud, int r,
                                          int g, int b);
 
-  PointCloudXYZ::Ptr template_cloud_;
-  PointCloudXYZ::Ptr agg_cloud_;
+  PointCloud::Ptr template_cloud_;
+  PointCloud::Ptr scan_;
   beam::Affine3 TA_LIDAR_VICON_;
   beam::Affine3 TA_LIDAR_ESTIMATED_; // Only used to output results for testing
   double height_{0.5};

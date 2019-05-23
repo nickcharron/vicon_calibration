@@ -9,18 +9,18 @@ namespace vicon_calibration {
 
 using namespace std::literals::chrono_literals;
 
-LidarCylExtractor::LidarCylExtractor(PointCloudXYZ::Ptr &template_cloud,
-                                     PointCloudXYZ::Ptr &agg_cloud)
-    : template_cloud_(template_cloud), agg_cloud_(agg_cloud) {}
+LidarCylExtractor::LidarCylExtractor(PointCloud::Ptr &template_cloud,
+                                     PointCloud::Ptr &scan)
+    : template_cloud_(template_cloud), scan_(scan) {}
 
-void LidarCylExtractor::SetAggregatedCloudTransform(
+void LidarCylExtractor::SetScanTransform(
     beam::Affine3 TA_LIDAR_VICON) {
   if (!beam::IsTransformationMatrix(TA_LIDAR_VICON.matrix())) {
     throw std::runtime_error{
         "Passed in aggregated cloud transform (vicon to lidar) is invalid"};
   }
   TA_LIDAR_VICON_ = TA_LIDAR_VICON;
-  pcl::transformPointCloud(*agg_cloud_, *agg_cloud_, TA_LIDAR_VICON_);
+  pcl::transformPointCloud(*scan_, *scan_, TA_LIDAR_VICON_);
 }
 
 void LidarCylExtractor::SetShowTransformation(bool show_transformation) {
@@ -50,7 +50,7 @@ beam::Vec4 LidarCylExtractor::ExtractCylinder(beam::Affine3 TA_LIDAR_TARGET,
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
   icp.setInputSource(cropped_cloud);
   icp.setInputTarget(template_cloud_);
-  PointCloudXYZ final_cloud;
+  PointCloud final_cloud;
   icp.align(final_cloud);
 
   if (!icp.hasConverged()) {
@@ -68,7 +68,7 @@ beam::Vec4 LidarCylExtractor::ExtractCylinder(beam::Affine3 TA_LIDAR_TARGET,
   if (show_transformation_) {
     // Display clouds for testing
     // transform template cloud from target to lidar
-    PointCloudXYZ::Ptr transformed_template_cloud(new PointCloudXYZ);
+    PointCloud::Ptr transformed_template_cloud(new PointCloud);
     pcl::transformPointCloud(*template_cloud_, *transformed_template_cloud,
                              TA_LIDAR_TARGET.inverse());
     AddPointCloudToViewer(transformed_template_cloud,
@@ -99,26 +99,26 @@ beam::Vec4 LidarCylExtractor::ExtractCylinder(beam::Affine3 TA_LIDAR_TARGET,
   return final_transform_vector;
 }
 
-PointCloudXYZ::Ptr
+PointCloud::Ptr
 LidarCylExtractor::CropPointCloud(beam::Affine3 TA_LIDAR_TARGET) {
-  if (agg_cloud_ == nullptr) {
+  if (scan_ == nullptr) {
     throw std::runtime_error{"Aggregated cloud is empty"};
   }
   if (threshold_ == 0)
     std::cout << "WARNING: Using threshold of 0 for cropping" << std::endl;
 
-  PointCloudXYZ::Ptr cropped_cloud(new PointCloudXYZ);
-  PointCloudXYZ::Ptr transformed_agg_cloud(new PointCloudXYZ);
+  PointCloud::Ptr cropped_cloud(new PointCloud);
+  PointCloud::Ptr transformed_scan(new PointCloud);
   double radius_squared = (radius_ + threshold_) * (radius_ + threshold_);
 
   // Transform the aggregated cloud to target frame for cropping
-  pcl::transformPointCloud(*agg_cloud_, *transformed_agg_cloud,
+  pcl::transformPointCloud(*scan_, *transformed_scan,
                            TA_LIDAR_TARGET.inverse());
   // Crop the transformed aggregated cloud. Reject any points that has z
   // exceeding the height of the cylinder target or the radius bigger than the
   // radius of the cylinder target
-  for (PointCloudXYZ::iterator it = transformed_agg_cloud->begin();
-       it != transformed_agg_cloud->end(); ++it) {
+  for (PointCloud::iterator it = transformed_scan->begin();
+       it != transformed_scan->end(); ++it) {
     if (it->z > height_ + threshold_)
       continue;
     if ((it->x * it->x + it->y * it->y) > radius_squared)
@@ -150,7 +150,7 @@ void LidarCylExtractor::ShowFinalTransformation() {
 }
 
 void LidarCylExtractor::AddColouredPointCloudToViewer(
-    PointCloudXYZRGB::Ptr cloud, std::string cloud_name) {
+    PointCloudColor::Ptr cloud, std::string cloud_name) {
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(
       cloud);
   pcl_viewer_.addPointCloud<pcl::PointXYZRGB>(cloud, rgb, cloud_name);
@@ -158,21 +158,21 @@ void LidarCylExtractor::AddColouredPointCloudToViewer(
       pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, cloud_name);
 }
 
-void LidarCylExtractor::AddPointCloudToViewer(PointCloudXYZ::Ptr cloud,
+void LidarCylExtractor::AddPointCloudToViewer(PointCloud::Ptr cloud,
                                               std::string cloud_name) {
   pcl_viewer_.addPointCloud<pcl::PointXYZ>(cloud, cloud_name);
   pcl_viewer_.setPointCloudRenderingProperties(
       pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, cloud_name);
 }
 
-PointCloudXYZRGB::Ptr
-LidarCylExtractor::ColourPointCloud(PointCloudXYZ::Ptr &cloud, int r, int g,
+PointCloudColor::Ptr
+LidarCylExtractor::ColourPointCloud(PointCloud::Ptr &cloud, int r, int g,
                                     int b) {
-  PointCloudXYZRGB::Ptr coloured_cloud(new PointCloudXYZRGB);
+  PointCloudColor::Ptr coloured_cloud(new PointCloudColor);
   uint32_t rgb = (static_cast<uint32_t>(r) << 16 |
                   static_cast<uint32_t>(g) << 8 | static_cast<uint32_t>(b));
   pcl::PointXYZRGB point;
-  for (PointCloudXYZ::iterator it = cloud->begin(); it != cloud->end(); ++it) {
+  for (PointCloud::iterator it = cloud->begin(); it != cloud->end(); ++it) {
     point.x = it->x;
     point.y = it->y;
     point.z = it->z;

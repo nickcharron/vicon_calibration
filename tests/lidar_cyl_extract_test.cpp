@@ -2,6 +2,7 @@
 #include <catch2/catch.hpp>
 
 #include "vicon_calibration/LidarCylExtractor.h"
+#include "vicon_calibration/utils.hpp"
 
 #include <beam_calibration/TfTree.h>
 #include <beam_utils/math.hpp>
@@ -20,10 +21,10 @@ std::string bag_name = "tests/test_bags/2019-05-15-16-35-16.bag";
 vicon_calibration::LidarCylExtractor cyl_extractor;
 beam::Affine3 TA_LIDAR_TARGET1, TA_LIDAR_TARGET2;
 ros::Time transform_lookup_time;
-vicon_calibration::PointCloudXYZ::Ptr
-    temp_cloud(new vicon_calibration::PointCloudXYZ);
-vicon_calibration::PointCloudXYZ::Ptr
-    sim_cloud(new vicon_calibration::PointCloudXYZ);
+vicon_calibration::PointCloud::Ptr
+    temp_cloud(new vicon_calibration::PointCloud);
+vicon_calibration::PointCloud::Ptr
+    sim_cloud(new vicon_calibration::PointCloud);
 
 void LoadTemplateCloud() {
   // Load template cloud from pcd file
@@ -123,7 +124,7 @@ TEST_CASE("Test extracting cylinder from empty aggregated cloud") {
 TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
   beam::Affine3 TA_INVALID;
   LoadSimulatedCloud();
-  cyl_extractor.SetAggregatedCloud(sim_cloud);
+  cyl_extractor.SetScan(sim_cloud);
 
   REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_INVALID));
 }

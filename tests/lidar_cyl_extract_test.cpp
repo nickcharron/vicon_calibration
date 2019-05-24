@@ -5,7 +5,6 @@
 #include "vicon_calibration/utils.hpp"
 
 #include <beam_calibration/TfTree.h>
-#include <beam_utils/math.hpp>
 
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -19,7 +18,7 @@
 // Global variables for testing
 std::string bag_name = "tests/test_bags/2019-05-15-16-35-16.bag";
 vicon_calibration::LidarCylExtractor cyl_extractor;
-beam::Affine3 TA_LIDAR_TARGET1, TA_LIDAR_TARGET2;
+Eigen::Affine3d TA_SCAN_TARGET_EST1, TA_SCAN_TARGET_EST2;
 ros::Time transform_lookup_time;
 vicon_calibration::PointCloud::Ptr
     temp_cloud(new vicon_calibration::PointCloud);
@@ -82,24 +81,22 @@ void LoadTransforms() {
   std::string target1_frame = "vicon/cylinder_target1/cylinder_target1";
   std::string target2_frame = "vicon/cylinder_target2/cylinder_target2";
 
-  auto T_LIDAR_TARGET1_msg = tf_tree.GetTransform(m3d_link_frame, target1_frame,
-                                                  transform_lookup_time);
+  auto T_SCAN_TARGET_EST1_msg = tf_tree.GetTransform(m3d_link_frame, target1_frame, transform_lookup_time);
 
-  auto T_LIDAR_TARGET2_msg = tf_tree.GetTransform(m3d_link_frame, target2_frame,
-                                                  transform_lookup_time);
+  auto T_SCAN_TARGET_EST2_msg = tf_tree.GetTransform(m3d_link_frame, target2_frame, transform_lookup_time);
 
-  TA_LIDAR_TARGET1 = tf2::transformToEigen(T_LIDAR_TARGET1_msg);
-  TA_LIDAR_TARGET2 = tf2::transformToEigen(T_LIDAR_TARGET2_msg);
+  TA_SCAN_TARGET_EST1 = tf2::transformToEigen(T_SCAN_TARGET_EST1_msg);
+  TA_SCAN_TARGET_EST2 = tf2::transformToEigen(T_SCAN_TARGET_EST2_msg);
 }
 
-beam::Affine3 MeasurementToAffine(beam::Vec4 measurement) {
-  beam::Affine3 transform;
-  beam::Vec3 translation_vector(measurement(0), measurement(1), 0);
-  beam::Vec3 rpy_vector(measurement(2), measurement(3), 0);
+Eigen::Affine3d MeasurementToAffine(Eigen::Vector4d measurement) {
+  Eigen::Affine3d transform;
+  Eigen::Vector3d translation_vector(measurement(0), measurement(1), 0);
+  Eigen::Vector3d rpy_vector(measurement(2), measurement(3), 0);
 
   auto rotation_matrix = beam::LieAlgebraToR(rpy_vector);
 
-  beam::Mat4 transformation_matrix;
+  Eigen::Matrix4d transformation_matrix;
   transformation_matrix.setIdentity();
   transformation_matrix.block<3, 3>(0, 0) = rotation_matrix;
   transformation_matrix.block<3, 1>(0, 3) = translation_vector;
@@ -111,18 +108,18 @@ beam::Affine3 MeasurementToAffine(beam::Vec4 measurement) {
 
 TEST_CASE(
     "Test cylinder extractor with empty template cloud") {
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_LIDAR_TARGET1, 1));
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1));
 }
 
 TEST_CASE("Test extracting cylinder from empty aggregated cloud") {
   LoadTemplateCloud();
   cyl_extractor.SetTemplateCloud(temp_cloud);
 
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_LIDAR_TARGET1, 1));
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1));
 }
 
 TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
-  beam::Affine3 TA_INVALID;
+  Eigen::Affine3d TA_INVALID;
   LoadSimulatedCloud();
   cyl_extractor.SetScan(sim_cloud);
 
@@ -130,19 +127,19 @@ TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
 }
 
 TEST_CASE("Test extracting cylinder target with diverged ICP registration") {
+  LoadTransforms();
   double default_threshold = 0.015;
   cyl_extractor.SetThreshold(-0.015);
-  LoadTransforms();
 
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_LIDAR_TARGET1, 1));
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1));
   cyl_extractor.SetThreshold(default_threshold);
 }
 
 TEST_CASE("Test cylinder extractor") {
-  auto measured_transform1 = cyl_extractor.ExtractCylinder(TA_LIDAR_TARGET1, 1);
-  auto measured_transform2 = cyl_extractor.ExtractCylinder(TA_LIDAR_TARGET2, 2);
-  auto true_transform1 = cyl_extractor.CalculateMeasurement(TA_LIDAR_TARGET1);
-  auto true_transform2 = cyl_extractor.CalculateMeasurement(TA_LIDAR_TARGET2);
+  auto measured_transform1 = cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1);
+  auto measured_transform2 = cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST2, 2);
+  auto true_transform1 = cyl_extractor.ExtractRelevantMeasurements(TA_SCAN_TARGET_EST1);
+  auto true_transform2 = cyl_extractor.ExtractRelevantMeasurements(TA_SCAN_TARGET_EST2);
 
   int precision = 0.01;
   REQUIRE((measured_transform1-true_transform1).norm() <= 0.01);

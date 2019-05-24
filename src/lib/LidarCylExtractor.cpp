@@ -1,10 +1,5 @@
 #include "vicon_calibration/LidarCylExtractor.h"
 
-#include <pcl/common/transforms.h>
-#include <pcl/registration/icp.h>
-
-#include <thread>
-
 namespace vicon_calibration {
 
 using namespace std::literals::chrono_literals;
@@ -14,13 +9,13 @@ LidarCylExtractor::LidarCylExtractor(PointCloud::Ptr &template_cloud,
     : template_cloud_(template_cloud), scan_(scan) {}
 
 void LidarCylExtractor::SetScanTransform(
-    beam::Affine3 TA_LIDAR_VICON) {
-  if (!beam::IsTransformationMatrix(TA_LIDAR_VICON.matrix())) {
+    Eigen::Affine3d T_LIDAR_SCAN) {
+  if (!beam::IsTransformationMatrix(T_LIDAR_SCAN.matrix())) {
     throw std::runtime_error{
-        "Passed in aggregated cloud transform (vicon to lidar) is invalid"};
+        "Passed in scan transform (scan to lidar) is invalid"};
   }
-  TA_LIDAR_VICON_ = TA_LIDAR_VICON;
-  pcl::transformPointCloud(*scan_, *scan_, TA_LIDAR_VICON_);
+  T_LIDAR_SCAN_ = T_LIDAR_SCAN;
+  pcl::transformPointCloud(*scan_, *scan_, T_LIDAR_SCAN_);
 }
 
 void LidarCylExtractor::SetShowTransformation(bool show_transformation) {
@@ -32,26 +27,26 @@ void LidarCylExtractor::SetShowTransformation(bool show_transformation) {
   show_transformation_ = show_transformation;
 }
 
-beam::Vec4 LidarCylExtractor::ExtractCylinder(beam::Affine3 TA_LIDAR_TARGET,
+Eigen::Vector4d LidarCylExtractor::ExtractCylinder(Eigen::Affine3d T_SCAN_TARGET_EST,
                                               int measurement_num) {
   if (template_cloud_ == nullptr) {
     throw std::runtime_error{"Template cloud is empty"};
   }
 
-  if (!beam::IsTransformationMatrix(TA_LIDAR_TARGET.matrix())) {
+  if (!beam::IsTransformationMatrix(T_SCAN_TARGET_EST.matrix())) {
     throw std::runtime_error{"Passed in target to lidar transform is invalid"};
   }
 
-  beam::Affine3 TA_TARGET_ESTIMATED;
-  // Crop the aggregated cloud before performing ICP registration
-  auto cropped_cloud = CropPointCloud(TA_LIDAR_TARGET);
+  Eigen::Affine3d T_TARGET_EST_TARGET_OPT;
+  // Crop the scan before performing ICP registration
+  auto cropped_cloud = CropPointCloud(T_SCAN_TARGET_EST);
 
   // Perform ICP Registration
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
   icp.setInputSource(cropped_cloud);
   icp.setInputTarget(template_cloud_);
-  PointCloud final_cloud;
-  icp.align(final_cloud);
+  PointCloud::Ptr final_cloud(new PointCloud);
+  icp.align(*final_cloud);
 
   if (!icp.hasConverged()) {
     throw std::runtime_error{
@@ -59,50 +54,37 @@ beam::Vec4 LidarCylExtractor::ExtractCylinder(beam::Affine3 TA_LIDAR_TARGET,
   }
 
   // Get x,y,r,p data
-  TA_TARGET_ESTIMATED.matrix() = icp.getFinalTransformation().cast<double>();
+  T_TARGET_EST_TARGET_OPT.matrix() = icp.getFinalTransformation().cast<double>();
 
   // Calculate transform from cloud to target
-  beam::Affine3 TA_LIDAR_ESTIMATED = TA_LIDAR_TARGET * TA_TARGET_ESTIMATED;
-  auto final_transform_vector = CalculateMeasurement(TA_LIDAR_ESTIMATED);
+  Eigen::Affine3d T_SCAN_TARGET_OPT = T_SCAN_TARGET_EST * T_TARGET_EST_TARGET_OPT;
+  auto final_transform_vector = ExtractRelevantMeasurements(T_SCAN_TARGET_OPT);
 
   if (show_transformation_) {
     // Display clouds for testing
     // transform template cloud from target to lidar
-    PointCloud::Ptr transformed_template_cloud(new PointCloud);
-    pcl::transformPointCloud(*template_cloud_, *transformed_template_cloud,
-                             TA_LIDAR_TARGET.inverse());
-    AddPointCloudToViewer(transformed_template_cloud,
-                          "template cloud " + std::to_string(measurement_num));
+    auto estimated_template_cloud = ColourPointCloud(template_cloud_, 255, 0, 0);
+    pcl::transformPointCloud(*estimated_template_cloud, *estimated_template_cloud,
+                             T_SCAN_TARGET_EST);
+    AddPointCloudToViewer(estimated_template_cloud,
+                          "estimated template cloud " + std::to_string(measurement_num));
 
-    // convert the final transform back to affine
-    beam::Vec3 translation_vector(final_transform_vector(0),
-                                  final_transform_vector(1), 0);
-    beam::Vec3 rpy_vector(final_transform_vector(2), final_transform_vector(3),
-                          0);
+    auto measured_template_cloud = ColourPointCloud(template_cloud_, 0, 255, 0);
+    pcl::transformPointCloud(*measured_template_cloud, *measured_template_cloud,
+                             T_SCAN_TARGET_OPT);
+    AddPointCloudToViewer(measured_template_cloud,
+                          "measured template cloud " + std::to_string(measurement_num));
 
-    auto rotation_matrix = beam::LieAlgebraToR(rpy_vector);
-
-    beam::Mat4 transformation_matrix;
-    transformation_matrix.setIdentity();
-    transformation_matrix.block<3, 3>(0, 0) = rotation_matrix;
-    transformation_matrix.block<3, 1>(0, 3) = translation_vector;
-
-    // Colour cropped cloud and transform it from target estimated to lidar
-    auto coloured_cropped_cloud = ColourPointCloud(cropped_cloud, 255, 0, 0);
-    pcl::transformPointCloud(*coloured_cropped_cloud, *coloured_cropped_cloud,
-                             TA_LIDAR_ESTIMATED_.inverse());
-    AddColouredPointCloudToViewer(coloured_cropped_cloud,
-                                  "coloured cropped cloud " +
-                                  std::to_string(measurement_num));
+    AddPointCloudToViewer(cropped_cloud, "cropped scan " + std::to_string(measurement_num));
   }
 
   return final_transform_vector;
 }
 
 PointCloud::Ptr
-LidarCylExtractor::CropPointCloud(beam::Affine3 TA_LIDAR_TARGET) {
+LidarCylExtractor::CropPointCloud(Eigen::Affine3d T_SCAN_TARGET_EST) {
   if (scan_ == nullptr) {
-    throw std::runtime_error{"Aggregated cloud is empty"};
+    throw std::runtime_error{"Scan is empty"};
   }
   if (threshold_ == 0)
     std::cout << "WARNING: Using threshold of 0 for cropping" << std::endl;
@@ -111,10 +93,11 @@ LidarCylExtractor::CropPointCloud(beam::Affine3 TA_LIDAR_TARGET) {
   PointCloud::Ptr transformed_scan(new PointCloud);
   double radius_squared = (radius_ + threshold_) * (radius_ + threshold_);
 
-  // Transform the aggregated cloud to target frame for cropping
+  // Transform the scan to target frame for cropping
   pcl::transformPointCloud(*scan_, *transformed_scan,
-                           TA_LIDAR_TARGET.inverse());
-  // Crop the transformed aggregated cloud. Reject any points that has z
+                           T_SCAN_TARGET_EST.inverse());
+
+  // Crop the transformed scan. Reject any points that has z
   // exceeding the height of the cylinder target or the radius bigger than the
   // radius of the cylinder target
   for (PointCloud::iterator it = transformed_scan->begin();
@@ -130,13 +113,13 @@ LidarCylExtractor::CropPointCloud(beam::Affine3 TA_LIDAR_TARGET) {
   return cropped_cloud;
 }
 
-beam::Vec4
-LidarCylExtractor::CalculateMeasurement(beam::Affine3 TA_LIDAR_ESTIMATED) {
+Eigen::Vector4d
+LidarCylExtractor::ExtractRelevantMeasurements(Eigen::Affine3d T_SCAN_TARGET) {
 
   // Extract x,y,r,p values
-  auto translation_vector = TA_LIDAR_ESTIMATED.translation();
-  auto rpy_vector = beam::RToLieAlgebra(TA_LIDAR_ESTIMATED.rotation());
-  beam::Vec4 measurement(translation_vector(0), translation_vector(1),
+  auto translation_vector = T_SCAN_TARGET.translation();
+  auto rpy_vector = beam::RToLieAlgebra(T_SCAN_TARGET.rotation());
+  Eigen::Vector4d measurement(translation_vector(0), translation_vector(1),
                          rpy_vector(0), rpy_vector(1));
 
   return measurement;

@@ -4,10 +4,15 @@
 
 #include <beam_utils/math.hpp>
 
+#include <Eigen/Geometry>
+
+#include <pcl/common/transforms.h>
+#include <pcl/registration/icp.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
-namespace vicon_calibration {
+#include <thread>
 
+namespace vicon_calibration {
 /**
  * @brief class for extracting cylinder measurements from lidar scan
  */
@@ -17,12 +22,12 @@ public:
 
   /**
    * @brief Constructor
-   * @param template_cloud template pointcloud of the cylinder target
-   * @param scan aggregated pointcloud (assume the cloud is already in
-   * lidar frame)
+   * @param template_cloud template pointcloud of the cylinder target. This
+   * cloud is in its own frame which is centered at the bottom of the cylinder
+   * with the z-axis aligned with the cylinder axis
+   * @param scan scan pointcloud
    */
-  LidarCylExtractor(PointCloud::Ptr &template_cloud,
-                    PointCloud::Ptr &scan);
+  LidarCylExtractor(PointCloud::Ptr &template_cloud, PointCloud::Ptr &scan);
 
   ~LidarCylExtractor() = default;
 
@@ -30,22 +35,36 @@ public:
     template_cloud_ = template_cloud;
   }
 
-  void SetScan(PointCloud::Ptr &scan) {
-    scan_ = scan;
-  }
+  void SetScan(PointCloud::Ptr &scan) { scan_ = scan; }
 
   /**
-   * @brief Transforms the aggregated cloud to lidar frame and store the
-   * transform
+   * @brief Transforms the scan to lidar frame and store the transform
+   * @param T_LIDAR_SCAN transform from scan to lidar
    */
-  void SetScanTransform(beam::Affine3 TA_LIDAR_VICON);
+  void SetScanTransform(Eigen::Affine3d T_LIDAR_SCAN);
 
+  /**
+   * @brief Set height of the cylinder target
+   * @param height height dimension to set the private variable to
+   */
   void SetHeight(double height) { height_ = height; }
 
+  /**
+   * @brief Set radius of the cylinder target
+   * @param radius radius dimension to set the private variable to
+   */
   void SetRadius(double radius) { radius_ = radius; }
 
+  /**
+   * @brief Set threshold used for cropping the scan
+   * @param threshold threshold value to set the private variable to
+   */
   void SetThreshold(double threshold) { threshold_ = threshold; }
 
+  /**
+   * @brief Set the flag for displaying pointclouds
+   * @param show_transformation boolean to set the private variable to
+   */
   void SetShowTransformation(bool show_transformation);
 
   PointCloud::Ptr GetTemplateCloud() { return template_cloud_; }
@@ -55,32 +74,31 @@ public:
   /**
    * @brief Extract cylinder target from the aggregated cloud, then calculate
    * transform from cloud to target
-   * @param TA_LIDAR_TARGET transform from target to lidar
+   * @param T_SCAN_TARGET_EST transform from estimated target to scan
    * @param measurement_num measurement number, used for adding clouds to viewer
-   * @return transform from the aggrated cloud to measured target
+   * @return 4x1 vector of x,y translation and rotation about x and y axes [tx,
+   * ty, ra, ry]^T
    */
-  beam::Vec4 ExtractCylinder(beam::Affine3 TA_LIDAR_TARGET,
-                             int measurement_num = 0);
+  Eigen::Vector4d ExtractCylinder(Eigen::Affine3d T_SCAN_TARGET_EST,
+                                  int measurement_num = 0);
 
   /**
-   * @brief Calculate the transform measurement from aggregated cloud to target
-   * @param TA_LIDAR_TARGET transform from target to lidar
-   * target
-   * @param TA_TARGET_ESTIMATED transform from estimated target to target (ICP)
-   * @return transform from the aggrated cloud to measured target
+   * @brief Extracts measurements from the input transform
+   * @param T_SCAN_TARGET transform from target to scan
+   * @return 4x1 vector of x,y translation and rotation about x and y axes [tx,
+   * ty, ra, ry]^T
    */
-  beam::Vec4 CalculateMeasurement(beam::Affine3 TA_LIDAR_ESTIMATED);
+  Eigen::Vector4d ExtractRelevantMeasurements(Eigen::Affine3d T_SCAN_TARGET);
 
   void ShowFinalTransformation();
 
 private:
   /**
    * @brief Crop the aggregated cloud to extract cylinder target part
-   * @param TA_LIDAR_TARGET transform from target to lidar
-   * target
+   * @param T_SCAN_TARGET_EST transform from estimated target to scan
    * @return cropped cloud
    */
-  PointCloud::Ptr CropPointCloud(beam::Affine3 TA_LIDAR_TARGET);
+  PointCloud::Ptr CropPointCloud(Eigen::Affine3d T_SCAN_TARGET_EST);
 
   // Functions for testing
   /**
@@ -104,13 +122,12 @@ private:
    * @param r,g,b rgb values of the colour
    * @return coloured pointcloud
    */
-  PointCloudColor::Ptr ColourPointCloud(PointCloud::Ptr &cloud, int r,
-                                         int g, int b);
+  PointCloudColor::Ptr ColourPointCloud(PointCloud::Ptr &cloud, int r, int g,
+                                        int b);
 
   PointCloud::Ptr template_cloud_;
   PointCloud::Ptr scan_;
-  beam::Affine3 TA_LIDAR_VICON_;
-  beam::Affine3 TA_LIDAR_ESTIMATED_; // Only used to output results for testing
+  Eigen::Affine3d T_LIDAR_SCAN_;
   double height_{0.5};
   double radius_{0.0635};
   double threshold_{0.015}; // Threshold for cropping the the aggregated cloud

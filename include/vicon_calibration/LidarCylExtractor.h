@@ -9,8 +9,11 @@
 #include <pcl/common/transforms.h>
 #include <pcl/registration/icp.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/filters/crop_box.h>
+#include <pcl/filters/passthrough.h>
 
 #include <thread>
+#include <vector>
 
 namespace vicon_calibration {
 /**
@@ -90,6 +93,7 @@ public:
    */
   Eigen::Vector4d ExtractRelevantMeasurements(Eigen::Affine3d T_SCAN_TARGET);
 
+  void ShowCroppedCloud(Eigen::Affine3d T_SCAN_TARGET_EST);
   void ShowFinalTransformation();
 
 private:

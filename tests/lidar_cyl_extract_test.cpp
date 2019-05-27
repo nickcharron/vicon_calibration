@@ -1,5 +1,5 @@
-//#define CATCH_CONFIG_MAIN
-//#include <catch2/catch.hpp>
+#define CATCH_CONFIG_MAIN
+#include <catch2/catch.hpp>
 
 #include "vicon_calibration/LidarCylExtractor.h"
 #include "vicon_calibration/utils.hpp"
@@ -105,7 +105,7 @@ Eigen::Affine3d MeasurementToAffine(Eigen::Vector4d measurement) {
 
   return transform;
 }
-/*
+
 TEST_CASE(
     "Test cylinder extractor with empty template cloud") {
   REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1));
@@ -115,7 +115,7 @@ TEST_CASE("Test extracting cylinder from empty aggregated cloud") {
   LoadTemplateCloud();
   cyl_extractor.SetTemplateCloud(temp_cloud);
 
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1));
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
 }
 
 TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
@@ -129,14 +129,13 @@ TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
 TEST_CASE("Test extracting cylinder target with diverged ICP registration") {
   LoadTransforms();
   double default_threshold = 0.015;
-  cyl_extractor.SetThreshold(-0.015);
+  cyl_extractor.SetThreshold(-0.025);
 
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1));
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
   cyl_extractor.SetThreshold(default_threshold);
 }
 
 TEST_CASE("Test cylinder extractor") {
-  cyl_extractor.SetShowTransformation(true);
   auto measured_transform1 = cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1);
   auto measured_transform2 = cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST2, 2);
   auto true_transform1 = cyl_extractor.ExtractRelevantMeasurements(TA_SCAN_TARGET_EST1);
@@ -145,16 +144,4 @@ TEST_CASE("Test cylinder extractor") {
   int precision = 0.01;
   REQUIRE((measured_transform1-true_transform1).norm() <= 0.01);
   REQUIRE((measured_transform2-true_transform2).norm() <= 0.01);
-  cyl_extractor.ShowFinalTransformation();
-}*/
-
-int main(int argc, char *argv[]) {
-  LoadTemplateCloud();
-  LoadSimulatedCloud();
-  LoadTransforms();
-  cyl_extractor.SetTemplateCloud(temp_cloud);
-  cyl_extractor.SetScan(sim_cloud);
-  cyl_extractor.SetShowTransformation(true);
-  cyl_extractor.ShowCroppedCloud(TA_SCAN_TARGET_EST1);
-  cyl_extractor.ShowFinalTransformation();
 }

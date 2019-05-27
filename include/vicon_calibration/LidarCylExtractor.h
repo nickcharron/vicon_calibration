@@ -93,7 +93,6 @@ public:
    */
   Eigen::Vector4d ExtractRelevantMeasurements(Eigen::Affine3d T_SCAN_TARGET);
 
-  void ShowCroppedCloud(Eigen::Affine3d T_SCAN_TARGET_EST);
   void ShowFinalTransformation();
 
 private:

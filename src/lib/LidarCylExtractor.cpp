@@ -37,7 +37,6 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d T_SCAN_TARGET_EST,
     throw std::runtime_error{"Passed in target to lidar transform is invalid"};
   }
 
-  Eigen::Affine3d T_TARGET_EST_TARGET_OPT;
   // Crop the scan before performing ICP registration
   auto cropped_cloud = CropPointCloud(T_SCAN_TARGET_EST);
 
@@ -46,20 +45,18 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d T_SCAN_TARGET_EST,
   icp.setInputSource(cropped_cloud);
   icp.setInputTarget(template_cloud_);
   PointCloud::Ptr final_cloud(new PointCloud);
-  icp.align(*final_cloud);
+  icp.align(*final_cloud, T_SCAN_TARGET_EST.inverse().matrix().cast<float>());
 
   if (!icp.hasConverged()) {
     throw std::runtime_error{
         "Couldn't register cylinder target to template cloud"};
   }
 
-  // Get x,y,r,p data
-  T_TARGET_EST_TARGET_OPT.matrix() =
-      icp.getFinalTransformation().cast<double>();
+  Eigen::Affine3d T_SCAN_TARGET_OPT;
+  T_SCAN_TARGET_OPT.matrix() =
+      icp.getFinalTransformation().inverse().cast<double>();
 
-  // Calculate transform from cloud to target
-  Eigen::Affine3d T_SCAN_TARGET_OPT =
-      T_SCAN_TARGET_EST * T_TARGET_EST_TARGET_OPT;
+  // Get x,y,r,p data
   auto final_transform_vector = ExtractRelevantMeasurements(T_SCAN_TARGET_OPT);
 
   if (show_transformation_) {
@@ -84,69 +81,10 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d T_SCAN_TARGET_EST,
                           "cropped scan " + std::to_string(measurement_num));
   }
 
+  std::cout << " score: " << icp.getFitnessScore() << std::endl;
+
+
   return final_transform_vector;
-}
-
-void LidarCylExtractor::ShowCroppedCloud(Eigen::Affine3d T_SCAN_TARGET_EST) {
-  /*PointCloud::Ptr input (new PointCloud);
-  PointCloud::Ptr input2 (new PointCloud);
-
-  // Test the PointCloud<PointT> method
-  pcl::CropBox<pcl::PointXYZ> cropBoxFilter;
-  input->push_back (pcl::PointXYZ (1.0, 0.0, 0.0));
-  input->push_back (pcl::PointXYZ (1.9, 0.9, 0.9));
-  input->push_back (pcl::PointXYZ (1.9, 0.9, -0.9));
-  input->push_back (pcl::PointXYZ (1.9, -0.9, 0.9));
-  input->push_back (pcl::PointXYZ (0.1, 0.9, 0.9));
-  input->push_back (pcl::PointXYZ (1.9, -0.9, -0.9));
-  input->push_back (pcl::PointXYZ (0.1, -0.9, 0.9));
-  input->push_back (pcl::PointXYZ (0.1, 0.9, -0.9));
-  input->push_back (pcl::PointXYZ (0.1, -0.9, -0.9));
-
-  cropBoxFilter.setInputCloud (input);
-
-  Eigen::Vector4f min_pt (-1.0, -1.0, -1.0, 0);
-  Eigen::Vector4f max_pt (1.0, 1.0, 1.0, 0);
-  // Cropbox slighlty bigger then bounding box of points
-  cropBoxFilter.setMin (min_pt);
-  cropBoxFilter.setMax (max_pt);
-
-  cropBoxFilter.setTranslation(Eigen::Vector3f(1, 0, 0));
-
-  PointCloud::Ptr cloud_out1(new PointCloud);
-
-  cropBoxFilter.filter (*cloud_out1);
-  AddPointCloudToViewer(cloud_out1, "test cloud 1");
-  std::cout << cloud_out1->size() << std::endl;
-
-  for (PointCloud::iterator it = cloud_out1->begin();
-       it != cloud_out1->end(); ++it) {
-    std::cout << "x: " << it->x << " y: " << it->y << " z: " << it->z <<
-  std::endl;
-  }
-
-  input2->push_back (pcl::PointXYZ (0.0, 0.0, 0.0));
-  input2->push_back (pcl::PointXYZ (0.9, 0.9, 0.9));
-  input2->push_back (pcl::PointXYZ (0.9, 0.9, -0.9));
-  input2->push_back (pcl::PointXYZ (0.9, -0.9, 0.9));
-  input2->push_back (pcl::PointXYZ (-0.9, 0.9, 0.9));
-  input2->push_back (pcl::PointXYZ (0.9, -0.9, -0.9));
-  input2->push_back (pcl::PointXYZ (-0.9, -0.9, 0.9));
-  input2->push_back (pcl::PointXYZ (-0.9, 0.9, -0.9));
-  input2->push_back (pcl::PointXYZ (-0.9, -0.9, -0.9));
-
-  cropBoxFilter.setInputCloud(input2);
-
-  //cropBoxFilter.setTranslation(Eigen::Vector3f(0, 0, 0));
-
-  PointCloud::Ptr cloud_out2(new PointCloud);
-  std::vector<int> indices2;
-
-  cropBoxFilter.filter (*cloud_out2);
-  auto coloured = ColourPointCloud(cloud_out2, 255, 0, 0);
-  AddColouredPointCloudToViewer(coloured, "test cloud 2");
-  std::cout << cloud_out2->size() << std::endl;*/
-  CropPointCloud(T_SCAN_TARGET_EST);
 }
 
 PointCloud::Ptr
@@ -154,8 +92,9 @@ LidarCylExtractor::CropPointCloud(Eigen::Affine3d T_SCAN_TARGET_EST) {
   if (scan_ == nullptr) {
     throw std::runtime_error{"Scan is empty"};
   }
-  if (threshold_ == 0)
+  if (threshold_ == 0) {
     std::cout << "WARNING: Using threshold of 0 for cropping" << std::endl;
+  }
 
   Eigen::Vector4f min_vector(-radius_ - threshold_, -radius_ - threshold_,
                              -threshold_, 0);
@@ -177,9 +116,7 @@ LidarCylExtractor::CropPointCloud(Eigen::Affine3d T_SCAN_TARGET_EST) {
 
   PointCloud::Ptr cropped_cloud(new PointCloud);
   cropper.filter(*cropped_cloud);
-  std::cout << "size " << cropped_cloud->size() << std::endl;
 
-  AddPointCloudToViewer(cropped_cloud, "cropped cloud");
   return cropped_cloud;
 }
 

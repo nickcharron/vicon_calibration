@@ -7,10 +7,10 @@
 #include <Eigen/Geometry>
 
 #include <pcl/common/transforms.h>
-#include <pcl/registration/icp.h>
-#include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/crop_box.h>
 #include <pcl/filters/passthrough.h>
+#include <pcl/registration/icp.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 #include <thread>
 #include <vector>
@@ -70,9 +70,17 @@ public:
    */
   void SetShowTransformation(bool show_transformation);
 
+  /**
+   * @brief Get template cloud
+   * @return boost::shared_ptr to template cloud
+   */
   PointCloud::Ptr GetTemplateCloud() { return template_cloud_; }
 
-  PointCloud::Ptr GetAggregatedCloud() { return scan_; }
+  /**
+   * @brief Get scan
+   * @return boost::shared_ptr to scan
+   */
+  PointCloud::Ptr GetScan() { return scan_; }
 
   /**
    * @brief Extract cylinder target from the aggregated cloud, then calculate
@@ -83,6 +91,7 @@ public:
    * ty, ra, ry]^T
    */
   Eigen::Vector4d ExtractCylinder(Eigen::Affine3d T_SCAN_TARGET_EST,
+                                  bool &accept_measurement,
                                   int measurement_num = 0);
 
   /**
@@ -131,6 +140,13 @@ private:
    */
   void ShowFinalTransformation();
 
+  /**
+   * @brief Keyboard event callback to allow the user to accept or reject final
+   * transform measurement
+   */
+  static void ConfirmMeasurementKeyboardCallback(
+      const pcl::visualization::KeyboardEvent &event, void *viewer_void);
+
   PointCloud::Ptr template_cloud_;
   PointCloud::Ptr scan_;
   Eigen::Affine3d T_LIDAR_SCAN_;
@@ -138,8 +154,9 @@ private:
   double radius_{0.0635};
   double threshold_{0.015}; // Threshold for cropping the the aggregated cloud
 
-  pcl::visualization::PCLVisualizer pcl_viewer_;
+  pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
   bool show_transformation_{false};
+  static bool accept_measurement_;
 };
 
 } // end namespace vicon_calibration

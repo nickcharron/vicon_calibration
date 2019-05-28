@@ -4,12 +4,15 @@ namespace vicon_calibration {
 
 using namespace std::literals::chrono_literals;
 
+bool LidarCylExtractor::accept_measurement_;
+
 LidarCylExtractor::LidarCylExtractor(PointCloud::Ptr &template_cloud,
                                      PointCloud::Ptr &scan)
     : template_cloud_(template_cloud), scan_(scan) {}
 
 void LidarCylExtractor::SetScanTransform(Eigen::Affine3d T_LIDAR_SCAN) {
-  if (!beam::IsTransformationMatrix(T_LIDAR_SCAN.matrix())) {
+  int precision = 10000;
+  if(!beam::IsTransformationMatrix(T_LIDAR_SCAN.matrix())) {
     throw std::runtime_error{
         "Passed in scan transform (scan to lidar) is invalid"};
   }
@@ -19,21 +22,27 @@ void LidarCylExtractor::SetScanTransform(Eigen::Affine3d T_LIDAR_SCAN) {
 
 void LidarCylExtractor::SetShowTransformation(bool show_transformation) {
   if (show_transformation) {
-    pcl_viewer_.setBackgroundColor(0, 0, 0);
-    pcl_viewer_.addCoordinateSystem(1.0);
-    pcl_viewer_.initCameraParameters();
+    pcl_viewer_ = pcl::visualization::PCLVisualizer::Ptr(
+        new pcl::visualization::PCLVisualizer("Cloud viewer"));
+    pcl_viewer_->setBackgroundColor(0, 0, 0);
+    pcl_viewer_->addCoordinateSystem(1.0);
+    pcl_viewer_->initCameraParameters();
+    pcl_viewer_->registerKeyboardCallback(ConfirmMeasurementKeyboardCallback,
+                                          (void*)pcl_viewer_.get());
   }
   show_transformation_ = show_transformation;
 }
 
 Eigen::Vector4d
 LidarCylExtractor::ExtractCylinder(Eigen::Affine3d T_SCAN_TARGET_EST,
+                                   bool &accept_measurement,
                                    int measurement_num) {
   if (template_cloud_ == nullptr) {
     throw std::runtime_error{"Template cloud is empty"};
   }
 
-  if (!beam::IsTransformationMatrix(T_SCAN_TARGET_EST.matrix())) {
+  int precision = 10000;
+  if(!beam::IsTransformationMatrix(T_SCAN_TARGET_EST.matrix())) {
     throw std::runtime_error{"Passed in target to lidar transform is invalid"};
   }
 
@@ -81,6 +90,11 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d T_SCAN_TARGET_EST,
                           "cropped scan " + std::to_string(measurement_num));
 
     ShowFinalTransformation();
+    pcl_viewer_->resetStoppedFlag();
+
+    accept_measurement = accept_measurement_;
+  } else {
+    accept_measurement = true;
   }
 
   return final_transform_vector;
@@ -138,26 +152,19 @@ LidarCylExtractor::ExtractRelevantMeasurements(Eigen::Affine3d T_SCAN_TARGET) {
   return measurement;
 }
 
-void LidarCylExtractor::ShowFinalTransformation() {
-  while (!pcl_viewer_.wasStopped()) {
-    pcl_viewer_.spinOnce(100);
-    std::this_thread::sleep_for(100ms);
-  }
-}
-
 void LidarCylExtractor::AddColouredPointCloudToViewer(
     PointCloudColor::Ptr cloud, std::string cloud_name) {
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(
       cloud);
-  pcl_viewer_.addPointCloud<pcl::PointXYZRGB>(cloud, rgb, cloud_name);
-  pcl_viewer_.setPointCloudRenderingProperties(
+  pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(cloud, rgb, cloud_name);
+  pcl_viewer_->setPointCloudRenderingProperties(
       pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, cloud_name);
 }
 
 void LidarCylExtractor::AddPointCloudToViewer(PointCloud::Ptr cloud,
                                               std::string cloud_name) {
-  pcl_viewer_.addPointCloud<pcl::PointXYZ>(cloud, cloud_name);
-  pcl_viewer_.setPointCloudRenderingProperties(
+  pcl_viewer_->addPointCloud<pcl::PointXYZ>(cloud, cloud_name);
+  pcl_viewer_->setPointCloudRenderingProperties(
       pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, cloud_name);
 }
 
@@ -175,6 +182,33 @@ PointCloudColor::Ptr LidarCylExtractor::ColourPointCloud(PointCloud::Ptr &cloud,
     coloured_cloud->push_back(point);
   }
   return coloured_cloud;
+}
+
+void LidarCylExtractor::ShowFinalTransformation() {
+  std::cout << "Accept measurement? [y/n]" << std::endl;
+  while (!pcl_viewer_->wasStopped()) {
+    pcl_viewer_->spinOnce(100);
+    std::this_thread::sleep_for(100ms);
+  }
+}
+
+void LidarCylExtractor::ConfirmMeasurementKeyboardCallback(
+    const pcl::visualization::KeyboardEvent &event, void *viewer_void) {
+  pcl::visualization::PCLVisualizer *viewer =
+      static_cast<pcl::visualization::PCLVisualizer *>(viewer_void);
+
+  if (event.getKeySym() == "y" && event.keyDown()) {
+    std::cout << "Accepting measurement" << std::endl;
+    accept_measurement_ = true;
+    viewer->removeAllPointClouds();
+    viewer->close();
+
+  } else if (event.getKeySym() == "n" && event.keyDown()) {
+    std::cout << "Rejecting measurement" << std::endl;
+    accept_measurement_ = false;
+    viewer->removeAllPointClouds();
+    viewer->close();
+  }
 }
 
 } // end namespace vicon_calibration

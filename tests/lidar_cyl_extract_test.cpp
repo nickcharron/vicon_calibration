@@ -90,74 +90,77 @@ void LoadTransforms() {
   TA_SCAN_TARGET_EST2 = tf2::transformToEigen(T_SCAN_TARGET_EST2_msg);
 }
 
-Eigen::Affine3d MeasurementToAffine(Eigen::Vector4d measurement) {
-  Eigen::Affine3d transform;
-  Eigen::Vector3d translation_vector(measurement(0), measurement(1), 0);
-  Eigen::Vector3d rpy_vector(measurement(2), measurement(3), 0);
+TEST_CASE("Test cylinder extractor with empty template cloud (nullptr)") {
+  bool accept_measurement;
 
-  auto rotation_matrix = beam::LieAlgebraToR(rpy_vector);
+  LoadTransforms();
 
-  Eigen::Matrix4d transformation_matrix;
-  transformation_matrix.setIdentity();
-  transformation_matrix.block<3, 3>(0, 0) = rotation_matrix;
-  transformation_matrix.block<3, 1>(0, 3) = translation_vector;
-
-  transform.matrix() = transformation_matrix;
-
-  return transform;
-}
-TEST_CASE("Test cylinder extractor with empty template cloud") {
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1));
+  REQUIRE_THROWS(
+      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, accept_measurement));
 }
 
-TEST_CASE("Test extracting cylinder from empty aggregated cloud") {
+TEST_CASE("Test extracting cylinder from empty scan (nullptr)") {
+  bool accept_measurement;
+
   LoadTemplateCloud();
-  cyl_extractor.SetTemplateCloud(temp_cloud);
 
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
+  cyl_extractor.SetTemplateCloud(temp_cloud);
+  REQUIRE_THROWS(
+      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, accept_measurement));
 }
 
 TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
   Eigen::Affine3d TA_INVALID;
-  LoadSimulatedCloud();
-  cyl_extractor.SetScan(sim_cloud);
+  bool accept_measurement;
 
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_INVALID));
+  LoadSimulatedCloud();
+
+  cyl_extractor.SetScan(sim_cloud);
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_INVALID, accept_measurement));
 }
 
 TEST_CASE("Test extracting cylinder target with diverged ICP registration") {
-  LoadTransforms();
   double default_threshold = 0.015;
-  cyl_extractor.SetThreshold(-0.025);
+  bool accept_measurement;
 
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
+  cyl_extractor.SetThreshold(-0.025);
+  REQUIRE_THROWS(
+      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, accept_measurement));
   cyl_extractor.SetThreshold(default_threshold);
 }
 
 TEST_CASE("Test extracting cylinder with invalid parameters") {
   double default_radius = 0.0635;
   double default_height = 0.5;
-  
+  bool accept_measurement;
+
   cyl_extractor.SetRadius(0);
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
+  REQUIRE_THROWS(
+      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, accept_measurement));
   cyl_extractor.SetRadius(default_radius);
 
   cyl_extractor.SetHeight(0);
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
+  REQUIRE_THROWS(
+      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, accept_measurement));
   cyl_extractor.SetHeight(default_height);
 }
 
 TEST_CASE("Test cylinder extractor") {
-  auto measured_transform1 =
-      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1);
-  auto measured_transform2 =
-      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST2, 2);
+  bool accept_measurement1, accept_measurement2;
+
+  auto measured_transform1 = cyl_extractor.ExtractCylinder(
+      TA_SCAN_TARGET_EST1, accept_measurement1, 1);
+  auto measured_transform2 = cyl_extractor.ExtractCylinder(
+      TA_SCAN_TARGET_EST2, accept_measurement2, 2);
   auto true_transform1 =
       cyl_extractor.ExtractRelevantMeasurements(TA_SCAN_TARGET_EST1);
   auto true_transform2 =
       cyl_extractor.ExtractRelevantMeasurements(TA_SCAN_TARGET_EST2);
 
-  int precision = 0.01;
-  REQUIRE((measured_transform1 - true_transform1).norm() <= 0.01);
-  REQUIRE((measured_transform2 - true_transform2).norm() <= 0.01);
+  double error1 =
+      std::round((measured_transform1 - true_transform1).norm() * 100) / 100;
+  double error2 =
+      std::round((measured_transform2 - true_transform2).norm() * 100) / 100;
+  REQUIRE(error1 <= 0.01);
+  REQUIRE(error2 <= 0.01);
 }

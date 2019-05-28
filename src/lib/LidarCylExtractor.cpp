@@ -11,7 +11,6 @@ LidarCylExtractor::LidarCylExtractor(PointCloud::Ptr &template_cloud,
     : template_cloud_(template_cloud), scan_(scan) {}
 
 void LidarCylExtractor::SetScanTransform(Eigen::Affine3d T_LIDAR_SCAN) {
-  int precision = 10000;
   if(!beam::IsTransformationMatrix(T_LIDAR_SCAN.matrix())) {
     throw std::runtime_error{
         "Passed in scan transform (scan to lidar) is invalid"};
@@ -41,7 +40,6 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d T_SCAN_TARGET_EST,
     throw std::runtime_error{"Template cloud is empty"};
   }
 
-  int precision = 10000;
   if(!beam::IsTransformationMatrix(T_SCAN_TARGET_EST.matrix())) {
     throw std::runtime_error{"Passed in target to lidar transform is invalid"};
   }

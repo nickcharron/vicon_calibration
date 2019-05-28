@@ -93,8 +93,6 @@ public:
    */
   Eigen::Vector4d ExtractRelevantMeasurements(Eigen::Affine3d T_SCAN_TARGET);
 
-  void ShowFinalTransformation();
-
 private:
   /**
    * @brief Crop the aggregated cloud to extract cylinder target part
@@ -127,6 +125,11 @@ private:
    */
   PointCloudColor::Ptr ColourPointCloud(PointCloud::Ptr &cloud, int r, int g,
                                         int b);
+
+  /**
+   * @brief Show colored template clouds and cropped cloud
+   */
+  void ShowFinalTransformation();
 
   PointCloud::Ptr template_cloud_;
   PointCloud::Ptr scan_;

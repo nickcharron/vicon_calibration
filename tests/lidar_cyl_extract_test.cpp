@@ -105,7 +105,6 @@ Eigen::Affine3d MeasurementToAffine(Eigen::Vector4d measurement) {
 
   return transform;
 }
-
 TEST_CASE(
     "Test cylinder extractor with empty template cloud") {
   REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1));

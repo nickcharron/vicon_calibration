@@ -79,10 +79,9 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d T_SCAN_TARGET_EST,
 
     AddPointCloudToViewer(cropped_cloud,
                           "cropped scan " + std::to_string(measurement_num));
+
+    ShowFinalTransformation();
   }
-
-  std::cout << " score: " << icp.getFitnessScore() << std::endl;
-
 
   return final_transform_vector;
 }
@@ -92,6 +91,13 @@ LidarCylExtractor::CropPointCloud(Eigen::Affine3d T_SCAN_TARGET_EST) {
   if (scan_ == nullptr) {
     throw std::runtime_error{"Scan is empty"};
   }
+
+  if (radius_ == 0 || height_ == 0) {
+    throw std::runtime_error{
+        "Can't crop a cylinder with radius of %d and height of %d",
+        radius_, height};
+  }
+
   if (threshold_ == 0) {
     std::cout << "WARNING: Using threshold of 0 for cropping" << std::endl;
   }

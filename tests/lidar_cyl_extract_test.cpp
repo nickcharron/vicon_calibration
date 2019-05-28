@@ -22,8 +22,7 @@ Eigen::Affine3d TA_SCAN_TARGET_EST1, TA_SCAN_TARGET_EST2;
 ros::Time transform_lookup_time;
 vicon_calibration::PointCloud::Ptr
     temp_cloud(new vicon_calibration::PointCloud);
-vicon_calibration::PointCloud::Ptr
-    sim_cloud(new vicon_calibration::PointCloud);
+vicon_calibration::PointCloud::Ptr sim_cloud(new vicon_calibration::PointCloud);
 
 void LoadTemplateCloud() {
   // Load template cloud from pcd file
@@ -81,9 +80,11 @@ void LoadTransforms() {
   std::string target1_frame = "vicon/cylinder_target1/cylinder_target1";
   std::string target2_frame = "vicon/cylinder_target2/cylinder_target2";
 
-  auto T_SCAN_TARGET_EST1_msg = tf_tree.GetTransform(m3d_link_frame, target1_frame, transform_lookup_time);
+  auto T_SCAN_TARGET_EST1_msg = tf_tree.GetTransform(
+      m3d_link_frame, target1_frame, transform_lookup_time);
 
-  auto T_SCAN_TARGET_EST2_msg = tf_tree.GetTransform(m3d_link_frame, target2_frame, transform_lookup_time);
+  auto T_SCAN_TARGET_EST2_msg = tf_tree.GetTransform(
+      m3d_link_frame, target2_frame, transform_lookup_time);
 
   TA_SCAN_TARGET_EST1 = tf2::transformToEigen(T_SCAN_TARGET_EST1_msg);
   TA_SCAN_TARGET_EST2 = tf2::transformToEigen(T_SCAN_TARGET_EST2_msg);
@@ -105,8 +106,7 @@ Eigen::Affine3d MeasurementToAffine(Eigen::Vector4d measurement) {
 
   return transform;
 }
-TEST_CASE(
-    "Test cylinder extractor with empty template cloud") {
+TEST_CASE("Test cylinder extractor with empty template cloud") {
   REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1));
 }
 
@@ -134,13 +134,30 @@ TEST_CASE("Test extracting cylinder target with diverged ICP registration") {
   cyl_extractor.SetThreshold(default_threshold);
 }
 
+TEST_CASE("Test extracting cylinder with invalid parameters") {
+  double default_radius = 0.0635;
+  double default_height = 0.5;
+  
+  cyl_extractor.SetRadius(0);
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
+  cyl_extractor.SetRadius(default_radius);
+
+  cyl_extractor.SetHeight(0);
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
+  cyl_extractor.SetHeight(default_height);
+}
+
 TEST_CASE("Test cylinder extractor") {
-  auto measured_transform1 = cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1);
-  auto measured_transform2 = cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST2, 2);
-  auto true_transform1 = cyl_extractor.ExtractRelevantMeasurements(TA_SCAN_TARGET_EST1);
-  auto true_transform2 = cyl_extractor.ExtractRelevantMeasurements(TA_SCAN_TARGET_EST2);
+  auto measured_transform1 =
+      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1);
+  auto measured_transform2 =
+      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST2, 2);
+  auto true_transform1 =
+      cyl_extractor.ExtractRelevantMeasurements(TA_SCAN_TARGET_EST1);
+  auto true_transform2 =
+      cyl_extractor.ExtractRelevantMeasurements(TA_SCAN_TARGET_EST2);
 
   int precision = 0.01;
-  REQUIRE((measured_transform1-true_transform1).norm() <= 0.01);
-  REQUIRE((measured_transform2-true_transform2).norm() <= 0.01);
+  REQUIRE((measured_transform1 - true_transform1).norm() <= 0.01);
+  REQUIRE((measured_transform2 - true_transform2).norm() <= 0.01);
 }

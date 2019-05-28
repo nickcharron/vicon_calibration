@@ -93,9 +93,9 @@ LidarCylExtractor::CropPointCloud(Eigen::Affine3d T_SCAN_TARGET_EST) {
   }
 
   if (radius_ == 0 || height_ == 0) {
-    throw std::runtime_error{
-        "Can't crop a cylinder with radius of %d and height of %d",
-        radius_, height};
+    throw std::runtime_error{"Can't crop a cylinder with radius of " +
+                             std::to_string(radius_) + " and height of " +
+                             std::to_string(height_)};
   }
 
   if (threshold_ == 0) {

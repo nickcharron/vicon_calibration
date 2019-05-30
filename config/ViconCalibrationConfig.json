@@ -1,9 +1,14 @@
 {
-  "bage_file": "/home/nick/bag_files/ig_scans/2019_04_11_Market_Square_Parking_Garage/ig_scan_2019-04-11-19-47-57.bag",
+  "bag_file": "/home/nick/bag_files/ig_calibration/vicon/ig_scan_2019-03-06-12-10-26.bag",
   "initial_calibration": "initial_calibration_test.json",
   "image_topics": ["/F1/image_raw", "/F2/image_raw", "/ximea_cam/image_raw"],
   "image_frames": ["F1_link", "F2_link", "X1_link"],
+  "camera_time_steps": 10,
   "intrinsics": ["F1_test.json", "F2_test.json", "X1_test.json"],
   "lidar_topics": ["/hvlp/velodyne_points", "/vvlp/velodyne_points"],
-  "lidar_frames": ["hvlp_link", "vvlp_link"]
+  "lidar_frames": ["hvlp_link", "vvlp_link"],
+  "lidar_time_steps": 10,
+  "vicon_baselink_topic": "/vicon/inspector_gadget/inspector_gadget",
+  "vicon_target_topics": ["/vicon/cylinder_target1/cylinder_target1", "/vicon/cylinder_target2/cylinder_target2"] ,
+  "target_cloud_name": "target_cloud.pcd"
 }

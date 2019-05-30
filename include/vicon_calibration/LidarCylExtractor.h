@@ -21,6 +21,8 @@ namespace vicon_calibration {
  */
 class LidarCylExtractor {
 public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   LidarCylExtractor() = default;
 
   /**
@@ -44,7 +46,7 @@ public:
    * @brief Transforms the scan to lidar frame and store the transform
    * @param T_LIDAR_SCAN transform from scan to lidar
    */
-  void SetScanTransform(Eigen::Affine3d T_LIDAR_SCAN);
+  void SetScanTransform(Eigen::Affine3d &T_LIDAR_SCAN);
 
   /**
    * @brief Set height of the cylinder target
@@ -90,7 +92,7 @@ public:
    * @return 4x1 vector of x,y translation and rotation about x and y axes [tx,
    * ty, ra, ry]^T
    */
-  Eigen::Vector4d ExtractCylinder(Eigen::Affine3d T_SCAN_TARGET_EST,
+  Eigen::Vector4d ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
                                   bool &accept_measurement,
                                   int measurement_num = 0);
 
@@ -100,7 +102,7 @@ public:
    * @return 4x1 vector of x,y translation and rotation about x and y axes [tx,
    * ty, ra, ry]^T
    */
-  Eigen::Vector4d ExtractRelevantMeasurements(Eigen::Affine3d T_SCAN_TARGET);
+  Eigen::Vector4d ExtractRelevantMeasurements(Eigen::Affine3d &T_SCAN_TARGET);
 
 private:
   /**
@@ -108,7 +110,7 @@ private:
    * @param T_SCAN_TARGET_EST transform from estimated target to scan
    * @return cropped cloud
    */
-  PointCloud::Ptr CropPointCloud(Eigen::Affine3d T_SCAN_TARGET_EST);
+  PointCloud::Ptr CropPointCloud(Eigen::Affine3d &T_SCAN_TARGET_EST);
 
   // Functions for testing
   /**

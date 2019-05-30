@@ -10,7 +10,7 @@ LidarCylExtractor::LidarCylExtractor(PointCloud::Ptr &template_cloud,
                                      PointCloud::Ptr &scan)
     : template_cloud_(template_cloud), scan_(scan) {}
 
-void LidarCylExtractor::SetScanTransform(Eigen::Affine3d T_LIDAR_SCAN) {
+void LidarCylExtractor::SetScanTransform(Eigen::Affine3d &T_LIDAR_SCAN) {
   if(!beam::IsTransformationMatrix(T_LIDAR_SCAN.matrix())) {
     throw std::runtime_error{
         "Passed in scan transform (scan to lidar) is invalid"};
@@ -33,7 +33,7 @@ void LidarCylExtractor::SetShowTransformation(bool show_transformation) {
 }
 
 Eigen::Vector4d
-LidarCylExtractor::ExtractCylinder(Eigen::Affine3d T_SCAN_TARGET_EST,
+LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
                                    bool &accept_measurement,
                                    int measurement_num) {
   if (template_cloud_ == nullptr) {
@@ -99,7 +99,7 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d T_SCAN_TARGET_EST,
 }
 
 PointCloud::Ptr
-LidarCylExtractor::CropPointCloud(Eigen::Affine3d T_SCAN_TARGET_EST) {
+LidarCylExtractor::CropPointCloud(Eigen::Affine3d &T_SCAN_TARGET_EST) {
   if (scan_ == nullptr) {
     throw std::runtime_error{"Scan is empty"};
   }
@@ -139,7 +139,7 @@ LidarCylExtractor::CropPointCloud(Eigen::Affine3d T_SCAN_TARGET_EST) {
 }
 
 Eigen::Vector4d
-LidarCylExtractor::ExtractRelevantMeasurements(Eigen::Affine3d T_SCAN_TARGET) {
+LidarCylExtractor::ExtractRelevantMeasurements(Eigen::Affine3d &T_SCAN_TARGET) {
 
   // Extract x,y,r,p values
   auto translation_vector = T_SCAN_TARGET.translation();

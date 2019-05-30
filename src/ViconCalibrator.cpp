@@ -2,6 +2,8 @@
 #include "vicon_calibration/CamCylExtractor.h"
 #include "vicon_calibration/GTSAMGraph.h"
 #include "vicon_calibration/LidarCylExtractor.h"
+#include "vicon_calibration/utils.hpp"
+#include <Eigen/StdVector>
 #include <beam_utils/log.hpp>
 #include <beam_utils/math.hpp>
 #include <fstream>
@@ -27,17 +29,16 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl_conversions/pcl_conversions.h>
 
-typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
-typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudColor;
-typedef pcl::visualization::PCLVisualizer Viz;
+typedef vicon_calibration::PointCloud PointCloud;
+typedef vicon_calibration::PointCloudColor PointCloudColor;
 
 std::string bag_file, initial_calibration_file, vicon_baselink_topic,
     target_cloud_name;
 double camera_time_steps, lidar_time_steps;
-bool save_lidar_measurement = false, skip_lidar_measurement = false,
-     save_camera_measurement = false, skip_camera_measurement = false,
-     close_viewer = false;
+
 beam_calibration::TfTree initial_calibrations;
+vicon_calibration::LidarCylExtractor lidar_extractor;
+
 std::vector<std::string> image_topics, image_frames, intrinsics, lidar_topics,
     lidar_frames, vicon_target_topics;
 
@@ -99,89 +100,19 @@ void LoadJson(std::string file_name) {
   target_cloud_name = GetJSONFileNameData(target_cloud_file);
 }
 
-void keyboardEventOccurred(const pcl::visualization::KeyboardEvent &event,
-                           void *viewer_void) {
-  pcl::visualization::PCLVisualizer::Ptr viewer =
-      *static_cast<Viz::Ptr *>(viewer_void);
-  if (event.getKeySym() == "Home" && event.keyDown()) {
-    skip_lidar_measurement = true;
-    close_viewer = true;
-  } else if (event.getKeySym() == "End" && event.keyDown()) {
-    save_lidar_measurement = true;
-    close_viewer = true;
-  }
-  return;
-}
-
-void PrintIntructions() {
-  std::cout << "Press Home buttom to save measurement.\n"
-            << "Press End button to skip measurement.\n";
-}
-
-PointCloudColor::Ptr ColorCloud(PointCloud::Ptr &cloud_in, int r, int g,
-                                int b) {
-  PointCloudColor::Ptr cloud_out(new PointCloudColor);
-  pcl::copyPointCloud(*cloud_in, *cloud_out);
-  for (PointCloudColor::iterator it = cloud_out->begin();
-       it != cloud_out->end(); ++it) {
-    it->r = r;
-    it->g = g;
-    it->b = b;
-  }
-}
-
-void GetMeasurementTest(PointCloud::Ptr &cloud,
-                        std::vector<Eigen::Affine3d> &T_lidar_tgts_estimated) {
-  // load template target cloud
-  PointCloud::Ptr target_cloud(new PointCloud);
-  if (pcl::io::loadPCDFile<pcl::PointXYZ>(target_cloud_name, *target_cloud) ==
-      -1) {
-    LOG_ERROR("Couldn't read template file: %s\n", target_cloud_name.c_str());
-  }
-
-  // color clouds
-  PointCloudColor::Ptr target_cloud_color(new PointCloudColor);
-  PointCloudColor::Ptr cloud_color(new PointCloudColor);
-  target_cloud_color = ColorCloud(target_cloud, 0, 255, 0);
-  cloud_color = ColorCloud(cloud, 255, 255, 255);
-
-  // create visualization
-  Viz::Ptr viewer(new Viz("3D Viewer"));
-  viewer->setBackgroundColor(0.8, 0.8, 0.8);
-  viewer->addPointCloud<pcl::PointXYZ>(cloud, "Scan");
-  viewer->addCoordinateSystem(1.0);
-  viewer->initCameraParameters();
-
-  for (uint8_t n = 0; n < vicon_target_topics.size(); n++) {
-    // transform target into estimated target frame
-    PointCloud::Ptr target_cloud_transformed(new PointCloud);
-    pcl::transformPointCloud(*target_cloud, *target_cloud_transformed,
-                             T_lidar_tgts_estimated[n].inverse());
-    std::string target_cloud_name = "Target" + std::to_string(n);
-    viewer->addPointCloud<pcl::PointXYZ>(target_cloud_transformed,
-                                         target_cloud_name);
-  }
-
-  viewer->registerKeyboardCallback(keyboardEventOccurred, (void *)&viewer);
-  PrintIntructions();
-  while (!viewer->wasStopped() && !close_viewer) {
-    viewer->spinOnce(10);
-  }
-  close_viewer = false;
-}
-
-std::vector<Eigen::Affine3d> GetInitialGuess(rosbag::Bag &bag, ros::Time &time,
-                                             std::string &sensor_frame) {
+std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame) {
   Eigen::Affine3d T_BASELINK_VICON, T_VICON_TGTn, T_BASELINK_SENSOR;
-  std::vector<Eigen::Affine3d> T_sensor_tgts_estimated;
+  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+      T_sensor_tgts_estimated;
   T_BASELINK_VICON.setIdentity();
   T_VICON_TGTn.setIdentity();
   std::string to_frame = "vicon_base";
   std::string from_frame = sensor_frame;
   T_BASELINK_SENSOR = initial_calibrations.GetTransform(to_frame, from_frame);
 
-  // check 1 second time window for vicon baselink transform
-  ros::Duration time_window(0.5);
+  // check 2 second time window for vicon baselink transform
+  ros::Duration time_window(1);
   ros::Time start_time = time - time_window;
   ros::Time time_zero(0, 0);
   if (start_time <= time_zero) {
@@ -202,8 +133,7 @@ std::vector<Eigen::Affine3d> GetInitialGuess(rosbag::Bag &bag, ros::Time &time,
     }
   }
   if (T_BASELINK_VICON.matrix().isIdentity()) {
-    throw std::runtime_error{"Cannot find baselink to vicon transform."};
-    LOG_ERROR("Cannot find baselink to vicon transform");
+    LOG_ERROR("Cannot find baselink to vicon transform. Skipping timestep.");
     return T_sensor_tgts_estimated;
   }
 
@@ -223,15 +153,12 @@ std::vector<Eigen::Affine3d> GetInitialGuess(rosbag::Bag &bag, ros::Time &time,
       }
     }
   }
-
   // check that we got the right number of initial transforms
   if (T_sensor_tgts_estimated.size() != vicon_target_topics.size()) {
-    LOG_ERROR("Could not find valid transforms to all targets. Found %d "
+    LOG_ERROR("Cannot find valid transforms to all targets. Found %d "
               "transforms but %d topics were inputted.",
               T_sensor_tgts_estimated.size(), vicon_target_topics.size());
-    throw std::runtime_error{"Could not find valid transforms to all targets"};
   }
-
   return T_sensor_tgts_estimated;
 }
 
@@ -243,7 +170,8 @@ void GetLidarMeasurements(rosbag::Bag &bag, std::string &topic,
   PointCloud::Ptr cloud = boost::make_shared<PointCloud>();
   ros::Time time_last(0, 0);
   ros::Duration time_step(lidar_time_steps);
-  std::vector<Eigen::Affine3d> T_lidar_tgts_estimated;
+  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+      T_lidar_tgts_estimated;
 
   for (auto iter = view.begin(); iter != view.end(); iter++) {
     if (iter->getTopic() == topic) {
@@ -253,9 +181,16 @@ void GetLidarMeasurements(rosbag::Bag &bag, std::string &topic,
         time_last = lidar_msg->header.stamp;
         pcl_conversions::toPCL(*lidar_msg, *cloud_pc2);
         pcl::fromPCLPointCloud2(*cloud_pc2, *cloud);
+
         T_lidar_tgts_estimated =
             GetInitialGuess(bag, lidar_msg->header.stamp, frame);
-        // GetMeasurementTest(cloud, T_lidar_tgts_estimated);
+        bool measurement_valid;
+        Eigen::Vector4d measurement;
+        lidar_extractor.SetScan(cloud);
+        for (uint8_t n = 0; n < vicon_target_topics.size(); n++){
+          measurement = lidar_extractor.ExtractCylinder(T_lidar_tgts_estimated[n],
+                                                        measurement_valid, 1);
+        }
       }
     }
   }
@@ -272,6 +207,7 @@ void GetImageMeasurements(rosbag::Bag &bag, std::string &topic,
 }
 
 int main() {
+  // get configuration settings
   std::string config_file;
   config_file = GetJSONFileNameConfig("ViconCalibrationConfig.json");
   try {
@@ -280,6 +216,7 @@ int main() {
     LOG_ERROR("Unable to load json config file: %s", config_file.c_str());
   }
 
+  // get initial calibration estimate
   std::string initial_calibration_file_dir;
   try {
     initial_calibration_file_dir =
@@ -290,6 +227,7 @@ int main() {
               initial_calibration_file_dir.c_str());
   }
 
+  // load bag file
   rosbag::Bag bag;
   try {
     LOG_INFO("Opening bag: %s", bag_file.c_str());
@@ -298,6 +236,20 @@ int main() {
     LOG_ERROR("Bag exception : %s", ex.what());
   }
 
+  // initialize lidar cylinder extractor object
+  PointCloud::Ptr target_cloud(new PointCloud);
+  if (pcl::io::loadPCDFile<pcl::PointXYZ>(target_cloud_name, *target_cloud) ==
+      -1) {
+    LOG_ERROR("Couldn't read template file: %s\n", target_cloud_name.c_str());
+  }
+
+  lidar_extractor.SetTemplateCloud(target_cloud);
+  lidar_extractor.SetThreshold(3);   // Default: 0.015
+  lidar_extractor.SetRadius(0.0635); // Default: 0.0635
+  lidar_extractor.SetHeight(3);      // Default: 0.5
+  lidar_extractor.SetShowTransformation(true);
+
+  // main loop
   for (uint8_t k = 0; k < lidar_topics.size(); k++) {
     GetLidarMeasurements(bag, lidar_topics[k], lidar_frames[k]);
     // GetImageMeasurements(bag, image_topics[k], image_frames[k]);

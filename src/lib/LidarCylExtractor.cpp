@@ -183,6 +183,11 @@ PointCloudColor::Ptr LidarCylExtractor::ColourPointCloud(PointCloud::Ptr &cloud,
 }
 
 void LidarCylExtractor::ShowFinalTransformation() {
+  std::cout << "-------------------------------" << std::endl;
+  std::cout << "Legend:" << std::endl;
+  std::cout << "  White -> scan" << std::endl;
+  std::cout << "  red   -> target initial guess" << std::endl;
+  std::cout << "  green -> target aligned" << std::endl;
   std::cout << "Accept measurement? [y/n]" << std::endl;
   while (!pcl_viewer_->wasStopped()) {
     pcl_viewer_->spinOnce(100);

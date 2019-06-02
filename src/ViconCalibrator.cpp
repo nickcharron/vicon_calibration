@@ -34,8 +34,9 @@ typedef vicon_calibration::PointCloudColor PointCloudColor;
 
 std::string bag_file, initial_calibration_file, vicon_baselink_topic,
     target_cloud_name;
-double camera_time_steps, lidar_time_steps;
-
+double camera_time_steps, lidar_time_steps, target_radius, target_height,
+       target_crop_threshold;
+bool show_camera_measurements, show_lidar_measurements;
 beam_calibration::TfTree initial_calibrations;
 vicon_calibration::LidarCylExtractor lidar_extractor;
 
@@ -65,39 +66,44 @@ void LoadJson(std::string file_name) {
 
   bag_file = J["bag_file"];
   initial_calibration_file = J["initial_calibration"];
-
-  for (const auto &topic : J["image_topics"]) {
-    image_topics.push_back(topic.get<std::string>());
-  }
-
-  for (const auto &topic : J["image_frames"]) {
-    image_frames.push_back(topic.get<std::string>());
-  }
-
-  camera_time_steps = J["camera_time_steps"];
-
-  for (const auto &topic : J["intrinsics"]) {
-    intrinsics.push_back(topic.get<std::string>());
-  }
-
-  for (const auto &topic : J["lidar_topics"]) {
-    lidar_topics.push_back(topic.get<std::string>());
-  }
-
-  for (const auto &topic : J["lidar_frames"]) {
-    lidar_frames.push_back(topic.get<std::string>());
-  }
-
-  lidar_time_steps = J["lidar_time_steps"];
-
   vicon_baselink_topic = J["vicon_baselink_topic"];
 
   for (const auto &topic : J["vicon_target_topics"]) {
     vicon_target_topics.push_back(topic.get<std::string>());
   }
 
-  std::string target_cloud_file = J["target_cloud_name"];
-  target_cloud_name = GetJSONFileNameData(target_cloud_file);
+  for (const auto &camera_info : J["camera_info"]) {
+    show_camera_measurements = camera_info.at("show_camera_measurements");
+    camera_time_steps = camera_info.at("camera_time_steps");
+    for (const auto &topic : camera_info.at("image_topics")){
+      image_topics.push_back(topic.get<std::string>());
+    }
+    for (const auto &frame : camera_info.at("image_frames")){
+      image_frames.push_back(frame.get<std::string>());
+    }
+    for (const auto &intrinsic : camera_info.at("intrinsics")){
+      intrinsics.push_back(intrinsic.get<std::string>());
+    }
+  }
+
+  for (const auto &lidar_info : J["lidar_info"]) {
+    show_lidar_measurements = lidar_info.at("show_lidar_measurements");
+    lidar_time_steps = lidar_info.at("lidar_time_steps");
+    for (const auto &topic : lidar_info.at("lidar_topics")){
+      lidar_topics.push_back(topic.get<std::string>());
+    }
+    for (const auto &frame : lidar_info.at("lidar_frames")){
+      lidar_frames.push_back(frame.get<std::string>());
+    }
+  }
+
+  for (const auto &target_info : J["target_info"]) {
+    target_radius = target_info.at("radius");
+    target_height = target_info.at("height");
+    target_crop_threshold = target_info.at("crop_threshold");
+    std::string target_cloud_file = target_info.at("template_cloud_name");
+    target_cloud_name = GetJSONFileNameData(target_cloud_file);
+  }
 }
 
 std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
@@ -244,10 +250,10 @@ int main() {
   }
 
   lidar_extractor.SetTemplateCloud(target_cloud);
-  lidar_extractor.SetThreshold(3);   // Default: 0.015
-  lidar_extractor.SetRadius(0.0635); // Default: 0.0635
-  lidar_extractor.SetHeight(3);      // Default: 0.5
-  lidar_extractor.SetShowTransformation(true);
+  lidar_extractor.SetThreshold(target_crop_threshold);   // Default: 0.015
+  lidar_extractor.SetRadius(target_radius); // Default: 0.0635
+  lidar_extractor.SetHeight(target_height);      // Default: 0.5
+  lidar_extractor.SetShowTransformation(show_lidar_measurements);
 
   // main loop
   for (uint8_t k = 0; k < lidar_topics.size(); k++) {

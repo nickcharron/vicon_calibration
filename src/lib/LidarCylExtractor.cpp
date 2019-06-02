@@ -19,8 +19,8 @@ void LidarCylExtractor::SetScanTransform(Eigen::Affine3d &T_LIDAR_SCAN) {
   pcl::transformPointCloud(*scan_, *scan_, T_LIDAR_SCAN_);
 }
 
-void LidarCylExtractor::SetShowTransformation(bool show_transformation) {
-  if (show_transformation) {
+void LidarCylExtractor::SetShowTransformation(bool show_measurements) {
+  if (show_measurements) {
     pcl_viewer_ = pcl::visualization::PCLVisualizer::Ptr(
         new pcl::visualization::PCLVisualizer("Cloud viewer"));
     pcl_viewer_->setBackgroundColor(0, 0, 0);
@@ -29,7 +29,7 @@ void LidarCylExtractor::SetShowTransformation(bool show_transformation) {
     pcl_viewer_->registerKeyboardCallback(ConfirmMeasurementKeyboardCallback,
                                           (void*)pcl_viewer_.get());
   }
-  show_transformation_ = show_transformation;
+  show_measurements_ = show_measurements;
 }
 
 Eigen::Vector4d
@@ -66,7 +66,7 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
   // Get x,y,r,p data
   auto final_transform_vector = ExtractRelevantMeasurements(T_SCAN_TARGET_OPT);
 
-  if (show_transformation_) {
+  if (show_measurements_) {
     // Display clouds for testing
     // transform template cloud from target to lidar
     auto estimated_template_cloud =

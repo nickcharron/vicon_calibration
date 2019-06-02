@@ -20,6 +20,6 @@
     {"radius": 0.0635,
      "height": 0.5,
      "crop_threshold": 10,
-     "template_cloud_name": "target_cloud.pcd"}
+     "template_cloud_name": "cylinder_target.pcd"}
   ]
 }

@@ -154,11 +154,12 @@ private:
   Eigen::Affine3d T_LIDAR_SCAN_;
   double height_{0.5};
   double radius_{0.0635};
-  double threshold_{0.015}; // Threshold for cropping the the aggregated cloud
+  double threshold_{0.05}; // Threshold for cropping the the aggregated cloud
 
   pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
-  bool show_transformation_{false};
+  bool show_measurements_{false};
   static bool accept_measurement_;
+
 };
 
 } // end namespace vicon_calibration

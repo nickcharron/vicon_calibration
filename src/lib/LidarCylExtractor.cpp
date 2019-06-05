@@ -115,9 +115,9 @@ LidarCylExtractor::CropPointCloud(Eigen::Affine3d &T_SCAN_TARGET_EST) {
   }
 
   Eigen::Vector4f min_vector(-radius_ - threshold_, -radius_ - threshold_,
-                             -threshold_, 0);
+                             -height_ - threshold_, 0);
   Eigen::Vector4f max_vector(radius_ + threshold_, radius_ + threshold_,
-                             height_ + threshold_, 0);
+                             threshold_, 0);
 
   Eigen::Vector3d translation = T_SCAN_TARGET_EST.translation();
   Eigen::Vector3d rotation = T_SCAN_TARGET_EST.rotation().eulerAngles(0, 1, 2);
@@ -190,8 +190,8 @@ void LidarCylExtractor::ShowFinalTransformation() {
   std::cout << "  green -> target aligned" << std::endl;
   std::cout << "Accept measurement? [y/n]" << std::endl;
   while (!pcl_viewer_->wasStopped()) {
-    pcl_viewer_->spinOnce(100);
-    std::this_thread::sleep_for(100ms);
+    pcl_viewer_->spinOnce(10);
+    std::this_thread::sleep_for(10ms);
   }
 }
 

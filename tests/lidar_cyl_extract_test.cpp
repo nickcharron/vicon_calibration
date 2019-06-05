@@ -16,7 +16,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 // Global variables for testing
-std::string bag_name = "tests/test_bags/2019-05-15-16-35-16.bag";
+std::string bag_name = "tests/test_bags/2019-06-04-16-46-51.bag";
 vicon_calibration::LidarCylExtractor cyl_extractor;
 Eigen::Affine3d TA_SCAN_TARGET_EST1, TA_SCAN_TARGET_EST2;
 ros::Time transform_lookup_time;
@@ -27,9 +27,9 @@ vicon_calibration::PointCloud::Ptr sim_cloud(new vicon_calibration::PointCloud);
 void LoadTemplateCloud() {
   // Load template cloud from pcd file
   if (pcl::io::loadPCDFile<pcl::PointXYZ>(
-          "tests/template_pointclouds/target_cloud_0002.pcd", *temp_cloud) ==
+          "tests/template_pointclouds/cylinder_target.pcd", *temp_cloud) ==
       -1) {
-    PCL_ERROR("Couldn't read file target_cloud_0002.pcd \n");
+    PCL_ERROR("Couldn't read file cylinder_target.pcd \n");
   }
 }
 

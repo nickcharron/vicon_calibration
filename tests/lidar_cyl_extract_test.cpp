@@ -147,7 +147,7 @@ TEST_CASE("Test extracting cylinder with invalid parameters") {
 
 TEST_CASE("Test cylinder extractor") {
   bool accept_measurement1, accept_measurement2;
-
+  cyl_extractor.SetShowTransformation(true);
   auto measured_transform1 = cyl_extractor.ExtractCylinder(
       TA_SCAN_TARGET_EST1, accept_measurement1, 1);
   auto measured_transform2 = cyl_extractor.ExtractCylinder(

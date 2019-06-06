@@ -12,6 +12,7 @@
 #include <string>
 #include <tf2/buffer_core.h>
 #include <tf2_eigen/tf2_eigen.h>
+#include <tf2_msgs/TFMessage.h>
 
 // ROS specific headers
 #include <geometry_msgs/TransformStamped.h>
@@ -32,16 +33,15 @@
 typedef vicon_calibration::PointCloud PointCloud;
 typedef vicon_calibration::PointCloudColor PointCloudColor;
 
-std::string bag_file, initial_calibration_file, vicon_baselink_topic,
+std::string bag_file, initial_calibration_file, vicon_baselink_frame,
     target_cloud_name;
 double camera_time_steps, lidar_time_steps, target_radius, target_height,
-       target_crop_threshold;
+    target_crop_threshold;
 bool show_camera_measurements, show_lidar_measurements;
-beam_calibration::TfTree initial_calibrations;
 vicon_calibration::LidarCylExtractor lidar_extractor;
 
 std::vector<std::string> image_topics, image_frames, intrinsics, lidar_topics,
-    lidar_frames, vicon_target_topics;
+    lidar_frames, vicon_target_frames;
 
 std::string GetJSONFileNameData(std::string file_name) {
   std::string file_location = __FILE__;
@@ -66,22 +66,18 @@ void LoadJson(std::string file_name) {
 
   bag_file = J["bag_file"];
   initial_calibration_file = J["initial_calibration"];
-  vicon_baselink_topic = J["vicon_baselink_topic"];
-
-  for (const auto &topic : J["vicon_target_topics"]) {
-    vicon_target_topics.push_back(topic.get<std::string>());
-  }
+  vicon_baselink_frame = J["vicon_baselink_frame"];
 
   for (const auto &camera_info : J["camera_info"]) {
     show_camera_measurements = camera_info.at("show_camera_measurements");
     camera_time_steps = camera_info.at("camera_time_steps");
-    for (const auto &topic : camera_info.at("image_topics")){
+    for (const auto &topic : camera_info.at("image_topics")) {
       image_topics.push_back(topic.get<std::string>());
     }
-    for (const auto &frame : camera_info.at("image_frames")){
+    for (const auto &frame : camera_info.at("image_frames")) {
       image_frames.push_back(frame.get<std::string>());
     }
-    for (const auto &intrinsic : camera_info.at("intrinsics")){
+    for (const auto &intrinsic : camera_info.at("intrinsics")) {
       intrinsics.push_back(intrinsic.get<std::string>());
     }
   }
@@ -89,10 +85,10 @@ void LoadJson(std::string file_name) {
   for (const auto &lidar_info : J["lidar_info"]) {
     show_lidar_measurements = lidar_info.at("show_lidar_measurements");
     lidar_time_steps = lidar_info.at("lidar_time_steps");
-    for (const auto &topic : lidar_info.at("lidar_topics")){
+    for (const auto &topic : lidar_info.at("lidar_topics")) {
       lidar_topics.push_back(topic.get<std::string>());
     }
-    for (const auto &frame : lidar_info.at("lidar_frames")){
+    for (const auto &frame : lidar_info.at("lidar_frames")) {
       lidar_frames.push_back(frame.get<std::string>());
     }
   }
@@ -103,19 +99,16 @@ void LoadJson(std::string file_name) {
     target_crop_threshold = target_info.at("crop_threshold");
     std::string target_cloud_file = target_info.at("template_cloud_name");
     target_cloud_name = GetJSONFileNameData(target_cloud_file);
+    for (const auto &frame : target_info.at("vicon_target_frames")) {
+      vicon_target_frames.push_back(frame.get<std::string>());
+    }
   }
 }
 
 std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
 GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame) {
-  Eigen::Affine3d T_BASELINK_VICON, T_VICON_TGTn, T_BASELINK_SENSOR;
   std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
       T_sensor_tgts_estimated;
-  T_BASELINK_VICON.setIdentity();
-  T_VICON_TGTn.setIdentity();
-  std::string to_frame = "vicon_base";
-  std::string from_frame = sensor_frame;
-  T_BASELINK_SENSOR = initial_calibrations.GetTransform(to_frame, from_frame);
 
   // check 2 second time window for vicon baselink transform
   ros::Duration time_window(1);
@@ -125,45 +118,36 @@ GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame) {
     start_time = time_zero;
   }
   ros::Time end_time = time + time_window;
-  rosbag::View view(bag, start_time, end_time, true);
+  rosbag::View view(bag, rosbag::TopicQuery("/tf"), start_time, end_time, true);
 
-  // iterate through window and find transform from vicon base link
-  for (auto iter = view.begin(); iter != view.end(); iter++) {
-    if (iter->getTopic() == vicon_baselink_topic) {
-      boost::shared_ptr<geometry_msgs::TransformStamped> vicon_msg =
-          iter->instantiate<geometry_msgs::TransformStamped>();
-      if (vicon_msg->header.stamp >= time) {
-        T_BASELINK_VICON = tf2::transformToEigen(*vicon_msg);
-        break;
+  // initialize tree with initial calibrations:
+  beam_calibration::TfTree tree;
+  std::string initial_calibration_file_dir;
+  try {
+    initial_calibration_file_dir =
+        GetJSONFileNameData(initial_calibration_file);
+    tree.LoadJSON(initial_calibration_file_dir);
+  } catch (nlohmann::detail::parse_error &ex) {
+    LOG_ERROR("Unable to load json calibration file: %s",
+              initial_calibration_file_dir.c_str());
+  }
+
+  // Add all vicon transforms in window
+  for (const auto &msg_instance : view) {
+    auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
+    if (tf_message != nullptr) {
+      for (const geometry_msgs::TransformStamped &tf : tf_message->transforms) {
+        tree.AddTransform(tf);
       }
     }
   }
-  if (T_BASELINK_VICON.matrix().isIdentity()) {
-    LOG_ERROR("Cannot find baselink to vicon transform. Skipping timestep.");
-    return T_sensor_tgts_estimated;
-  }
 
-  // get transforms for each target at given time
-  for (uint8_t n; n < vicon_target_topics.size(); n++) {
-    for (auto iter = view.begin(); iter != view.end(); iter++) {
-      if (iter->getTopic() == vicon_target_topics[n]) {
-        boost::shared_ptr<geometry_msgs::TransformStamped> vicon_msg =
-            iter->instantiate<geometry_msgs::TransformStamped>();
-        if (vicon_msg->header.stamp >= time) {
-          T_VICON_TGTn = tf2::transformToEigen(*vicon_msg);
-          Eigen::Affine3d T_SENSOR_TGTn =
-              T_BASELINK_SENSOR.inverse() * T_BASELINK_VICON * T_VICON_TGTn;
-          T_sensor_tgts_estimated.push_back(T_SENSOR_TGTn);
-          break;
-        }
-      }
-    }
-  }
-  // check that we got the right number of initial transforms
-  if (T_sensor_tgts_estimated.size() != vicon_target_topics.size()) {
-    LOG_ERROR("Cannot find valid transforms to all targets. Found %d "
-              "transforms but %d topics were inputted.",
-              T_sensor_tgts_estimated.size(), vicon_target_topics.size());
+  // get transform to each of the targets at specified time
+  for (uint8_t n; n < vicon_target_frames.size(); n++) {
+    auto T_SENSOR_TGTn_msg =
+        tree.GetTransform(sensor_frame, vicon_target_frames[n], time);
+    Eigen::Affine3d T_SENSOR_TGTn = tf2::transformToEigen(T_SENSOR_TGTn_msg);
+    T_sensor_tgts_estimated.push_back(T_SENSOR_TGTn);
   }
   return T_sensor_tgts_estimated;
 }
@@ -193,9 +177,9 @@ void GetLidarMeasurements(rosbag::Bag &bag, std::string &topic,
         bool measurement_valid;
         Eigen::Vector4d measurement;
         lidar_extractor.SetScan(cloud);
-        for (uint8_t n = 0; n < vicon_target_topics.size(); n++){
-          measurement = lidar_extractor.ExtractCylinder(T_lidar_tgts_estimated[n],
-                                                        measurement_valid, 1);
+        for (uint8_t n = 0; n < T_lidar_tgts_estimated.size(); n++) {
+          measurement = lidar_extractor.ExtractCylinder(
+              T_lidar_tgts_estimated[n], measurement_valid, 1);
         }
       }
     }
@@ -222,17 +206,6 @@ int main() {
     LOG_ERROR("Unable to load json config file: %s", config_file.c_str());
   }
 
-  // get initial calibration estimate
-  std::string initial_calibration_file_dir;
-  try {
-    initial_calibration_file_dir =
-        GetJSONFileNameData(initial_calibration_file);
-    initial_calibrations.LoadJSON(initial_calibration_file_dir);
-  } catch (nlohmann::detail::parse_error &ex) {
-    LOG_ERROR("Unable to load json calibration file: %s",
-              initial_calibration_file_dir.c_str());
-  }
-
   // load bag file
   rosbag::Bag bag;
   try {
@@ -250,9 +223,9 @@ int main() {
   }
 
   lidar_extractor.SetTemplateCloud(target_cloud);
-  lidar_extractor.SetThreshold(target_crop_threshold);   // Default: 0.015
-  lidar_extractor.SetRadius(target_radius); // Default: 0.0635
-  lidar_extractor.SetHeight(target_height);      // Default: 0.5
+  lidar_extractor.SetThreshold(target_crop_threshold); // Default: 0.015
+  lidar_extractor.SetRadius(target_radius);            // Default: 0.0635
+  lidar_extractor.SetHeight(target_height);            // Default: 0.5
   lidar_extractor.SetShowTransformation(show_lidar_measurements);
 
   // main loop

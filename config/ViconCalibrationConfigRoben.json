@@ -1,8 +1,7 @@
 {
   "bag_file": "/home/nick/bag_files/roben_simulation/2019-05-15-16-35-16.bag",
   "initial_calibration": "initial_calibration_roben.json",
-  "vicon_baselink_topic": "/vicon/roben/roben",
-  "vicon_target_topics": ["/vicon/cylinder_target1/cylinder_target1", "/vicon/cylinder_target2/cylinder_target2"] ,
+  "vicon_baselink_frame": "vicon/roben/roben",
   "camera_info": [
     {"image_topics": [""],
      "image_frames": [""],
@@ -20,6 +19,7 @@
     {"radius": 0.0635,
      "height": 0.5,
      "crop_threshold": 10,
-     "template_cloud_name": "target_cloud.pcd"}
+     "template_cloud_name": "target_cloud.pcd",
+     "vicon_target_frames": ["vicon/cylinder_target1/cylinder_target1", "vicon/cylinder_target2/cylinder_target2"]}
   ]
 }

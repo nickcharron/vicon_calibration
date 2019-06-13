@@ -11,7 +11,7 @@ LidarCylExtractor::LidarCylExtractor(PointCloud::Ptr &template_cloud,
     : template_cloud_(template_cloud), scan_(scan) {}
 
 void LidarCylExtractor::SetScanTransform(Eigen::Affine3d &T_LIDAR_SCAN) {
-  if(!beam::IsTransformationMatrix(T_LIDAR_SCAN.matrix())) {
+  if (!beam::IsTransformationMatrix(T_LIDAR_SCAN.matrix())) {
     throw std::runtime_error{
         "Passed in scan transform (scan to lidar) is invalid"};
   }
@@ -27,7 +27,7 @@ void LidarCylExtractor::SetShowTransformation(bool show_measurements) {
     pcl_viewer_->addCoordinateSystem(1.0);
     pcl_viewer_->initCameraParameters();
     pcl_viewer_->registerKeyboardCallback(ConfirmMeasurementKeyboardCallback,
-                                          (void*)pcl_viewer_.get());
+                                          (void *)pcl_viewer_.get());
   }
   show_measurements_ = show_measurements;
 }
@@ -40,7 +40,7 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
     throw std::runtime_error{"Template cloud is empty"};
   }
 
-  if(!beam::IsTransformationMatrix(T_SCAN_TARGET_EST.matrix())) {
+  if (!beam::IsTransformationMatrix(T_SCAN_TARGET_EST.matrix())) {
     throw std::runtime_error{"Passed in target to lidar transform is invalid"};
   }
 
@@ -48,20 +48,19 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
   auto cropped_cloud = CropPointCloud(T_SCAN_TARGET_EST);
 
   // Perform ICP Registration
-  pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-  icp.setInputSource(cropped_cloud);
-  icp.setInputTarget(template_cloud_);
+  icp_.setInputSource(cropped_cloud);
+  icp_.setInputTarget(template_cloud_);
   PointCloud::Ptr final_cloud(new PointCloud);
-  icp.align(*final_cloud, T_SCAN_TARGET_EST.inverse().matrix().cast<float>());
+  icp_.align(*final_cloud, T_SCAN_TARGET_EST.inverse().matrix().cast<float>());
 
-  if (!icp.hasConverged()) {
+  if (!icp_.hasConverged()) {
     throw std::runtime_error{
         "Couldn't register cylinder target to template cloud"};
   }
 
   Eigen::Affine3d T_SCAN_TARGET_OPT;
   T_SCAN_TARGET_OPT.matrix() =
-      icp.getFinalTransformation().inverse().cast<double>();
+      icp_.getFinalTransformation().inverse().cast<double>();
 
   // Get x,y,r,p data
   auto final_transform_vector = ExtractRelevantMeasurements(T_SCAN_TARGET_OPT);
@@ -114,26 +113,18 @@ LidarCylExtractor::CropPointCloud(Eigen::Affine3d &T_SCAN_TARGET_EST) {
     std::cout << "WARNING: Using threshold of 0 for cropping" << std::endl;
   }
 
-  Eigen::Vector4f min_vector(-radius_ - threshold_, -radius_ - threshold_,
-                             -height_ - threshold_, 0);
-  Eigen::Vector4f max_vector(radius_ + threshold_, radius_ + threshold_,
-                             threshold_, 0);
+  Eigen::Vector3f min_vector(-radius_ - threshold_, -radius_ - threshold_,
+                             -height_ - threshold_);
+  Eigen::Vector3f max_vector(radius_ + threshold_, radius_ + threshold_,
+                             threshold_);
 
-  Eigen::Vector3d translation = T_SCAN_TARGET_EST.translation();
-  Eigen::Vector3d rotation = T_SCAN_TARGET_EST.rotation().eulerAngles(0, 1, 2);
-
-  pcl::CropBox<pcl::PointXYZ> cropper;
-
-  cropper.setMin(min_vector);
-  cropper.setMax(max_vector);
-
-  cropper.setTranslation(translation.cast<float>());
-  cropper.setRotation(rotation.cast<float>());
-
-  cropper.setInputCloud(scan_);
+  cropper_.SetMinVector(min_vector);
+  cropper_.SetMaxVector(max_vector);
+  Eigen::Affine3f T_TARGET_EST_SCAN = T_SCAN_TARGET_EST.inverse().cast<float>();
+  cropper_.SetTransform(T_TARGET_EST_SCAN);
 
   PointCloud::Ptr cropped_cloud(new PointCloud);
-  cropper.filter(*cropped_cloud);
+  cropper_.Filter(*scan_, *cropped_cloud);
 
   return cropped_cloud;
 }
@@ -212,6 +203,14 @@ void LidarCylExtractor::ConfirmMeasurementKeyboardCallback(
     viewer->removeAllPointClouds();
     viewer->close();
   }
+}
+
+void LidarCylExtractor::SetICPConfigs(double t_eps, double fit_eps,
+                                      double max_corr, int max_iter) {
+  icp_.setTransformationEpsilon(t_eps);
+  icp_.setEuclideanFitnessEpsilon(fit_eps);
+  icp_.setMaximumIterations(max_corr);
+  icp_.setMaxCorrespondenceDistance(max_iter);
 }
 
 } // end namespace vicon_calibration

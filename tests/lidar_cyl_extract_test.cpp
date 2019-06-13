@@ -16,7 +16,11 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 // Global variables for testing
-std::string bag_name = "tests/test_bags/2019-06-04-16-46-51.bag";
+std::string current_file = "lidar_cyl_extract_test.cpp";
+std::string test_path = __FILE__;
+std::string bag_path;
+std::string template_cloud_path;
+
 vicon_calibration::LidarCylExtractor cyl_extractor;
 Eigen::Affine3d TA_SCAN_TARGET_EST1, TA_SCAN_TARGET_EST2;
 ros::Time transform_lookup_time;
@@ -24,10 +28,15 @@ vicon_calibration::PointCloud::Ptr
     temp_cloud(new vicon_calibration::PointCloud);
 vicon_calibration::PointCloud::Ptr sim_cloud(new vicon_calibration::PointCloud);
 
+void FileSetup() {
+  test_path.erase(test_path.end() - current_file.size(), test_path.end());
+  bag_path = test_path + "test_bags/2019-06-13-11-54-31.bag";
+  template_cloud_path = test_path + "template_pointclouds/cylinder_target.pcd";
+}
+
 void LoadTemplateCloud() {
   // Load template cloud from pcd file
-  if (pcl::io::loadPCDFile<pcl::PointXYZ>(
-          "tests/template_pointclouds/cylinder_target.pcd", *temp_cloud) ==
+  if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path, *temp_cloud) ==
       -1) {
     PCL_ERROR("Couldn't read file cylinder_target.pcd \n");
   }
@@ -36,7 +45,7 @@ void LoadTemplateCloud() {
 void LoadSimulatedCloud() {
   // Rosbag for accessing bag data
   rosbag::Bag bag;
-  bag.open(bag_name, rosbag::bagmode::Read);
+  bag.open(bag_path, rosbag::bagmode::Read);
   // Load the simulated pointcloud from the bag
   rosbag::View cloud_bag_view = {bag,
                                  rosbag::TopicQuery("/m3d/aggregator/cloud")};
@@ -56,7 +65,7 @@ void LoadTransforms() {
 
   // Rosbag for accessing bag data
   rosbag::Bag bag;
-  bag.open(bag_name, rosbag::bagmode::Read);
+  bag.open(bag_path, rosbag::bagmode::Read);
   rosbag::View tf_bag_view = {bag, rosbag::TopicQuery("/tf")};
 
   tf_tree.start_time_ = tf_bag_view.getBeginTime();
@@ -72,8 +81,9 @@ void LoadTransforms() {
     }
   }
   // Load calibration json and add transform between m3d_link and base_link
-  std::string calibration_json_name = "tests/calibration/roben_extrinsic.json";
-  tf_tree.LoadJSON(calibration_json_name);
+  std::string calibration_json;
+  calibration_json = test_path + "calibration/roben_extrinsic.json";
+  tf_tree.LoadJSON(calibration_json);
 
   // Get transforms between targets and lidar and world and targets
   std::string m3d_link_frame = "m3d_link";
@@ -93,6 +103,7 @@ void LoadTransforms() {
 TEST_CASE("Test cylinder extractor with empty template cloud (nullptr)") {
   bool accept_measurement;
 
+  FileSetup();
   LoadTransforms();
 
   REQUIRE_THROWS(
@@ -120,10 +131,10 @@ TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
 }
 
 TEST_CASE("Test extracting cylinder target with diverged ICP registration") {
-  double default_threshold = 0.015;
+  double default_threshold = 0.001;
   bool accept_measurement;
 
-  cyl_extractor.SetThreshold(-0.025);
+  cyl_extractor.SetThreshold(-0.05);
   REQUIRE_THROWS(
       cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, accept_measurement));
   cyl_extractor.SetThreshold(default_threshold);
@@ -147,7 +158,9 @@ TEST_CASE("Test extracting cylinder with invalid parameters") {
 
 TEST_CASE("Test cylinder extractor") {
   bool accept_measurement1, accept_measurement2;
-  cyl_extractor.SetShowTransformation(true);
+  double t_eps = 1e-8, fit_eps = 1e-2, threshold = 0.01, max_corr = 1;
+  int max_iter = 100;
+
   auto measured_transform1 = cyl_extractor.ExtractCylinder(
       TA_SCAN_TARGET_EST1, accept_measurement1, 1);
   auto measured_transform2 = cyl_extractor.ExtractCylinder(

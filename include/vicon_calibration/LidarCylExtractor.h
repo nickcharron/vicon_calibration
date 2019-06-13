@@ -3,12 +3,11 @@
 #include "vicon_calibration/utils.hpp"
 
 #include <beam_utils/math.hpp>
+#include <beam_filtering/CropBox.h>
 
 #include <Eigen/Geometry>
 
 #include <pcl/common/transforms.h>
-#include <pcl/filters/crop_box.h>
-#include <pcl/filters/passthrough.h>
 #include <pcl/registration/icp.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
@@ -104,6 +103,8 @@ public:
    */
   Eigen::Vector4d ExtractRelevantMeasurements(Eigen::Affine3d &T_SCAN_TARGET);
 
+  void SetICPConfigs(double t_eps, double fit_eps, double max_corr, int max_iter);
+
 private:
   /**
    * @brief Crop the aggregated cloud to extract cylinder target part
@@ -154,11 +155,14 @@ private:
   Eigen::Affine3d T_LIDAR_SCAN_;
   double height_{0.5};
   double radius_{0.0635};
-  double threshold_{0.05}; // Threshold for cropping the the aggregated cloud
+  double threshold_{0.001}; // Threshold for cropping the the aggregated cloud
 
   pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
   bool show_measurements_{false};
   static bool accept_measurement_;
+
+  beam_filtering::CropBox cropper_;
+  pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp_;
 
 };
 

@@ -1,0 +1,13 @@
+{
+  "bag_file": "/home/averyjung/catkin_ws/bag_files/roben_simulation/2019-06-14-17-19-54.bag",
+  "template_cloud_name": "/home/averyjung/projects/vicon_calibration/tests/template_pointclouds/cylinder_target_rotated.pcd",
+  "max_corr": 1,
+  "max_iter": 100,
+  "t_eps":1e-8,
+  "fit_eps":1e-2,
+  "threshold": 0.0001,
+  "x": 0.05,
+  "y": 0.0635,
+  "z": 0.0635,
+  "set_show_transform": false
+}

@@ -40,6 +40,10 @@ double camera_time_steps, lidar_time_steps, target_radius, target_height,
 bool show_camera_measurements, show_lidar_measurements;
 vicon_calibration::LidarCylExtractor lidar_extractor;
 
+double max_corr, t_eps, fit_eps, x, y, z;
+int max_iter;
+bool set_show_transform;
+
 std::vector<std::string> image_topics, image_frames, intrinsics, lidar_topics,
     lidar_frames, vicon_target_frames;
 
@@ -103,6 +107,16 @@ void LoadJson(std::string file_name) {
       vicon_target_frames.push_back(frame.get<std::string>());
     }
   }
+
+  max_corr = J["max_corr"];
+  max_iter = J["max_iter"];
+  t_eps = J["t_eps"];
+  fit_eps = J["fit_eps"];
+  x = J["x"];
+  y = J["y"];
+  z = J["z"];
+
+  set_show_transform = J["set_show_transform"];
 }
 
 std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
@@ -146,6 +160,10 @@ GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame) {
   for (uint8_t n; n < vicon_target_frames.size(); n++) {
     auto T_SENSOR_TGTn_msg =
         tree.GetTransform(sensor_frame, vicon_target_frames[n], time);
+
+    std::string world = "world";
+    auto T_TARGET_WORLD = tree.GetTransform(vicon_target_frames[n], world, time);
+    std::cout << T_TARGET_WORLD << std::endl;
     Eigen::Affine3d T_SENSOR_TGTn = tf2::transformToEigen(T_SENSOR_TGTn_msg);
     T_sensor_tgts_estimated.push_back(T_SENSOR_TGTn);
   }
@@ -179,7 +197,7 @@ void GetLidarMeasurements(rosbag::Bag &bag, std::string &topic,
         lidar_extractor.SetScan(cloud);
         for (uint8_t n = 0; n < T_lidar_tgts_estimated.size(); n++) {
           measurement = lidar_extractor.ExtractCylinder(
-              T_lidar_tgts_estimated[n], measurement_valid, 1);
+              T_lidar_tgts_estimated[n], measurement_valid, n);
         }
       }
     }
@@ -199,7 +217,7 @@ void GetImageMeasurements(rosbag::Bag &bag, std::string &topic,
 int main() {
   // get configuration settings
   std::string config_file;
-  config_file = GetJSONFileNameConfig("ViconCalibrationConfig.json");
+  config_file = GetJSONFileNameConfig("ViconCalibrationConfigIG.json");
   try {
     LoadJson(config_file);
   } catch (nlohmann::detail::parse_error &ex) {
@@ -224,9 +242,11 @@ int main() {
 
   lidar_extractor.SetTemplateCloud(target_cloud);
   lidar_extractor.SetThreshold(target_crop_threshold); // Default: 0.015
-  lidar_extractor.SetRadius(target_radius);            // Default: 0.0635
-  lidar_extractor.SetHeight(target_height);            // Default: 0.5
-  lidar_extractor.SetShowTransformation(show_lidar_measurements);
+  //lidar_extractor.SetRadius(target_radius);            // Default: 0.0635
+  //lidar_extractor.SetHeight(target_height);            // Default: 0.5
+  lidar_extractor.SetICPConfigs(t_eps, fit_eps, max_corr, max_iter);
+  lidar_extractor.SetXYZ(x, y, z);
+  lidar_extractor.SetShowTransformation(set_show_transform);
 
   // main loop
   for (uint8_t k = 0; k < lidar_topics.size(); k++) {

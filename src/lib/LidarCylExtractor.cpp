@@ -5,6 +5,7 @@ namespace vicon_calibration {
 using namespace std::literals::chrono_literals;
 
 bool LidarCylExtractor::accept_measurement_;
+bool LidarCylExtractor::measurement_failed_;
 
 LidarCylExtractor::LidarCylExtractor(PointCloud::Ptr &template_cloud,
                                      PointCloud::Ptr &scan)
@@ -46,6 +47,16 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
 
   // Crop the scan before performing ICP registration
   auto cropped_cloud = CropPointCloud(T_SCAN_TARGET_EST);
+    /*PointCloud::Ptr transformed_cropped_cloud(new PointCloud);
+    pcl::transformPointCloud(*cropped_cloud,
+                             *transformed_cropped_cloud, T_SCAN_TARGET_EST.inverse());
+    auto coloured = ColourPointCloud(transformed_cropped_cloud, 255, 0, 0);
+
+    AddColouredPointCloudToViewer(coloured, "transformed " + std::to_string(measurement_num));
+    AddPointCloudToViewer(template_cloud_, "template");
+
+    ShowFinalTransformation();*/
+
 
   // Perform ICP Registration
   icp_.setInputSource(cropped_cloud);
@@ -54,47 +65,62 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
   icp_.align(*final_cloud, T_SCAN_TARGET_EST.inverse().matrix().cast<float>());
 
   if (!icp_.hasConverged()) {
-    throw std::runtime_error{
-        "Couldn't register cylinder target to template cloud"};
-  }
+    if (show_measurements_) {
+      measurement_failed_ = true;
+      std::cout << "ICP failed. Displaying cropped scan." << std::endl;
+      auto coloured_cropped_cloud = ColourPointCloud(cropped_cloud, 255, 0, 0);
+      AddColouredPointCloudToViewer(coloured_cropped_cloud,
+                                    "coloured cropped cloud " +
+                                        std::to_string(measurement_num));
+      AddPointCloudToViewer(scan_, "scan " + std::to_string(measurement_num));
+      ShowFailedMeasurement();
+    }
 
-  Eigen::Affine3d T_SCAN_TARGET_OPT;
-  T_SCAN_TARGET_OPT.matrix() =
-      icp_.getFinalTransformation().inverse().cast<double>();
+    accept_measurement_ = false;
 
-  // Get x,y,r,p data
-  auto final_transform_vector = ExtractRelevantMeasurements(T_SCAN_TARGET_OPT);
+    return Eigen::Vector4d(-100, -100, -100, -100);
 
-  if (show_measurements_) {
-    // Display clouds for testing
-    // transform template cloud from target to lidar
-    auto estimated_template_cloud =
-        ColourPointCloud(template_cloud_, 255, 0, 0);
-    pcl::transformPointCloud(*estimated_template_cloud,
-                             *estimated_template_cloud, T_SCAN_TARGET_EST);
-    AddColouredPointCloudToViewer(estimated_template_cloud,
-                                  "estimated template cloud " +
-                                      std::to_string(measurement_num));
-
-    auto measured_template_cloud = ColourPointCloud(template_cloud_, 0, 255, 0);
-    pcl::transformPointCloud(*measured_template_cloud, *measured_template_cloud,
-                             T_SCAN_TARGET_OPT);
-    AddColouredPointCloudToViewer(measured_template_cloud,
-                                  "measured template cloud " +
-                                      std::to_string(measurement_num));
-
-    AddPointCloudToViewer(cropped_cloud,
-                          "cropped scan " + std::to_string(measurement_num));
-
-    ShowFinalTransformation();
-    pcl_viewer_->resetStoppedFlag();
-
-    accept_measurement = accept_measurement_;
+    // throw std::runtime_error{
+    //    "Couldn't register cylinder target to template cloud"};
   } else {
-    accept_measurement = true;
-  }
+    Eigen::Affine3d T_SCAN_TARGET_OPT;
+    T_SCAN_TARGET_OPT.matrix() =
+        icp_.getFinalTransformation().inverse().cast<double>();
 
-  return final_transform_vector;
+    // Get x,y,r,p data
+    auto final_transform_vector = ExtractRelevantMeasurements(T_SCAN_TARGET_OPT);
+
+    if (show_measurements_) {
+      // Display clouds for testing
+      // transform template cloud from target to lidar
+      auto estimated_template_cloud =
+          ColourPointCloud(template_cloud_, 0, 0, 255);
+      pcl::transformPointCloud(*estimated_template_cloud,
+                               *estimated_template_cloud, T_SCAN_TARGET_EST);
+      AddColouredPointCloudToViewer(estimated_template_cloud,
+                                    "estimated template cloud " +
+                                        std::to_string(measurement_num));
+
+      auto measured_template_cloud = ColourPointCloud(template_cloud_, 0, 255, 0);
+      pcl::transformPointCloud(*measured_template_cloud, *measured_template_cloud,
+                               T_SCAN_TARGET_OPT);
+      AddColouredPointCloudToViewer(measured_template_cloud,
+                                    "measured template cloud " +
+                                        std::to_string(measurement_num));
+
+      AddPointCloudToViewer(cropped_cloud,
+                            "cropped scan " + std::to_string(measurement_num));
+
+      ShowFinalTransformation();
+      pcl_viewer_->resetStoppedFlag();
+
+      accept_measurement = accept_measurement_;
+    } else {
+      accept_measurement = true;
+    }
+
+    return final_transform_vector;
+  }
 }
 
 PointCloud::Ptr
@@ -113,10 +139,10 @@ LidarCylExtractor::CropPointCloud(Eigen::Affine3d &T_SCAN_TARGET_EST) {
     std::cout << "WARNING: Using threshold of 0 for cropping" << std::endl;
   }
 
-  Eigen::Vector3f min_vector(-radius_ - threshold_, -radius_ - threshold_,
-                             -height_ - threshold_);
-  Eigen::Vector3f max_vector(radius_ + threshold_, radius_ + threshold_,
-                             threshold_);
+  Eigen::Vector3f min_vector(- x_ - threshold_, - y_ - threshold_,
+                             - z_ - threshold_);
+  Eigen::Vector3f max_vector(x_ + threshold_, y_ + threshold_,
+                             z_ + threshold_);
 
   cropper_.SetMinVector(min_vector);
   cropper_.SetMaxVector(max_vector);
@@ -177,9 +203,21 @@ void LidarCylExtractor::ShowFinalTransformation() {
   std::cout << "-------------------------------" << std::endl;
   std::cout << "Legend:" << std::endl;
   std::cout << "  White -> scan" << std::endl;
-  std::cout << "  red   -> target initial guess" << std::endl;
-  std::cout << "  green -> target aligned" << std::endl;
+  std::cout << "  Blue   -> target initial guess" << std::endl;
+  std::cout << "  Green -> target aligned" << std::endl;
   std::cout << "Accept measurement? [y/n]" << std::endl;
+  while (!pcl_viewer_->wasStopped()) {
+    pcl_viewer_->spinOnce(10);
+    std::this_thread::sleep_for(10ms);
+  }
+}
+
+void LidarCylExtractor::ShowFailedMeasurement() {
+  std::cout << "-------------------------------" << std::endl;
+  std::cout << "Legend:" << std::endl;
+  std::cout << "  Red -> cropped scan" << std::endl;
+  std::cout << "  White   -> original scan" << std::endl;
+  std::cout << "Press [c] to continue with other measurements" << std::endl;
   while (!pcl_viewer_->wasStopped()) {
     pcl_viewer_->spinOnce(10);
     std::this_thread::sleep_for(10ms);
@@ -191,17 +229,27 @@ void LidarCylExtractor::ConfirmMeasurementKeyboardCallback(
   pcl::visualization::PCLVisualizer *viewer =
       static_cast<pcl::visualization::PCLVisualizer *>(viewer_void);
 
-  if (event.getKeySym() == "y" && event.keyDown()) {
-    std::cout << "Accepting measurement" << std::endl;
-    accept_measurement_ = true;
-    viewer->removeAllPointClouds();
-    viewer->close();
+  if (measurement_failed_) {
+    if (event.getKeySym() == "c" && event.keyDown()) {
+      std::cout << "Continuing with taking measurements" << std::endl;
+      measurement_failed_ = false;
+      viewer->removeAllPointClouds();
+      viewer->close();
+    }
+  } else {
+    if (event.getKeySym() == "y" && event.keyDown()) {
+      std::cout << "Accepting measurement" << std::endl;
+      accept_measurement_ = true;
+      viewer->removeAllPointClouds();
+      viewer->close();
 
-  } else if (event.getKeySym() == "n" && event.keyDown()) {
-    std::cout << "Rejecting measurement" << std::endl;
-    accept_measurement_ = false;
-    viewer->removeAllPointClouds();
-    viewer->close();
+    } else if (event.getKeySym() == "n" && event.keyDown()) {
+      std::cout << "Rejecting measurement" << std::endl;
+      accept_measurement_ = false;
+      viewer->removeAllPointClouds();
+      viewer->close();
+
+    }
   }
 }
 

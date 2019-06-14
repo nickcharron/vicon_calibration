@@ -104,6 +104,11 @@ public:
   Eigen::Vector4d ExtractRelevantMeasurements(Eigen::Affine3d &T_SCAN_TARGET);
 
   void SetICPConfigs(double t_eps, double fit_eps, double max_corr, int max_iter);
+  void SetXYZ(double x, double y, double z) {
+    x_ = x;
+    y_ = y;
+    z_ = z;
+  }
 
 private:
   /**
@@ -144,6 +149,11 @@ private:
   void ShowFinalTransformation();
 
   /**
+   * @brief Show colored cropped cloud and scan when ICP registration fails
+   */
+  void ShowFailedMeasurement();
+
+  /**
    * @brief Keyboard event callback to allow the user to accept or reject final
    * transform measurement
    */
@@ -160,9 +170,14 @@ private:
   pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
   bool show_measurements_{false};
   static bool accept_measurement_;
+  static bool measurement_failed_;
 
   beam_filtering::CropBox cropper_;
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp_;
+
+  double x_;
+  double y_;
+  double z_;
 
 };
 

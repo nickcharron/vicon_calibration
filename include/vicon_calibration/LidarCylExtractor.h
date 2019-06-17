@@ -22,7 +22,7 @@ class LidarCylExtractor {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  LidarCylExtractor() = default;
+  LidarCylExtractor();
 
   /**
    * @brief Constructor
@@ -103,12 +103,14 @@ public:
    */
   Eigen::Vector4d ExtractRelevantMeasurements(Eigen::Affine3d &T_SCAN_TARGET);
 
-  void SetICPConfigs(double t_eps, double fit_eps, double max_corr, int max_iter);
-  void SetXYZ(double x, double y, double z) {
-    x_ = x;
-    y_ = y;
-    z_ = z;
-  }
+  /**
+   * @brief Set ICP registration parameters
+   * @param t_eps Transformation epsilon
+   * @param fit_eps Eucliedean Fitness Epsilon
+   * @param max_corr Maximum correspondence distance
+   * @param max_iter Maximum iteration
+   */
+  void SetICPParameters(double t_eps, double fit_eps, double max_corr, int max_iter);
 
 private:
   /**
@@ -154,6 +156,11 @@ private:
   void ShowFailedMeasurement();
 
   /**
+   * @brief Modifies icp registration configuration
+   */ 
+  void ModifyICPConfig();
+
+  /**
    * @brief Keyboard event callback to allow the user to accept or reject final
    * transform measurement
    */
@@ -165,20 +172,20 @@ private:
   Eigen::Affine3d T_LIDAR_SCAN_;
   double height_{0.5};
   double radius_{0.0635};
-  double threshold_{0.001}; // Threshold for cropping the the aggregated cloud
+  double threshold_{0.01}; // Threshold for cropping the the aggregated cloud
 
   pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
   bool show_measurements_{false};
-  static bool accept_measurement_;
-  static bool measurement_failed_;
+  static bool accept_measurement_; // For displaying resulted clouds
+  static bool measurement_failed_; // For displaying clouds when icp diverges
 
   beam_filtering::CropBox cropper_;
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp_;
 
-  double x_;
-  double y_;
-  double z_;
-
+  double t_eps_{1e-8};
+  double fit_eps_{1e-2};
+  double max_corr_{1};
+  int max_iter_{100};
 };
 
 } // end namespace vicon_calibration

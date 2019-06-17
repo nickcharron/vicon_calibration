@@ -7,6 +7,10 @@ using namespace std::literals::chrono_literals;
 bool LidarCylExtractor::accept_measurement_;
 bool LidarCylExtractor::measurement_failed_;
 
+LidarCylExtractor::LidarCylExtractor() {
+  ModifyICPConfig();
+}
+
 LidarCylExtractor::LidarCylExtractor(PointCloud::Ptr &template_cloud,
                                      PointCloud::Ptr &scan)
     : template_cloud_(template_cloud), scan_(scan) {}
@@ -47,16 +51,6 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
 
   // Crop the scan before performing ICP registration
   auto cropped_cloud = CropPointCloud(T_SCAN_TARGET_EST);
-    /*PointCloud::Ptr transformed_cropped_cloud(new PointCloud);
-    pcl::transformPointCloud(*cropped_cloud,
-                             *transformed_cropped_cloud, T_SCAN_TARGET_EST.inverse());
-    auto coloured = ColourPointCloud(transformed_cropped_cloud, 255, 0, 0);
-
-    AddColouredPointCloudToViewer(coloured, "transformed " + std::to_string(measurement_num));
-    AddPointCloudToViewer(template_cloud_, "template");
-
-    ShowFinalTransformation();*/
-
 
   // Perform ICP Registration
   icp_.setInputSource(cropped_cloud);
@@ -74,6 +68,7 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
                                         std::to_string(measurement_num));
       AddPointCloudToViewer(scan_, "scan " + std::to_string(measurement_num));
       ShowFailedMeasurement();
+      pcl_viewer_->resetStoppedFlag();
     }
 
     accept_measurement_ = false;
@@ -139,10 +134,10 @@ LidarCylExtractor::CropPointCloud(Eigen::Affine3d &T_SCAN_TARGET_EST) {
     std::cout << "WARNING: Using threshold of 0 for cropping" << std::endl;
   }
 
-  Eigen::Vector3f min_vector(- x_ - threshold_, - y_ - threshold_,
-                             - z_ - threshold_);
-  Eigen::Vector3f max_vector(x_ + threshold_, y_ + threshold_,
-                             z_ + threshold_);
+  Eigen::Vector3f min_vector(- threshold_, - radius_ - threshold_,
+                             - radius_ - threshold_);
+  Eigen::Vector3f max_vector(height_ + threshold_, radius_ + threshold_,
+                             radius_ + threshold_);
 
   cropper_.SetMinVector(min_vector);
   cropper_.SetMaxVector(max_vector);
@@ -253,12 +248,21 @@ void LidarCylExtractor::ConfirmMeasurementKeyboardCallback(
   }
 }
 
-void LidarCylExtractor::SetICPConfigs(double t_eps, double fit_eps,
+void LidarCylExtractor::SetICPParameters(double t_eps, double fit_eps,
                                       double max_corr, int max_iter) {
-  icp_.setTransformationEpsilon(t_eps);
-  icp_.setEuclideanFitnessEpsilon(fit_eps);
-  icp_.setMaximumIterations(max_corr);
-  icp_.setMaxCorrespondenceDistance(max_iter);
+  t_eps_ = t_eps;
+  fit_eps_ = fit_eps;
+  max_corr_ = max_corr;
+  max_iter_ = max_iter;
+
+  ModifyICPConfig();
+}
+
+void LidarCylExtractor::ModifyICPConfig() {
+  icp_.setTransformationEpsilon(t_eps_);
+  icp_.setEuclideanFitnessEpsilon(fit_eps_);
+  icp_.setMaximumIterations(max_corr_);
+  icp_.setMaxCorrespondenceDistance(max_iter_);
 }
 
 } // end namespace vicon_calibration

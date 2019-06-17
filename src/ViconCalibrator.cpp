@@ -40,7 +40,7 @@ double camera_time_steps, lidar_time_steps, target_radius, target_height,
 bool show_camera_measurements, show_lidar_measurements;
 vicon_calibration::LidarCylExtractor lidar_extractor;
 
-double max_corr, t_eps, fit_eps, x, y, z;
+double max_corr, t_eps, fit_eps;
 int max_iter;
 bool set_show_transform;
 
@@ -112,10 +112,6 @@ void LoadJson(std::string file_name) {
   max_iter = J["max_iter"];
   t_eps = J["t_eps"];
   fit_eps = J["fit_eps"];
-  x = J["x"];
-  y = J["y"];
-  z = J["z"];
-
   set_show_transform = J["set_show_transform"];
 }
 
@@ -161,9 +157,6 @@ GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame) {
     auto T_SENSOR_TGTn_msg =
         tree.GetTransform(sensor_frame, vicon_target_frames[n], time);
 
-    std::string world = "world";
-    auto T_TARGET_WORLD = tree.GetTransform(vicon_target_frames[n], world, time);
-    std::cout << T_TARGET_WORLD << std::endl;
     Eigen::Affine3d T_SENSOR_TGTn = tf2::transformToEigen(T_SENSOR_TGTn_msg);
     T_sensor_tgts_estimated.push_back(T_SENSOR_TGTn);
   }
@@ -176,8 +169,9 @@ void GetLidarMeasurements(rosbag::Bag &bag, std::string &topic,
   pcl::PCLPointCloud2::Ptr cloud_pc2 =
       boost::make_shared<pcl::PCLPointCloud2>();
   PointCloud::Ptr cloud = boost::make_shared<PointCloud>();
-  ros::Time time_last(0, 0);
   ros::Duration time_step(lidar_time_steps);
+  ros::Time time_last(0, 0);
+  time_last = time_last + time_step;
   std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
       T_lidar_tgts_estimated;
 
@@ -241,11 +235,10 @@ int main() {
   }
 
   lidar_extractor.SetTemplateCloud(target_cloud);
-  lidar_extractor.SetThreshold(target_crop_threshold); // Default: 0.015
-  //lidar_extractor.SetRadius(target_radius);            // Default: 0.0635
-  //lidar_extractor.SetHeight(target_height);            // Default: 0.5
-  lidar_extractor.SetICPConfigs(t_eps, fit_eps, max_corr, max_iter);
-  lidar_extractor.SetXYZ(x, y, z);
+  lidar_extractor.SetThreshold(target_crop_threshold); // Default: 0.01
+  lidar_extractor.SetRadius(target_radius);            // Default: 0.0635
+  lidar_extractor.SetHeight(target_height);            // Default: 0.5
+  lidar_extractor.SetICPParameters(t_eps, fit_eps, max_corr, max_iter);
   lidar_extractor.SetShowTransformation(set_show_transform);
 
   // main loop

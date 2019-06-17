@@ -20,13 +20,6 @@ std::string current_file = "lidar_cyl_extract_test.cpp";
 std::string test_path = __FILE__;
 std::string bag_path;
 std::string template_cloud_path;
-std::string config_file;
-
-double max_corr, t_eps, fit_eps, threshold, x, y, z;
-int max_iter;
-std::string bag_file;
-std::string template_cloud_file;
-bool set_show_transform;
 
 vicon_calibration::LidarCylExtractor cyl_extractor;
 Eigen::Affine3d TA_SCAN_TARGET_EST1, TA_SCAN_TARGET_EST2;
@@ -35,36 +28,16 @@ vicon_calibration::PointCloud::Ptr
     temp_cloud(new vicon_calibration::PointCloud);
 vicon_calibration::PointCloud::Ptr sim_cloud(new vicon_calibration::PointCloud);
 
-
-void LoadJson(std::string file_name) {
-  nlohmann::json J;
-  std::ifstream file(file_name);
-  file >> J;
-
-  bag_file = J["bag_file"];
-  template_cloud_file = J["template_cloud_name"];
-
-  max_corr = J["max_corr"];
-  max_iter = J["max_iter"];
-  t_eps = J["t_eps"];
-  fit_eps = J["fit_eps"];
-  threshold = J["threshold"];
-  x = J["x"];
-  y = J["y"];
-  z = J["z"];
-
-  set_show_transform = J["set_show_transform"];
-}
-
 void FileSetup() {
   test_path.erase(test_path.end() - current_file.size(), test_path.end());
-  bag_path = test_path + "test_bags/2019-06-14-15-13-46.bag";
-  template_cloud_path = test_path + "template_pointclouds/cylinder_target_rotated.pcd";
+  bag_path = test_path + "test_bags/roben_simulation.bag";
+  template_cloud_path =
+      test_path + "template_pointclouds/cylinder_target_rotated.pcd";
 }
 
 void LoadTemplateCloud() {
   // Load template cloud from pcd file
-  if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_file, *temp_cloud) ==
+  if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path, *temp_cloud) ==
       -1) {
     PCL_ERROR("Couldn't read file cylinder_target.pcd \n");
   }
@@ -73,7 +46,7 @@ void LoadTemplateCloud() {
 void LoadSimulatedCloud() {
   // Rosbag for accessing bag data
   rosbag::Bag bag;
-  bag.open(bag_file, rosbag::bagmode::Read);
+  bag.open(bag_path, rosbag::bagmode::Read);
   // Load the simulated pointcloud from the bag
   rosbag::View cloud_bag_view = {bag,
                                  rosbag::TopicQuery("/m3d/aggregator/cloud")};
@@ -93,7 +66,7 @@ void LoadTransforms() {
 
   // Rosbag for accessing bag data
   rosbag::Bag bag;
-  bag.open(bag_file, rosbag::bagmode::Read);
+  bag.open(bag_path, rosbag::bagmode::Read);
   rosbag::View tf_bag_view = {bag, rosbag::TopicQuery("/tf")};
 
   tf_tree.start_time_ = tf_bag_view.getBeginTime();
@@ -110,7 +83,7 @@ void LoadTransforms() {
   }
   // Load calibration json and add transform between m3d_link and base_link
   std::string calibration_json;
-  calibration_json = test_path + "calibration/roben_extrinsic.json";
+  calibration_json = test_path + "calibration/roben_extrinsics.json";
   tf_tree.LoadJSON(calibration_json);
 
   // Get transforms between targets and lidar and world and targets
@@ -127,12 +100,13 @@ void LoadTransforms() {
   TA_SCAN_TARGET_EST1 = tf2::transformToEigen(T_SCAN_TARGET_EST1_msg);
   TA_SCAN_TARGET_EST2 = tf2::transformToEigen(T_SCAN_TARGET_EST2_msg);
 }
-/*
+
+/* TEST CASES */
+
 TEST_CASE("Test cylinder extractor with empty template cloud (nullptr)") {
   bool accept_measurement;
 
   FileSetup();
-  LoadJson(test_path + "test.json");
   LoadTransforms();
 
   REQUIRE_THROWS(
@@ -160,7 +134,7 @@ TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
 }
 
 TEST_CASE("Test extracting cylinder target with diverged ICP registration") {
-  double default_threshold = 0.001;
+  double default_threshold = 0.01;
   bool accept_measurement;
 
   cyl_extractor.SetThreshold(-0.05);
@@ -184,23 +158,10 @@ TEST_CASE("Test extracting cylinder with invalid parameters") {
   REQUIRE_THROWS(
       cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, accept_measurement));
   cyl_extractor.SetHeight(default_height);
-}*/
+}
 
 TEST_CASE("Test cylinder extractor") {
   bool accept_measurement1, accept_measurement2;
-
-  FileSetup();
-  LoadJson(test_path + "test.json");
-  LoadTransforms();
-  LoadTemplateCloud();
-  LoadSimulatedCloud();
-  cyl_extractor.SetTemplateCloud(temp_cloud);
-  cyl_extractor.SetScan(sim_cloud);
-
-  cyl_extractor.SetICPConfigs(t_eps, fit_eps, max_corr, max_iter);
-  cyl_extractor.SetThreshold(threshold);
-  cyl_extractor.SetXYZ(x, y, z);
-  cyl_extractor.SetShowTransformation(set_show_transform);
 
   auto measured_transform1 = cyl_extractor.ExtractCylinder(
       TA_SCAN_TARGET_EST1, accept_measurement1, 1);
@@ -211,33 +172,24 @@ TEST_CASE("Test cylinder extractor") {
   auto true_transform2 =
       cyl_extractor.ExtractRelevantMeasurements(TA_SCAN_TARGET_EST2);
 
-  std::cout << "Measured transform 1" << std::endl << measured_transform1 << std::endl;
-  std::cout << "True transform 1" << std::endl << true_transform1 << std::endl;
-  std::cout << "Measured transform 2" << std::endl << measured_transform2 << std::endl;
-  std::cout << "True transform 2" << std::endl << true_transform2 << std::endl;
+  Eigen::Vector2d dist_diff1(measured_transform1(0) - true_transform1(0),
+                             measured_transform1(1) - true_transform1(1));
+  Eigen::Vector2d rot_diff1(measured_transform1(2) - true_transform1(2),
+                            measured_transform1(3) - true_transform1(3));
 
-  Eigen::Vector2d dist_diff1(measured_transform1(0)-true_transform1(0), measured_transform1(1)-true_transform1(1));
-  Eigen::Vector2d rot_diff1(measured_transform1(2)-true_transform1(2), measured_transform1(3)-true_transform1(3));
+  double dist_err1 = std::round(dist_diff1.norm() * 10000) / 10000;
+  double rot_err1 = std::round(rot_diff1.norm() * 10000) / 10000;
 
-  double dist_err1 = dist_diff1.norm();
-  double rot_err1 = rot_diff1.norm();
+  Eigen::Vector2d dist_diff2(measured_transform2(0) - true_transform2(0),
+                             measured_transform2(1) - true_transform2(1));
+  Eigen::Vector2d rot_diff2(measured_transform2(2) - true_transform2(2),
+                            measured_transform2(3) - true_transform2(3));
 
-  std::cout << "DIST ERROR 1: " << dist_err1 << std::endl;
-  std::cout << "ROT ERROR 1: " << rot_err1 << std::endl;
+  double dist_err2 = std::round(dist_diff2.norm() * 1000) / 1000;
+  double rot_err2 = std::round(rot_diff2.norm() * 1000) / 1000;
 
-  Eigen::Vector2d dist_diff2(measured_transform2(0)-true_transform2(0), measured_transform2(1)-true_transform2(1));
-  Eigen::Vector2d rot_diff2(measured_transform2(2)-true_transform2(2), measured_transform2(3)-true_transform2(3));
-
-  double dist_err2 = dist_diff2.norm();
-  double rot_err2 = rot_diff2.norm();
-
-  std::cout << "DIST ERROR 2: " << dist_err2 << std::endl;
-  std::cout << "ROT ERROR 2: " << rot_err2 << std::endl;
-
-  double error1 =
-      std::round((measured_transform1 - true_transform1).norm() * 100) / 100;
-  double error2 =
-      std::round((measured_transform2 - true_transform2).norm() * 100) / 100;
-  REQUIRE(error1 <= 0.01);
-  REQUIRE(error2 <= 0.01);
+  REQUIRE(dist_err1 <= 0.02); // less than 2 cm
+  REQUIRE(dist_err2 <= 0.02);
+  REQUIRE(rot_err1 <= 0.2); // less than 0.2 rad
+  REQUIRE(rot_err2 <= 0.2);
 }

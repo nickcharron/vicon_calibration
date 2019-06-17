@@ -22,9 +22,11 @@
      "template_cloud_name": "cylinder_target.pcd",
      "vicon_target_frames": ["vicon/cylinder_target1/cylinder_target1", "vicon/cylinder_target2/cylinder_target2"]}
   ],
-  "max_corr": 1,
-  "max_iter": 100,
-  "t_eps": 1e-8,
-  "fit_eps": 1e-2,
-  "set_show_transform": true
+  "icp_params": [
+    {"max_corr": 1,
+    "max_iter": 100,
+    "t_eps": 1e-8,
+    "fit_eps": 1e-2,
+    "set_show_transform": true}
+  ]
 }

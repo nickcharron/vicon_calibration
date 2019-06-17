@@ -108,11 +108,13 @@ void LoadJson(std::string file_name) {
     }
   }
 
-  max_corr = J["max_corr"];
-  max_iter = J["max_iter"];
-  t_eps = J["t_eps"];
-  fit_eps = J["fit_eps"];
-  set_show_transform = J["set_show_transform"];
+  for (const auto &icp_params : J["icp_params"]) {
+    max_corr = icp_params.at("max_corr");
+    max_iter = icp_params.at("max_iter");
+    t_eps = icp_params.at("t_eps");
+    fit_eps = icp_params.at("fit_eps");
+    set_show_transform = icp_params.at("set_show_transform");
+  }
 }
 
 std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
@@ -191,7 +193,8 @@ void GetLidarMeasurements(rosbag::Bag &bag, std::string &topic,
         lidar_extractor.SetScan(cloud);
         for (uint8_t n = 0; n < T_lidar_tgts_estimated.size(); n++) {
           measurement = lidar_extractor.ExtractCylinder(
-              T_lidar_tgts_estimated[n], measurement_valid, n);
+              T_lidar_tgts_estimated[n], n);
+          measurement_valid = lidar_extractor.GetMeasurementAccepted();
         }
       }
     }

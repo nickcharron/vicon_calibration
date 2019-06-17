@@ -1,5 +1,5 @@
 {
-  "bag_file": "/home/averyjung/catkin_ws/bag_files/ig_bag/ig_scan_2019-03-06-12-10-26.bag",
+  "bag_file": "/home/averyjung/catkin_ws/bag_files/ig_simulation/ig_simulation.bag",
   "initial_calibration": "initial_calibration_ig.json",
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
   "camera_info": [
@@ -18,16 +18,13 @@
   "target_info": [
     {"radius": 0.0635,
      "height": 0.5,
-     "crop_threshold": 0.01,
-     "template_cloud_name": "cylinder_target_rotated.pcd",
+     "crop_threshold": 0.1,
+     "template_cloud_name": "cylinder_target.pcd",
      "vicon_target_frames": ["vicon/cylinder_target1/cylinder_target1", "vicon/cylinder_target2/cylinder_target2"]}
   ],
   "max_corr": 1,
   "max_iter": 100,
-  "t_eps":1e-8,
-  "fit_eps":1e-2,
-  "x": 0.0635,
-  "y": 0.0635,
-  "z": 0.5,
+  "t_eps": 1e-8,
+  "fit_eps": 1e-2,
   "set_show_transform": true
 }

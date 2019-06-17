@@ -83,6 +83,8 @@ public:
    */
   PointCloud::Ptr GetScan() { return scan_; }
 
+  bool GetMeasurementAccepted() { return accept_measurement_; }
+
   /**
    * @brief Extract cylinder target from the aggregated cloud, then calculate
    * transform from cloud to target
@@ -92,7 +94,6 @@ public:
    * ty, ra, ry]^T
    */
   Eigen::Vector4d ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
-                                  bool &accept_measurement,
                                   int measurement_num = 0);
 
   /**
@@ -157,7 +158,7 @@ private:
 
   /**
    * @brief Modifies icp registration configuration
-   */ 
+   */
   void ModifyICPConfig();
 
   /**

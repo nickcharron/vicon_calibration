@@ -7,9 +7,7 @@ using namespace std::literals::chrono_literals;
 bool LidarCylExtractor::accept_measurement_;
 bool LidarCylExtractor::measurement_failed_;
 
-LidarCylExtractor::LidarCylExtractor() {
-  ModifyICPConfig();
-}
+LidarCylExtractor::LidarCylExtractor() { ModifyICPConfig(); }
 
 LidarCylExtractor::LidarCylExtractor(PointCloud::Ptr &template_cloud,
                                      PointCloud::Ptr &scan)
@@ -39,7 +37,6 @@ void LidarCylExtractor::SetShowTransformation(bool show_measurements) {
 
 Eigen::Vector4d
 LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
-                                   bool &accept_measurement,
                                    int measurement_num) {
   if (template_cloud_ == nullptr) {
     throw std::runtime_error{"Template cloud is empty"};
@@ -74,16 +71,13 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
     accept_measurement_ = false;
 
     return Eigen::Vector4d(-100, -100, -100, -100);
-
-    // throw std::runtime_error{
-    //    "Couldn't register cylinder target to template cloud"};
   } else {
     Eigen::Affine3d T_SCAN_TARGET_OPT;
     T_SCAN_TARGET_OPT.matrix() =
         icp_.getFinalTransformation().inverse().cast<double>();
 
     // Get x,y,r,p data
-    auto final_transform_vector = ExtractRelevantMeasurements(T_SCAN_TARGET_OPT);
+    auto opt_measurement = ExtractRelevantMeasurements(T_SCAN_TARGET_OPT);
 
     if (show_measurements_) {
       // Display clouds for testing
@@ -96,9 +90,10 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
                                     "estimated template cloud " +
                                         std::to_string(measurement_num));
 
-      auto measured_template_cloud = ColourPointCloud(template_cloud_, 0, 255, 0);
-      pcl::transformPointCloud(*measured_template_cloud, *measured_template_cloud,
-                               T_SCAN_TARGET_OPT);
+      auto measured_template_cloud =
+          ColourPointCloud(template_cloud_, 0, 255, 0);
+      pcl::transformPointCloud(*measured_template_cloud,
+                               *measured_template_cloud, T_SCAN_TARGET_OPT);
       AddColouredPointCloudToViewer(measured_template_cloud,
                                     "measured template cloud " +
                                         std::to_string(measurement_num));
@@ -109,12 +104,25 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
       ShowFinalTransformation();
       pcl_viewer_->resetStoppedFlag();
 
-      accept_measurement = accept_measurement_;
     } else {
-      accept_measurement = true;
+      auto est_measurement = ExtractRelevantMeasurements(T_SCAN_TARGET_EST);
+      Eigen::Vector2d dist_diff(opt_measurement(0) - est_measurement(0),
+                                opt_measurement(1) - est_measurement(1));
+      Eigen::Vector2d rot_diff(opt_measurement(2) - est_measurement(2),
+                               opt_measurement(3) - est_measurement(3));
+
+      double dist_err = std::round(dist_diff.norm() * 10000) / 10000;
+      double rot_err = std::round(rot_diff.norm() * 10000) / 10000;
+      if (dist_err >= 0.05 || rot_err >= 0.523599) {
+        // if error between estimated measurement and optimized measurement
+        // is greater than 5 cm or than 30 deg, don't accept the measurement
+        accept_measurement_ = false;
+      } else {
+        accept_measurement_ = true;
+      }
     }
 
-    return final_transform_vector;
+    return opt_measurement;
   }
 }
 
@@ -134,8 +142,8 @@ LidarCylExtractor::CropPointCloud(Eigen::Affine3d &T_SCAN_TARGET_EST) {
     std::cout << "WARNING: Using threshold of 0 for cropping" << std::endl;
   }
 
-  Eigen::Vector3f min_vector(- threshold_, - radius_ - threshold_,
-                             - radius_ - threshold_);
+  Eigen::Vector3f min_vector(-threshold_, -radius_ - threshold_,
+                             -radius_ - threshold_);
   Eigen::Vector3f max_vector(height_ + threshold_, radius_ + threshold_,
                              radius_ + threshold_);
 
@@ -198,7 +206,7 @@ void LidarCylExtractor::ShowFinalTransformation() {
   std::cout << "-------------------------------" << std::endl;
   std::cout << "Legend:" << std::endl;
   std::cout << "  White -> scan" << std::endl;
-  std::cout << "  Blue   -> target initial guess" << std::endl;
+  std::cout << "  Blue  -> target initial guess" << std::endl;
   std::cout << "  Green -> target aligned" << std::endl;
   std::cout << "Accept measurement? [y/n]" << std::endl;
   while (!pcl_viewer_->wasStopped()) {
@@ -210,8 +218,8 @@ void LidarCylExtractor::ShowFinalTransformation() {
 void LidarCylExtractor::ShowFailedMeasurement() {
   std::cout << "-------------------------------" << std::endl;
   std::cout << "Legend:" << std::endl;
-  std::cout << "  Red -> cropped scan" << std::endl;
-  std::cout << "  White   -> original scan" << std::endl;
+  std::cout << "  Red   -> cropped scan" << std::endl;
+  std::cout << "  White -> original scan" << std::endl;
   std::cout << "Press [c] to continue with other measurements" << std::endl;
   while (!pcl_viewer_->wasStopped()) {
     pcl_viewer_->spinOnce(10);
@@ -243,13 +251,12 @@ void LidarCylExtractor::ConfirmMeasurementKeyboardCallback(
       accept_measurement_ = false;
       viewer->removeAllPointClouds();
       viewer->close();
-
     }
   }
 }
 
 void LidarCylExtractor::SetICPParameters(double t_eps, double fit_eps,
-                                      double max_corr, int max_iter) {
+                                         double max_corr, int max_iter) {
   t_eps_ = t_eps;
   fit_eps_ = fit_eps;
   max_corr_ = max_corr;

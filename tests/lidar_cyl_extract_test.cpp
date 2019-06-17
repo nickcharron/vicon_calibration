@@ -32,7 +32,7 @@ void FileSetup() {
   test_path.erase(test_path.end() - current_file.size(), test_path.end());
   bag_path = test_path + "test_bags/roben_simulation.bag";
   template_cloud_path =
-      test_path + "template_pointclouds/cylinder_target_rotated.pcd";
+      test_path + "template_pointclouds/cylinder_target.pcd";
 }
 
 void LoadTemplateCloud() {
@@ -104,73 +104,71 @@ void LoadTransforms() {
 /* TEST CASES */
 
 TEST_CASE("Test cylinder extractor with empty template cloud (nullptr)") {
-  bool accept_measurement;
-
   FileSetup();
   LoadTransforms();
 
   REQUIRE_THROWS(
-      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, accept_measurement));
+      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
 }
 
 TEST_CASE("Test extracting cylinder from empty scan (nullptr)") {
-  bool accept_measurement;
-
   LoadTemplateCloud();
 
   cyl_extractor.SetTemplateCloud(temp_cloud);
   REQUIRE_THROWS(
-      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, accept_measurement));
+      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
 }
 
 TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
   Eigen::Affine3d TA_INVALID;
-  bool accept_measurement;
 
   LoadSimulatedCloud();
 
   cyl_extractor.SetScan(sim_cloud);
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_INVALID, accept_measurement));
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_INVALID));
 }
 
 TEST_CASE("Test extracting cylinder target with diverged ICP registration") {
+  bool measurement_valid;
   double default_threshold = 0.01;
-  bool accept_measurement;
 
   cyl_extractor.SetThreshold(-0.05);
-  cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, accept_measurement);
+  cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1);
+  measurement_valid = cyl_extractor.GetMeasurementAccepted();
 
-  REQUIRE(accept_measurement == false);
+  REQUIRE(measurement_valid == false);
   cyl_extractor.SetThreshold(default_threshold);
 }
 
 TEST_CASE("Test extracting cylinder with invalid parameters") {
   double default_radius = 0.0635;
   double default_height = 0.5;
-  bool accept_measurement;
 
   cyl_extractor.SetRadius(0);
   REQUIRE_THROWS(
-      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, accept_measurement));
+      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
   cyl_extractor.SetRadius(default_radius);
 
   cyl_extractor.SetHeight(0);
   REQUIRE_THROWS(
-      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, accept_measurement));
+      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
   cyl_extractor.SetHeight(default_height);
 }
 
 TEST_CASE("Test cylinder extractor") {
-  bool accept_measurement1, accept_measurement2;
-
+  bool measurement_valid1, measurement_valid2;
   auto measured_transform1 = cyl_extractor.ExtractCylinder(
-      TA_SCAN_TARGET_EST1, accept_measurement1, 1);
+      TA_SCAN_TARGET_EST1, 1);
   auto measured_transform2 = cyl_extractor.ExtractCylinder(
-      TA_SCAN_TARGET_EST2, accept_measurement2, 2);
+      TA_SCAN_TARGET_EST2, 2);
+
   auto true_transform1 =
       cyl_extractor.ExtractRelevantMeasurements(TA_SCAN_TARGET_EST1);
+  measurement_valid1 = cyl_extractor.GetMeasurementAccepted();
+
   auto true_transform2 =
       cyl_extractor.ExtractRelevantMeasurements(TA_SCAN_TARGET_EST2);
+  measurement_valid2 = cyl_extractor.GetMeasurementAccepted();
 
   Eigen::Vector2d dist_diff1(measured_transform1(0) - true_transform1(0),
                              measured_transform1(1) - true_transform1(1));
@@ -192,4 +190,6 @@ TEST_CASE("Test cylinder extractor") {
   REQUIRE(dist_err2 <= 0.02);
   REQUIRE(rot_err1 <= 0.2); // less than 0.2 rad
   REQUIRE(rot_err2 <= 0.2);
+  REQUIRE(measurement_valid1 == true);
+  REQUIRE(measurement_valid2 == true);
 }

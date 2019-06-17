@@ -168,6 +168,12 @@ GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame) {
 void GetLidarMeasurements(rosbag::Bag &bag, std::string &topic,
                           std::string &frame) {
   rosbag::View view(bag, ros::TIME_MIN, ros::TIME_MAX, true);
+  auto bag_length = view.getEndTime() - view.getBeginTime();
+  std::cout << bag_length << std::endl;
+  if (bag_length < ros::Duration(5)) {
+    LOG_WARNING("Using a short bag for getting measurements. It could cause "
+                "lookupTransform failure.");
+  }
   pcl::PCLPointCloud2::Ptr cloud_pc2 =
       boost::make_shared<pcl::PCLPointCloud2>();
   PointCloud::Ptr cloud = boost::make_shared<PointCloud>();
@@ -186,14 +192,19 @@ void GetLidarMeasurements(rosbag::Bag &bag, std::string &topic,
         pcl_conversions::toPCL(*lidar_msg, *cloud_pc2);
         pcl::fromPCLPointCloud2(*cloud_pc2, *cloud);
 
-        T_lidar_tgts_estimated =
-            GetInitialGuess(bag, lidar_msg->header.stamp, frame);
+        try {
+          T_lidar_tgts_estimated =
+              GetInitialGuess(bag, lidar_msg->header.stamp, frame);
+        } catch (const std::exception &err) {
+          LOG_ERROR("%s", err);
+          continue;
+        }
         bool measurement_valid;
         Eigen::Vector4d measurement;
         lidar_extractor.SetScan(cloud);
         for (uint8_t n = 0; n < T_lidar_tgts_estimated.size(); n++) {
-          measurement = lidar_extractor.ExtractCylinder(
-              T_lidar_tgts_estimated[n], n);
+          measurement =
+              lidar_extractor.ExtractCylinder(T_lidar_tgts_estimated[n], n);
           measurement_valid = lidar_extractor.GetMeasurementAccepted();
         }
       }

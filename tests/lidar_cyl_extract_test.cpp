@@ -20,6 +20,7 @@ std::string current_file = "lidar_cyl_extract_test.cpp";
 std::string test_path = __FILE__;
 std::string bag_path;
 std::string template_cloud_path;
+std::string rotated_template_cloud_path;
 
 vicon_calibration::LidarCylExtractor cyl_extractor;
 Eigen::Affine3d TA_SCAN_TARGET_EST1, TA_SCAN_TARGET_EST2;
@@ -31,15 +32,15 @@ vicon_calibration::PointCloud::Ptr sim_cloud(new vicon_calibration::PointCloud);
 void FileSetup() {
   test_path.erase(test_path.end() - current_file.size(), test_path.end());
   bag_path = test_path + "test_bags/roben_simulation.bag";
-  template_cloud_path =
-      test_path + "template_pointclouds/cylinder_target.pcd";
+  template_cloud_path = test_path + "template_pointclouds/cylinder_target.pcd";
+  rotated_template_cloud_path =
+      test_path + "template_pointclouds/cylinder_target_rotated.pcd";
 }
 
-void LoadTemplateCloud() {
+void LoadTemplateCloud(std::string temp_cloud_path) {
   // Load template cloud from pcd file
-  if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path, *temp_cloud) ==
-      -1) {
-    PCL_ERROR("Couldn't read file cylinder_target.pcd \n");
+  if (pcl::io::loadPCDFile<pcl::PointXYZ>(temp_cloud_path, *temp_cloud) == -1) {
+    PCL_ERROR("Couldn't read file %s \n", temp_cloud_path);
   }
 }
 
@@ -107,16 +108,14 @@ TEST_CASE("Test cylinder extractor with empty template cloud (nullptr)") {
   FileSetup();
   LoadTransforms();
 
-  REQUIRE_THROWS(
-      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
 }
 
 TEST_CASE("Test extracting cylinder from empty scan (nullptr)") {
-  LoadTemplateCloud();
+  LoadTemplateCloud(template_cloud_path);
 
   cyl_extractor.SetTemplateCloud(temp_cloud);
-  REQUIRE_THROWS(
-      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
 }
 
 TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
@@ -145,22 +144,20 @@ TEST_CASE("Test extracting cylinder with invalid parameters") {
   double default_height = 0.5;
 
   cyl_extractor.SetRadius(0);
-  REQUIRE_THROWS(
-      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
   cyl_extractor.SetRadius(default_radius);
 
   cyl_extractor.SetHeight(0);
-  REQUIRE_THROWS(
-      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
   cyl_extractor.SetHeight(default_height);
 }
 
 TEST_CASE("Test cylinder extractor") {
   bool measurement_valid1, measurement_valid2;
-  auto measured_transform1 = cyl_extractor.ExtractCylinder(
-      TA_SCAN_TARGET_EST1, 1);
-  auto measured_transform2 = cyl_extractor.ExtractCylinder(
-      TA_SCAN_TARGET_EST2, 2);
+  auto measured_transform1 =
+      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1);
+  auto measured_transform2 =
+      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST2, 2);
 
   auto true_transform1 =
       cyl_extractor.ExtractRelevantMeasurements(TA_SCAN_TARGET_EST1);
@@ -192,4 +189,17 @@ TEST_CASE("Test cylinder extractor") {
   REQUIRE(rot_err2 <= 0.2);
   REQUIRE(measurement_valid1 == true);
   REQUIRE(measurement_valid2 == true);
+}
+
+TEST_CASE("Test auto rejection") {
+  bool measurement_valid;
+
+  LoadTemplateCloud(rotated_template_cloud_path);
+
+  cyl_extractor.SetTemplateCloud(temp_cloud);
+  auto measured_transform =
+      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 3);
+  measurement_valid = cyl_extractor.GetMeasurementAccepted();
+
+  REQUIRE(measurement_valid == false);
 }

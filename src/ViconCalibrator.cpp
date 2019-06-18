@@ -169,7 +169,7 @@ void GetLidarMeasurements(rosbag::Bag &bag, std::string &topic,
                           std::string &frame) {
   rosbag::View view(bag, ros::TIME_MIN, ros::TIME_MAX, true);
   auto bag_length = view.getEndTime() - view.getBeginTime();
-  std::cout << bag_length << std::endl;
+  //   std::cout << bag_length << std::endl;
   if (bag_length < ros::Duration(5)) {
     LOG_WARNING("Using a short bag for getting measurements. It could cause "
                 "lookupTransform failure.");

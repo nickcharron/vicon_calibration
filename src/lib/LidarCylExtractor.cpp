@@ -4,7 +4,7 @@ namespace vicon_calibration {
 
 using namespace std::literals::chrono_literals;
 
-bool LidarCylExtractor::accept_measurement_;
+bool LidarCylExtractor::measurement_valid_;
 bool LidarCylExtractor::measurement_failed_;
 
 LidarCylExtractor::LidarCylExtractor() { ModifyICPConfig(); }
@@ -35,9 +35,19 @@ void LidarCylExtractor::SetShowTransformation(bool show_measurements) {
   show_measurements_ = show_measurements;
 }
 
-Eigen::Vector4d
-LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
-                                   int measurement_num) {
+std::pair<Eigen::Vector4d, bool> LidarCylExtractor::GetMeasurementInfo() {
+  if (measurement_complete_) {
+    measurement_complete_ = false;
+    return std::make_pair(measurement_, measurement_valid_);
+  } else {
+    throw std::runtime_error{"Measurement not complete. Please run "
+                             "LidarCylExtractor::ExtractCylinder() before "
+                             "getting the measurement information."};
+  }
+}
+
+void LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
+                                        int measurement_num) {
   if (template_cloud_ == nullptr) {
     throw std::runtime_error{"Template cloud is empty"};
   }
@@ -68,16 +78,16 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
       pcl_viewer_->resetStoppedFlag();
     }
 
-    accept_measurement_ = false;
+    measurement_valid_ = false;
 
-    return Eigen::Vector4d(-100, -100, -100, -100);
+    measurement_ = INVALID_MEASUREMENT;
   } else {
     Eigen::Affine3d T_SCAN_TARGET_OPT;
     T_SCAN_TARGET_OPT.matrix() =
         icp_.getFinalTransformation().inverse().cast<double>();
 
     // Get x,y,r,p data
-    auto opt_measurement = ExtractRelevantMeasurements(T_SCAN_TARGET_OPT);
+    measurement_ = ExtractRelevantMeasurements(T_SCAN_TARGET_OPT);
 
     if (show_measurements_) {
       // Display clouds for testing
@@ -106,24 +116,23 @@ LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
 
     } else {
       auto est_measurement = ExtractRelevantMeasurements(T_SCAN_TARGET_EST);
-      Eigen::Vector2d dist_diff(opt_measurement(0) - est_measurement(0),
-                                opt_measurement(1) - est_measurement(1));
-      Eigen::Vector2d rot_diff(opt_measurement(2) - est_measurement(2),
-                               opt_measurement(3) - est_measurement(3));
+      Eigen::Vector2d dist_diff(measurement_(0) - est_measurement(0),
+                                measurement_(1) - est_measurement(1));
+      Eigen::Vector2d rot_diff(measurement_(2) - est_measurement(2),
+                               measurement_(3) - est_measurement(3));
 
       double dist_err = std::round(dist_diff.norm() * 10000) / 10000;
       double rot_err = std::round(rot_diff.norm() * 10000) / 10000;
-      if (dist_err >= 0.05 || rot_err >= 0.523599) {
+      if (dist_err >= dist_err_criteria_ || rot_err >= rot_err_criteria_) {
         // if error between estimated measurement and optimized measurement
         // is greater than 5 cm or than 30 deg, don't accept the measurement
-        accept_measurement_ = false;
+        measurement_valid_ = false;
       } else {
-        accept_measurement_ = true;
+        measurement_valid_ = true;
       }
     }
-
-    return opt_measurement;
   }
+  measurement_complete_ = true;
 }
 
 PointCloud::Ptr
@@ -242,13 +251,13 @@ void LidarCylExtractor::ConfirmMeasurementKeyboardCallback(
   } else {
     if (event.getKeySym() == "y" && event.keyDown()) {
       std::cout << "Accepting measurement" << std::endl;
-      accept_measurement_ = true;
+      measurement_valid_ = true;
       viewer->removeAllPointClouds();
       viewer->close();
 
     } else if (event.getKeySym() == "n" && event.keyDown()) {
       std::cout << "Rejecting measurement" << std::endl;
-      accept_measurement_ = false;
+      measurement_valid_ = false;
       viewer->removeAllPointClouds();
       viewer->close();
     }

@@ -192,19 +192,22 @@ void GetLidarMeasurements(rosbag::Bag &bag, std::string &topic,
               GetInitialGuess(bag, lidar_msg->header.stamp, frame);
         } catch (const std::exception &err) {
           LOG_ERROR("%s", err);
-          std::cout << "Possible reasons for lookup error: \n" 
-                    << "- Start or End of bag could have message timing issues\n"
-                    << "- Vicon messages not synchronized with robot's ROS time\n"
-                    << "- Invalid initial calibrations, i.e. input transformations json has missing/invalid transforms\n";
+          std::cout
+              << "Possible reasons for lookup error: \n"
+              << "- Start or End of bag could have message timing issues\n"
+              << "- Vicon messages not synchronized with robot's ROS time\n"
+              << "- Invalid initial calibrations, i.e. input transformations "
+                 "json has missing/invalid transforms\n";
           continue;
         }
         bool measurement_valid;
         Eigen::Vector4d measurement;
         lidar_extractor.SetScan(cloud);
         for (uint8_t n = 0; n < T_lidar_tgts_estimated.size(); n++) {
-          measurement =
-              lidar_extractor.ExtractCylinder(T_lidar_tgts_estimated[n], n);
-          measurement_valid = lidar_extractor.GetMeasurementAccepted();
+          lidar_extractor.ExtractCylinder(T_lidar_tgts_estimated[n], n);
+          const auto measurement_info = lidar_extractor.GetMeasurementInfo();
+          measurement = measurement_info.first;
+          measurement_valid = measurement_info.second;
         }
       }
     }

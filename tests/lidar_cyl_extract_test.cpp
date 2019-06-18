@@ -128,14 +128,13 @@ TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
 }
 
 TEST_CASE("Test extracting cylinder target with diverged ICP registration") {
-  bool measurement_valid;
   double default_threshold = 0.01;
 
   cyl_extractor.SetThreshold(-0.05);
   cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1);
-  measurement_valid = cyl_extractor.GetMeasurementAccepted();
+  auto measurement_info = cyl_extractor.GetMeasurementInfo();
 
-  REQUIRE(measurement_valid == false);
+  REQUIRE(measurement_info.second == false);
   cyl_extractor.SetThreshold(default_threshold);
 }
 
@@ -152,33 +151,35 @@ TEST_CASE("Test extracting cylinder with invalid parameters") {
   cyl_extractor.SetHeight(default_height);
 }
 
+TEST_CASE("Test getting measurement information before extracting cylinder") {
+  REQUIRE_THROWS(cyl_extractor.GetMeasurementInfo());
+}
+
 TEST_CASE("Test cylinder extractor") {
-  bool measurement_valid1, measurement_valid2;
-  auto measured_transform1 =
-      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1);
-  auto measured_transform2 =
-      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST2, 2);
+  std::pair<Eigen::Vector4d, bool> measurement_info1, measurement_info2;
 
   auto true_transform1 =
       cyl_extractor.ExtractRelevantMeasurements(TA_SCAN_TARGET_EST1);
-  measurement_valid1 = cyl_extractor.GetMeasurementAccepted();
+  cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1);
+  measurement_info1 = cyl_extractor.GetMeasurementInfo();
 
   auto true_transform2 =
       cyl_extractor.ExtractRelevantMeasurements(TA_SCAN_TARGET_EST2);
-  measurement_valid2 = cyl_extractor.GetMeasurementAccepted();
+  cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST2, 2);
+  measurement_info2 = cyl_extractor.GetMeasurementInfo();
 
-  Eigen::Vector2d dist_diff1(measured_transform1(0) - true_transform1(0),
-                             measured_transform1(1) - true_transform1(1));
-  Eigen::Vector2d rot_diff1(measured_transform1(2) - true_transform1(2),
-                            measured_transform1(3) - true_transform1(3));
+  Eigen::Vector2d dist_diff1(measurement_info1.first(0) - true_transform1(0),
+                             measurement_info1.first(1) - true_transform1(1));
+  Eigen::Vector2d rot_diff1(measurement_info1.first(2) - true_transform1(2),
+                            measurement_info1.first(3) - true_transform1(3));
 
   double dist_err1 = std::round(dist_diff1.norm() * 10000) / 10000;
   double rot_err1 = std::round(rot_diff1.norm() * 10000) / 10000;
 
-  Eigen::Vector2d dist_diff2(measured_transform2(0) - true_transform2(0),
-                             measured_transform2(1) - true_transform2(1));
-  Eigen::Vector2d rot_diff2(measured_transform2(2) - true_transform2(2),
-                            measured_transform2(3) - true_transform2(3));
+  Eigen::Vector2d dist_diff2(measurement_info2.first(0) - true_transform2(0),
+                             measurement_info2.first(1) - true_transform2(1));
+  Eigen::Vector2d rot_diff2(measurement_info2.first(2) - true_transform2(2),
+                            measurement_info2.first(3) - true_transform2(3));
 
   double dist_err2 = std::round(dist_diff2.norm() * 1000) / 1000;
   double rot_err2 = std::round(rot_diff2.norm() * 1000) / 1000;
@@ -187,19 +188,18 @@ TEST_CASE("Test cylinder extractor") {
   REQUIRE(dist_err2 <= 0.02);
   REQUIRE(rot_err1 <= 0.2); // less than 0.2 rad
   REQUIRE(rot_err2 <= 0.2);
-  REQUIRE(measurement_valid1 == true);
-  REQUIRE(measurement_valid2 == true);
+  REQUIRE(measurement_info1.second == true);
+  REQUIRE(measurement_info2.second == true);
 }
 
 TEST_CASE("Test auto rejection") {
-  bool measurement_valid;
+  std::pair<Eigen::Vector4d, bool> measurement_info;
 
   LoadTemplateCloud(rotated_template_cloud_path);
 
   cyl_extractor.SetTemplateCloud(temp_cloud);
-  auto measured_transform =
-      cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 3);
-  measurement_valid = cyl_extractor.GetMeasurementAccepted();
+  cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 3);
+  measurement_info = cyl_extractor.GetMeasurementInfo();
 
-  REQUIRE(measurement_valid == false);
+  REQUIRE(measurement_info.second == false);
 }

@@ -122,6 +122,13 @@ public:
   void SetICPParameters(double t_eps, double fit_eps, double max_corr,
                         int max_iter);
 
+  /**
+   * @brief Sets measurement acceptance criteria for auto acceptance/rejection
+   * @param dist_err_criteria maximum distance between optimized and estimated
+   * measurements
+   * @param rot_err_criteria maximum rotation between optimized and estimated
+   * measurements
+   */
   void SetMeasurementAcceptanceCriteria(double dist_err_criteria,
                                         double rot_err_criteria) {
     dist_err_criteria_ = dist_err_criteria;
@@ -136,7 +143,7 @@ private:
    */
   PointCloud::Ptr CropPointCloud(Eigen::Affine3d &T_SCAN_TARGET_EST);
 
-  // Functions for testing
+  // Functions for displaying point clouds
   /**
    * @brief Add a coloured cloud to viewer
    * @param cloud pointcloud to add

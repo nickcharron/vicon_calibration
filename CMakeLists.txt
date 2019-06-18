@@ -17,7 +17,7 @@ find_package(cv_bridge REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PCL 1.8 REQUIRED)
-find_package(beam REQUIRED utils calibration)
+find_package(beam REQUIRED utils calibration filtering)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(Catch2 REQUIRED)
 
@@ -34,6 +34,8 @@ target_include_directories(${PROJECT_NAME}_lidar_cylinder_extractor_tests
 target_link_libraries(${PROJECT_NAME}_lidar_cylinder_extractor_tests
   ${PROJECT_NAME}
   Catch2::Catch2
+  beam::utils
+  beam::filtering
 )
 
 # Add the core library
@@ -49,4 +51,5 @@ target_link_libraries(${PROJECT_NAME}_main
 	${PROJECT_NAME}
 	beam::utils
 	beam::calibration
+  beam::filtering
 )

@@ -40,6 +40,10 @@ double camera_time_steps, lidar_time_steps, target_radius, target_height,
 bool show_camera_measurements, show_lidar_measurements;
 vicon_calibration::LidarCylExtractor lidar_extractor;
 
+double max_corr, t_eps, fit_eps;
+int max_iter;
+bool set_show_transform;
+
 std::vector<std::string> image_topics, image_frames, intrinsics, lidar_topics,
     lidar_frames, vicon_target_frames;
 
@@ -103,6 +107,14 @@ void LoadJson(std::string file_name) {
       vicon_target_frames.push_back(frame.get<std::string>());
     }
   }
+
+  for (const auto &icp_params : J["icp_params"]) {
+    max_corr = icp_params.at("max_corr");
+    max_iter = icp_params.at("max_iter");
+    t_eps = icp_params.at("t_eps");
+    fit_eps = icp_params.at("fit_eps");
+    set_show_transform = icp_params.at("set_show_transform");
+  }
 }
 
 std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
@@ -146,6 +158,7 @@ GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame) {
   for (uint8_t n; n < vicon_target_frames.size(); n++) {
     auto T_SENSOR_TGTn_msg =
         tree.GetTransform(sensor_frame, vicon_target_frames[n], time);
+
     Eigen::Affine3d T_SENSOR_TGTn = tf2::transformToEigen(T_SENSOR_TGTn_msg);
     T_sensor_tgts_estimated.push_back(T_SENSOR_TGTn);
   }
@@ -155,11 +168,13 @@ GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame) {
 void GetLidarMeasurements(rosbag::Bag &bag, std::string &topic,
                           std::string &frame) {
   rosbag::View view(bag, ros::TIME_MIN, ros::TIME_MAX, true);
+
   pcl::PCLPointCloud2::Ptr cloud_pc2 =
       boost::make_shared<pcl::PCLPointCloud2>();
   PointCloud::Ptr cloud = boost::make_shared<PointCloud>();
-  ros::Time time_last(0, 0);
   ros::Duration time_step(lidar_time_steps);
+  ros::Time time_last(0, 0);
+  time_last = time_last + time_step;
   std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
       T_lidar_tgts_estimated;
 
@@ -172,14 +187,27 @@ void GetLidarMeasurements(rosbag::Bag &bag, std::string &topic,
         pcl_conversions::toPCL(*lidar_msg, *cloud_pc2);
         pcl::fromPCLPointCloud2(*cloud_pc2, *cloud);
 
-        T_lidar_tgts_estimated =
-            GetInitialGuess(bag, lidar_msg->header.stamp, frame);
+        try {
+          T_lidar_tgts_estimated =
+              GetInitialGuess(bag, lidar_msg->header.stamp, frame);
+        } catch (const std::exception &err) {
+          LOG_ERROR("%s", err);
+          std::cout
+              << "Possible reasons for lookup error: \n"
+              << "- Start or End of bag could have message timing issues\n"
+              << "- Vicon messages not synchronized with robot's ROS time\n"
+              << "- Invalid initial calibrations, i.e. input transformations "
+                 "json has missing/invalid transforms\n";
+          continue;
+        }
         bool measurement_valid;
         Eigen::Vector4d measurement;
         lidar_extractor.SetScan(cloud);
         for (uint8_t n = 0; n < T_lidar_tgts_estimated.size(); n++) {
-          measurement = lidar_extractor.ExtractCylinder(
-              T_lidar_tgts_estimated[n], measurement_valid, 1);
+          lidar_extractor.ExtractCylinder(T_lidar_tgts_estimated[n], n);
+          const auto measurement_info = lidar_extractor.GetMeasurementInfo();
+          measurement = measurement_info.first;
+          measurement_valid = measurement_info.second;
         }
       }
     }
@@ -199,7 +227,7 @@ void GetImageMeasurements(rosbag::Bag &bag, std::string &topic,
 int main() {
   // get configuration settings
   std::string config_file;
-  config_file = GetJSONFileNameConfig("ViconCalibrationConfig.json");
+  config_file = GetJSONFileNameConfig("ViconCalibrationConfigIG.json");
   try {
     LoadJson(config_file);
   } catch (nlohmann::detail::parse_error &ex) {
@@ -223,10 +251,11 @@ int main() {
   }
 
   lidar_extractor.SetTemplateCloud(target_cloud);
-  lidar_extractor.SetThreshold(target_crop_threshold); // Default: 0.015
+  lidar_extractor.SetThreshold(target_crop_threshold); // Default: 0.01
   lidar_extractor.SetRadius(target_radius);            // Default: 0.0635
   lidar_extractor.SetHeight(target_height);            // Default: 0.5
-  lidar_extractor.SetShowTransformation(show_lidar_measurements);
+  lidar_extractor.SetICPParameters(t_eps, fit_eps, max_corr, max_iter);
+  lidar_extractor.SetShowTransformation(set_show_transform);
 
   // main loop
   for (uint8_t k = 0; k < lidar_topics.size(); k++) {

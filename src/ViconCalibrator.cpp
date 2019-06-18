@@ -168,12 +168,7 @@ GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame) {
 void GetLidarMeasurements(rosbag::Bag &bag, std::string &topic,
                           std::string &frame) {
   rosbag::View view(bag, ros::TIME_MIN, ros::TIME_MAX, true);
-  auto bag_length = view.getEndTime() - view.getBeginTime();
-  //   std::cout << bag_length << std::endl;
-  if (bag_length < ros::Duration(5)) {
-    LOG_WARNING("Using a short bag for getting measurements. It could cause "
-                "lookupTransform failure.");
-  }
+
   pcl::PCLPointCloud2::Ptr cloud_pc2 =
       boost::make_shared<pcl::PCLPointCloud2>();
   PointCloud::Ptr cloud = boost::make_shared<PointCloud>();
@@ -197,6 +192,10 @@ void GetLidarMeasurements(rosbag::Bag &bag, std::string &topic,
               GetInitialGuess(bag, lidar_msg->header.stamp, frame);
         } catch (const std::exception &err) {
           LOG_ERROR("%s", err);
+          std::cout << "Possible reasons for lookup error: \n" 
+                    << "- Start or End of bag could have message timing issues\n"
+                    << "- Vicon messages not synchronized with robot's ROS time\n"
+                    << "- Invalid initial calibrations, i.e. input transformations json has missing/invalid transforms\n";
           continue;
         }
         bool measurement_valid;

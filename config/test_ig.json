@@ -1,0 +1,18 @@
+{
+  "bag_file": "/home/averyjung/catkin_ws/bag_files/ig_bag/ig_scan_2019-03-06-12-10-26.bag",
+  "initial_calibration": "initial_calibration_test.json",
+  "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
+  "camera_info": [
+    {"image_topics": ["/F1/image_raw", "/F2/image_raw", "/ximea_cam/image_raw"],
+     "image_frames": ["F1_link"],
+     "camera_time_steps": 10,
+     "intrinsics": ["F1_test.json"],
+     "show_camera_measurements": true}
+  ],
+  "target_info": [
+    {"radius": 0.0635,
+     "height": 0.5,
+     "crop_threshold": 0.1,
+     "vicon_target_frames": ["vicon/cylinder_target1/cylinder_target1", "vicon/cylinder_target2/cylinder_target2"]}
+  ]
+}

@@ -39,11 +39,16 @@ private:
 
   void PopulateCylinderPoints();
 
+  bool CheckPixelWithinRange(Eigen::Vector2d pixel);
+
+  cv::Mat ColorPixelsOnImage(cv::Mat &img);
+
   double radius_{0.0635};
   double height_{0.5};
   double threshold_{0.05};
 
   std::vector<Eigen::Vector4d> cylinder_points_;
+  std::vector<Eigen::Vector2d> projected_pixels_;
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
 
   Eigen::Matrix3d K_;

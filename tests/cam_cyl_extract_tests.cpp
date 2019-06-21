@@ -21,8 +21,7 @@
 
 std::string current_file = "tests/cam_cyl_extract_tests.cpp";
 
-    std::string bag_file,
-            initial_calibration_file, vicon_baselink_frame;
+std::string bag_file, initial_calibration_file, vicon_baselink_frame, encoding;
 double camera_time_steps, target_radius, target_height, target_crop_threshold;
 bool show_camera_measurements;
 std::vector<std::string> image_topics, image_frames, intrinsics,
@@ -69,6 +68,7 @@ void LoadJson(std::string file_name) {
     for (const auto &intrinsic : camera_info.at("intrinsics")) {
       intrinsics.push_back(intrinsic.get<std::string>());
     }
+    encoding = camera_info.at("encoding");
   }
 
   for (const auto &target_info : J["target_info"]) {
@@ -155,7 +155,6 @@ void GetImageMeasurements(rosbag::Bag &bag, std::string &topic,
 
       if (image_msg->header.stamp > time_last + time_step) {
         time_last = image_msg->header.stamp;
-        auto encoding = image_msg->encoding;
         cv_img_ptr = cv_bridge::toCvCopy(image_msg, encoding);
 
         try {

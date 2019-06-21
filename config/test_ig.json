@@ -7,6 +7,7 @@
      "image_frames": ["F1_link"],
      "camera_time_steps": 5,
      "intrinsics": ["F1.json"],
+     "encoding": "rgb8",
      "show_camera_measurements": true}
   ],
   "target_info": [

@@ -45,7 +45,7 @@ void CamCylExtractor::PopulateCylinderPoints() {
       point(1) += threshold_;
     }
 
-    point(0) = - threshold_;
+    point(0) = -threshold_;
     cylinder_points_.push_back(point);
 
     point(0) = height_ + threshold_;
@@ -55,12 +55,12 @@ void CamCylExtractor::PopulateCylinderPoints() {
 
 void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
                                       cv::Mat image, int measurement_num) {
-  cv::imshow("Original image " + std::to_string(measurement_num), image);
-  cv::waitKey(0);
   auto min_max_vectors = GetBoundingBox(T_CAMERA_TARGET_EST);
-
   auto cropped_image = CropImage(image, min_max_vectors[0], min_max_vectors[1]);
 
+  image = ColorPixelsOnImage(image);
+
+  cv::imshow("Original image " + std::to_string(measurement_num), image);
   cv::imshow("Cropped image " + std::to_string(measurement_num), cropped_image);
   cv::waitKey(0);
 
@@ -75,11 +75,16 @@ CamCylExtractor::GetBoundingBox(Eigen::Affine3d T_CAMERA_TARGET_EST) {
   Eigen::Vector4d transformed_point;
   std::vector<double> u, v;
 
+  projected_pixels_.clear();
+
   for (int i = 0; i < cylinder_points_.size(); i++) {
     transformed_point = T_CAMERA_TARGET_EST.matrix() * cylinder_points_[i];
+    std::cout << "*************POINT************* " << std::endl << transformed_point << std::endl;
     auto pixel = camera_model_->ProjectPoint(transformed_point);
+    std::cout << "*************PIXEL************* " << std::endl << pixel << std::endl;
     u.push_back(pixel(0));
     v.push_back(pixel(1));
+    projected_pixels_.push_back(pixel);
   }
 
   const auto min_max_u = std::minmax_element(u.begin(), u.end());
@@ -92,24 +97,40 @@ CamCylExtractor::GetBoundingBox(Eigen::Affine3d T_CAMERA_TARGET_EST) {
 
 cv::Mat CamCylExtractor::CropImage(cv::Mat image, Eigen::Vector2d min_vector,
                                    Eigen::Vector2d max_vector) {
-  std::cout << "Min vec: " << std::endl << min_vector << std::endl
-            << "Max vec: " << std::endl << max_vector << std::endl;
+  std::cout << "Min vec: " << std::endl
+            << min_vector << std::endl
+            << "Max vec: " << std::endl
+            << max_vector << std::endl;
   double width = max_vector(0) - min_vector(0);
   double height = max_vector(1) - min_vector(1);
-  if (min_vector(0) < 0 || min_vector(1) < 0 ||
-      min_vector(0) > camera_model_->GetWidth() ||
-      min_vector(1) > camera_model_->GetHeight() ||
-      max_vector(0) < 0 || max_vector(1) < 0 ||
-      max_vector(0) > camera_model_->GetWidth() ||
-      max_vector(1) > camera_model_->GetHeight())
-      {
-        return image;
-      }
+
+  if (!CheckPixelWithinRange(min_vector) ||
+      !CheckPixelWithinRange(max_vector)) {
+    return image;
+  }
 
   cv::Rect region_of_interest(min_vector(0), min_vector(1), width, height);
   cv::Mat cropped_image = image(region_of_interest);
 
   return cropped_image;
+}
+
+bool CamCylExtractor::CheckPixelWithinRange(Eigen::Vector2d pixel) {
+  if (pixel(0) < 0 || pixel(1) < 0 || pixel(0) > camera_model_->GetWidth() ||
+      pixel(1) > camera_model_->GetHeight()) {
+    return false;
+  } else {
+    return true;
+  }
+}
+cv::Mat CamCylExtractor::ColorPixelsOnImage(cv::Mat &img) {
+  for(auto pixel : projected_pixels_) {
+    if(CheckPixelWithinRange(pixel)) {
+      cv::circle(img, cv::Point(pixel(0), pixel(1)),
+                 2, cv::Scalar(0, 0, 255), cv::FILLED, cv::LINE_8);
+    }
+  }
+  return img;
 }
 
 } // end namespace vicon_calibration

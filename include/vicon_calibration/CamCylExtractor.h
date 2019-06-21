@@ -1,10 +1,11 @@
 #pragma once
 
 #include <Eigen/Geometry>
-#include <beam_calibration/PinholeCamera.h>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <vector>
+
+#include <beam_calibration/PinholeCamera.h>
 
 namespace vicon_calibration {
 
@@ -18,7 +19,8 @@ public:
 
   void ConfigureCameraModel(std::string intrinsic_file);
 
-  void ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST, cv::Mat image);
+  void ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST, cv::Mat image,
+                       int measurement_num);
 
   void SetCylinderDimension(double radius, double height);
 

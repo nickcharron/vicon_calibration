@@ -118,11 +118,18 @@ GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame) {
     }
   }
 
+  geometry_msgs::TransformStamped T_SENSOR_TGTn_msg;
   // get transform to each of the targets at specified time
   for (uint8_t n; n < vicon_target_frames.size(); n++) {
-    auto T_SENSOR_TGTn_msg =
-        tree.GetTransform(sensor_frame, vicon_target_frames[n], time);
-    std::cout << T_SENSOR_TGTn_msg << std::endl;
+
+    try {
+      T_SENSOR_TGTn_msg =
+          tree.GetTransform(sensor_frame, vicon_target_frames[n], time);
+    } catch (const std::exception &e) {
+      LOG_ERROR("Error Getting a transform, continue with the next transform: %s", e.what());
+      continue;
+    }
+    //std::cout << T_SENSOR_TGTn_msg << std::endl;
     Eigen::Affine3d T_SENSOR_TGTn = tf2::transformToEigen(T_SENSOR_TGTn_msg);
     std::cout << T_SENSOR_TGTn.matrix() << std::endl;
     T_sensor_tgts_estimated.push_back(T_SENSOR_TGTn);
@@ -151,9 +158,6 @@ void GetImageMeasurements(rosbag::Bag &bag, std::string &topic,
         auto encoding = image_msg->encoding;
         cv_img_ptr = cv_bridge::toCvCopy(image_msg, encoding);
 
-        cv::imshow("image", cv_img_ptr->image);
-        cv::waitKey(0);
-
         try {
           T_camera_tgts_estimated =
               GetInitialGuess(bag, image_msg->header.stamp, frame);
@@ -172,7 +176,7 @@ void GetImageMeasurements(rosbag::Bag &bag, std::string &topic,
         Eigen::Vector3d measurement;
         for (uint8_t n = 0; n < T_camera_tgts_estimated.size(); n++) {
           camera_extractor.ExtractCylinder(T_camera_tgts_estimated[n],
-                                           cv_img_ptr->image);
+                                           cv_img_ptr->image, n);
           //const auto measurement_info = camera_extractor.GetMeasurementInfo();
           //measurement = measurement_info.first;
           //measurement_valid = measurement_info.second;

@@ -5,8 +5,8 @@
   "camera_info": [
     {"image_topics": ["/F1/image_raw", "/F2/image_raw", "/ximea_cam/image_raw"],
      "image_frames": ["F1_link"],
-     "camera_time_steps": 10,
-     "intrinsics": ["F1_test.json"],
+     "camera_time_steps": 5,
+     "intrinsics": ["F1.json"],
      "show_camera_measurements": true}
   ],
   "target_info": [

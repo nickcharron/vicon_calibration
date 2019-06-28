@@ -21,7 +21,7 @@
 
 std::string current_file = "tests/cam_cyl_extract_tests.cpp";
 
-std::string bag_file, initial_calibration_file, vicon_baselink_frame, encoding;
+std::string bag_file, initial_calibration_file, vicon_baselink_frame, encoding, image_file_name;
 double camera_time_steps, target_radius, target_height, target_crop_threshold;
 bool show_camera_measurements;
 std::vector<std::string> image_topics, image_frames, intrinsics,
@@ -79,10 +79,11 @@ void LoadJson(std::string file_name) {
       vicon_target_frames.push_back(frame.get<std::string>());
     }
   }
+
 }
 
 std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
-GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame) {
+GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame, beam_calibration::TfTree &tree) {
   std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
       T_sensor_tgts_estimated;
 
@@ -96,18 +97,6 @@ GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame) {
   ros::Time end_time = time + time_window;
   rosbag::View view(bag, rosbag::TopicQuery("/tf"), start_time, end_time, true);
 
-  // initialize tree with initial calibrations:
-  beam_calibration::TfTree tree;
-  std::string initial_calibration_file_dir;
-  try {
-    initial_calibration_file_dir =
-        GetJSONFileNameData(initial_calibration_file);
-    tree.LoadJSON(initial_calibration_file_dir);
-  } catch (nlohmann::detail::parse_error &ex) {
-    LOG_ERROR("Unable to load json calibration file: %s",
-              initial_calibration_file_dir.c_str());
-  }
-
   // Add all vicon transforms in window
   for (const auto &msg_instance : view) {
     auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
@@ -119,26 +108,39 @@ GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame) {
   }
 
   geometry_msgs::TransformStamped T_SENSOR_TGTn_msg;
+  geometry_msgs::TransformStamped T_TGT_WORLD_msg;
+  geometry_msgs::TransformStamped T_SENSOR_WORLD_msg;
   // get transform to each of the targets at specified time
   for (uint8_t n; n < vicon_target_frames.size(); n++) {
-
+    std::string world_frame = "world";
     try {
       T_SENSOR_TGTn_msg =
           tree.GetTransform(sensor_frame, vicon_target_frames[n], time);
+      //T_TGT_WORLD_msg = tree.GetTransform(world_frame, vicon_target_frames[n], time);
+      //T_SENSOR_WORLD_msg = tree.GetTransform(world_frame, vicon_target_frames[n], time);
     } catch (const std::exception &e) {
       LOG_ERROR("Error Getting a transform, continue with the next transform: %s", e.what());
       continue;
     }
-    //std::cout << T_SENSOR_TGTn_msg << std::endl;
+    std::cout << "T_SENSOR_TARGET msg" << std::endl << T_SENSOR_TGTn_msg << std::endl;
+    //std::cout << "T_TGT_WORLD msg" << std::endl << T_TGT_WORLD_msg << std::endl;
+    //std::cout << "T_SENSOR_WORLD msg" << std::endl << T_SENSOR_WORLD_msg << std::endl;
+
     Eigen::Affine3d T_SENSOR_TGTn = tf2::transformToEigen(T_SENSOR_TGTn_msg);
-    std::cout << T_SENSOR_TGTn.matrix() << std::endl;
+    //Eigen::Affine3d T_TGT_WORLD = tf2::transformToEigen(T_TGT_WORLD_msg);
+    //Eigen::Affine3d T_SENSOR_WORLD = tf2::transformToEigen(T_SENSOR_WORLD_msg);
+
+    std::cout << "T_SENSOR_TARGET" << std::endl << T_SENSOR_TGTn.matrix() << std::endl;
+    //std::cout << "T_TGT_WORLD" << std::endl << T_TGT_WORLD.matrix() << std::endl;
+    //std::cout << "T_SENSOR_WORLD" << std::endl << T_SENSOR_WORLD.matrix() << std::endl;
+
     T_sensor_tgts_estimated.push_back(T_SENSOR_TGTn);
   }
   return T_sensor_tgts_estimated;
 }
 
 void GetImageMeasurements(rosbag::Bag &bag, std::string &topic,
-                           std::string &frame) {
+                           std::string &frame, beam_calibration::TfTree &tree) {
   rosbag::View view(bag, ros::TIME_MIN, ros::TIME_MAX, true);
 
   ros::Duration time_step(camera_time_steps);
@@ -159,7 +161,7 @@ void GetImageMeasurements(rosbag::Bag &bag, std::string &topic,
 
         try {
           T_camera_tgts_estimated =
-              GetInitialGuess(bag, image_msg->header.stamp, frame);
+              GetInitialGuess(bag, image_msg->header.stamp, frame, tree);
         } catch (const std::exception &err) {
           LOG_ERROR("%s", err);
           std::cout
@@ -170,7 +172,6 @@ void GetImageMeasurements(rosbag::Bag &bag, std::string &topic,
                  "json has missing/invalid transforms\n";
           continue;
         }
-        // here
         bool measurement_valid;
         Eigen::Vector3d measurement;
         for (uint8_t n = 0; n < T_camera_tgts_estimated.size(); n++) {
@@ -206,42 +207,32 @@ int main(int argc, char **argv) {
   }
 
   for(intrinsic : intrinsics) {
+    LOG_INFO("Configuring intrinsics");
     auto intrinsic_filename = GetJSONFileNameData(intrinsic);
     camera_extractor.ConfigureCameraModel(intrinsic_filename);
   }
 
+  camera_extractor.SetCylinderDimension(target_radius, target_height);
+  camera_extractor.SetThreshold(target_crop_threshold);
+
+  // initialize tree with initial calibrations:
+  beam_calibration::TfTree tree;
+  std::string initial_calibration_file_dir;
+  try {
+    initial_calibration_file_dir =
+        GetJSONFileNameData(initial_calibration_file);
+    tree.LoadJSON(initial_calibration_file_dir);
+  } catch (nlohmann::detail::parse_error &ex) {
+    LOG_ERROR("Unable to load json calibration file: %s",
+              initial_calibration_file_dir.c_str());
+  }
+
   // main loop
   for (uint8_t k = 0; k < image_topics.size(); k++) {
-    GetImageMeasurements(bag, image_topics[k], image_frames[k]);
+    GetImageMeasurements(bag, image_topics[k], image_frames[k], tree);
     // GetImageMeasurements(bag, image_topics[k], image_frames[k]);
   }
   bag.close();
-  /*
-  /// Load an image
-  src = imread(argv[1]);
-
-  if (!src.data) {
-    return -1;
-  }
-
-  /// Create a matrix of the same type and size as src (for dst)
-  dst.create(src.size(), src.type());
-
-  /// Convert the image to grayscale
-  cvtColor(src, src_gray, CV_BGR2GRAY);
-
-  /// Create a window
-  namedWindow(window_name, CV_WINDOW_AUTOSIZE);
-
-  /// Create a Trackbar for user to enter threshold
-  createTrackbar("Min Threshold:", window_name, &lowThreshold, max_lowThreshold,
-                 CannyThreshold);
-
-  /// Show the image
-  CannyThreshold(0, 0);
-
-  /// Wait until user exit program by pressing a key
-  waitKey(0);*/
 
   return 0;
 }

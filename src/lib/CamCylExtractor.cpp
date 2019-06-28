@@ -71,16 +71,28 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
 
   auto cropped_image = CropImage(image, min_max_vectors[0], min_max_vectors[1]);
 
-  cv::namedWindow("Original image " + std::to_string(measurement_num), cv::WINDOW_NORMAL);
-  cv::namedWindow("Cropped image " + std::to_string(measurement_num), cv::WINDOW_NORMAL);
+  cv::Mat gray_image;
+  /*
+  if(cropped_image.depth() == CV_8U) {
+    std::cout << "unsigned char image" << std::endl;
+  }*/
+  cv::cvtColor(cropped_image, gray_image, CV_BGR2GRAY);
 
-  cv::resizeWindow("Original image " + std::to_string(measurement_num), image.cols/2, image.rows/2);
-  cv::resizeWindow("Cropped image " + std::to_string(measurement_num), cropped_image.cols/2, cropped_image.rows/2);
+  cv::Mat thresholded_image;
+  cv::threshold(gray_image, thresholded_image, 50, 255, CV_THRESH_BINARY );//| CV_THRESH_OTSU);
 
-  cv::imshow("Original image " + std::to_string(measurement_num), image);
-  cv::imshow("Cropped image " + std::to_string(measurement_num), cropped_image);
+  cv::imshow("thresholded", thresholded_image);
+
+  //cv::namedWindow("Original image " + std::to_string(measurement_num), cv::WINDOW_NORMAL);
+  //cv::namedWindow("Cropped image " + std::to_string(measurement_num), cv::WINDOW_NORMAL);
+
+  //cv::resizeWindow("Original image " + std::to_string(measurement_num), image.cols/2, image.rows/2);
+  //cv::resizeWindow("Cropped image " + std::to_string(measurement_num), cropped_image.cols/2, cropped_image.rows/2);
+
+  //cv::imshow("Original image " + std::to_string(measurement_num), image);
+  //cv::imshow("Cropped image " + std::to_string(measurement_num), cropped_image);
   std::cout << "Close images? [yN]" << std::endl;
-  DetectEdges(cropped_image, measurement_num);
+  //DetectEdges(cropped_image, measurement_num);
 
   auto key = cv::waitKey();
   while(key != 121) {

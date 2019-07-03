@@ -13,10 +13,10 @@
   "target_info": [
     {"radius": 0.0635,
      "height": 0.5,
-     "crop_threshold": 0.1,
+     "crop_threshold": 0.05,
      "vicon_target_frames": ["vicon/cylinder_target2/cylinder_target2"]}
   ],
   "image_info": [
-    {"image_file": "/home/averyjung/catkin_ws/vicon1.png"}
+    {"image_file": "/home/averyjung/catkin_ws/cropped.png"}
   ]
 }

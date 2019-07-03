@@ -21,7 +21,7 @@
 
 std::string current_file = "tests/cam_cyl_extract_tests.cpp";
 
-std::string bag_file, initial_calibration_file, vicon_baselink_frame, encoding, image_file_name;
+std::string bag_file, initial_calibration_file, vicon_baselink_frame, encoding;
 double camera_time_steps, target_radius, target_height, target_crop_threshold;
 bool show_camera_measurements;
 std::vector<std::string> image_topics, image_frames, intrinsics,

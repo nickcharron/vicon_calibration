@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Eigen/Geometry>
-#include <pcl/visualization/pcl_visualizer.h>
 
 #include <vector>
 
@@ -10,10 +9,8 @@
 namespace vicon_calibration {
 
   const int edgeThresh=1;
-  const int max_lowThreshold=100;
   const int ratio=3;
   const int kernel_size=3;
-  std::string window_name;
 
 /**
  * @brief class for extracting cylinder measurements from images
@@ -50,19 +47,19 @@ public:
   void LoadIntrinsics(std::string json_file);
 
 private:
+  void PopulateCylinderPoints();
+
   std::vector<Eigen::Vector2d>
   GetBoundingBox(Eigen::Affine3d T_CAMERA_TARGET_EST);
 
   cv::Mat CropImage(cv::Mat image, Eigen::Vector2d min_vector,
                     Eigen::Vector2d max_vector);
 
-  void DetectEdges(cv::Mat &img, int measurement_num);
+  std::vector<cv::Vec4i> DetectLines(cv::Mat &img, int measurement_num);
 
-  void PopulateCylinderPoints();
+  double Median(cv::Mat channel);
 
-  static void CannyThreshold(int, void*);
-
-  cv::Mat ColorPixelsOnImage(cv::Mat &img);
+  cv::Mat ColorPixelsOnImage(cv::Mat &img, std::vector<Eigen::Vector2d> points);
 
   double radius_{0.0635};
   double height_{0.5};
@@ -70,22 +67,18 @@ private:
 
   std::vector<Eigen::Vector4d> cylinder_points_;
   std::vector<Eigen::Vector2d> projected_pixels_;
+  std::vector<Eigen::Vector2d> center_line_points_;
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
+  Eigen::VectorXd undistorted_intrinsics_{Eigen::VectorXd(4)};
+  Eigen::VectorXd distorted_intrinsics_{Eigen::VectorXd(4)};
 
   Eigen::Matrix3d K_;
-
-  pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
 
   bool measurement_valid_;
   bool measurement_complete_;
   Eigen::Vector3d measurement_;
 
-  static cv::Mat dst_;
-  static cv::Mat detected_edges_;
-  static cv::Mat srg_gray_;
-  static cv::Mat src_;
-
-  static int lowThreshold;
+  double percent_{0.33};
 };
 
 } // end namespace vicon_calibration

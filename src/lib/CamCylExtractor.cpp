@@ -1,23 +1,24 @@
 #include "vicon_calibration/CamCylExtractor.h"
 #include "vicon_calibration/utils.hpp"
 
-#include <thread>
 #include <cmath>
+#include <thread>
 
 namespace vicon_calibration {
 
 using namespace std::literals::chrono_literals;
 
-cv::Mat CamCylExtractor::dst_;
-cv::Mat CamCylExtractor::detected_edges_;
-cv::Mat CamCylExtractor::srg_gray_;
-cv::Mat CamCylExtractor::src_;
-int CamCylExtractor::lowThreshold;
-
-CamCylExtractor::CamCylExtractor() { PopulateCylinderPoints(); }
+CamCylExtractor::CamCylExtractor() {
+  PopulateCylinderPoints();
+}
 
 void CamCylExtractor::ConfigureCameraModel(std::string intrinsic_file) {
   camera_model_ = beam_calibration::CameraModel::LoadJSON(intrinsic_file);
+  distorted_intrinsics_ = camera_model_->GetIntrinsics();
+  undistorted_intrinsics_[0] = 520.6433974864649;
+  undistorted_intrinsics_[1] = 520.8029966847124;
+  undistorted_intrinsics_[2] = 868.1109733699251;
+  undistorted_intrinsics_[3] = 861.7608982000884;
 }
 
 void CamCylExtractor::SetCylinderDimension(double radius, double height) {
@@ -37,7 +38,7 @@ std::pair<Eigen::Vector3d, bool> CamCylExtractor::GetMeasurementInfo() {
     return std::make_pair(measurement_, measurement_valid_);
   } else {
     throw std::runtime_error{"Measurement incomplete. Please run "
-                              "ExtractCylinder() before getting the "
+                             "ExtractCylinder() before getting the "
                              "measurement information."};
   }
 }
@@ -45,16 +46,21 @@ std::pair<Eigen::Vector3d, bool> CamCylExtractor::GetMeasurementInfo() {
 void CamCylExtractor::PopulateCylinderPoints() {
   // Clear all points before populating again
   cylinder_points_.clear();
+  center_line_points_.clear();
+
+  Eigen::Vector4d center_line_min_point(-threshold, 0, 0, 1);
+  Eigen::Vector4d center_line_max_point(height_+ threshold_, 0, 0, 1);
+
+  center_line_points_.push_back(center_line_min_point);
+  center_line_points_.push_back(center_line_max_point);
 
   Eigen::Vector4d point(0, 0, 0, 1);
-  //pcl::PointXYZ cloud_point;
-  double x_sign, y_sign;
   double r = radius_ + threshold_;
 
-  for (double theta = 0; theta < 2*M_PI; theta += M_PI / 12) {
-    point(2) =  r * std::cos(theta) ;
+  for (double theta = 0; theta < 2 * M_PI; theta += M_PI / 12) {
+    point(2) = r * std::cos(theta);
 
-    point(1) =  r * std::sin(theta) ;
+    point(1) = r * std::sin(theta);
 
     point(0) = -threshold_;
     cylinder_points_.push_back(point);
@@ -66,36 +72,43 @@ void CamCylExtractor::PopulateCylinderPoints() {
 
 void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
                                       cv::Mat image, int measurement_num) {
+  auto undistorted_img = camera_model_->UndistortImage(image);
+
   auto min_max_vectors = GetBoundingBox(T_CAMERA_TARGET_EST);
-  //image = ColorPixelsOnImage(image);
 
-  auto cropped_image = CropImage(image, min_max_vectors[0], min_max_vectors[1]);
+  auto cropped_image =
+      CropImage(undistorted_img, min_max_vectors[0], min_max_vectors[1]);
 
-  cv::Mat gray_image;
-  /*
-  if(cropped_image.depth() == CV_8U) {
+  if (cropped_image.depth() == CV_8U) {
     std::cout << "unsigned char image" << std::endl;
-  }*/
-  cv::cvtColor(cropped_image, gray_image, CV_BGR2GRAY);
+  }
 
-  cv::Mat thresholded_image;
-  cv::threshold(gray_image, thresholded_image, 50, 255, CV_THRESH_BINARY );//| CV_THRESH_OTSU);
+  auto lines = DetectLines(cropped_image, measurement_num);
 
-  cv::imshow("thresholded", thresholded_image);
+  double first_line_slope, second_line_slope;
+  cv::Vec4i first_line, second_line;
+/*
+  for (uint8_t i = 0; i < lines.size() - 1; i++) {
+    first_line = lines[i];
+    first_line_slope =
+        (first_line[3] - first_line[1]) / (first_line[2] - first_line[0]);
+    for (uint8_t j = i + 1; j < lines.size(); j++) {
+      second_line = lines[j];
+      second_line_slope =
+          (second_line[3] - second_line[1]) / (second_line[2] - second_line[0]);
+    }
+  }
+*/
 
-  //cv::namedWindow("Original image " + std::to_string(measurement_num), cv::WINDOW_NORMAL);
-  //cv::namedWindow("Cropped image " + std::to_string(measurement_num), cv::WINDOW_NORMAL);
+  for (auto l : lines) {
+    line(cropped_image, cv::Point(l[0], l[1]), cv::Point(l[2], l[3]),
+         cv::Scalar(0, 0, 255), 3, CV_AA);
+  }
 
-  //cv::resizeWindow("Original image " + std::to_string(measurement_num), image.cols/2, image.rows/2);
-  //cv::resizeWindow("Cropped image " + std::to_string(measurement_num), cropped_image.cols/2, cropped_image.rows/2);
-
-  //cv::imshow("Original image " + std::to_string(measurement_num), image);
-  //cv::imshow("Cropped image " + std::to_string(measurement_num), cropped_image);
-  std::cout << "Close images? [yN]" << std::endl;
-  //DetectEdges(cropped_image, measurement_num);
+  imshow("Hough transform", cropped_image);
 
   auto key = cv::waitKey();
-  while(key != 121) {
+  while (key != 121) {
     key = cv::waitKey();
   }
   cv::destroyAllWindows();
@@ -106,29 +119,21 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
 
 std::vector<Eigen::Vector2d>
 CamCylExtractor::GetBoundingBox(Eigen::Affine3d T_CAMERA_TARGET_EST) {
-  Eigen::Vector4d transformed_point;
+  Eigen::Vector3d transformed_point;
+  Eigen::Vector4d homographic_form;
   std::vector<double> u, v;
 
   projected_pixels_.clear();
 
-  pcl::PointXYZ transformed_pcl_point;
-  //pcl::PointXYZ point;
-  //PointCloud::Ptr transformed_cloud(new PointCloud);
-  //PointCloud::Ptr cloud(new PointCloud);
+  camera_model_->SetIntrinsics(undistorted_intrinsics_);
   for (int i = 0; i < cylinder_points_.size(); i++) {
-    transformed_point = T_CAMERA_TARGET_EST.matrix() * cylinder_points_[i];
-    /*point.x = cylinder_points_[i](0);
-    point.y = cylinder_points_[i](1);
-    point.z = cylinder_points_[i](2);
-    transformed_pcl_point.x = transformed_point(0);
-    transformed_pcl_point.y = transformed_point(1);
-    transformed_pcl_point.z = transformed_point(2);
-    transformed_cloud->push_back(transformed_pcl_point);
-    cloud->push_back(point);*/
-    //std::cout << "***********************************************" << std::endl;
-    //std::cout << "POINT" << std::endl << transformed_point << std::endl;
-    auto pixel = camera_model_->ProjectPoint(transformed_point);
-    //std::cout << "PIXEL" << std::endl << pixel << std::endl;
+    homographic_form = T_CAMERA_TARGET_EST.matrix() * cylinder_points_[i];
+
+    transformed_point << homographic_form[0] / homographic_form[3],
+        homographic_form[1] / homographic_form[3],
+        homographic_form[2] / homographic_form[3];
+
+    auto pixel = camera_model_->ProjectUndistortedPoint(transformed_point);
 
     if (camera_model_->PixelInImage(pixel)) {
       u.push_back(pixel(0));
@@ -136,24 +141,12 @@ CamCylExtractor::GetBoundingBox(Eigen::Affine3d T_CAMERA_TARGET_EST) {
       projected_pixels_.push_back(pixel);
     }
   }
-/*
-  pcl::visualization::PCLVisualizer pcl_viewer("Cloud viewer");
-  pcl_viewer.setBackgroundColor(0, 0, 0);
-  pcl_viewer.addCoordinateSystem(1.0);
-  pcl_viewer.initCameraParameters();
-  pcl_viewer.addPointCloud<pcl::PointXYZ>(cloud, "temp cloud");
-  pcl_viewer.addPointCloud<pcl::PointXYZ>(transformed_cloud, "transformed_cloud cloud");
-  pcl_viewer.setPointCloudRenderingProperties(
-      pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "temp cloud");
-  pcl_viewer.setPointCloudRenderingProperties(
-      pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "transformed_cloud cloud");
-  while (!pcl_viewer.wasStopped()) {
-    pcl_viewer.spinOnce(10);
-    std::this_thread::sleep_for(10ms);
-  }
-*/
-  if(u.empty() || v.empty()) {
-    throw std::runtime_error{"Can't find minimum and maximum pixels on the image"};
+
+  camera_model_->SetIntrinsics(distorted_intrinsics_);
+
+  if (u.empty() || v.empty()) {
+    throw std::runtime_error{
+        "Can't find minimum and maximum pixels on the image"};
   }
   const auto min_max_u = std::minmax_element(u.begin(), u.end());
   const auto min_max_v = std::minmax_element(v.begin(), v.end());
@@ -184,58 +177,77 @@ cv::Mat CamCylExtractor::CropImage(cv::Mat image, Eigen::Vector2d min_vector,
   return cropped_image;
 }
 
-cv::Mat CamCylExtractor::ColorPixelsOnImage(cv::Mat &img) {
-  for(auto pixel : projected_pixels_) {
-    if(camera_model_->PixelInImage(pixel)) {
-      cv::circle(img, cv::Point(pixel(0), pixel(1)),
-                 2, cv::Scalar(0, 0, 255), cv::FILLED, cv::LINE_8);
+std::vector<cv::Vec4i> CamCylExtractor::DetectLines(cv::Mat &img,
+                                                    int measurement_num) {
+  /// Load an image
+  if (!img.data) {
+    throw std::runtime_error{"No image data"};
+  }
+
+  cv::Mat gray_img, edge_detected_img;
+
+  /// Convert the image to grayscale
+  cv::cvtColor(img, gray_img, CV_BGR2GRAY);
+
+  auto v = Median(gray_img);
+
+  int low_threshold = (int)std::max(0.0, (1.0 - percent_) * v);
+  int max_threshold = (int)std::min(255.0, (1.0 + percent_) * v);
+
+  std::string window_name =
+      "Edge detected image " + std::to_string(measurement_num);
+
+  /// Create a window
+  cv::namedWindow(window_name + " Hough transform", cv::WINDOW_NORMAL);
+  cv::resizeWindow(window_name + " Hough transform", img.cols, img.rows);
+
+  /// Reduce noise with a kernel 3x3
+  cv::blur(gray_img, edge_detected_img, cv::Size(3, 3));
+
+  /// Canny detector
+  cv::Canny(edge_detected_img, edge_detected_img, low_threshold, max_threshold,
+            kernel_size);
+
+  // Hough line transform
+  std::vector<cv::Vec4i> lines;
+  cv::HoughLinesP(edge_detected_img, lines, 1, CV_PI / 180, 50, 100, 10);
+
+  return lines;
+}
+
+double CamCylExtractor::Median(cv::Mat channel) {
+  double m = (channel.rows * channel.cols) / 2;
+  int bin = 0;
+  double med = -1.0;
+
+  int histSize = 256;
+  float range[] = {0, 256};
+  const float *histRange = {range};
+  bool uniform = true;
+  bool accumulate = false;
+  cv::Mat hist;
+  cv::calcHist(&channel, 1, 0, cv::Mat(), hist, 1, &histSize, &histRange,
+               uniform, accumulate);
+
+  for (int i = 0; i < histSize && med < 0.0; ++i) {
+    bin += cvRound(hist.at<float>(i));
+    if (bin > m && med < 0.0)
+      med = i;
+  }
+
+  return med;
+}
+
+cv::Mat
+CamCylExtractor::ColorPixelsOnImage(cv::Mat &img,
+                                    std::vector<Eigen::Vector2d> points) {
+  for (auto pixel : points) {
+    if (camera_model_->PixelInImage(pixel)) {
+      cv::circle(img, cv::Point(pixel(0), pixel(1)), 2, cv::Scalar(0, 0, 255),
+                 cv::FILLED, cv::LINE_8);
     }
   }
   return img;
-}
-
-void CamCylExtractor::CannyThreshold(int, void*) {
-  /// Reduce noise with a kernel 3x3
-  cv::blur(srg_gray_, detected_edges_, cv::Size(3,3) );
-
-  /// Canny detector
-  cv::Canny(detected_edges_, detected_edges_, lowThreshold, lowThreshold*ratio, kernel_size );
-
-  /// Using Canny's output as a mask, we display our result
-  dst_ = cv::Scalar::all(0);
-
-  src_.copyTo(dst_, detected_edges_);
-  imshow( window_name, dst_);
-}
-
-void CamCylExtractor::DetectEdges(cv::Mat &img, int measurement_num) {
-  src_ = img;
-  /// Load an image
-  if (!src_.data) {
-    return;
-  }
-
-  /// Create a matrix of the same type and size as src (for dst)
-  dst_.create(src_.size(), src_.type());
-
-  /// Convert the image to grayscale
-  cv::cvtColor(src_, srg_gray_, CV_BGR2GRAY);
-
-  window_name = "Edge detected image " + std::to_string(measurement_num);
-
-  /// Create a window
-  cv::namedWindow(window_name, cv::WINDOW_NORMAL);
-  cv::resizeWindow(window_name, img.cols/2, img.rows/2);
-
-  /// Create a Trackbar for user to enter threshold
-  cv::createTrackbar("Min Threshold:", window_name, &lowThreshold, max_lowThreshold,
-                 CamCylExtractor::CannyThreshold);
-
-  /// Show the image
-  CannyThreshold(0, 0);
-
-  /// Wait until user exit program by pressing a key
-  cv::waitKey(0);
 }
 
 } // end namespace vicon_calibration

@@ -8,9 +8,7 @@ namespace vicon_calibration {
 
 using namespace std::literals::chrono_literals;
 
-CamCylExtractor::CamCylExtractor() {
-  PopulateCylinderPoints();
-}
+CamCylExtractor::CamCylExtractor() { PopulateCylinderPoints(); }
 
 void CamCylExtractor::ConfigureCameraModel(std::string intrinsic_file) {
   camera_model_ = beam_calibration::CameraModel::LoadJSON(intrinsic_file);
@@ -49,7 +47,7 @@ void CamCylExtractor::PopulateCylinderPoints() {
   center_line_points_.clear();
 
   Eigen::Vector4d center_line_min_point(-threshold, 0, 0, 1);
-  Eigen::Vector4d center_line_max_point(height_+ threshold_, 0, 0, 1);
+  Eigen::Vector4d center_line_max_point(height_ + threshold_, 0, 0, 1);
 
   center_line_points_.push_back(center_line_min_point);
   center_line_points_.push_back(center_line_max_point);
@@ -87,18 +85,20 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
 
   double first_line_slope, second_line_slope;
   cv::Vec4i first_line, second_line;
-/*
-  for (uint8_t i = 0; i < lines.size() - 1; i++) {
-    first_line = lines[i];
-    first_line_slope =
-        (first_line[3] - first_line[1]) / (first_line[2] - first_line[0]);
-    for (uint8_t j = i + 1; j < lines.size(); j++) {
-      second_line = lines[j];
-      second_line_slope =
-          (second_line[3] - second_line[1]) / (second_line[2] - second_line[0]);
+
+  /*
+    for (uint8_t i = 0; i < lines.size() - 1; i++) {
+      first_line = lines[i];
+      first_line_slope =
+          (first_line[3] - first_line[1]) / (first_line[2] - first_line[0]);
+      for (uint8_t j = i + 1; j < lines.size(); j++) {
+        second_line = lines[j];
+        second_line_slope =
+            (second_line[3] - second_line[1]) / (second_line[2] -
+    second_line[0]);
+      }
     }
-  }
-*/
+  */
 
   for (auto l : lines) {
     line(cropped_image, cv::Point(l[0], l[1]), cv::Point(l[2], l[3]),
@@ -121,17 +121,36 @@ std::vector<Eigen::Vector2d>
 CamCylExtractor::GetBoundingBox(Eigen::Affine3d T_CAMERA_TARGET_EST) {
   Eigen::Vector3d transformed_point;
   Eigen::Vector4d homographic_form;
+
+  Eigen::Vector3d transformed_center_point;
+  Eigen::Vector4d homographic_center_point;
+
   std::vector<double> u, v;
 
   projected_pixels_.clear();
 
   camera_model_->SetIntrinsics(undistorted_intrinsics_);
-  for (int i = 0; i < cylinder_points_.size(); i++) {
-    homographic_form = T_CAMERA_TARGET_EST.matrix() * cylinder_points_[i];
 
-    transformed_point << homographic_form[0] / homographic_form[3],
-        homographic_form[1] / homographic_form[3],
-        homographic_form[2] / homographic_form[3];
+  for (int i = 0; i < center_line_points_.size(); i++) {
+    homographic_center_point =
+        T_CAMERA_TARGET_EST.matrix() * center_line_points_[i];
+
+    transformed_center_point
+        << homographic_center_point[0] / homographic_center_point[3],
+        homographic_center_point[1] / homographic_center_point[3],
+        homographic_center_point[2] / homographic_center_point[3];
+
+    audo center_line_pixel =
+        camera_model_->ProjectUndistortedPoint(transformed_center_point);
+    center_line_pixels_.push_back(center_line_pixel);
+  }
+
+  for (int i = 0; i < cylinder_points_.size(); i++) {
+    homographic_point = T_CAMERA_TARGET_EST.matrix() * cylinder_points_[i];
+
+    transformed_point << homographic_point[0] / homographic_point[3],
+        homographic_point[1] / homographic_point[3],
+        homographic_point[2] / homographic_point[3];
 
     auto pixel = camera_model_->ProjectUndistortedPoint(transformed_point);
 
@@ -211,6 +230,9 @@ std::vector<cv::Vec4i> CamCylExtractor::DetectLines(cv::Mat &img,
   // Hough line transform
   std::vector<cv::Vec4i> lines;
   cv::HoughLinesP(edge_detected_img, lines, 1, CV_PI / 180, 50, 100, 10);
+
+  distance = abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1) /
+             sqrt((y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1));
 
   return lines;
 }

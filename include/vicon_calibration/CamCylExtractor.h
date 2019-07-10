@@ -67,7 +67,12 @@ private:
 
   std::vector<Eigen::Vector4d> cylinder_points_;
   std::vector<Eigen::Vector2d> projected_pixels_;
+<<<<<<< HEAD
   std::vector<Eigen::Vector2d> center_line_points_;
+=======
+  std::vector<Eigen::Vector4d> center_line_points_;
+  std::vector<Eigen::Vector2d> center_line_pixels_;
+>>>>>>> 47d0e6896c0f6161a0fb49cd7ffc561d767ca1dd
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
   Eigen::VectorXd undistorted_intrinsics_{Eigen::VectorXd(4)};
   Eigen::VectorXd distorted_intrinsics_{Eigen::VectorXd(4)};

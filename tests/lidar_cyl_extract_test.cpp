@@ -70,7 +70,7 @@ void LoadTransforms() {
   bag.open(bag_path, rosbag::bagmode::Read);
   rosbag::View tf_bag_view = {bag, rosbag::TopicQuery("/tf")};
 
-  tf_tree.start_time_ = tf_bag_view.getBeginTime();
+  tf_tree.start_time = tf_bag_view.getBeginTime();
 
   // Iterate over all message instances in our tf bag view
   std::cout << "Adding transforms" << std::endl;
@@ -92,10 +92,10 @@ void LoadTransforms() {
   std::string target1_frame = "vicon/cylinder_target1/cylinder_target1";
   std::string target2_frame = "vicon/cylinder_target2/cylinder_target2";
 
-  auto T_SCAN_TARGET_EST1_msg = tf_tree.GetTransform(
+  auto T_SCAN_TARGET_EST1_msg = tf_tree.GetTransformROS(
       m3d_link_frame, target1_frame, transform_lookup_time);
 
-  auto T_SCAN_TARGET_EST2_msg = tf_tree.GetTransform(
+  auto T_SCAN_TARGET_EST2_msg = tf_tree.GetTransformROS(
       m3d_link_frame, target2_frame, transform_lookup_time);
 
   TA_SCAN_TARGET_EST1 = tf2::transformToEigen(T_SCAN_TARGET_EST1_msg);

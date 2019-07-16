@@ -115,7 +115,7 @@ GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame, be
     std::string world_frame = "world";
     try {
       T_SENSOR_TGTn_msg =
-          tree.GetTransform(sensor_frame, vicon_target_frames[n], time);
+          tree.GetTransformROS(sensor_frame, vicon_target_frames[n], time);
       //T_TGT_WORLD_msg = tree.GetTransform(world_frame, vicon_target_frames[n], time);
       //T_SENSOR_WORLD_msg = tree.GetTransform(world_frame, vicon_target_frames[n], time);
     } catch (const std::exception &e) {

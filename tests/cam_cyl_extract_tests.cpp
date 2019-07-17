@@ -22,7 +22,9 @@
 std::string current_file = "tests/cam_cyl_extract_tests.cpp";
 
 std::string bag_file, initial_calibration_file, vicon_baselink_frame, encoding;
-double camera_time_steps, target_radius, target_height, target_crop_threshold;
+int num_intersections;
+double camera_time_steps, target_radius, target_height, target_crop_threshold,
+    min_length_percent, max_gap_percent, canny_percent;
 bool show_camera_measurements;
 std::vector<std::string> image_topics, image_frames, intrinsics,
     vicon_target_frames;
@@ -79,11 +81,17 @@ void LoadJson(std::string file_name) {
       vicon_target_frames.push_back(frame.get<std::string>());
     }
   }
-
+  for (const auto &image_info : J["image_info"]) {
+    num_intersections = image_info.at("num_intersections");
+    min_length_percent = image_info.at("min_length_percent");
+    max_gap_percent = image_info.at("max_gap_percent");
+    canny_percent = image_info.at("canny_percent");
+  }
 }
 
 std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
-GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame, beam_calibration::TfTree &tree) {
+GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame,
+                beam_calibration::TfTree &tree) {
   std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
       T_sensor_tgts_estimated;
 
@@ -116,23 +124,31 @@ GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame, be
     try {
       T_SENSOR_TGTn_msg =
           tree.GetTransformROS(sensor_frame, vicon_target_frames[n], time);
-      //T_TGT_WORLD_msg = tree.GetTransform(world_frame, vicon_target_frames[n], time);
-      //T_SENSOR_WORLD_msg = tree.GetTransform(world_frame, vicon_target_frames[n], time);
+      // T_TGT_WORLD_msg = tree.GetTransform(world_frame,
+      // vicon_target_frames[n], time); T_SENSOR_WORLD_msg =
+      // tree.GetTransform(world_frame, vicon_target_frames[n], time);
     } catch (const std::exception &e) {
-      LOG_ERROR("Error Getting a transform, continue with the next transform: %s", e.what());
+      LOG_ERROR(
+          "Error Getting a transform, continue with the next transform: %s",
+          e.what());
       continue;
     }
-    std::cout << "T_SENSOR_TARGET msg" << std::endl << T_SENSOR_TGTn_msg << std::endl;
-    //std::cout << "T_TGT_WORLD msg" << std::endl << T_TGT_WORLD_msg << std::endl;
-    //std::cout << "T_SENSOR_WORLD msg" << std::endl << T_SENSOR_WORLD_msg << std::endl;
+    std::cout << "T_SENSOR_TARGET msg" << std::endl
+              << T_SENSOR_TGTn_msg << std::endl;
+    // std::cout << "T_TGT_WORLD msg" << std::endl << T_TGT_WORLD_msg <<
+    // std::endl; std::cout << "T_SENSOR_WORLD msg" << std::endl <<
+    // T_SENSOR_WORLD_msg << std::endl;
 
     Eigen::Affine3d T_SENSOR_TGTn = tf2::transformToEigen(T_SENSOR_TGTn_msg);
-    //Eigen::Affine3d T_TGT_WORLD = tf2::transformToEigen(T_TGT_WORLD_msg);
-    //Eigen::Affine3d T_SENSOR_WORLD = tf2::transformToEigen(T_SENSOR_WORLD_msg);
+    // Eigen::Affine3d T_TGT_WORLD = tf2::transformToEigen(T_TGT_WORLD_msg);
+    // Eigen::Affine3d T_SENSOR_WORLD =
+    // tf2::transformToEigen(T_SENSOR_WORLD_msg);
 
-    std::cout << "T_SENSOR_TARGET" << std::endl << T_SENSOR_TGTn.matrix() << std::endl;
-    //std::cout << "T_TGT_WORLD" << std::endl << T_TGT_WORLD.matrix() << std::endl;
-    //std::cout << "T_SENSOR_WORLD" << std::endl << T_SENSOR_WORLD.matrix() << std::endl;
+    std::cout << "T_SENSOR_TARGET" << std::endl
+              << T_SENSOR_TGTn.matrix() << std::endl;
+    // std::cout << "T_TGT_WORLD" << std::endl << T_TGT_WORLD.matrix() <<
+    // std::endl; std::cout << "T_SENSOR_WORLD" << std::endl <<
+    // T_SENSOR_WORLD.matrix() << std::endl;
 
     T_sensor_tgts_estimated.push_back(T_SENSOR_TGTn);
   }
@@ -140,7 +156,7 @@ GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame, be
 }
 
 void GetImageMeasurements(rosbag::Bag &bag, std::string &topic,
-                           std::string &frame, beam_calibration::TfTree &tree) {
+                          std::string &frame, beam_calibration::TfTree &tree) {
   rosbag::View view(bag, ros::TIME_MIN, ros::TIME_MAX, true);
 
   ros::Duration time_step(camera_time_steps);
@@ -177,9 +193,10 @@ void GetImageMeasurements(rosbag::Bag &bag, std::string &topic,
         for (uint8_t n = 0; n < T_camera_tgts_estimated.size(); n++) {
           camera_extractor.ExtractCylinder(T_camera_tgts_estimated[n],
                                            cv_img_ptr->image, n);
-          //const auto measurement_info = camera_extractor.GetMeasurementInfo();
-          //measurement = measurement_info.first;
-          //measurement_valid = measurement_info.second;
+          // const auto measurement_info =
+          // camera_extractor.GetMeasurementInfo(); measurement =
+          // measurement_info.first; measurement_valid =
+          // measurement_info.second;
         }
       }
     }
@@ -206,7 +223,7 @@ int main(int argc, char **argv) {
     LOG_ERROR("Bag exception : %s", ex.what());
   }
 
-  for(intrinsic : intrinsics) {
+  for (intrinsic : intrinsics) {
     LOG_INFO("Configuring intrinsics");
     auto intrinsic_filename = GetJSONFileNameData(intrinsic);
     camera_extractor.ConfigureCameraModel(intrinsic_filename);
@@ -214,6 +231,8 @@ int main(int argc, char **argv) {
 
   camera_extractor.SetCylinderDimension(target_radius, target_height);
   camera_extractor.SetThreshold(target_crop_threshold);
+  camera_extractor.SetEdgeDetectionParameters(
+      num_intersections, min_length_percent, max_gap_percent, canny_percent);
 
   // initialize tree with initial calibrations:
   beam_calibration::TfTree tree;

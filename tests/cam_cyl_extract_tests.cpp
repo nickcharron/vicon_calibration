@@ -192,7 +192,7 @@ void GetImageMeasurements(rosbag::Bag &bag, std::string &topic,
         Eigen::Vector3d measurement;
         for (uint8_t n = 0; n < T_camera_tgts_estimated.size(); n++) {
           camera_extractor.ExtractCylinder(T_camera_tgts_estimated[n],
-                                           cv_img_ptr->image, n);
+                                           cv_img_ptr->image);
           // const auto measurement_info =
           // camera_extractor.GetMeasurementInfo(); measurement =
           // measurement_info.first; measurement_valid =
@@ -230,7 +230,7 @@ int main(int argc, char **argv) {
   }
 
   camera_extractor.SetCylinderDimension(target_radius, target_height);
-  camera_extractor.SetThreshold(target_crop_threshold);
+  camera_extractor.SetOffset(target_crop_threshold);
   camera_extractor.SetEdgeDetectionParameters(
       num_intersections, min_length_percent, max_gap_percent, canny_percent);
 

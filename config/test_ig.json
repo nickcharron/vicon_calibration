@@ -13,7 +13,7 @@
   "target_info": [
     {"radius": 0.0635,
      "height": 0.5,
-     "crop_threshold": 0.125,
+     "crop_threshold": 0.15,
      "vicon_target_frames": ["vicon/cylinder_target2/cylinder_target2"]}
   ],
   "image_info": [

@@ -61,9 +61,20 @@ public:
                                   double max_gap_percent, double canny_percent);
 
   /**
-   * @brief Sets show_measurement_
+   * @brief Sets a flag to show the measurement
+   * @param show_measurement boolean value to set the flag to
    */
   void SetShowMeasurement(bool show_measurement);
+
+  /**
+   * @brief Sets acceptance criteria for measurements
+   * @param dist_criteria distance between estimated and measured mid points to
+   *        determine if the measurement is valid or not
+   * @param rot_criteria difference between estimated and measured angle of
+   *        center line to determine if the measurement is valid or not
+   */
+  void SetAcceptanceCriteria(double dist_criteria, double rot_criteria);
+
   /**
    * @brief Returns the results of cylinder extraction
    * @return a pair of Eigen vector 3d (u,v,angle) and boolean to indicate if
@@ -116,6 +127,8 @@ private:
   std::vector<cv::Vec4i> DetectLines(cv::Mat &orig_image,
                                      cv::Mat &cropped_image,
                                      int min_line_length, int max_line_gap);
+
+  Eigen::Vector3d CalcMeasurement(cv::Vec4i edge_line1, cv::Vec4i edge_line2);
 
   /**
    * @brief Colours the pixels outside the bounding box black
@@ -221,6 +234,13 @@ private:
 
   // flag used to allow user input for accepting measurement
   bool show_measurement_{false};
+  // Distance between the estimated and measured mid point to determin if the
+  // measurement is valid or not. Also used to determine if detected lines in
+  // the image are bounding lines
+  double dist_criteria_{5};
+  // Difference between the estimated and measured angles to determine if the
+  // measurement is valid or not
+  double rot_criteria_{0.01};
 };
 
 } // end namespace vicon_calibration

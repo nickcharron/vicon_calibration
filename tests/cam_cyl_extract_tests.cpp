@@ -233,7 +233,7 @@ int main(int argc, char **argv) {
   camera_extractor.SetOffset(target_crop_threshold);
   camera_extractor.SetEdgeDetectionParameters(
       num_intersections, min_length_percent, max_gap_percent, canny_percent);
-
+  camera_extractor.SetShowMeasurement(true);
   // initialize tree with initial calibrations:
   beam_calibration::TfTree tree;
   std::string initial_calibration_file_dir;

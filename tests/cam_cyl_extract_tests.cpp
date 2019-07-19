@@ -109,7 +109,7 @@ GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame,
   for (const auto &msg_instance : view) {
     auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
     if (tf_message != nullptr) {
-      for (const geometry_msgs::TransformStamped &tf : tf_message->transforms) {
+      for (geometry_msgs::TransformStamped tf : tf_message->transforms) {
         tree.AddTransform(tf);
       }
     }

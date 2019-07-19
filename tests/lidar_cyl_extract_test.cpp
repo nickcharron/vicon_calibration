@@ -77,7 +77,7 @@ void LoadTransforms() {
   for (const auto &msg_instance : tf_bag_view) {
     auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
     if (tf_message != nullptr) {
-      for (const geometry_msgs::TransformStamped &tf : tf_message->transforms) {
+      for (geometry_msgs::TransformStamped tf : tf_message->transforms) {
         tf_tree.AddTransform(tf);
       }
     }

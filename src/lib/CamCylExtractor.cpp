@@ -7,6 +7,8 @@
 #include <set>
 #include <thread>
 
+#include <beam_utils/math.hpp>
+
 namespace vicon_calibration {
 
 using namespace std::literals::chrono_literals;
@@ -66,9 +68,24 @@ std::pair<Eigen::Vector3d, bool> CamCylExtractor::GetMeasurementInfo() {
 }
 
 void CamCylExtractor::PopulateCylinderPoints() {
-  if (offset_ == 0) {
-    std::cout << "[WARNING] Using offset of 0 to crop the image." << std::endl;
+  if (offset_ <= 0) {
+    std::cout << "[WARNING] Using an offset of " << offset_
+              << ". The bounding box for cropping the image might be too small "
+                 "and edges might not be detected accurately."
+              << std::endl;
   }
+
+  if (radius_ <= 0 || height_ <= 0) {
+    throw std::runtime_error{
+        "Invalid cylinder dimentions. Radius: " + std::to_string(radius_) +
+        " Height: " + std::to_string(height_)};
+  }
+
+  if (radius_ + height_ <= 0) {
+    throw std::runtime_error{"Invalid offset. Offset: " +
+                             std::to_string(offset_)};
+  }
+
   // Populate points for detecting edges
   center_line_points_ = std::make_pair<Eigen::Vector4d, Eigen::Vector4d>(
       Eigen::Vector4d(0, 0, 0, 1), Eigen::Vector4d(height_, 0, 0, 1));
@@ -107,6 +124,10 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
                                       cv::Mat &image) {
   if (!image.data) {
     throw std::runtime_error{"No image data"};
+  }
+
+  if (!beam::IsTransformationMatrix(T_CAMERA_TARGET_EST.matrix())) {
+    throw std::runtime_error{"Invalid transform"};
   }
 
   T_CAMERA_TARGET_EST_ = T_CAMERA_TARGET_EST;
@@ -169,71 +190,86 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
     }
   }
 
-  detected_line1 = dist_line_map_1.begin()->second;
-  detected_line2 = dist_line_map_2.begin()->second;
-  std::cout << "first detected edge: " << detected_line1 << std::endl;
-  std::cout << "second detected edge: " << detected_line2 << std::endl;
+  if (dist_line_map_1.empty() || dist_line_map_2.empty()) {
+    for (auto line : detected_lines) {
+      std::cout << "No cylinder lines detected" << std::endl;
+      DrawLine(cropped_image, line, 0, 0, 0);
 
-  measurement_ = CalcMeasurement(detected_line1, detected_line2);
-  auto estimated_measurement =
-      CalcMeasurement(estimated_edge_lines.first, estimated_edge_lines.second);
-
-  std::cout << "Measurement: " << std::endl
-            << "  Mid point: " << measurement_(0) << ", " << measurement_(1)
-            << std::endl
-            << "  Angle (deg): " << measurement_(2) * 180 / M_PI << std::endl;
-
-  if (show_measurement_) {
-    // Show measurement and get user input for accepting the measurement
-    DrawLine(cropped_image, detected_line1, 0, 0, 255);
-    DrawLine(cropped_image, detected_line2, 0, 0, 255);
-
-    ColorPixelsOnImage(cropped_image,
-                       std::vector<Eigen::Vector2d>{
-                           Eigen::Vector2d(measurement_(0), measurement_(1))},
-                       255, 0, 0, 4);
-
-    cv::namedWindow("Measurement", cv::WINDOW_NORMAL);
-    cv::resizeWindow("Measurement", cropped_image.cols / 2,
-                     cropped_image.rows / 2);
-
-    std::cout << "-------------------------------" << std::endl
-              << "Legend:" << std::endl
-              << "  Blue -> Detected edges" << std::endl
-              << "  Red -> Measured mid point" << std::endl
-              << "Accept measurement? [y/n]" << std::endl;
-
-    imshow("Measurement", cropped_image);
-
-    auto key = cv::waitKey();
-    std::cout << key << std::endl;
-    while (key != 121 && key != 89 && key != 110 && key != 78) {
-      key = cv::waitKey();
-      std::cout << key << std::endl;
+      cv::namedWindow("Invalid Measurement", cv::WINDOW_NORMAL);
+      cv::resizeWindow("Invalid Measurement", cropped_image.cols / 2,
+                       cropped_image.rows / 2);
+      cv::imshow("Invalid Measurement", cropped_image);
     }
-    cv::destroyAllWindows();
+    measurment_ = Eigen::Vector3d(-1, -1 , -1);
+    measurement_valid_ = false;
 
-    if (key == 121 || key == 89) {
-      measurement_valid_ = true;
-    } else if (key == 110 || key == 78) {
-      measurement_valid_ = false;
-    }
-    measurement_complete_ = true;
   } else {
-    double dist_err = (measurement_(0) - estimated_measurement(0)) *
-                      (measurement_(0) - estimated_measurement(0)) +
-                  (measurement_(1) - estimated_measurement(1)) *
-                      (measurement_(1) - estimated_measurement(1));
-    double rot_err = abs(measurement_(2) - estimated_measurement(2));
+    detected_line1 = dist_line_map_1.begin()->second;
+    detected_line2 = dist_line_map_2.begin()->second;
+    std::cout << "first detected edge: " << detected_line1 << std::endl;
+    std::cout << "second detected edge: " << detected_line2 << std::endl;
 
-    dist_err = std::round(dist_err * 10000) / 10000;
-    rot_err = std::round(rot_err * 10000) / 10000;
-    if (dist_err > dist_criteria_ || rot_err > rot_criteria_) {
-      measurement_valid_ = false;
+    measurement_ = CalcMeasurement(detected_line1, detected_line2);
+    auto estimated_measurement =
+        CalcMeasurement(estimated_edge_lines.first, estimated_edge_lines.second);
+
+    std::cout << "Measurement: " << std::endl
+              << "  Mid point: " << measurement_(0) << ", " << measurement_(1)
+              << std::endl
+              << "  Angle (deg): " << measurement_(2) * 180 / M_PI << std::endl;
+
+    if (show_measurement_) {
+      // Show measurement and get user input for accepting the measurement
+      DrawLine(cropped_image, detected_line1, 0, 0, 255);
+      DrawLine(cropped_image, detected_line2, 0, 0, 255);
+
+      ColorPixelsOnImage(cropped_image,
+                         std::vector<Eigen::Vector2d>{
+                             Eigen::Vector2d(measurement_(0), measurement_(1))},
+                         255, 0, 0, 4);
+
+      cv::namedWindow("Measurement", cv::WINDOW_NORMAL);
+      cv::resizeWindow("Measurement", cropped_image.cols / 2,
+                       cropped_image.rows / 2);
+
+      std::cout << "-------------------------------" << std::endl
+                << "Legend:" << std::endl
+                << "  Blue -> Detected edges" << std::endl
+                << "  Red -> Measured mid point" << std::endl
+                << "Accept measurement? [y/n]" << std::endl;
+
+      imshow("Measurement", cropped_image);
+
+      auto key = cv::waitKey();
+      std::cout << key << std::endl;
+      while (key != 121 && key != 89 && key != 110 && key != 78) {
+        key = cv::waitKey();
+        std::cout << key << std::endl;
+      }
+      cv::destroyAllWindows();
+
+      if (key == 121 || key == 89) {
+        measurement_valid_ = true;
+      } else if (key == 110 || key == 78) {
+        measurement_valid_ = false;
+      }
+      measurement_complete_ = true;
     } else {
-      measurement_valid_ = true;
+      double dist_err = (measurement_(0) - estimated_measurement(0)) *
+                            (measurement_(0) - estimated_measurement(0)) +
+                        (measurement_(1) - estimated_measurement(1)) *
+                            (measurement_(1) - estimated_measurement(1));
+      double rot_err = abs(measurement_(2) - estimated_measurement(2));
+
+      dist_err = std::round(dist_err * 10000) / 10000;
+      rot_err = std::round(rot_err * 10000) / 10000;
+      if (dist_err > dist_criteria_ || rot_err > rot_criteria_) {
+        measurement_valid_ = false;
+      } else {
+        measurement_valid_ = true;
+      }
+      measurement_complete_ = true;
     }
-    measurement_complete_ = true;
   }
 }
 
@@ -256,6 +292,7 @@ std::pair<Eigen::Vector2d, Eigen::Vector2d> CamCylExtractor::GetBoundingBox() {
     throw std::runtime_error{
         "Can't find minimum and maximum pixels on the image"};
   }
+
   const auto min_max_u = std::minmax_element(u.begin(), u.end());
   const auto min_max_v = std::minmax_element(v.begin(), v.end());
 
@@ -402,6 +439,11 @@ std::vector<cv::Vec4i> CamCylExtractor::DetectLines(cv::Mat &orig_img,
   std::vector<cv::Vec4i> lines;
   cv::HoughLinesP(edge_detected_img, lines, 1, CV_PI / 180, num_intersections_,
                   min_line_length, max_line_gap);
+
+  if (lines.empty()) {
+    std::cout << "No lines detected in the image" << std::endl;
+    
+  }
 
   return lines;
 }

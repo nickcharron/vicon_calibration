@@ -190,10 +190,16 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
 
   if (detected_lines.empty()) {
     std::cout << "No lines detected in the image" << std::endl;
+    std::cout << "Press [c] to continue with other measurements" << std::endl;
     cv::namedWindow("Invalid Measurement", cv::WINDOW_NORMAL);
     cv::resizeWindow("Invalid Measurement", cropped_image.cols / 2,
                      cropped_image.rows / 2);
     cv::imshow("Invalid Measurement", cropped_image);
+    auto key = cv::waitKey();
+    while (key != 67 && key != 99) {
+      key = cv::waitKey();
+    }
+    cv::destroyAllWindows();
     measurement_ = Eigen::Vector3d(-1, -1, -1);
     measurement_valid_ = false;
     measurement_complete_ = true;
@@ -230,13 +236,17 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
 
   if (dist_line_map_1.empty() || dist_line_map_2.empty()) {
     std::cout << "No cylinder lines detected" << std::endl;
+    std::cout << "Press [c] to continue with other measurements" << std::endl;
     for (auto line : detected_lines) {
       DrawLine(cropped_image, line, 0, 0, 0);
-
-      cv::namedWindow("Invalid Measurement", cv::WINDOW_NORMAL);
-      cv::resizeWindow("Invalid Measurement", cropped_image.cols / 2,
-                       cropped_image.rows / 2);
-      cv::imshow("Invalid Measurement", cropped_image);
+    }
+    cv::namedWindow("Invalid Measurement", cv::WINDOW_NORMAL);
+    cv::resizeWindow("Invalid Measurement", cropped_image.cols / 2,
+                     cropped_image.rows / 2);
+    cv::imshow("Invalid Measurement", cropped_image);
+    auto key = cv::waitKey();
+    while (key != 67 && key != 99) {
+      key = cv::waitKey();
     }
     measurement_ = Eigen::Vector3d(-1, -1, -1);
     measurement_valid_ = false;
@@ -280,10 +290,8 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
       imshow("Measurement", cropped_image);
 
       auto key = cv::waitKey();
-      std::cout << key << std::endl;
       while (key != 121 && key != 89 && key != 110 && key != 78) {
         key = cv::waitKey();
-        std::cout << key << std::endl;
       }
       cv::destroyAllWindows();
 

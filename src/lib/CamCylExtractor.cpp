@@ -30,8 +30,11 @@ void CamCylExtractor::SetOffset(double offset) {
   offset_ = offset;
 
   if (offset_ == 0) {
-    std::cout << "[WARNING] Using threshold of 0 to crop the image."
-              << std::endl;
+    std::cout << "[WARNING] Using offset of 0 to crop the image." << std::endl;
+  }
+
+  if (radius_ + offset <= 0) {
+    throw std::runtime_error{"Invalid offset value: " + std::to_string(offset)};
   }
 
   // Re-populate points for cropping the image
@@ -56,6 +59,18 @@ void CamCylExtractor::SetShowMeasurement(bool show_measurement) {
   show_measurement_ = show_measurement;
 }
 
+void CamCylExtractor::SetAcceptanceCriteria(double dist_criteria,
+                                            double rot_criteria) {
+  if (dist_criteria == 0 || rot_criteria == 0) {
+    std::cout << "[WARNING] Using tight criteria for accepting measurements. "
+                 "Distance criteria of "
+              << dist_criteria << " and rotation criteria of " << rot_criteria
+              << "." << std::endl;
+  }
+  dist_criteria_ = dist_criteria;
+  rot_criteria_ = rot_criteria;
+}
+
 std::pair<Eigen::Vector3d, bool> CamCylExtractor::GetMeasurementInfo() {
   if (measurement_complete_) {
     return std::make_pair(measurement_, measurement_valid_);
@@ -63,6 +78,17 @@ std::pair<Eigen::Vector3d, bool> CamCylExtractor::GetMeasurementInfo() {
     throw std::runtime_error{"Measurement incomplete. Please run "
                              "ExtractCylinder() before getting the "
                              "measurement information."};
+  }
+  measurement_complete_ = false;
+}
+
+std::pair<double, double> CamCylExtractor::GetErrors() {
+  if (measurement_complete_) {
+    return std::make_pair(dist_err_, rot_err_);
+  } else {
+    throw std::runtime_error{"Measurement incomplete. Please run "
+                             "ExtractCylinder() before getting the "
+                             "measurement error values."};
   }
   measurement_complete_ = false;
 }
@@ -162,6 +188,18 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
   auto detected_lines =
       DetectLines(undistorted_img, cropped_image, min_line_length, max_gap);
 
+  if (detected_lines.empty()) {
+    std::cout << "No lines detected in the image" << std::endl;
+    cv::namedWindow("Invalid Measurement", cv::WINDOW_NORMAL);
+    cv::resizeWindow("Invalid Measurement", cropped_image.cols / 2,
+                     cropped_image.rows / 2);
+    cv::imshow("Invalid Measurement", cropped_image);
+    measurement_ = Eigen::Vector3d(-1, -1, -1);
+    measurement_valid_ = false;
+    measurement_complete_ = true;
+    return;
+  }
+
   cv::Vec4i detected_line1, detected_line2;
   std::map<double, cv::Vec4i> dist_line_map_1, dist_line_map_2;
 
@@ -191,8 +229,8 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
   }
 
   if (dist_line_map_1.empty() || dist_line_map_2.empty()) {
+    std::cout << "No cylinder lines detected" << std::endl;
     for (auto line : detected_lines) {
-      std::cout << "No cylinder lines detected" << std::endl;
       DrawLine(cropped_image, line, 0, 0, 0);
 
       cv::namedWindow("Invalid Measurement", cv::WINDOW_NORMAL);
@@ -200,8 +238,9 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
                        cropped_image.rows / 2);
       cv::imshow("Invalid Measurement", cropped_image);
     }
-    measurment_ = Eigen::Vector3d(-1, -1 , -1);
+    measurement_ = Eigen::Vector3d(-1, -1, -1);
     measurement_valid_ = false;
+    measurement_complete_ = true;
 
   } else {
     detected_line1 = dist_line_map_1.begin()->second;
@@ -210,8 +249,8 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
     std::cout << "second detected edge: " << detected_line2 << std::endl;
 
     measurement_ = CalcMeasurement(detected_line1, detected_line2);
-    auto estimated_measurement =
-        CalcMeasurement(estimated_edge_lines.first, estimated_edge_lines.second);
+    auto estimated_measurement = CalcMeasurement(estimated_edge_lines.first,
+                                                 estimated_edge_lines.second);
 
     std::cout << "Measurement: " << std::endl
               << "  Mid point: " << measurement_(0) << ", " << measurement_(1)
@@ -255,15 +294,15 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
       }
       measurement_complete_ = true;
     } else {
-      double dist_err = (measurement_(0) - estimated_measurement(0)) *
-                            (measurement_(0) - estimated_measurement(0)) +
-                        (measurement_(1) - estimated_measurement(1)) *
-                            (measurement_(1) - estimated_measurement(1));
-      double rot_err = abs(measurement_(2) - estimated_measurement(2));
+      dist_err_ = sqrt((measurement_(0) - estimated_measurement(0)) *
+                           (measurement_(0) - estimated_measurement(0)) +
+                       (measurement_(1) - estimated_measurement(1)) *
+                           (measurement_(1) - estimated_measurement(1)));
+      rot_err_ = abs(measurement_(2) - estimated_measurement(2));
 
-      dist_err = std::round(dist_err * 10000) / 10000;
-      rot_err = std::round(rot_err * 10000) / 10000;
-      if (dist_err > dist_criteria_ || rot_err > rot_criteria_) {
+      dist_err_ = std::round(dist_err_ * 10000) / 10000;
+      rot_err_ = std::round(rot_err_ * 10000) / 10000;
+      if (dist_err_ > dist_criteria_ || rot_err_ > rot_criteria_) {
         measurement_valid_ = false;
       } else {
         measurement_valid_ = true;
@@ -439,11 +478,6 @@ std::vector<cv::Vec4i> CamCylExtractor::DetectLines(cv::Mat &orig_img,
   std::vector<cv::Vec4i> lines;
   cv::HoughLinesP(edge_detected_img, lines, 1, CV_PI / 180, num_intersections_,
                   min_line_length, max_line_gap);
-
-  if (lines.empty()) {
-    std::cout << "No lines detected in the image" << std::endl;
-    
-  }
 
   return lines;
 }

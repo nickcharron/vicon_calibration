@@ -84,7 +84,7 @@ void LoadTransforms() {
   }
   // Load calibration json and add transform between m3d_link and base_link
   std::string calibration_json;
-  calibration_json = test_path + "calibration/roben_extrinsics.json";
+  calibration_json = test_path + "data/roben_extrinsics.json";
   tf_tree.LoadJSON(calibration_json);
 
   // Get transforms between targets and lidar and world and targets

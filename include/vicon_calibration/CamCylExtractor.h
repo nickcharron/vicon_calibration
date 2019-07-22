@@ -82,6 +82,12 @@ public:
    */
   std::pair<Eigen::Vector3d, bool> GetMeasurementInfo();
 
+  /**
+   * @brief Gets calculated distance and rotation errors after extraction
+   * @return a pair of distance error and rotation error
+   */
+  std::pair<double, double> GetErrors();
+
 private:
   /**
    * @brief Populates cylinder points used for defining a bounding box and
@@ -128,6 +134,12 @@ private:
                                      cv::Mat &cropped_image,
                                      int min_line_length, int max_line_gap);
 
+  /**
+   * @brief Calculates measurement using the center line defined by 2 edge lines
+   * @param edge_line1
+   * @param edge_line2
+   * @return Vector3d of the calculated measurement
+   */
   Eigen::Vector3d CalcMeasurement(cv::Vec4i edge_line1, cv::Vec4i edge_line2);
 
   /**
@@ -240,7 +252,10 @@ private:
   double dist_criteria_{5};
   // Difference between the estimated and measured angles to determine if the
   // measurement is valid or not
-  double rot_criteria_{0.01};
+  double rot_criteria_{0.1};
+
+  double dist_err_;
+  double rot_err_;
 };
 
 } // end namespace vicon_calibration

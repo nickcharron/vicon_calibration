@@ -248,6 +248,7 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
     while (key != 67 && key != 99) {
       key = cv::waitKey();
     }
+    cv::destroyAllWindows();
     measurement_ = Eigen::Vector3d(-1, -1, -1);
     measurement_valid_ = false;
     measurement_complete_ = true;
@@ -261,6 +262,11 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
     measurement_ = CalcMeasurement(detected_line1, detected_line2);
     auto estimated_measurement = CalcMeasurement(estimated_edge_lines.first,
                                                  estimated_edge_lines.second);
+    std::cout << "Estimated Measurement: " << std::endl
+              << "  Mid point: " << estimated_measurement(0) << ", "
+              << estimated_measurement(1) << std::endl
+              << "  Angle (deg): " << estimated_measurement(2) * 180 / M_PI
+              << std::endl;
 
     std::cout << "Measurement: " << std::endl
               << "  Mid point: " << measurement_(0) << ", " << measurement_(1)

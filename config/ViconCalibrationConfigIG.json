@@ -1,12 +1,12 @@
 {
-  "bag_file": "/home/averyjung/catkin_ws/bag_files/ig_bag/ig_scan_2019-03-06-12-10-26.bag",
+  "bag_file": "/home/averyjung/catkin_ws/bag_files/ig_bag/ig_scan.bag",
   "initial_calibration": "initial_calibration_ig.json",
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
   "camera_info": [
     {"image_topics": ["/F1/image_raw", "/F2/image_raw", "/ximea_cam/image_raw"],
      "image_frames": ["F1_link", "F2_link", "X1_link"],
      "camera_time_steps": 10,
-     "intrinsics": ["F1_test.json", "F2_test.json", "X1_test.json"],
+     "intrinsics": ["F1.json"],
      "show_camera_measurements": true}
   ],
   "lidar_info":[
@@ -28,5 +28,12 @@
     "t_eps": 1e-8,
     "fit_eps": 1e-2,
     "set_show_transform": true}
+  ],
+  "image_info": [
+    {"num_intersections" : 300,
+     "min_length_percent": 0.5,
+     "max_gap_percent": 0.075,
+     "canny_percent": 0.1,
+     "encoding":"rgb8"}
   ]
 }

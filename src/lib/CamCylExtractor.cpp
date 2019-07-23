@@ -330,27 +330,38 @@ std::pair<Eigen::Vector2d, Eigen::Vector2d> CamCylExtractor::GetBoundingBox() {
   std::vector<double> u, v;
 
   std::vector<Eigen::Vector2d> pixels_to_color;
+  double minu = camera_model_->GetWidth(), minv = camera_model_->GetHeight(),
+         maxu = 0, maxv = 0;
 
   for (auto point : bounding_points_) {
     auto pixel = CylinderPointToPixel(point);
 
     if (camera_model_->PixelInImage(pixel)) {
-      u.push_back(pixel(0));
-      v.push_back(pixel(1));
-      pixels_to_color.push_back(pixel);
+      if (pixel(0) < minu) {
+        minu = pixel(0);
+      }
+
+      if (pixel(0) > maxu) {
+        maxu = pixel(0);
+      }
+
+      if (pixel(1) < minv) {
+        minv = pixel(1);
+      }
+
+      if (pixel(1) > maxv) {
+        maxv = pixel(1);
+      }
     }
   }
 
-  if (u.empty() || v.empty()) {
+  if (minu > maxu && minv > maxv) {
     throw std::runtime_error{
-        "Can't find minimum and maximum pixels on the image"};
+        "Couldn't find minimum and maximum pixels on the image"};
   }
 
-  const auto min_max_u = std::minmax_element(u.begin(), u.end());
-  const auto min_max_v = std::minmax_element(v.begin(), v.end());
-
-  Eigen::Vector2d min_vec(*min_max_u.first, *min_max_v.first);
-  Eigen::Vector2d max_vec(*min_max_u.second, *min_max_v.second);
+  Eigen::Vector2d min_vec(minu, minv);
+  Eigen::Vector2d max_vec(maxu, maxv);
 
   return std::pair<Eigen::Vector2d, Eigen::Vector2d>(min_vec, max_vec);
 }

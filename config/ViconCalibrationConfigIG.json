@@ -1,5 +1,5 @@
 {
-  "bag_file": "/home/averyjung/catkin_ws/bag_files/ig_bag/ig_scan_2019-03-06-12-10-26.bag",
+  "bag_file": "/home/averyjung/catkin_ws/bag_files/ig_bag/ig_scan.bag",
   "initial_calibration": "initial_calibration_ig.json",
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
   "camera_info": [

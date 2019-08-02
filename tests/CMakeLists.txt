@@ -8,6 +8,6 @@ file(COPY template_pointclouds
   DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-file(COPY calibration
+file(COPY data
   DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
 )

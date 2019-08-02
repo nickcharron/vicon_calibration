@@ -18,6 +18,7 @@ target_link_libraries(${PROJECT_NAME}
   PCL::PCL
   beam::utils
   beam::calibration
+  beam::filtering
   nlohmann_json::nlohmann_json
   ${rosbag_LIBRARIES}
   ${cv_bridge_LIBRARIES}

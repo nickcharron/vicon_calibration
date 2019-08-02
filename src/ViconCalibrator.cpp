@@ -156,10 +156,8 @@ GetInitialGuess(rosbag::Bag &bag, ros::Time &time, std::string &sensor_frame) {
 
   // get transform to each of the targets at specified time
   for (uint8_t n; n < vicon_target_frames.size(); n++) {
-    auto T_SENSOR_TGTn_msg =
-        tree.GetTransformROS(sensor_frame, vicon_target_frames[n], time);
-
-    Eigen::Affine3d T_SENSOR_TGTn = tf2::transformToEigen(T_SENSOR_TGTn_msg);
+    Eigen::Affine3d T_SENSOR_TGTn =
+        tree.GetTransformEigen(sensor_frame, vicon_target_frames[n], time);
     T_sensor_tgts_estimated.push_back(T_SENSOR_TGTn);
   }
   return T_sensor_tgts_estimated;

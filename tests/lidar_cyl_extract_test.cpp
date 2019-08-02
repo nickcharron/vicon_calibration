@@ -65,6 +65,11 @@ void LoadTransforms() {
   // TfTree for storing all static / dynamic transforms
   beam_calibration::TfTree tf_tree;
 
+  // Load calibration json and add transform between m3d_link and base_link
+  std::string calibration_json;
+  calibration_json = test_path + "calibration/roben_extrinsics.json";
+  tf_tree.LoadJSON(calibration_json);
+
   // Rosbag for accessing bag data
   rosbag::Bag bag;
   bag.open(bag_path, rosbag::bagmode::Read);
@@ -82,24 +87,20 @@ void LoadTransforms() {
       }
     }
   }
-  // Load calibration json and add transform between m3d_link and base_link
-  std::string calibration_json;
-  calibration_json = test_path + "data/roben_extrinsics.json";
-  tf_tree.LoadJSON(calibration_json);
 
   // Get transforms between targets and lidar and world and targets
   std::string m3d_link_frame = "m3d_link";
   std::string target1_frame = "vicon/cylinder_target1/cylinder_target1";
   std::string target2_frame = "vicon/cylinder_target2/cylinder_target2";
 
-  auto T_SCAN_TARGET_EST1_msg = tf_tree.GetTransformROS(
+  TA_SCAN_TARGET_EST1 = tf_tree.GetTransformEigen(
       m3d_link_frame, target1_frame, transform_lookup_time);
 
-  auto T_SCAN_TARGET_EST2_msg = tf_tree.GetTransformROS(
+  TA_SCAN_TARGET_EST2 = tf_tree.GetTransformEigen(
       m3d_link_frame, target2_frame, transform_lookup_time);
 
-  TA_SCAN_TARGET_EST1 = tf2::transformToEigen(T_SCAN_TARGET_EST1_msg);
-  TA_SCAN_TARGET_EST2 = tf2::transformToEigen(T_SCAN_TARGET_EST2_msg);
+  std::cout << TA_SCAN_TARGET_EST1.matrix() << std::endl;
+  std::cout << TA_SCAN_TARGET_EST2.matrix() << std::endl;
 }
 
 /* TEST CASES */

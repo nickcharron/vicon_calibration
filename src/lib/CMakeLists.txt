@@ -1,8 +1,10 @@
 # Core library
 add_library(${PROJECT_NAME}
-  CamCylExtractor.cpp
+  ViconCalibrator.cpp
+  #CamCylExtractor.cpp
   LidarCylExtractor.cpp
   GTSAMGraph.cpp
+  utils.cpp
 )
 target_compile_options(${PROJECT_NAME}
   PUBLIC

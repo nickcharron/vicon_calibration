@@ -85,7 +85,9 @@ void ViconCalibrator::LoadJSON(std::string file_name) {
   for (const auto &params : J["target_params"]) {
     params_.target_params.radius = params.at("radius");
     params_.target_params.height = params.at("height");
-    params_.target_params.crop_threshold = params.at("crop_threshold");
+    params_.target_params.crop_threshold_x = params.at("crop_threshold_x");
+    params_.target_params.crop_threshold_y = params.at("crop_threshold_y");
+    params_.target_params.crop_threshold_z = params.at("crop_threshold_z");
     std::string template_cloud_name = params.at("template_cloud");
     params_.target_params.template_cloud =
         GetJSONFileNameData(template_cloud_name);

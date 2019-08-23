@@ -39,7 +39,9 @@ struct RegistrationParams {
 struct CylinderTgtParams {
   double radius;
   double height;
-  double crop_threshold;
+  double crop_threshold_x;
+  double crop_threshold_y;
+  double crop_threshold_z;
   std::string template_cloud;     // full path to template cloud
   std::vector<std::string> vicon_target_frames;
 };

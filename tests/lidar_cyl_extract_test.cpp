@@ -21,9 +21,11 @@ std::string test_path = __FILE__;
 std::string bag_path;
 std::string template_cloud_path;
 std::string rotated_template_cloud_path;
-Eigen::Affine3d TA_SCAN_TARGET_EST1, TA_SCAN_TARGET_EST2;
+Eigen::Affine3d T_SCAN_TARGET1_EST, T_SCAN_TARGET2_EST, T_SCAN_TARGET1_TRUE,
+    T_SCAN_TARGET2_TRUE;
 ros::Time transform_lookup_time;
 vicon_calibration::RegistrationParams registration_params;
+vicon_calibration::CylinderTgtParams target_params;
 vicon_calibration::PointCloud::Ptr
     temp_cloud(new vicon_calibration::PointCloud);
 vicon_calibration::PointCloud::Ptr sim_cloud(new vicon_calibration::PointCloud);
@@ -87,85 +89,118 @@ void LoadTransforms() {
   std::string target1_frame = "vicon/cylinder_target1/cylinder_target1";
   std::string target2_frame = "vicon/cylinder_target2/cylinder_target2";
 
-  TA_SCAN_TARGET_EST1 = tf_tree.GetTransformEigen(
-      m3d_link_frame, target1_frame, transform_lookup_time);
+  T_SCAN_TARGET1_TRUE = tf_tree.GetTransformEigen(m3d_link_frame, target1_frame,
+                                                  transform_lookup_time);
 
-  TA_SCAN_TARGET_EST2 = tf_tree.GetTransformEigen(
-      m3d_link_frame, target2_frame, transform_lookup_time);
+  T_SCAN_TARGET2_TRUE = tf_tree.GetTransformEigen(m3d_link_frame, target2_frame,
+                                                  transform_lookup_time);
 
-  std::cout << TA_SCAN_TARGET_EST1.matrix() << std::endl;
-  std::cout << TA_SCAN_TARGET_EST2.matrix() << std::endl;
+  // Apply translation to estimate
+  Eigen::Vector3d t_perturb(0.1, 0.1, 0.2);
+  T_SCAN_TARGET1_EST = T_SCAN_TARGET1_TRUE;
+  T_SCAN_TARGET2_EST = T_SCAN_TARGET2_TRUE;
+  T_SCAN_TARGET1_EST.translation() = T_SCAN_TARGET1_EST.translation() + t_perturb;
+  T_SCAN_TARGET2_EST.translation() = T_SCAN_TARGET2_EST.translation() + t_perturb;
+  // std::cout << "T_SCAN_TARGET1_TRUE:\n" << T_SCAN_TARGET1_TRUE.matrix() << "\n";
+  // std::cout << "T_SCAN_TARGET2_TRUE:\n" << T_SCAN_TARGET2_TRUE.matrix() << "\n";
+  // std::cout << "T_SCAN_TARGET1_EST:\n" << T_SCAN_TARGET1_EST.matrix() << "\n";
+  // std::cout << "T_SCAN_TARGET2_EST:\n" << T_SCAN_TARGET2_EST.matrix() << "\n";
 }
 
-void LoadRegistrationParams(){
-    registration_params.max_correspondance_distance = 1;
-    registration_params.max_iterations = 10;
-    registration_params.transform_epsilon = 1e-8;
-    registration_params.euclidean_epsilon = 1e-4;
-    registration_params.show_transform = false;
-    registration_params.dist_acceptance_criteria = 0.05;
-    registration_params.rot_acceptance_criteria = 0.5;
+void LoadRegistrationParams() {
+  registration_params.max_correspondance_distance = 1;
+  registration_params.max_iterations = 10;
+  registration_params.transform_epsilon = 1e-8;
+  registration_params.euclidean_epsilon = 1e-4;
+  registration_params.show_transform = false;
+  registration_params.dist_acceptance_criteria = 0.2;
+  registration_params.rot_acceptance_criteria = 0.5;
 }
 
-/*
+void LoadTargetParams(){
+  target_params.radius = 0.0635;
+  target_params.height = 0.5;
+  target_params.crop_threshold_x = 0.0;
+  target_params.crop_threshold_y = 0.3;
+  target_params.crop_threshold_z = 0.3;
+  target_params.template_cloud = template_cloud_path;
+}
+
+void LoadTargetParamsRotated(){
+  target_params.radius = 0.0635;
+  target_params.height = 0.5;
+  target_params.crop_threshold_x = 0.0;
+  target_params.crop_threshold_y = 0.3;
+  target_params.crop_threshold_z = 0.3;
+  target_params.template_cloud = rotated_template_cloud_path;
+}
+
 TEST_CASE("Test cylinder extractor with empty template cloud (nullptr)") {
   FileSetup();
   LoadTransforms();
   LoadTemplateCloud(template_cloud_path);
   LoadSimulatedCloud();
   LoadRegistrationParams();
+  LoadTargetParams();
   vicon_calibration::LidarCylExtractor cyl_extractor;
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(T_SCAN_TARGET1_EST));
 }
 
 TEST_CASE("Test extracting cylinder from empty scan (nullptr)") {
-
-  vicon_calibration::CylinderTgtParams target_params;
-  target_params.radius = 0.0635;
-  target_params.height = 0.5;
-  target_params.crop_threshold = 0.01;
-  target_params.template_cloud = template_cloud_path;
+  // FileSetup();
+  // LoadTransforms();
+  // LoadTemplateCloud(template_cloud_path);
+  // LoadSimulatedCloud();
+  LoadRegistrationParams();
+  LoadTargetParams();
   vicon_calibration::LidarCylExtractor cyl_extractor;
   cyl_extractor.SetRegistrationParams(registration_params);
   cyl_extractor.SetTargetParams(target_params);
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1));
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(T_SCAN_TARGET1_EST));
 }
 
 TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
-  Eigen::Affine3d TA_INVALID;
-  vicon_calibration::CylinderTgtParams target_params;
-  target_params.radius = 0.0635;
-  target_params.height = 0.5;
-  target_params.crop_threshold = 0.01;
-  target_params.template_cloud = template_cloud_path;
+  // FileSetup(); // only run this command once
+  // LoadTransforms();
+  // LoadTemplateCloud(template_cloud_path);
+  // LoadSimulatedCloud();
+  LoadRegistrationParams();
+  LoadTargetParams();
+  Eigen::Affine3d T_INVALID;
   vicon_calibration::LidarCylExtractor cyl_extractor;
   cyl_extractor.SetRegistrationParams(registration_params);
   cyl_extractor.SetTargetParams(target_params);
   cyl_extractor.SetScan(sim_cloud);
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(TA_INVALID));
+  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(T_INVALID));
 }
 
 TEST_CASE("Test extracting cylinder target with diverged ICP registration") {
-  vicon_calibration::CylinderTgtParams target_params;
-  target_params.radius = 0.0635;
-  target_params.height = 0.5;
-  target_params.crop_threshold = -0.05;
-  target_params.template_cloud = template_cloud_path;
+  // FileSetup();
+  // LoadTransforms();
+  // LoadTemplateCloud(template_cloud_path);
+  // LoadSimulatedCloud();
+  LoadRegistrationParams();
+  LoadTargetParams();
+  target_params.crop_threshold_x = -0.05;
+  target_params.crop_threshold_y = -0.05;
+  target_params.crop_threshold_z = -0.05;
   vicon_calibration::LidarCylExtractor cyl_extractor;
   cyl_extractor.SetRegistrationParams(registration_params);
   cyl_extractor.SetTargetParams(target_params);
   cyl_extractor.SetScan(sim_cloud);
-  cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1);
+  cyl_extractor.ExtractCylinder(T_SCAN_TARGET1_TRUE);
   auto measurement_info = cyl_extractor.GetMeasurementInfo();
   REQUIRE(measurement_info.second == false);
 }
 
 TEST_CASE("Test extracting cylinder with invalid parameters") {
-  vicon_calibration::CylinderTgtParams target_params;
+  // FileSetup();
+  // LoadTransforms();
+  // LoadTemplateCloud(template_cloud_path);
+  // LoadSimulatedCloud();
+  LoadRegistrationParams();
+  LoadTargetParams();
   target_params.radius = 0;
-  target_params.height = 0.5;
-  target_params.crop_threshold = 0.01;
-  target_params.template_cloud = template_cloud_path;
   vicon_calibration::LidarCylExtractor cyl_extractor;
   cyl_extractor.SetRegistrationParams(registration_params);
   REQUIRE_THROWS(cyl_extractor.SetTargetParams(target_params));
@@ -175,30 +210,26 @@ TEST_CASE("Test extracting cylinder with invalid parameters") {
 }
 
 TEST_CASE("Test getting measurement information before extracting cylinder") {
-  vicon_calibration::CylinderTgtParams target_params;
-  target_params.radius = 0.0635;
-  target_params.height = 0.5;
-  target_params.crop_threshold = 0.01;
-  target_params.template_cloud = template_cloud_path;
+  // FileSetup();
+  // LoadTransforms();
+  // LoadTemplateCloud(template_cloud_path);
+  // LoadSimulatedCloud();
+  LoadRegistrationParams();
+  LoadTargetParams();
   vicon_calibration::LidarCylExtractor cyl_extractor;
   cyl_extractor.SetRegistrationParams(registration_params);
   cyl_extractor.SetTargetParams(target_params);
   cyl_extractor.SetScan(sim_cloud);
   REQUIRE_THROWS(cyl_extractor.GetMeasurementInfo());
 }
-*/
 
 TEST_CASE("Test cylinder extractor") {
-  FileSetup();
-  LoadTransforms();
-  LoadTemplateCloud(template_cloud_path);
-  LoadSimulatedCloud();
+  // FileSetup();
+  // LoadTransforms();
+  // LoadTemplateCloud(template_cloud_path);
+  // LoadSimulatedCloud();
   LoadRegistrationParams();
-  vicon_calibration::CylinderTgtParams target_params;
-  target_params.radius = 0.0635;
-  target_params.height = 0.5;
-  target_params.crop_threshold = 0.01;
-  target_params.template_cloud = template_cloud_path;
+  LoadTargetParams();
   vicon_calibration::LidarCylExtractor cyl_extractor;
   // registration_params.show_transform = true;
   cyl_extractor.SetRegistrationParams(registration_params);
@@ -206,63 +237,78 @@ TEST_CASE("Test cylinder extractor") {
   cyl_extractor.SetScan(sim_cloud);
 
   std::pair<Eigen::Affine3d, bool> measurement_info1, measurement_info2;
-  Eigen::Affine3d true_transform1 = TA_SCAN_TARGET_EST1;
-  cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 1);
+  cyl_extractor.ExtractCylinder(T_SCAN_TARGET1_EST, 1);
   measurement_info1 = cyl_extractor.GetMeasurementInfo();
-  Eigen::Affine3d  measurement1 = measurement_info1.first;
+  Eigen::Affine3d measurement1 = measurement_info1.first;
   bool measurement1_valid = measurement_info1.second;
 
-  auto true_transform2 = TA_SCAN_TARGET_EST2;
-  cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST2, 2);
+  cyl_extractor.ExtractCylinder(T_SCAN_TARGET2_EST, 2);
   measurement_info2 = cyl_extractor.GetMeasurementInfo();
   Eigen::Affine3d measurement2 = measurement_info2.first;
   bool measurement2_valid = measurement_info2.second;
 
   Eigen::Vector2d dist_diff1(
-      measurement1.matrix()(0, 3) - true_transform1.matrix()(0, 3),
-      measurement1.matrix()(1, 3) - true_transform1.matrix()(1, 3));
-  Eigen::Vector3d rpy_measured1, rpy_true1;
-  rpy_measured1 = measurement1.rotation().eulerAngles(0, 1, 2);
-  rpy_true1 = true_transform1.rotation().eulerAngles(0, 1, 2);
-  Eigen::Vector2d rot_diff1(rpy_measured1(0) - rpy_true1(0),
-                            rpy_measured1(1) - rpy_true1(1));
-
+      measurement1.matrix()(0, 3) - T_SCAN_TARGET1_TRUE.matrix()(0, 3),
+      measurement1.matrix()(1, 3) - T_SCAN_TARGET1_TRUE.matrix()(1, 3));
   Eigen::Vector2d dist_diff2(
-    measurement2.matrix()(0, 3) - true_transform2.matrix()(0, 3),
-    measurement2.matrix()(1, 3) - true_transform2.matrix()(1, 3));
-  Eigen::Vector3d rpy_measured2, rpy_true2;
-  rpy_measured2 = measurement2.rotation().eulerAngles(0, 1, 2);
-  rpy_true2 = true_transform2.rotation().eulerAngles(0, 1, 2);
-  Eigen::Vector2d rot_diff2(rpy_measured2(0) - rpy_true2(0),
-                            rpy_measured2(1) - rpy_true2(1));
-
+      measurement2.matrix()(0, 3) - T_SCAN_TARGET2_TRUE.matrix()(0, 3),
+      measurement2.matrix()(1, 3) - T_SCAN_TARGET2_TRUE.matrix()(1, 3));
   double dist_err1 = std::round(dist_diff1.norm() * 10000) / 10000;
-  double rot_err1 = std::round(rot_diff1.norm() * 10000) / 10000;
   double dist_err2 = std::round(dist_diff2.norm() * 1000) / 1000;
-  double rot_err2 = std::round(rot_diff2.norm() * 1000) / 1000;
-
   REQUIRE(dist_err1 <= 0.03); // less than 3 cm
   REQUIRE(dist_err2 <= 0.03);
-  // REQUIRE(rot_err1 <= 0.3); // less than 0.3 rad
-  // REQUIRE(rot_err2 <= 0.3);
   REQUIRE(measurement1_valid == true);
   REQUIRE(measurement2_valid == true);
+
+  // ------------------------------
+  // Below is some test to calculate the difference betwwen true rotation and
+  // estimated transform. The issue is the yaw rotation will be off since it's
+  // not constrained
+
+  // Eigen::Vector3d ypr_measured1, ypr_true1;
+  // ypr_measured1 = measurement1.rotation().eulerAngles(2, 1, 0);
+  // ypr_true1 = T_SCAN_TARGET1_TRUE.rotation().eulerAngles(2, 1, 0);
+  //
+  // Eigen::Vector2d rot_diff1(ypr_measured1(0) - ypr_true1(0),
+  //                           ypr_measured1(1) - ypr_true1(1));
+  // std::cout << "ypr_measured1:\n " << ypr_measured1 << "\n"
+  //           << "ypr_true1:\n " << ypr_true1 << "\n";
+
+  // Eigen::Vector3d ypr_measured2, ypr_true2;
+  // ypr_measured2 = measurement2.rotation().eulerAngles(2, 1, 0);
+  // ypr_true2 = T_SCAN_TARGET2_TRUE.rotation().eulerAngles(2, 1, 0);
+  // Eigen::Vector2d rot_diff2(ypr_measured2(1) - ypr_true2(1),
+  //                           ypr_measured2(2) - ypr_true2(2));
+  // double rot_err1 = std::round(rot_diff1.norm() * 10000) / 10000;
+  // double rot_err2 = std::round(rot_diff2.norm() * 1000) / 1000;
+
+  // std::cout << "\ndist_err1: " << dist_err1
+  //           << "\ndist_err2: " << dist_err2
+  //           << "\nrot_err1: " << rot_err1
+  //           << "\nrot_err2: " << rot_err2 << "\n";
+
+  // REQUIRE(rot_err1 <= 0.3); // less than 0.3 rad
+  // REQUIRE(rot_err2 <= 0.3);
+  // -----------------------------
 }
 
-/*
 TEST_CASE("Test auto rejection") {
+  // FileSetup();
+  // LoadTransforms();
+  // LoadTemplateCloud(template_cloud_path);
+  // LoadSimulatedCloud();
+  LoadRegistrationParams();
+  LoadTargetParamsRotated();
+  // registration_params.show_transform = true;
+  target_params.crop_threshold_x = 1;
+  target_params.crop_threshold_y = 1;
+  target_params.crop_threshold_z = 1;
   std::pair<Eigen::Affine3d, bool> measurement_info;
-  vicon_calibration::CylinderTgtParams target_params;
-  target_params.radius = 0.0635;
-  target_params.height = 0.5;
-  target_params.crop_threshold = -0.05;
-  target_params.template_cloud = rotated_template_cloud_path;
   vicon_calibration::LidarCylExtractor cyl_extractor;
   cyl_extractor.SetRegistrationParams(registration_params);
   cyl_extractor.SetTargetParams(target_params);
   cyl_extractor.SetScan(sim_cloud);
-  cyl_extractor.ExtractCylinder(TA_SCAN_TARGET_EST1, 3);
+  cyl_extractor.ExtractCylinder(T_SCAN_TARGET1_EST, 3);
   measurement_info = cyl_extractor.GetMeasurementInfo();
   REQUIRE(measurement_info.second == false);
 }
-*/

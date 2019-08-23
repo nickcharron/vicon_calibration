@@ -18,7 +18,6 @@ namespace vicon_calibration {
  */
 class LidarCylExtractor {
 public:
-  
   /**
    * @brief constructor
    */
@@ -124,14 +123,16 @@ private:
    * @param cloud_name name of the point cloud
    */
   void AddColouredPointCloudToViewer(PointCloudColor::Ptr cloud,
-                                     std::string cloud_name);
+                                     std::string cloud_name,
+                                     Eigen::Affine3d &T);
 
   /**
    * @brief Add a cloud to viewer
    * @param cloud pointcloud to add
    * @param cloud_name name of the point cloud
    */
-  void AddPointCloudToViewer(PointCloud::Ptr cloud, std::string cloud_name);
+  void AddPointCloudToViewer(PointCloud::Ptr cloud, std::string cloud_name,
+                             Eigen::Affine3d &T);
 
   /**
    * @brief Colour a pointcloud

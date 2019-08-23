@@ -41,18 +41,14 @@ void LidarCylExtractor::SetCropboxParams() {
     throw std::runtime_error{"Can't crop scan, invalid target params."};
   }
 
-  if (target_params_.crop_threshold == 0) {
-    std::cout << "WARNING: Using threshold of 0 for cropping" << std::endl;
-  }
-
   Eigen::Vector3f min_vector(
-      -target_params_.crop_threshold,
-      -target_params_.radius - target_params_.crop_threshold,
-      -target_params_.radius - target_params_.crop_threshold);
+      -target_params_.crop_threshold_x,
+      -target_params_.radius - target_params_.crop_threshold_y,
+      -target_params_.radius - target_params_.crop_threshold_z);
   Eigen::Vector3f max_vector(
-      target_params_.height + target_params_.crop_threshold,
-      target_params_.radius + target_params_.crop_threshold,
-      target_params_.radius + target_params_.crop_threshold);
+      target_params_.height + target_params_.crop_threshold_x,
+      target_params_.radius + target_params_.crop_threshold_y,
+      target_params_.radius + target_params_.crop_threshold_z);
 
   cropper_.SetMinVector(min_vector);
   cropper_.SetMaxVector(max_vector);
@@ -113,17 +109,30 @@ LidarCylExtractor::CropPointCloud(Eigen::Affine3d &T_SCAN_TARGET_EST) {
 }
 
 void LidarCylExtractor::AddColouredPointCloudToViewer(
-    PointCloudColor::Ptr cloud, std::string cloud_name) {
+    PointCloudColor::Ptr cloud, std::string cloud_name, Eigen::Affine3d &T) {
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(
       cloud);
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(cloud, rgb, cloud_name);
+  pcl_viewer_->addCoordinateSystem(1, T.cast<float>(), cloud_name + "frame");
+  pcl::PointXYZ point;
+  point.x = T.translation()(0);
+  point.y = T.translation()(1);
+  point.z = T.translation()(2);
+  pcl_viewer_->addText3D(cloud_name + " ", point, 0.05, 0.05, 0.05);
   pcl_viewer_->setPointCloudRenderingProperties(
       pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, cloud_name);
 }
 
 void LidarCylExtractor::AddPointCloudToViewer(PointCloud::Ptr cloud,
-                                              std::string cloud_name) {
+                                              std::string cloud_name,
+                                              Eigen::Affine3d &T) {
   pcl_viewer_->addPointCloud<pcl::PointXYZ>(cloud, cloud_name);
+  pcl_viewer_->addCoordinateSystem(1, T.cast<float>(), cloud_name + "frame");
+  pcl::PointXYZ point;
+  point.x = T.translation()(0);
+  point.y = T.translation()(1);
+  point.z = T.translation()(2);
+  pcl_viewer_->addText3D(cloud_name + " ", point, 0.05, 0.05, 0.05);
   pcl_viewer_->setPointCloudRenderingProperties(
       pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, cloud_name);
 }
@@ -199,6 +208,8 @@ void LidarCylExtractor::ConfirmMeasurementKeyboardCallback(
 
 void LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
                                         int measurement_num) {
+  Eigen::Affine3d T_identity;
+  T_identity.setIdentity();
 
   if (template_cloud_ == nullptr || template_cloud_->size() == 0) {
     throw std::runtime_error{"Template cloud is empty"};
@@ -210,23 +221,26 @@ void LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
   }
 
   // Crop the scan before performing ICP registration
-  auto cropped_cloud = CropPointCloud(T_SCAN_TARGET_EST);
+  auto scan_cropped = CropPointCloud(T_SCAN_TARGET_EST);
 
   // Perform ICP Registration
-  PointCloud::Ptr final_cloud(new PointCloud);
-  icp_.setInputSource(cropped_cloud);
+  PointCloud::Ptr scan_registered(new PointCloud);
+  icp_.setInputSource(scan_cropped);
   icp_.setInputTarget(template_cloud_);
-  icp_.align(*final_cloud, T_SCAN_TARGET_EST.inverse().matrix().cast<float>());
+  icp_.align(*scan_registered,
+             T_SCAN_TARGET_EST.inverse().matrix().cast<float>());
 
   if (!icp_.hasConverged()) {
     if (registration_params_.show_transform) {
       measurement_failed_ = true;
       std::cout << "ICP failed. Displaying cropped scan." << std::endl;
-      auto coloured_cropped_cloud = ColourPointCloud(cropped_cloud, 255, 0, 0);
-      AddColouredPointCloudToViewer(coloured_cropped_cloud,
+      auto scan_cropped_coloured = ColourPointCloud(scan_cropped, 255, 0, 0);
+      AddColouredPointCloudToViewer(scan_cropped_coloured,
                                     "coloured cropped cloud " +
-                                        std::to_string(measurement_num));
-      AddPointCloudToViewer(scan_, "scan " + std::to_string(measurement_num));
+                                        std::to_string(measurement_num),
+                                    T_identity);
+      AddPointCloudToViewer(scan_, "scan " + std::to_string(measurement_num),
+                            T_identity);
       ShowFailedMeasurement();
       pcl_viewer_->resetStoppedFlag();
     }
@@ -250,17 +264,20 @@ void LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
                              *estimated_template_cloud, T_SCAN_TARGET_EST);
     AddColouredPointCloudToViewer(estimated_template_cloud,
                                   "estimated template cloud " +
-                                      std::to_string(measurement_num));
+                                      std::to_string(measurement_num),
+                                  T_SCAN_TARGET_EST);
 
     auto measured_template_cloud = ColourPointCloud(template_cloud_, 0, 255, 0);
     pcl::transformPointCloud(*measured_template_cloud, *measured_template_cloud,
                              T_SCAN_TARGET_OPT);
     AddColouredPointCloudToViewer(measured_template_cloud,
                                   "measured template cloud " +
-                                      std::to_string(measurement_num));
+                                      std::to_string(measurement_num),
+                                  T_SCAN_TARGET_OPT);
 
-    AddPointCloudToViewer(cropped_cloud,
-                          "cropped scan " + std::to_string(measurement_num));
+    AddPointCloudToViewer(scan_cropped,
+                          "cropped scan " + std::to_string(measurement_num),
+                          T_identity);
 
     ShowFinalTransformation();
     pcl_viewer_->resetStoppedFlag();
@@ -269,19 +286,29 @@ void LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
   Eigen::Vector2d dist_diff(
       measurement_.matrix()(0, 3) - T_SCAN_TARGET_EST.matrix()(0, 3),
       measurement_.matrix()(1, 3) - T_SCAN_TARGET_EST.matrix()(1, 3));
-  Eigen::Vector3d rpy_measured, rpy_estimated;
-  rpy_measured = measurement_.rotation().eulerAngles(0, 1, 2);
-  rpy_estimated = T_SCAN_TARGET_EST.rotation().eulerAngles(0, 1, 2);
-  Eigen::Vector2d rot_diff(rpy_measured(0) - rpy_estimated(0),
-                           rpy_measured(1) - rpy_estimated(1));
-
   double dist_err = std::round(dist_diff.norm() * 10000) / 10000;
-  double rot_err = std::round(rot_diff.norm() * 10000) / 10000;
-  if (dist_err >= registration_params_.dist_acceptance_criteria ||
-      rot_err >= registration_params_.rot_acceptance_criteria) {
+
+  // ------------------------------------------------
+  // Ignoring rotation error due to unconstrained yaw
+  // Eigen::Vector3d ypr_measured, ypr_estimated;
+  // ypr_measured = measurement_.rotation().eulerAngles(2, 1, 0);
+  // ypr_estimated = T_SCAN_TARGET_EST.rotation().eulerAngles(2, 1, 0);
+  // Eigen::Vector2d rot_diff(ypr_measured(1) - ypr_estimated(1),
+  //                          ypr_measured(2) - ypr_estimated(2)); // ignore yaw
+  // double rot_err = std::round(rot_diff.norm() * 10000) / 10000;
+  // if (dist_err >= registration_params_.dist_acceptance_criteria ||
+  //     rot_err >= registration_params_.rot_acceptance_criteria)
+  // ------------------------------------------------
+
+  if (dist_err >= registration_params_.dist_acceptance_criteria) {
     measurement_valid_ = false;
+    std::cout << "Measurement Invalid\n";
+    std::cout << "Distance error norm: " << dist_err << "\n";
+    std::cout << "Distance acceptance criteria: "
+              << registration_params_.dist_acceptance_criteria << "\n";
   } else {
     measurement_valid_ = true;
+    std::cout << "Measurement Valid\n";
   }
   measurement_complete_ = true;
 }

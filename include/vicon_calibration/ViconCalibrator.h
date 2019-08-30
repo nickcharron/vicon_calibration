@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vicon_calibration/params.h"
+#include "beam_calibration/TfTree.h"
 #include "vicon_calibration/LidarCylExtractor.h"
 // #include "vicon_calibration/CamCylExtractor.h"
 #include <rosbag/bag.h>
@@ -19,6 +20,7 @@ class ViconCalibrator {
     std::string initial_calibration_file;
     bool lookup_tf_calibrations;
     std::string vicon_baselink_frame;
+    std::vector<double> initial_guess_perturbation; // for testing sim
     vicon_calibration::ImageProcessingParams image_processing_params;
     vicon_calibration::RegistrationParams registration_params;
     vicon_calibration::CylinderTgtParams target_params;
@@ -40,7 +42,7 @@ public:
   /**
    * @brief run calibration
    */
-  void RunCalibration();
+  void RunCalibration(std::string config_file = "ViconCalibrationConfig.json");
 
 private:
   /**
@@ -61,6 +63,11 @@ private:
    */
   void LoadJSON(std::string file_name);
 
+  /**
+   * @brief loads extrinsic estimates and saves as tf tree object. These come
+   * from either a JSON or from the tf messages in the bag
+   */
+  void LoadEstimatedExtrinsics();
   /**
    * @brief get initial guess of where the targets are located at the current
    * time point
@@ -88,6 +95,7 @@ private:
                              std::string &frame);
 
   CalibratorConfig params_;
+  beam_calibration::TfTree estimate_extrinsics_;
   vicon_calibration::LidarCylExtractor lidar_extractor_;
   //vicon_calibration::CameraCylExtractor camera_extractor_;
   std::vector<vicon_calibration::LidarMeasurement> lidar_measurements_;

@@ -1,5 +1,4 @@
 #include "vicon_calibration/ViconCalibrator.h"
-#include "beam_calibration/TfTree.h"
 #include "vicon_calibration/GTSAMGraph.h"
 #include "vicon_calibration/utils.h"
 #include <Eigen/StdVector>
@@ -54,6 +53,9 @@ void ViconCalibrator::LoadJSON(std::string file_name) {
   params_.initial_calibration_file = J["initial_calibration"];
   params_.lookup_tf_calibrations = J["lookup_tf_calibrations"];
   params_.vicon_baselink_frame = J["vicon_baselink_frame"];
+  for (const auto &value : J["initial_guess_perturb"]) {
+    params_.initial_guess_perturbation.push_back(value);
+  }
 
   for (const auto &params : J["image_processing_params"]) {
     params_.image_processing_params.num_intersections =
@@ -115,12 +117,41 @@ void ViconCalibrator::LoadJSON(std::string file_name) {
   }
 }
 
+void ViconCalibrator::LoadEstimatedExtrinsics() {
+
+  if (!params_.lookup_tf_calibrations) {
+    std::string initial_calibration_file_dir;
+    try {
+      initial_calibration_file_dir =
+          GetJSONFileNameData(params_.initial_calibration_file);
+      estimate_extrinsics_.LoadJSON(initial_calibration_file_dir);
+    } catch (nlohmann::detail::parse_error &ex) {
+      LOG_ERROR("Unable to load json calibration file: %s",
+                initial_calibration_file_dir.c_str());
+    }
+  } else {
+    int counter = 0;
+    rosbag::View view(bag_, rosbag::TopicQuery("/tf_static"), ros::TIME_MIN,
+                      ros::TIME_MAX, true);
+    for (const auto &msg_instance : view) {
+      auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
+      if (tf_message != nullptr) {
+        for (geometry_msgs::TransformStamped tf : tf_message->transforms) {
+          estimate_extrinsics_.AddTransform(tf);
+          counter++;
+        }
+      }
+    }
+    std::cout << "Saved " << counter << " transforms from the bag.\n";
+  }
+}
+
 std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
 ViconCalibrator::GetInitialGuess(ros::Time &time, std::string &sensor_frame) {
   std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
       T_sensor_tgts_estimated;
 
-  // check 2 second time window for vicon baselink transform
+  // check 2 second time window
   ros::Duration time_window_half(1);
   ros::Time start_time = time - time_window_half;
   ros::Time time_zero(0, 0);
@@ -128,28 +159,11 @@ ViconCalibrator::GetInitialGuess(ros::Time &time, std::string &sensor_frame) {
     start_time = time_zero;
   }
   ros::Time end_time = time + time_window_half;
-  rosbag::View view(bag_, rosbag::TopicQuery("/tf"), start_time, end_time,
-                    true);
-
-  // initialize tree with initial calibrations:
-  beam_calibration::TfTree tree;
-
-  if (!params_.lookup_tf_calibrations) {
-    std::string initial_calibration_file_dir;
-    try {
-      initial_calibration_file_dir =
-          GetJSONFileNameData(params_.initial_calibration_file);
-      tree.LoadJSON(initial_calibration_file_dir);
-    } catch (nlohmann::detail::parse_error &ex) {
-      LOG_ERROR("Unable to load json calibration file: %s",
-                initial_calibration_file_dir.c_str());
-    }
-  }
-
-  // TODO: Do we need to add the static transform for calibrations, or will it
-  // automatically be added based on what's below?
 
   // Add all vicon transforms in window
+  rosbag::View view(bag_, rosbag::TopicQuery("/tf"), start_time, end_time,
+                    true);
+  beam_calibration::TfTree tree;
   for (const auto &msg_instance : view) {
     auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
     if (tf_message != nullptr) {
@@ -160,11 +174,22 @@ ViconCalibrator::GetInitialGuess(ros::Time &time, std::string &sensor_frame) {
   }
 
   // get transform to each of the targets at specified time
-  Eigen::Affine3d T_SENSOR_TGTn;
+  Eigen::Affine3d T_SENSOR_TGTn, T_SENSOR_BASELINK, T_BASELINK_TGTn;
+  std::string base_link = "base_link";
   for (uint8_t n; n < params_.target_params.vicon_target_frames.size(); n++) {
-    T_SENSOR_TGTn = tree.GetTransformEigen(
-        sensor_frame, params_.target_params.vicon_target_frames[n], time);
-    T_sensor_tgts_estimated.push_back(T_SENSOR_TGTn);
+    std::cout << "Looking up transform from " << base_link << " to frame "
+              << sensor_frame << "\n";
+    T_SENSOR_BASELINK =
+        estimate_extrinsics_.GetTransformEigen(sensor_frame, base_link);
+    std::cout << "Looking up transform from "
+              << params_.target_params.vicon_target_frames[n] << " to frame "
+              << base_link << "\n";
+    T_BASELINK_TGTn = tree.GetTransformEigen(
+        base_link, params_.target_params.vicon_target_frames[n], time);
+    T_SENSOR_TGTn = T_SENSOR_BASELINK * T_BASELINK_TGTn;
+    Eigen::Affine3d T_SENSOR_TGTn_pert =
+        utils::PerturbTransform(T_SENSOR_TGTn, params_.initial_guess_perturbation);
+    T_sensor_tgts_estimated.push_back(T_SENSOR_TGTn_pert);
   }
   return T_sensor_tgts_estimated;
 }
@@ -192,8 +217,8 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
       try {
         T_lidar_tgts_estimated = GetInitialGuess(
             time_current, params_.lidar_params[lidar_iter].frame);
-      } catch (const std::exception &err) {
-        LOG_ERROR("%s", err);
+      } catch (const std::exception err) {
+        LOG_ERROR("%s", err.what());
         std::cout
             << "Possible reasons for lookup error: \n"
             << "- Start or End of bag could have message timing issues\n"
@@ -229,15 +254,16 @@ void ViconCalibrator::GetCameraMeasurements(rosbag::Bag &bag,
   }
 }
 
-void ViconCalibrator::RunCalibration() {
+void ViconCalibrator::RunCalibration(std::string config_file) {
 
   // get configuration settings
-  std::string config_file;
-  config_file = GetJSONFileNameConfig("ViconCalibrationConfigIG.json");
+  std::string config_file_path;
+  config_file_path = GetJSONFileNameConfig(config_file);
   try {
-    LoadJSON(config_file);
+    LoadJSON(config_file_path);
   } catch (nlohmann::detail::parse_error &ex) {
-    LOG_ERROR("Unable to load json config file: %s", config_file.c_str());
+    LOG_ERROR("Unable to load json config file: %s", config_file_path.c_str());
+    LOG_ERROR("%s", ex.what());
   }
 
   // load bag file
@@ -247,6 +273,9 @@ void ViconCalibrator::RunCalibration() {
   } catch (rosbag::BagException &ex) {
     LOG_ERROR("Bag exception : %s", ex.what());
   }
+
+  // Load extrinsics
+  this->LoadEstimatedExtrinsics();
 
   // loop through each lidar, get measurements and solve graph
   lidar_extractor_.SetTargetParams(params_.target_params);

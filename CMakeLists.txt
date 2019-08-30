@@ -56,12 +56,34 @@ target_link_libraries(${PROJECT_NAME}_lidar_cylinder_extractor_tests
 add_subdirectory(src/lib)
 add_subdirectory(tests)
 
-# Add main executable
+# Add main executables
 add_executable(${PROJECT_NAME}_main
 	src/main.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}_main
+	${PROJECT_NAME}
+	beam::utils
+	beam::calibration
+  beam::filtering
+)
+
+add_executable(${PROJECT_NAME}_main_ig
+	src/main_ig.cpp
+)
+
+target_link_libraries(${PROJECT_NAME}_main_ig
+	${PROJECT_NAME}
+	beam::utils
+	beam::calibration
+  beam::filtering
+)
+
+add_executable(${PROJECT_NAME}_main_roben
+	src/main_roben.cpp
+)
+
+target_link_libraries(${PROJECT_NAME}_main_roben
 	${PROJECT_NAME}
 	beam::utils
 	beam::calibration

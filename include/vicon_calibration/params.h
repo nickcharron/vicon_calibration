@@ -56,13 +56,13 @@ struct ImageProcessingParams {
 };
 
 struct LidarMeasurement {
-  Eigen::Affine3d measurement;
+  Eigen::Matrix4d measurement;
   int lidar_id;
   int target_id;
 };
 
 struct CameraMeasurement {
-  Eigen::Affine3d measurement;
+  Eigen::Matrix4d measurement;
   int camera_id;
   int target_id;
 };

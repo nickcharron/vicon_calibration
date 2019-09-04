@@ -162,7 +162,7 @@ private:
    * @brief Keyboard event callback to allow the user to accept or reject final
    * transform measurement
    */
-  static void ConfirmMeasurementKeyboardCallback(
+  void ConfirmMeasurementKeyboardCallback(
       const pcl::visualization::KeyboardEvent &event, void *viewer_void);
 
   // params
@@ -181,6 +181,7 @@ private:
   static bool measurement_valid_;  // For displaying resulted clouds
   static bool measurement_failed_; // For displaying clouds when icp diverges
   bool measurement_complete_{false};
+  bool close_viewer_{false};
   Eigen::Affine3d measurement_;
   Eigen::Affine3d INVALID_MEASUREMENT;
 };

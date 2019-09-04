@@ -2,7 +2,7 @@
   "bag_file": "/home/nick/bag_files/vicon_calibration/Roben_Vicon_Sim_2019-08-29-17-06-06.bag",
   "initial_calibration": "initial_calibration_roben.json",
   "lookup_tf_calibrations": true,
-  "initial_guess_perturb": [0.2, 0.2, 0.1, 0.1, 0.2, 0.3],
+  "initial_guess_perturb": [0.1, 0.1, 0.1, 0.1, 0.2, 0.3],
   "vicon_baselink_frame": "vicon/roben/roben",
   "image_processing_params": [
     {"num_intersections" : 300,
@@ -18,15 +18,15 @@
      "transform_epsilon": 1e-8,
      "euclidean_epsilon": 1e-2,
      "show_transform": true,
-     "dist_acceptance_criteria": 0.05,
+     "dist_acceptance_criteria": 0.3,
      "rot_acceptance_criteria": 0.5}
   ],
   "target_params": [
     {"radius": 0.0635,
      "height": 0.5,
-     "crop_threshold_x": 0.5,
-     "crop_threshold_y": 0.5,
-     "crop_threshold_z": 0.5,
+     "crop_threshold_x": 0.2,
+     "crop_threshold_y": 0.3,
+     "crop_threshold_z": 0.3,
      "template_cloud": "cylinder_target.pcd",
      "vicon_target_frames": ["vicon/cylinder_target1/cylinder_target1", "vicon/cylinder_target2/cylinder_target2"]}
   ],
@@ -35,6 +35,6 @@
   "lidar_params":[
     {"topic": "/m3d/aggregator/cloud",
      "frame": "m3d_link",
-     "time_steps": 10}
+     "time_steps": 90}
   ]
 }

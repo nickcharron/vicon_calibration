@@ -99,6 +99,18 @@ Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d &eps) {
   return skewTransform(eps).exp();
 }
 
+void OutputLidarMeasurements(std::vector<vicon_calibration::LidarMeasurement> &measurements){
+  std::cout << "-------------------------------\n"
+            << "Saved a total of " << measurements.size() << " lidar measurements \n"
+            << "Outputting lidar measurements: \n";
+  for (uint32_t i = 0; i < measurements.size(); i++){
+    std::cout << "lidar_id: " << measurements[i].lidar_id << "\n"
+              << "target_id: " << measurements[i].target_id << "\n"
+              << "measurement: \n"
+              << measurements[i].measurement << "\n";
+  }
+}
+
 } // namespace utils
 
 } // end namespace vicon_calibration

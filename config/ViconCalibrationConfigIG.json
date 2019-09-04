@@ -2,7 +2,7 @@
   "bag_file": "/home/nick/bag_files/vicon_calibration/IG_Vicon_Sim_2019-08-29-17-18-56.bag",
   "initial_calibration": "initial_calibration_ig_current.json",
   "lookup_tf_calibrations": true,
-  "initial_guess_perturb": [0.3, 0.3, 0.3, 0.1, 0.1, 0.1],
+  "initial_guess_perturb": [0, 0, 0, 0, 0, 0],
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
   "image_processing_params": [
     {"num_intersections" : 300,

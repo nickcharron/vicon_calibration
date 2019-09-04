@@ -3,6 +3,7 @@
 #include <Eigen/Geometry>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include "vicon_calibration/params.h"
 
 namespace vicon_calibration {
 
@@ -27,6 +28,8 @@ Eigen::Matrix3d skewTransform(const Eigen::Vector3d &V);
 Eigen::Vector3d RToLieAlgebra(const Eigen::Matrix3d &R);
 
 Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d &eps);
+
+void OutputLidarMeasurements(std::vector<vicon_calibration::LidarMeasurement> &measurements);
 
 } // namespace utils
 

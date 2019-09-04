@@ -154,54 +154,71 @@ PointCloudColor::Ptr LidarCylExtractor::ColourPointCloud(PointCloud::Ptr &cloud,
 }
 
 void LidarCylExtractor::ShowFinalTransformation() {
-  std::cout << "-------------------------------" << std::endl;
-  std::cout << "Legend:" << std::endl;
-  std::cout << "  White -> scan" << std::endl;
-  std::cout << "  Blue  -> target initial guess" << std::endl;
-  std::cout << "  Green -> target aligned" << std::endl;
-  std::cout << "Accept measurement? [y/n]" << std::endl;
-  while (!pcl_viewer_->wasStopped()) {
+  std::cout << "\nViewer Legend:\n"
+            << "  White -> scan\n"
+            << "  Blue  -> target initial guess\n"
+            << "  Green -> target aligned\n"
+            << "Accept measurement? [y/n]\n";
+  while (!pcl_viewer_->wasStopped() && !close_viewer_) {
     pcl_viewer_->spinOnce(10);
+    pcl_viewer_->registerKeyboardCallback(
+        &LidarCylExtractor::ConfirmMeasurementKeyboardCallback, *this);
     std::this_thread::sleep_for(10ms);
+  }
+  close_viewer_ = false;
+  pcl_viewer_->removeAllPointClouds();
+  pcl_viewer_->removeAllCoordinateSystems();
+  pcl_viewer_->removeAllShapes();
+  pcl_viewer_->close();
+  pcl_viewer_->resetStoppedFlag();
+  if (measurement_failed_) {
+    std::cout << "Continuing with taking measurements" << std::endl;
+  } else if (measurement_valid_) {
+    std::cout << "Accepting measurement" << std::endl;
+  } else {
+    std::cout << "Rejecting measurement" << std::endl;
   }
 }
 
 void LidarCylExtractor::ShowFailedMeasurement() {
-  std::cout << "-------------------------------" << std::endl;
-  std::cout << "Legend:" << std::endl;
-  std::cout << "  Red   -> cropped scan" << std::endl;
-  std::cout << "  White -> original scan" << std::endl;
-  std::cout << "Press [c] to continue with other measurements" << std::endl;
-  while (!pcl_viewer_->wasStopped()) {
+  std::cout << "\nViewer Legend:\n"
+            << "  Red   -> cropped scan\n"
+            << "  White -> original scan\n"
+            << "Press [c] to continue with other measurements\n";
+  while (!pcl_viewer_->wasStopped() && !close_viewer_) {
     pcl_viewer_->spinOnce(10);
+    pcl_viewer_->registerKeyboardCallback(
+        &LidarCylExtractor::ConfirmMeasurementKeyboardCallback, *this);
     std::this_thread::sleep_for(10ms);
+  }
+  close_viewer_ = false;
+  pcl_viewer_->removeAllPointClouds();
+  pcl_viewer_->close();
+  pcl_viewer_->resetStoppedFlag();
+  if (measurement_failed_) {
+    std::cout << "Continuing with taking measurements" << std::endl;
+  } else if (measurement_valid_) {
+    std::cout << "Accepting measurement" << std::endl;
+  } else {
+    std::cout << "Rejecting measurement" << std::endl;
   }
 }
 
 void LidarCylExtractor::ConfirmMeasurementKeyboardCallback(
     const pcl::visualization::KeyboardEvent &event, void *viewer_void) {
-  pcl::visualization::PCLVisualizer *viewer =
-      static_cast<pcl::visualization::PCLVisualizer *>(viewer_void);
 
   if (measurement_failed_) {
     if (event.getKeySym() == "c" && event.keyDown()) {
-      std::cout << "Continuing with taking measurements" << std::endl;
       measurement_failed_ = false;
-      viewer->removeAllPointClouds();
-      viewer->close();
+      close_viewer_ = true;
     }
   } else {
     if (event.getKeySym() == "y" && event.keyDown()) {
-      std::cout << "Accepting measurement" << std::endl;
       measurement_valid_ = true;
-      viewer->removeAllPointClouds();
-      viewer->close();
-
+      close_viewer_ = true;
     } else if (event.getKeySym() == "n" && event.keyDown()) {
-      std::cout << "Rejecting measurement" << std::endl;
       measurement_valid_ = false;
-      viewer->removeAllPointClouds();
-      viewer->close();
+      close_viewer_ = true;
     }
   }
 }
@@ -255,6 +272,39 @@ void LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
       icp_.getFinalTransformation().inverse().cast<double>();
   measurement_ = T_SCAN_TARGET_OPT;
 
+  Eigen::Vector2d dist_diff(
+      measurement_.matrix()(0, 3) - T_SCAN_TARGET_EST.matrix()(0, 3),
+      measurement_.matrix()(1, 3) - T_SCAN_TARGET_EST.matrix()(1, 3));
+  double dist_err = std::round(dist_diff.norm() * 10000) / 10000;
+
+  // ------------------------------------------------
+  // Ignoring rotation error due to unconstrained yaw
+  // Eigen::Vector3d ypr_measured, ypr_estimated;
+  // ypr_measured = measurement_.rotation().eulerAngles(2, 1, 0);
+  // ypr_estimated = T_SCAN_TARGET_EST.rotation().eulerAngles(2, 1, 0);
+  // Eigen::Vector2d rot_diff(ypr_measured(1) - ypr_estimated(1),
+  //                          ypr_measured(2) - ypr_estimated(2)); // ignore yaw
+  // double rot_err = std::round(rot_diff.norm() * 10000) / 10000;
+  // if (dist_err >= registration_params_.dist_acceptance_criteria ||
+  //     rot_err >= registration_params_.rot_acceptance_criteria)
+  // ------------------------------------------------
+
+  if (dist_err >= registration_params_.dist_acceptance_criteria) {
+    measurement_valid_ = false;
+    std::cout << "-----------------------------\n"
+              << "Measurement Invalid\n"
+              << "Distance error norm: " << dist_err << "\n"
+              << "Distance acceptance criteria: "
+              << registration_params_.dist_acceptance_criteria << "\n";
+  } else {
+    measurement_valid_ = true;
+    std::cout << "-----------------------------\n"
+              << "Measurement Valid\n"
+              << "Distance error norm: " << dist_err << "\n"
+              << "Distance acceptance criteria: "
+              << registration_params_.dist_acceptance_criteria << "\n";
+  }
+
   if (registration_params_.show_transform) {
     // Display clouds for testing
     // transform template cloud from target to lidar
@@ -280,35 +330,6 @@ void LidarCylExtractor::ExtractCylinder(Eigen::Affine3d &T_SCAN_TARGET_EST,
                           T_identity);
 
     ShowFinalTransformation();
-    pcl_viewer_->resetStoppedFlag();
-  }
-
-  Eigen::Vector2d dist_diff(
-      measurement_.matrix()(0, 3) - T_SCAN_TARGET_EST.matrix()(0, 3),
-      measurement_.matrix()(1, 3) - T_SCAN_TARGET_EST.matrix()(1, 3));
-  double dist_err = std::round(dist_diff.norm() * 10000) / 10000;
-
-  // ------------------------------------------------
-  // Ignoring rotation error due to unconstrained yaw
-  // Eigen::Vector3d ypr_measured, ypr_estimated;
-  // ypr_measured = measurement_.rotation().eulerAngles(2, 1, 0);
-  // ypr_estimated = T_SCAN_TARGET_EST.rotation().eulerAngles(2, 1, 0);
-  // Eigen::Vector2d rot_diff(ypr_measured(1) - ypr_estimated(1),
-  //                          ypr_measured(2) - ypr_estimated(2)); // ignore yaw
-  // double rot_err = std::round(rot_diff.norm() * 10000) / 10000;
-  // if (dist_err >= registration_params_.dist_acceptance_criteria ||
-  //     rot_err >= registration_params_.rot_acceptance_criteria)
-  // ------------------------------------------------
-
-  if (dist_err >= registration_params_.dist_acceptance_criteria) {
-    measurement_valid_ = false;
-    std::cout << "Measurement Invalid\n";
-    std::cout << "Distance error norm: " << dist_err << "\n";
-    std::cout << "Distance acceptance criteria: "
-              << registration_params_.dist_acceptance_criteria << "\n";
-  } else {
-    measurement_valid_ = true;
-    std::cout << "Measurement Valid\n";
   }
   measurement_complete_ = true;
 }

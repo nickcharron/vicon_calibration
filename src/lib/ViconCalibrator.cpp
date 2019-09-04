@@ -177,13 +177,13 @@ ViconCalibrator::GetInitialGuess(ros::Time &time, std::string &sensor_frame) {
   Eigen::Affine3d T_SENSOR_TGTn, T_SENSOR_BASELINK, T_BASELINK_TGTn;
   std::string base_link = "base_link";
   for (uint8_t n; n < params_.target_params.vicon_target_frames.size(); n++) {
-    std::cout << "Looking up transform from " << base_link << " to frame "
-              << sensor_frame << "\n";
+    // std::cout << "Looking up transform from " << base_link << " to frame "
+    //           << sensor_frame << "\n";
     T_SENSOR_BASELINK =
         estimate_extrinsics_.GetTransformEigen(sensor_frame, base_link);
-    std::cout << "Looking up transform from "
-              << params_.target_params.vicon_target_frames[n] << " to frame "
-              << base_link << "\n";
+    // std::cout << "Looking up transform from "
+    //           << params_.target_params.vicon_target_frames[n] << " to frame "
+    //           << base_link << "\n";
     T_BASELINK_TGTn = tree.GetTransformEigen(
         base_link, params_.target_params.vicon_target_frames[n], time);
     T_SENSOR_TGTn = T_SENSOR_BASELINK * T_BASELINK_TGTn;
@@ -233,7 +233,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
         const auto measurement_info = lidar_extractor_.GetMeasurementInfo();
         if (measurement_info.second) {
           vicon_calibration::LidarMeasurement lidar_measurement;
-          lidar_measurement.measurement = measurement_info.first;
+          lidar_measurement.measurement = measurement_info.first.matrix();
           lidar_measurement.lidar_id = lidar_iter;
           lidar_measurement.target_id = n;
           lidar_measurements_.push_back(lidar_measurement);
@@ -284,6 +284,7 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
        lidar_iter++) {
     this->GetLidarMeasurements(lidar_iter);
   }
+  utils::OutputLidarMeasurements(lidar_measurements_);
 
   // loop through each camera, get measurements and solve graph
   /*

@@ -2,7 +2,7 @@
   "bag_file": "/home/nick/bag_files/vicon_calibration/Roben_Vicon_Sim_2019-08-29-17-06-06.bag",
   "initial_calibration": "initial_calibration_roben.json",
   "lookup_tf_calibrations": true,
-  "initial_guess_perturb": [0.1, 0.1, 0.1, 0.1, 0.2, 0.3],
+  "initial_guess_perturb": [0, 0, 0.2, 0, 0, 0],
   "vicon_baselink_frame": "vicon/roben/roben",
   "image_processing_params": [
     {"num_intersections" : 300,
@@ -17,7 +17,7 @@
      "max_iterations": 100,
      "transform_epsilon": 1e-8,
      "euclidean_epsilon": 1e-2,
-     "show_transform": true,
+     "show_transform": false,
      "dist_acceptance_criteria": 0.3,
      "rot_acceptance_criteria": 0.5}
   ],

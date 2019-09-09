@@ -10,6 +10,15 @@ namespace vicon_calibration {
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudColor;
 
+#define FILENAME \
+    (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+
+#define LOG_ERROR(M, ...) \
+    fprintf(              \
+      stderr, "[ERROR] [%s:%d] " M "\n", FILENAME, __LINE__, ##__VA_ARGS__)
+
+#define LOG_INFO(M, ...) fprintf(stdout, "[INFO] " M "\n", ##__VA_ARGS__)
+
 namespace utils {
 
 Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd &M, int precision);
@@ -30,6 +39,10 @@ Eigen::Vector3d RToLieAlgebra(const Eigen::Matrix3d &R);
 Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d &eps);
 
 void OutputLidarMeasurements(std::vector<vicon_calibration::LidarMeasurement> &measurements);
+
+void OutputCalibrations(
+    std::vector<vicon_calibration::CalibrationResult> &calib,
+    std::string output_string);
 
 } // namespace utils
 

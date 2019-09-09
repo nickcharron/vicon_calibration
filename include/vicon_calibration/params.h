@@ -56,21 +56,27 @@ struct ImageProcessingParams {
 };
 
 struct LidarMeasurement {
-  Eigen::Matrix4d measurement;
+  Eigen::Matrix4d T_LIDAR_TARGET;
+  Eigen::Matrix4d T_VICONBASE_TARGET;
   int lidar_id;
   int target_id;
+  std::string lidar_frame;
+  std::string target_frame;
+  std::string vicon_base_frame;
 };
 
 struct CameraMeasurement {
   Eigen::Matrix4d measurement;
   int camera_id;
   int target_id;
+  std::string camera_frame;
+  std::string target_frame;
 };
 
 struct CalibrationResult {
-  Eigen::Affine3d transform;
-  std::string to_frame;
-  std::string from_frame;
+  Eigen::Matrix4d transform;
+  std::string to_frame; // this is the sensor frame
+  std::string from_frame; // this is usually the vicon baselink on the robot
 };
 
 } // end namespace vicon_calibration

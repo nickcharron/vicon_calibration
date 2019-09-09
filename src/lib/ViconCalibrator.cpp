@@ -1,5 +1,4 @@
 #include "vicon_calibration/ViconCalibrator.h"
-#include "vicon_calibration/GTSAMGraph.h"
 #include "vicon_calibration/utils.h"
 #include <Eigen/StdVector>
 #include <beam_utils/math.hpp>
@@ -130,72 +129,128 @@ void ViconCalibrator::LoadEstimatedExtrinsics() {
                 initial_calibration_file_dir.c_str());
     }
   } else {
-    int counter = 0;
+    // Look up all transforms from /tf_static topic
     rosbag::View view(bag_, rosbag::TopicQuery("/tf_static"), ros::TIME_MIN,
                       ros::TIME_MAX, true);
     for (const auto &msg_instance : view) {
       auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
       if (tf_message != nullptr) {
         for (geometry_msgs::TransformStamped tf : tf_message->transforms) {
-          estimate_extrinsics_.AddTransform(tf);
-          counter++;
+          estimate_extrinsics_.AddTransform(tf, true);
         }
       }
     }
-    std::cout << "Saved " << counter << " transforms from the bag.\n";
+
+    // check if transform from baselink to vicon base exists, if not get it
+    // from /tf topic. Sometimes, this static transform is broadcasted on /tf
+    std::string to_frame = params_.vicon_baselink_frame;
+    std::string from_frame = "base_link";
+    try {
+      Eigen::Affine3d T_VICONBASE_BASELINK =
+          estimate_extrinsics_.GetTransformEigen(to_frame, from_frame);
+    } catch (std::runtime_error &error) {
+      LOG_INFO("Transform from base_link to %s not available on topic "
+               "/tf_static, looking at topic /tf.",
+               params_.vicon_baselink_frame.c_str());
+      rosbag::View view2(bag_, rosbag::TopicQuery("/tf"), ros::TIME_MIN,
+                         ros::TIME_MAX, true);
+      for (const auto &msg_instance : view2) {
+        auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
+        if (tf_message != nullptr) {
+          for (geometry_msgs::TransformStamped tf : tf_message->transforms) {
+            std::string child = tf.child_frame_id;
+            std::string parent = tf.header.frame_id;
+            if ((child == to_frame && parent == from_frame) ||
+                (child == from_frame && parent == to_frame)) {
+              estimate_extrinsics_.AddTransform(tf, true);
+              LOG_INFO("Found transform from base_link to %s",
+                       params_.vicon_baselink_frame.c_str());
+              goto end_of_loop;
+            }
+          }
+        }
+      }
+      LOG_ERROR("Transform from base_link to %s not available on topic /tf",
+               params_.vicon_baselink_frame.c_str());
+      end_of_loop:;
+    }
   }
 }
 
-std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
-ViconCalibrator::GetInitialGuess(ros::Time &time, std::string &sensor_frame) {
-  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
-      T_sensor_tgts_estimated;
-
-  // check 2 second time window
-  ros::Duration time_window_half(1);
-  ros::Time start_time = time - time_window_half;
+void ViconCalibrator::LoadLookupTree() {
+  lookup_tree_.Clear();
+  ros::Duration time_window_half(1); // Check two second time window
+  ros::Time start_time = lookup_time_ - time_window_half;
   ros::Time time_zero(0, 0);
   if (start_time <= time_zero) {
     start_time = time_zero;
   }
-  ros::Time end_time = time + time_window_half;
-
-  // Add all vicon transforms in window
+  ros::Time end_time = lookup_time_ + time_window_half;
   rosbag::View view(bag_, rosbag::TopicQuery("/tf"), start_time, end_time,
                     true);
-  beam_calibration::TfTree tree;
   for (const auto &msg_instance : view) {
     auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
     if (tf_message != nullptr) {
       for (geometry_msgs::TransformStamped tf : tf_message->transforms) {
-        tree.AddTransform(tf);
+        lookup_tree_.AddTransform(tf);
       }
     }
   }
+}
 
-  // get transform to each of the targets at specified time
-  Eigen::Affine3d T_SENSOR_TGTn, T_SENSOR_BASELINK, T_BASELINK_TGTn;
-  std::string base_link = "base_link";
+void ViconCalibrator::GetInitialCalibration(std::string &sensor_frame){
+  T_SENSOR_VICONBASE_ = estimate_extrinsics_.GetTransformEigen(
+      sensor_frame, params_.vicon_baselink_frame);
+  vicon_calibration::CalibrationResult calib_initial;
+  calib_initial.transform = T_SENSOR_VICONBASE_.matrix();
+  calib_initial.to_frame = sensor_frame;
+  calib_initial.from_frame = params_.vicon_baselink_frame;
+  calibrations_initial_.push_back(calib_initial);
+}
+
+void ViconCalibrator::GetInitialCalibrationPerturbed(std::string &sensor_frame){
+  T_SENSOR_pert_VICONBASE_ = utils::PerturbTransform(
+      T_SENSOR_VICONBASE_, params_.initial_guess_perturbation);
+  vicon_calibration::CalibrationResult calib_perturbed;
+  calib_perturbed.transform = T_SENSOR_pert_VICONBASE_.matrix();
+  calib_perturbed.to_frame = sensor_frame;
+  calib_perturbed.from_frame = params_.vicon_baselink_frame;
+  calibrations_perturbed_.push_back(calib_perturbed);
+}
+
+std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+ViconCalibrator::GetInitialGuess(std::string &sensor_frame) {
+  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+      T_sensor_tgts_estimated;
   for (uint8_t n; n < params_.target_params.vicon_target_frames.size(); n++) {
-    // std::cout << "Looking up transform from " << base_link << " to frame "
-    //           << sensor_frame << "\n";
-    T_SENSOR_BASELINK =
-        estimate_extrinsics_.GetTransformEigen(sensor_frame, base_link);
-    // std::cout << "Looking up transform from "
-    //           << params_.target_params.vicon_target_frames[n] << " to frame "
-    //           << base_link << "\n";
-    T_BASELINK_TGTn = tree.GetTransformEigen(
-        base_link, params_.target_params.vicon_target_frames[n], time);
-    T_SENSOR_TGTn = T_SENSOR_BASELINK * T_BASELINK_TGTn;
-    Eigen::Affine3d T_SENSOR_TGTn_pert =
-        utils::PerturbTransform(T_SENSOR_TGTn, params_.initial_guess_perturbation);
-    T_sensor_tgts_estimated.push_back(T_SENSOR_TGTn_pert);
+    // get transform from sensor to target
+    Eigen::Affine3d T_VICONBASE_TGTn = lookup_tree_.GetTransformEigen(
+        params_.vicon_baselink_frame,
+        params_.target_params.vicon_target_frames[n], lookup_time_);
+    // perturb  for simulation testing ONLY
+    Eigen::Affine3d T_SENSOR_pert_TGTn =
+        T_SENSOR_pert_VICONBASE_ * T_VICONBASE_TGTn;
+    T_sensor_tgts_estimated.push_back(T_SENSOR_pert_TGTn);
   }
   return T_sensor_tgts_estimated;
 }
 
+std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+ViconCalibrator::GetTargetLocation() {
+  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+      T_viconbase_tgts;
+  for (uint8_t n; n < params_.target_params.vicon_target_frames.size(); n++) {
+    Eigen::Affine3d T_viconbase_tgt = lookup_tree_.GetTransformEigen(
+        params_.vicon_baselink_frame,
+        params_.target_params.vicon_target_frames[n], lookup_time_);
+    T_viconbase_tgts.push_back(T_viconbase_tgt);
+  }
+  return T_viconbase_tgts;
+}
+
 void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
   std::string topic = params_.lidar_params[lidar_iter].topic;
+  std::string sensor_frame = params_.lidar_params[lidar_iter].frame;
   rosbag::View view(bag_, rosbag::TopicQuery(topic), ros::TIME_MIN,
                     ros::TIME_MAX, true);
   pcl::PCLPointCloud2::Ptr cloud_pc2 =
@@ -204,19 +259,24 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
   ros::Duration time_step(params_.lidar_params[lidar_iter].time_steps);
   ros::Time time_last(0, 0);
 
+  this->GetInitialCalibration(sensor_frame);
+  this->GetInitialCalibrationPerturbed(sensor_frame);
+
   for (auto iter = view.begin(); iter != view.end(); iter++) {
     boost::shared_ptr<sensor_msgs::PointCloud2> lidar_msg =
         iter->instantiate<sensor_msgs::PointCloud2>();
     ros::Time time_current = lidar_msg->header.stamp;
     if (time_current > time_last + time_step) {
+      lookup_time_ = time_current;
+      this->LoadLookupTree();
       time_last = time_current;
       pcl_conversions::toPCL(*lidar_msg, *cloud_pc2);
       pcl::fromPCLPointCloud2(*cloud_pc2, *cloud);
       std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
-          T_lidar_tgts_estimated;
+          T_lidar_tgts_estimated, T_viconbase_tgts;
       try {
-        T_lidar_tgts_estimated = GetInitialGuess(
-            time_current, params_.lidar_params[lidar_iter].frame);
+        T_lidar_tgts_estimated = GetInitialGuess(sensor_frame);
+        T_viconbase_tgts = GetTargetLocation();
       } catch (const std::exception err) {
         LOG_ERROR("%s", err.what());
         std::cout
@@ -233,9 +293,15 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
         const auto measurement_info = lidar_extractor_.GetMeasurementInfo();
         if (measurement_info.second) {
           vicon_calibration::LidarMeasurement lidar_measurement;
-          lidar_measurement.measurement = measurement_info.first.matrix();
+          lidar_measurement.T_LIDAR_TARGET = measurement_info.first.matrix();
+          lidar_measurement.T_VICONBASE_TARGET = T_viconbase_tgts[n].matrix();
           lidar_measurement.lidar_id = lidar_iter;
           lidar_measurement.target_id = n;
+          lidar_measurement.lidar_frame =
+              params_.lidar_params[lidar_iter].frame;
+          lidar_measurement.target_frame =
+              params_.target_params.vicon_target_frames[n];
+          lidar_measurement.vicon_base_frame = params_.vicon_baselink_frame;
           lidar_measurements_.push_back(lidar_measurement);
         }
       }
@@ -278,13 +344,13 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
   this->LoadEstimatedExtrinsics();
 
   // loop through each lidar, get measurements and solve graph
+  LOG_INFO("Loading lidar measurements.");
   lidar_extractor_.SetTargetParams(params_.target_params);
   lidar_extractor_.SetRegistrationParams(params_.registration_params);
   for (uint8_t lidar_iter = 0; lidar_iter < params_.lidar_params.size();
        lidar_iter++) {
     this->GetLidarMeasurements(lidar_iter);
   }
-  utils::OutputLidarMeasurements(lidar_measurements_);
 
   // loop through each camera, get measurements and solve graph
   /*
@@ -299,9 +365,20 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
 
   bag_.close();
 
-  // this->BuildGraph(); // Or do we make this its own object?
-  // this->SolveGraph();
-  // this->OutputCalibrations();
+  // Build and solve graph 
+  graph_.SetLidarMeasurements(lidar_measurements_);
+  graph_.SetCameraMeasurements(camera_measurements_);
+  // TODO: Change this to calibrations_initial_
+  graph_.SetInitialGuess(calibrations_perturbed_);
+  graph_.SolveGraph();
+  calibrations_result_ = graph_.GetResults();
+  std::string file_name_print = "file.dot";
+  graph_.Print(file_name_print, true);
+  // utils::OutputLidarMeasurements(lidar_measurements_);
+  utils::OutputCalibrations(calibrations_initial_,
+                            "Initial Calibration Estimates:");
+  utils::OutputCalibrations(calibrations_perturbed_, "Perturbed Calibrations:");
+  utils::OutputCalibrations(calibrations_result_, "Optimized Calibrations:");
   // this->OutputErrorMetrics();
 
   return;

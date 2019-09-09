@@ -4,6 +4,7 @@
 #include "beam_calibration/TfTree.h"
 #include "vicon_calibration/LidarCylExtractor.h"
 // #include "vicon_calibration/CamCylExtractor.h"
+#include "vicon_calibration/GTSAMGraph.h"
 #include <rosbag/bag.h>
 #include <ros/time.h>
 #include <Eigen/Geometry>
@@ -68,16 +69,25 @@ private:
    * from either a JSON or from the tf messages in the bag
    */
   void LoadEstimatedExtrinsics();
+
+  void LoadLookupTree();
+
+  void GetInitialCalibration(std::string &sensor_frame);
+
+  void GetInitialCalibrationPerturbed(std::string &sensor_frame);
+
   /**
    * @brief get initial guess of where the targets are located at the current
    * time point
-   * @param time
    * @param sensor_frame
    * @return T_sensor_tgts_estimated estimated transform from targets to sensor
    * frame
    */
   std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
-  GetInitialGuess(ros::Time &time, std::string &sensor_frame);
+  GetInitialGuess(std::string &sensor_frame);
+
+  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+  GetTargetLocation();
 
   /**
    * @brief Compute the measurements from one lidar
@@ -94,15 +104,20 @@ private:
   void GetCameraMeasurements(rosbag::Bag &bag, std::string &topic,
                              std::string &frame);
 
+  void SetCalibrationInitials();
+
   CalibratorConfig params_;
-  beam_calibration::TfTree estimate_extrinsics_;
+  ros::Time lookup_time_;
+  beam_calibration::TfTree estimate_extrinsics_, lookup_tree_;
   vicon_calibration::LidarCylExtractor lidar_extractor_;
   //vicon_calibration::CameraCylExtractor camera_extractor_;
   std::vector<vicon_calibration::LidarMeasurement> lidar_measurements_;
   std::vector<vicon_calibration::CameraMeasurement> camera_measurements_;
-  std::vector<vicon_calibration::CalibrationResult> lidar_calibration_results_,
-      camera_calibration_results_;
+  std::vector<vicon_calibration::CalibrationResult> calibrations_result_,
+      calibrations_initial_, calibrations_perturbed_; // pertubed use for testing with simulation ONLY
   rosbag::Bag bag_;
+  vicon_calibration::GTSAMGraph graph_;
+  Eigen::Affine3d T_SENSOR_VICONBASE_, T_SENSOR_pert_VICONBASE_; // pert for testing simulation ONLY
 };
 
 } // end namespace vicon_calibration

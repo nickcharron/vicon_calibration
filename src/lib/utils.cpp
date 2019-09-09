@@ -64,8 +64,8 @@ Eigen::Affine3d PerturbTransform(const Eigen::Affine3d &T_in,
   Eigen::Vector3d r_in = RToLieAlgebra(R_in);
   Eigen::Matrix3d R_out = LieAlgebraToR(r_in + r_perturb);
   Eigen::Affine3d T_out;
-  T_out.matrix().block(0,3,3,1) = T_in.translation() + t_perturb;
-  T_out.matrix().block(0,0,3,3) = R_out;
+  T_out.matrix().block(0, 3, 3, 1) = T_in.translation() + t_perturb;
+  T_out.matrix().block(0, 0, 3, 3) = R_out;
   return T_out;
 }
 
@@ -99,18 +99,36 @@ Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d &eps) {
   return skewTransform(eps).exp();
 }
 
-void OutputLidarMeasurements(std::vector<vicon_calibration::LidarMeasurement> &measurements){
+void OutputLidarMeasurements(
+    std::vector<vicon_calibration::LidarMeasurement> &measurements) {
   std::cout << "-------------------------------\n"
-            << "Saved a total of " << measurements.size() << " lidar measurements \n"
+            << "Saved a total of " << measurements.size()
+            << " lidar measurements \n"
             << "Outputting lidar measurements: \n";
-  for (uint32_t i = 0; i < measurements.size(); i++){
+  for (uint32_t i = 0; i < measurements.size(); i++) {
     std::cout << "lidar_id: " << measurements[i].lidar_id << "\n"
               << "target_id: " << measurements[i].target_id << "\n"
-              << "measurement: \n"
-              << measurements[i].measurement << "\n";
+              << "lidar_frame: " << measurements[i].lidar_frame << "\n"
+              << "target_frame: " << measurements[i].target_frame << "\n"
+              << "vicon_base_frame: " << measurements[i].vicon_base_frame
+              << "\n"
+              << "T_LIDAR_TARGET: \n"
+              << measurements[i].T_LIDAR_TARGET << "\n"
+              << "T_VICONBASE_TARGET: \n"
+              << measurements[i].T_VICONBASE_TARGET << "\n";
   }
 }
 
+void OutputCalibrations(
+    std::vector<vicon_calibration::CalibrationResult> &calib,
+    std::string output_string) {
+  std::cout << "----------------------\n"
+            << output_string << "\n";
+  for (uint16_t i = 0; i < calib.size(); i++){
+    std::cout << "T_" << calib[i].to_frame << "_" << calib[i].from_frame
+              << ":\n" << calib[i].transform << "\n";
+  }
+}
 } // namespace utils
 
 } // end namespace vicon_calibration

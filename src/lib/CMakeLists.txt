@@ -21,6 +21,7 @@ target_link_libraries(${PROJECT_NAME}
   beam::utils
   beam::calibration
   beam::filtering
+  gtsam
   nlohmann_json::nlohmann_json
   ${rosbag_LIBRARIES}
   ${cv_bridge_LIBRARIES}

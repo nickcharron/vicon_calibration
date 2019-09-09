@@ -182,7 +182,7 @@ private:
   static bool measurement_failed_; // For displaying clouds when icp diverges
   bool measurement_complete_{false};
   bool close_viewer_{false};
-  Eigen::Affine3d measurement_;
+  Eigen::Affine3d measurement_; // T_SCAN_TARGET_OPT
   Eigen::Affine3d INVALID_MEASUREMENT;
 };
 

@@ -20,6 +20,7 @@ find_package(PCL 1.8 REQUIRED)
 find_package(beam REQUIRED utils calibration filtering)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(Catch2 REQUIRED)
+find_package(GTSAM REQUIRED)
 
 ################## tests ##################
 add_executable(${PROJECT_NAME}_lidar_cylinder_extractor_tests

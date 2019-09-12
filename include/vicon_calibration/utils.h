@@ -38,6 +38,12 @@ Eigen::Vector3d RToLieAlgebra(const Eigen::Matrix3d &R);
 
 Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d &eps);
 
+Eigen::Matrix4d RemoveYaw(const Eigen::Matrix4d &T_in);
+
+Eigen::Matrix4d RemoveYaw2(const Eigen::Matrix4d &T_in);
+
+void OutputTransformInformation(Eigen::Affine3d &T, std::string transform_name);
+
 void OutputLidarMeasurements(std::vector<vicon_calibration::LidarMeasurement> &measurements);
 
 void OutputCalibrations(

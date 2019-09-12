@@ -24,16 +24,11 @@ void GTSAMGraph::SetInitialGuess(
 }
 
 void GTSAMGraph::SolveGraph() {
-  std::cout << "TEST4.1\n";
   Clear();
-  std::cout << "TEST4.2\n";
   AddInitials();
-  std::cout << "TEST4.3\n";
   AddLidarMeasurements();
-  std::cout << "TEST4.4\n";
   // AddImageMeasurements();
   Optimize();
-  std::cout << "TEST4.5\n";
 }
 
 std::vector<vicon_calibration::CalibrationResult> GTSAMGraph::GetResults() {
@@ -109,14 +104,12 @@ void GTSAMGraph::AddLidarMeasurements() {
         LOG_ERROR("Cannot locate GTSAM key associated with lidar measurement.");
       }
     }
-    Eigen::Matrix4d T_VICONBASE_LIDAR, T_VICONBASE_TARGET, T_LIDAR_TARGET;
+    Eigen::Affine3d T_VICONBASE_LIDAR, T_VICONBASE_TARGET, T_LIDAR_TARGET, T_TARGET_LIDAR, T_LIDAR_VICONBASE;
     vicon_calibration::LidarMeasurement measurement = lidar_measurements_[meas_iter];
-    T_VICONBASE_TARGET = measurement.T_VICONBASE_TARGET;
-    T_LIDAR_TARGET = measurement.T_LIDAR_TARGET;
+    T_VICONBASE_TARGET.matrix() = measurement.T_VICONBASE_TARGET;
+    T_LIDAR_TARGET.matrix() = measurement.T_LIDAR_TARGET;
     T_VICONBASE_LIDAR = T_VICONBASE_TARGET * T_LIDAR_TARGET.inverse();
-    std::cout << "T_VICONBASE_LIDAR: \n" << T_VICONBASE_LIDAR << "\n";
-    std::cout << "T_LIDAR_VICONBASE: \n" << T_VICONBASE_LIDAR.inverse() << "\n";
-    gtsam::Pose3 pose(T_VICONBASE_LIDAR);
+    gtsam::Pose3 pose(T_VICONBASE_LIDAR.matrix());
     graph_.add(gtsam::BetweenFactor<gtsam::Pose3>(from_key, to_key, pose,
                                                   noise_model));
   }

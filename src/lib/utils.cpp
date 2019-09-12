@@ -99,6 +99,44 @@ Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d &eps) {
   return skewTransform(eps).exp();
 }
 
+Eigen::Matrix4d RemoveYaw(const Eigen::Matrix4d &T_in) {
+  Eigen::Matrix4d T_out = T_in;
+  Eigen::Matrix3d R_in = T_in.block(0, 0, 3, 3);
+  Eigen::Vector3d rpy = R_in.eulerAngles(0, 1, 2);
+  Eigen::Matrix3d R_out;
+  // R_out = Eigen::AngleAxisd(rpy[2], Eigen::Vector3d::UnitZ()) *
+  //         Eigen::AngleAxisd(rpy[1], Eigen::Vector3d::UnitY()) *
+  //         Eigen::AngleAxisd(rpy[0], Eigen::Vector3d::UnitX());
+  R_out = Eigen::AngleAxisd(rpy[0], Eigen::Vector3d::UnitX()) *
+          Eigen::AngleAxisd(rpy[1], Eigen::Vector3d::UnitY()) *
+          Eigen::AngleAxisd(0, Eigen::Vector3d::UnitZ());
+  T_out.block(0, 0, 3, 3) = R_out;
+  return T_out;
+}
+
+Eigen::Matrix4d RemoveYaw2(const Eigen::Matrix4d &T_in) {
+  Eigen::Matrix4d T_out = T_in;
+  Eigen::Matrix3d R_in = T_in.block(0, 0, 3, 3);
+  Eigen::Vector3d rpy = R_in.eulerAngles(2, 1, 0);
+  Eigen::Matrix3d R_out;
+  R_out = Eigen::AngleAxisd(0, Eigen::Vector3d::UnitZ()) *
+          Eigen::AngleAxisd(rpy[1], Eigen::Vector3d::UnitY()) *
+          Eigen::AngleAxisd(rpy[0], Eigen::Vector3d::UnitX());
+  T_out.block(0, 0, 3, 3) = R_out;
+  return T_out;
+}
+
+void OutputTransformInformation(Eigen::Affine3d &T,
+                                std::string transform_name) {
+  double RAD_TO_DEG = 57.29577951;
+  Eigen::Matrix3d R = T.rotation();
+  Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
+  std::cout << transform_name << ":\n"
+            << T.matrix() << "\n"
+            << "rpy (deg): [" << rpy[0] * RAD_TO_DEG << ", "
+            << rpy[1] * RAD_TO_DEG << ", " << rpy[2] * RAD_TO_DEG << "]\n";
+}
+
 void OutputLidarMeasurements(
     std::vector<vicon_calibration::LidarMeasurement> &measurements) {
   std::cout << "-------------------------------\n"
@@ -122,11 +160,11 @@ void OutputLidarMeasurements(
 void OutputCalibrations(
     std::vector<vicon_calibration::CalibrationResult> &calib,
     std::string output_string) {
-  std::cout << "----------------------\n"
-            << output_string << "\n";
-  for (uint16_t i = 0; i < calib.size(); i++){
+  std::cout << "----------------------\n" << output_string << "\n";
+  for (uint16_t i = 0; i < calib.size(); i++) {
     std::cout << "T_" << calib[i].to_frame << "_" << calib[i].from_frame
-              << ":\n" << calib[i].transform << "\n";
+              << ":\n"
+              << calib[i].transform << "\n";
   }
 }
 } // namespace utils

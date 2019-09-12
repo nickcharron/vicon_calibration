@@ -2,6 +2,7 @@
 
 #include <string>
 #include <Eigen/Geometry>
+#include <ros/time.h>
 
 namespace vicon_calibration {
 
@@ -63,6 +64,7 @@ struct LidarMeasurement {
   std::string lidar_frame;
   std::string target_frame;
   std::string vicon_base_frame;
+  ros::Time stamp;
 };
 
 struct CameraMeasurement {

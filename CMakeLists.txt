@@ -39,19 +39,19 @@ target_link_libraries(${PROJECT_NAME}_lidar_cylinder_extractor_tests
   beam::filtering
 )
 
-#add_executable(${PROJECT_NAME}_camera_cylinder_extractor_tests
-#  tests/cam_cyl_extract_tests.cpp
-#)
+add_executable(${PROJECT_NAME}_camera_cylinder_extractor_tests
+  tests/cam_cyl_extract_tests.cpp
+)
 
-#target_include_directories(${PROJECT_NAME}_camera_cylinder_extractor_tests
-#  PUBLIC
-#    include
-#)
+target_include_directories(${PROJECT_NAME}_camera_cylinder_extractor_tests
+  PUBLIC
+    include
+)
 
-#target_link_libraries(${PROJECT_NAME}_camera_cylinder_extractor_tests
-#  ${PROJECT_NAME}
-#  Catch2::Catch2
-#)
+target_link_libraries(${PROJECT_NAME}_camera_cylinder_extractor_tests
+  ${PROJECT_NAME}
+  Catch2::Catch2
+)
 
 # Add the core library
 add_subdirectory(src/lib)

@@ -1,7 +1,7 @@
 # Core library
 add_library(${PROJECT_NAME}
   ViconCalibrator.cpp
-  #CamCylExtractor.cpp
+  CamCylExtractor.cpp
   LidarCylExtractor.cpp
   GTSAMGraph.cpp
   utils.cpp

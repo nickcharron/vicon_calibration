@@ -63,7 +63,6 @@ void ViconCalibrator::LoadJSON(std::string file_name) {
         params.at("min_length_ratio");
     params_.image_processing_params.max_gap_ratio = params.at("max_gap_ratio");
     params_.image_processing_params.canny_ratio = params.at("canny_ratio");
-    params_.image_processing_params.encoding = params.at("encoding");
     params_.image_processing_params.show_measurements =
         params.at("show_measurements");
   }
@@ -311,12 +310,10 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
   }
 }
 
-void ViconCalibrator::GetCameraMeasurements(rosbag::Bag &bag,
-                                            std::string &topic,
-                                            std::string &frame) {
-  rosbag::View view(bag, ros::TIME_MIN, ros::TIME_MAX, true);
+void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
+  rosbag::View view(bag_, ros::TIME_MIN, ros::TIME_MAX, true);
   for (auto iter = view.begin(); iter != view.end(); iter++) {
-    if (iter->getTopic() == topic) {
+    if (iter->getTopic() == params_.camera_params[cam_iter].topic) {
       // Test
     }
   }
@@ -355,7 +352,7 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
   }
 
   // loop through each camera, get measurements and solve graph
-  /*
+  LOG_INFO("Loading camera measurements.");
   camera_extractor_.SetTargetParams(params_.target_params);
   camera_extractor_.SetImageProcessingParams(params_.image_processing_params);
   for (uint8_t cam_iter = 0; cam_iter < params_.camera_params.size();
@@ -363,18 +360,17 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
     camera_extractor_.SetCameraParams(params_.camera_params[cam_iter]);
     this->GetCameraMeasurements(cam_iter);
   }
-  */
 
   bag_.close();
 
   // Build and solve graph
-  graph_.SetLidarMeasurements(lidar_measurements_);
-  graph_.SetCameraMeasurements(camera_measurements_);
+  // graph_.SetLidarMeasurements(lidar_measurements_);
+  // graph_.SetCameraMeasurements(camera_measurements_);
   // TODO: Change this to calibrations_initial_
-  graph_.SetInitialGuess(calibrations_perturbed_);
-  graph_.SolveGraph();
-  calibrations_result_ = graph_.GetResults();
-  std::string file_name_print = "file.dot";
+  // graph_.SetInitialGuess(calibrations_perturbed_);
+  // graph_.SolveGraph();
+  // calibrations_result_ = graph_.GetResults();
+  // std::string file_name_print = "file.dot";
   // graph_.Print(file_name_print, true);
   // utils::OutputLidarMeasurements(lidar_measurements_);
   utils::OutputCalibrations(calibrations_initial_,

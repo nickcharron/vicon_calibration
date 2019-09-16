@@ -52,7 +52,9 @@ struct ImageProcessingParams {
   double min_length_ratio;
   double max_gap_ratio;
   double canny_ratio;
-  std::string encoding;
+  double cropbox_offset;
+  double dist_criteria;
+  double rot_criteria;
   bool show_measurements;
 };
 

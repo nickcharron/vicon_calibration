@@ -1,10 +1,9 @@
 #pragma once
 
+#include "vicon_calibration/params.h"
 #include <Eigen/Geometry>
-
-#include <vector>
-
 #include <beam_calibration/CameraModel.h>
+#include <vector>
 
 namespace vicon_calibration {
 
@@ -19,11 +18,12 @@ public:
   // Destructor
   ~CamCylExtractor() = default;
 
-  /**
-   * @brief Configures camera model object
-   * @param intrinsic_file intrinsic calibration file path for camera model
-   */
-  void ConfigureCameraModel(std::string intrinsic_file);
+  void SetTargetParams(vicon_calibration::CylinderTgtParams &params);
+
+  void
+  SetImageProcessingParams(vicon_calibration::ImageProcessingParams &params);
+
+  void SetCameraParams(vicon_calibration::CameraParams &params);
 
   /**
    * @brief Extracts cylinder from an image and calculate measurement
@@ -31,49 +31,6 @@ public:
    * @param image image to extract cylinder from
    */
   void ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST, cv::Mat &image);
-
-  /**
-   * @brief Sets cylinder dimensions
-   * @param radius radius of the cylinder
-   * @param height height of the cylinder
-   */
-  void SetCylinderDimension(double radius, double height);
-
-  /**
-   * @brief Sets offset of cropping the image
-   * @param offset offset to add for the bounding box to crop the image
-   */
-  void SetOffset(double offset);
-
-  /**
-   * @brief Sets the parameters used to detect cylinder edges in the image
-   * @param num_intersections minimum number of intersections to "detect" a line
-   *        for probalistic hough line transform
-   * @param min_length_percent percentage of the bounding box to define the
-   *        minimum number of points to form a line
-   * @param max_gap_percent percentage of the bounding box to define the maximum
-   *        gap between two points to be considered as a line
-   * @param canny_percent percentage to define the lower and upper thresholds
-   *        used for canny detection
-   */
-  void SetEdgeDetectionParameters(int num_intersections,
-                                  double min_length_percent,
-                                  double max_gap_percent, double canny_percent);
-
-  /**
-   * @brief Sets a flag to show the measurement
-   * @param show_measurement boolean value to set the flag to
-   */
-  void SetShowMeasurement(bool show_measurement);
-
-  /**
-   * @brief Sets acceptance criteria for measurements
-   * @param dist_criteria distance between estimated and measured mid points to
-   *        determine if the measurement is valid or not
-   * @param rot_criteria difference between estimated and measured angle of
-   *        center line to determine if the measurement is valid or not
-   */
-  void SetAcceptanceCriteria(double dist_criteria, double rot_criteria);
 
   /**
    * @brief Returns the results of cylinder extraction
@@ -89,6 +46,14 @@ public:
   std::pair<double, double> GetErrors();
 
 private:
+  void SetDefaultParameters();
+
+  /**
+   * @brief Configures camera model object
+   * @param intrinsic_file intrinsic calibration file path for camera model
+   */
+  void SetCameraModel(std::string intrinsic_file);
+
   /**
    * @brief Populates cylinder points used for defining a bounding box and
    *        detecting cylinder target in the image
@@ -208,54 +173,22 @@ private:
    */
   Eigen::Vector2d CylinderPointToPixel(Eigen::Vector4d point);
 
-  double radius_{0.0635};
-  double height_{0.5};
-  double offset_{0.15};
-
   Eigen::Affine3d T_CAMERA_TARGET_EST_;
+  vicon_calibration::ImageProcessingParams image_processing_params_;
+  vicon_calibration::CylinderTgtParams target_params_;
+  vicon_calibration::CameraParams camera_params_;
+  bool target_params_set_, camera_params_set_, measurement_valid_,
+  measurement_complete_;
+  double dist_err_, rot_err_;
+  Eigen::Vector3d measurement_;
 
   std::vector<Eigen::Vector4d> bounding_points_;
   std::pair<Eigen::Vector4d, Eigen::Vector4d> center_line_points_;
   std::vector<Eigen::Vector4d> top_cylinder_points_;
   std::vector<Eigen::Vector4d> bottom_cylinder_points_;
 
-  // Minimum number of intersections for a line to be accepted
-  // through Hough line transform
-  int num_intersections_{300};
-  // Percentage to determine minimum number of pixels required for a line to be
-  // accepted as a line through Hough line transform
-  double min_length_percent_{0.5};
-  // Percentage to determine maximum gap between two pixels for a line to be
-  // accepted as a line through Hough line transform
-  double max_gap_percent_{0.075};
-
-  // percentage to define the lower and upper thresholds used for canny
-  // detection:
-  //  1. if the pixel gradient is lower than the low threshold, it is rejected
-  //     as an edge
-  //  2. if the gradient is higher than upper threshold, it is accepted
-  //  3. if the gradient is between the two thresholds, it is accepted only if
-  //     it is connected to a pixel that is above the upper threshold
-  double canny_percent_{0.1};
-
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
 
-  bool measurement_valid_;
-  bool measurement_complete_;
-  Eigen::Vector3d measurement_;
-
-  // flag used to allow user input for accepting measurement
-  bool show_measurement_{false};
-  // Distance between the estimated and measured mid point to determin if the
-  // measurement is valid or not. Also used to determine if detected lines in
-  // the image are bounding lines
-  double dist_criteria_{5};
-  // Difference between the estimated and measured angles to determine if the
-  // measurement is valid or not
-  double rot_criteria_{0.1};
-
-  double dist_err_;
-  double rot_err_;
 };
 
 } // end namespace vicon_calibration

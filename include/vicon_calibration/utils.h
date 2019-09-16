@@ -19,6 +19,8 @@ typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudColor;
 
 #define LOG_INFO(M, ...) fprintf(stdout, "[INFO] " M "\n", ##__VA_ARGS__)
 
+#define LOG_WARN(M, ...) fprintf(stdout, "[WARNING] " M "\n", ##__VA_ARGS__)
+
 namespace utils {
 
 Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd &M, int precision);

@@ -3,7 +3,7 @@
 #include "vicon_calibration/params.h"
 #include "beam_calibration/TfTree.h"
 #include "vicon_calibration/LidarCylExtractor.h"
-// #include "vicon_calibration/CamCylExtractor.h"
+#include "vicon_calibration/CamCylExtractor.h"
 #include "vicon_calibration/GTSAMGraph.h"
 #include <rosbag/bag.h>
 #include <ros/time.h>
@@ -97,12 +97,9 @@ private:
 
   /**
    * @brief Compute the measurements from the cameras
-   * @param bag
-   * @param topic
-   * @param frame
+   * @param cam_iter
    */
-  void GetCameraMeasurements(rosbag::Bag &bag, std::string &topic,
-                             std::string &frame);
+  void GetCameraMeasurements(uint8_t &cam_iter);
 
   void SetCalibrationInitials();
 
@@ -110,7 +107,7 @@ private:
   ros::Time lookup_time_;
   beam_calibration::TfTree estimate_extrinsics_, lookup_tree_;
   vicon_calibration::LidarCylExtractor lidar_extractor_;
-  //vicon_calibration::CameraCylExtractor camera_extractor_;
+  vicon_calibration::CamCylExtractor camera_extractor_;
   std::vector<vicon_calibration::LidarMeasurement> lidar_measurements_;
   std::vector<vicon_calibration::CameraMeasurement> camera_measurements_;
   std::vector<vicon_calibration::CalibrationResult> calibrations_result_,

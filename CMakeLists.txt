@@ -20,6 +20,7 @@ find_package(PCL 1.8 REQUIRED)
 find_package(beam REQUIRED utils calibration filtering)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(Catch2 REQUIRED)
+find_package(GTSAM REQUIRED)
 
 ################## tests ##################
 add_executable(${PROJECT_NAME}_lidar_cylinder_extractor_tests
@@ -56,12 +57,34 @@ target_link_libraries(${PROJECT_NAME}_camera_cylinder_extractor_tests
 add_subdirectory(src/lib)
 add_subdirectory(tests)
 
-# Add main executable
+# Add main executables
 add_executable(${PROJECT_NAME}_main
-	src/ViconCalibrator.cpp
+	src/main.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}_main
+	${PROJECT_NAME}
+	beam::utils
+	beam::calibration
+  beam::filtering
+)
+
+add_executable(${PROJECT_NAME}_main_ig
+	src/main_ig.cpp
+)
+
+target_link_libraries(${PROJECT_NAME}_main_ig
+	${PROJECT_NAME}
+	beam::utils
+	beam::calibration
+  beam::filtering
+)
+
+add_executable(${PROJECT_NAME}_main_roben
+	src/main_roben.cpp
+)
+
+target_link_libraries(${PROJECT_NAME}_main_roben
 	${PROJECT_NAME}
 	beam::utils
 	beam::calibration

@@ -1,5 +1,5 @@
 #include "vicon_calibration/CamCylExtractor.h"
-#include "vicon_calibration/utils.hpp"
+#include "vicon_calibration/utils.h"
 
 #include <cmath>
 #include <iterator>
@@ -13,147 +13,75 @@ namespace vicon_calibration {
 
 using namespace std::literals::chrono_literals;
 
-CamCylExtractor::CamCylExtractor() { PopulateCylinderPoints(); }
+CamCylExtractor::CamCylExtractor() { SetDefaultParameters(); }
 
-void CamCylExtractor::ConfigureCameraModel(std::string intrinsic_file) {
-  camera_model_ = beam_calibration::CameraModel::LoadJSON(intrinsic_file);
-}
+void CamCylExtractor::SetTargetParams(
+    vicon_calibration::CylinderTgtParams &params) {
+  target_params_ = params;
+  target_params_set_ = true;
 
-void CamCylExtractor::SetCylinderDimension(double radius, double height) {
-  radius_ = radius;
-  height_ = height;
+  if (target_params_.radius <= 0 || target_params_.height <= 0) {
+    throw std::runtime_error{
+        "Invalid cylinder dimentions. Radius: " +
+        std::to_string(target_params_.radius) +
+        " Height: " + std::to_string(target_params_.height)};
+  }
+
+  if (target_params_.radius + image_processing_params_.cropbox_offset <= 0) {
+    throw std::runtime_error{
+        "Invalid offset value: " +
+        std::to_string(image_processing_params_.cropbox_offset)};
+  }
 
   PopulateCylinderPoints();
 }
 
-void CamCylExtractor::SetOffset(double offset) {
-  offset_ = offset;
+void CamCylExtractor::SetImageProcessingParams(
+    vicon_calibration::ImageProcessingParams &params) {
+  image_processing_params_ = params;
 
-  if (offset_ == 0) {
-    std::cout << "[WARNING] Using offset of 0 to crop the image." << std::endl;
+  if (image_processing_params_.cropbox_offset <= 0) {
+    LOG_WARN(
+        "Using an offset of %.2f. The bounding box for cropping the "
+        "image might be too small and edges might not be detected accurately.",
+        image_processing_params_.cropbox_offset);
   }
 
-  if (radius_ + offset <= 0) {
-    throw std::runtime_error{"Invalid offset value: " + std::to_string(offset)};
+  if (image_processing_params_.dist_criteria == 0 ||
+      image_processing_params_.rot_criteria == 0) {
+    LOG_WARN("[WARNING] Using tight criteria for accepting measurements. "
+             "Distance criteria of %.2f and rotation criteria of %.2f.",
+             image_processing_params_.dist_criteria,
+             image_processing_params_.rot_criteria);
   }
-
-  // Re-populate points for cropping the image
-  auto bottom_bounding_points = GetCylinderPoints(radius_, 0, -offset_);
-  bounding_points_ = GetCylinderPoints(radius_, height_, offset_);
-  bounding_points_.insert(bounding_points_.end(),
-                          bottom_bounding_points.begin(),
-                          bottom_bounding_points.end());
 }
 
-void CamCylExtractor::SetEdgeDetectionParameters(int num_intersections,
-                                                 double min_length_percent,
-                                                 double max_gap_percent,
-                                                 double canny_percent) {
-  num_intersections_ = num_intersections;
-  min_length_percent_ = min_length_percent;
-  max_gap_percent_ = max_gap_percent;
-  canny_percent_ = canny_percent;
+void CamCylExtractor::SetCameraParams(vicon_calibration::CameraParams &params) {
+  camera_params_ = params;
+  camera_params_set_ = true;
+  SetCameraModel(params.intrinsics);
 }
 
-void CamCylExtractor::SetShowMeasurement(bool show_measurement) {
-  show_measurement_ = show_measurement;
-}
-
-void CamCylExtractor::SetAcceptanceCriteria(double dist_criteria,
-                                            double rot_criteria) {
-  if (dist_criteria == 0 || rot_criteria == 0) {
-    std::cout << "[WARNING] Using tight criteria for accepting measurements. "
-                 "Distance criteria of "
-              << dist_criteria << " and rotation criteria of " << rot_criteria
-              << "." << std::endl;
-  }
-  dist_criteria_ = dist_criteria;
-  rot_criteria_ = rot_criteria;
-}
-
-std::pair<Eigen::Vector3d, bool> CamCylExtractor::GetMeasurementInfo() {
-  if (measurement_complete_) {
-    return std::make_pair(measurement_, measurement_valid_);
-  } else {
-    throw std::runtime_error{"Measurement incomplete. Please run "
-                             "ExtractCylinder() before getting the "
-                             "measurement information."};
-  }
-  measurement_complete_ = false;
-}
-
-std::pair<double, double> CamCylExtractor::GetErrors() {
-  if (measurement_complete_) {
-    return std::make_pair(dist_err_, rot_err_);
-  } else {
-    throw std::runtime_error{"Measurement incomplete. Please run "
-                             "ExtractCylinder() before getting the "
-                             "measurement error values."};
-  }
-  measurement_complete_ = false;
-}
-
-void CamCylExtractor::PopulateCylinderPoints() {
-  if (offset_ <= 0) {
-    std::cout << "[WARNING] Using an offset of " << offset_
-              << ". The bounding box for cropping the image might be too small "
-                 "and edges might not be detected accurately."
-              << std::endl;
-  }
-
-  if (radius_ <= 0 || height_ <= 0) {
-    throw std::runtime_error{
-        "Invalid cylinder dimentions. Radius: " + std::to_string(radius_) +
-        " Height: " + std::to_string(height_)};
-  }
-
-  if (radius_ + height_ <= 0) {
-    throw std::runtime_error{"Invalid offset. Offset: " +
-                             std::to_string(offset_)};
-  }
-
-  // Populate points for detecting edges
-  center_line_points_ = std::make_pair<Eigen::Vector4d, Eigen::Vector4d>(
-      Eigen::Vector4d(0, 0, 0, 1), Eigen::Vector4d(height_, 0, 0, 1));
-  bottom_cylinder_points_ = GetCylinderPoints(radius_, 0, 0);
-  top_cylinder_points_ = GetCylinderPoints(radius_, height_, 0);
-
-  // Populate points for cropping the image
-  auto bottom_bounding_points = GetCylinderPoints(radius_, 0, -offset_);
-  bounding_points_ = GetCylinderPoints(radius_, height_, offset_);
-  bounding_points_.insert(bounding_points_.end(),
-                          bottom_bounding_points.begin(),
-                          bottom_bounding_points.end());
-}
-
-std::vector<Eigen::Vector4d> CamCylExtractor::GetCylinderPoints(double radius,
-                                                                double height,
-                                                                double offset) {
-  Eigen::Vector4d point(0, 0, 0, 1);
-  std::vector<Eigen::Vector4d> points;
-
-  double r = radius + offset;
-
-  for (double theta = 0; theta < 2 * M_PI; theta += M_PI / 12) {
-    point(2) = r * std::cos(theta);
-
-    point(1) = r * std::sin(theta);
-
-    point(0) = height + offset;
-    points.push_back(point);
-  }
-
-  return points;
+void CamCylExtractor::SetCameraModel(std::string intrinsic_file) {
+  camera_model_ = beam_calibration::CameraModel::LoadJSON(intrinsic_file);
 }
 
 void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
                                       cv::Mat &image) {
   if (!image.data) {
-    throw std::runtime_error{"No image data"};
+    throw std::invalid_argument{"No image data"};
   }
 
   if (!beam::IsTransformationMatrix(T_CAMERA_TARGET_EST.matrix())) {
-    throw std::runtime_error{"Invalid transform"};
+    throw std::invalid_argument{"Invalid transform"};
+  }
+
+  if (!target_params_set_) {
+    throw std::invalid_argument{"Target parameters not set."};
+  }
+
+  if (!camera_params_set_) {
+    throw std::invalid_argument{"Camera parameters not set."};
   }
 
   T_CAMERA_TARGET_EST_ = T_CAMERA_TARGET_EST;
@@ -164,10 +92,10 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
   auto cropped_image =
       CropImage(undistorted_img, bounding_box.first, bounding_box.second);
 
-  int min_line_length =
-      (bounding_box.second(1) - bounding_box.first(1)) * min_length_percent_;
-  int max_gap =
-      (bounding_box.second(1) - bounding_box.first(1)) * max_gap_percent_;
+  int min_line_length = (bounding_box.second(1) - bounding_box.first(1)) *
+                        image_processing_params_.min_length_ratio;
+  int max_gap = (bounding_box.second(1) - bounding_box.first(1)) *
+                image_processing_params_.max_gap_ratio;
 
   auto estimated_edge_lines = GetEstimatedEdges();
 
@@ -189,17 +117,22 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
       DetectLines(undistorted_img, cropped_image, min_line_length, max_gap);
 
   if (detected_lines.empty()) {
-    std::cout << "No lines detected in the image" << std::endl;
-    std::cout << "Press [c] to continue with other measurements" << std::endl;
-    cv::namedWindow("Invalid Measurement", cv::WINDOW_NORMAL);
-    cv::resizeWindow("Invalid Measurement", cropped_image.cols / 2,
-                     cropped_image.rows / 2);
-    cv::imshow("Invalid Measurement", cropped_image);
-    auto key = cv::waitKey();
-    while (key != 67 && key != 99) {
-      key = cv::waitKey();
+    LOG_WARN("No lines detected in the image. Skipping measurement.");
+    if(image_processing_params_.show_measurements){
+
+      std::cout << "Showing failed measurement\n"
+                << "Press [c] to continue with other measurements\n";
+      cv::namedWindow("Invalid Measurement", cv::WINDOW_NORMAL);
+      cv::resizeWindow("Invalid Measurement", cropped_image.cols / 2,
+                       cropped_image.rows / 2);
+      cv::imshow("Invalid Measurement", cropped_image);
+      auto key = cv::waitKey();
+      while (key != 67 && key != 99) {
+        key = cv::waitKey();
+      }
+      cv::destroyAllWindows();
     }
-    cv::destroyAllWindows();
+
     measurement_ = Eigen::Vector3d(-1, -1, -1);
     measurement_valid_ = false;
     measurement_complete_ = true;
@@ -216,7 +149,8 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
     is_bounding_line = false;
     // If the line is a bounding line, ignore that line
     for (auto bounding_line : bounding_lines) {
-      if (CalcDistBetweenLines(bounding_line, line) <= dist_criteria_) {
+      if (CalcDistBetweenLines(bounding_line, line) <=
+          image_processing_params_.dist_criteria) {
         is_bounding_line = true;
         break;
       }
@@ -273,7 +207,8 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
               << std::endl
               << "  Angle (deg): " << measurement_(2) * 180 / M_PI << std::endl;
 
-    if (show_measurement_) {
+    if (image_processing_params_.show_measurements) {
+      LOG_ERROR("Showing measurements!");
       // Show measurement and get user input for accepting the measurement
       DrawLine(cropped_image, detected_line1, 0, 0, 255);
       DrawLine(cropped_image, detected_line2, 0, 0, 255);
@@ -316,7 +251,8 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
 
       dist_err_ = std::round(dist_err_ * 10000) / 10000;
       rot_err_ = std::round(rot_err_ * 10000) / 10000;
-      if (dist_err_ > dist_criteria_ || rot_err_ > rot_criteria_) {
+      if (dist_err_ > image_processing_params_.dist_criteria ||
+          rot_err_ > image_processing_params_.rot_criteria) {
         measurement_valid_ = false;
       } else {
         measurement_valid_ = true;
@@ -324,6 +260,82 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
       measurement_complete_ = true;
     }
   }
+}
+
+std::pair<Eigen::Vector3d, bool> CamCylExtractor::GetMeasurementInfo() {
+  if (measurement_complete_) {
+    return std::make_pair(measurement_, measurement_valid_);
+  } else {
+    throw std::runtime_error{"Measurement incomplete. Please run "
+                             "ExtractCylinder() before getting the "
+                             "measurement information."};
+  }
+  measurement_complete_ = false;
+}
+
+std::pair<double, double> CamCylExtractor::GetErrors() {
+  if (measurement_complete_) {
+    return std::make_pair(dist_err_, rot_err_);
+  } else {
+    throw std::runtime_error{"Measurement incomplete. Please run "
+                             "ExtractCylinder() before getting the "
+                             "measurement error values."};
+  }
+  measurement_complete_ = false;
+}
+
+void CamCylExtractor::SetDefaultParameters() {
+  target_params_set_ = false;
+  camera_params_set_ = false;
+  image_processing_params_.num_intersections = 300;
+  image_processing_params_.min_length_ratio = 0.5;
+  image_processing_params_.max_gap_ratio = 0.078;
+  image_processing_params_.canny_ratio = 0.1;
+  image_processing_params_.cropbox_offset = 0.15;
+  image_processing_params_.dist_criteria = 5;
+  image_processing_params_.rot_criteria = 0.1;
+  image_processing_params_.show_measurements = false;
+}
+
+void CamCylExtractor::PopulateCylinderPoints() {
+
+  // Populate points for detecting edges
+  center_line_points_ = std::make_pair<Eigen::Vector4d, Eigen::Vector4d>(
+      Eigen::Vector4d(0, 0, 0, 1),
+      Eigen::Vector4d(target_params_.height, 0, 0, 1));
+  bottom_cylinder_points_ = GetCylinderPoints(target_params_.radius, 0, 0);
+  top_cylinder_points_ =
+      GetCylinderPoints(target_params_.radius, target_params_.height, 0);
+
+  // Populate points for cropping the image
+  auto bottom_bounding_points = GetCylinderPoints(
+      target_params_.radius, 0, -image_processing_params_.cropbox_offset);
+  bounding_points_ =
+      GetCylinderPoints(target_params_.radius, target_params_.height,
+                        image_processing_params_.cropbox_offset);
+  bounding_points_.insert(bounding_points_.end(),
+                          bottom_bounding_points.begin(),
+                          bottom_bounding_points.end());
+}
+
+std::vector<Eigen::Vector4d> CamCylExtractor::GetCylinderPoints(double radius,
+                                                                double height,
+                                                                double offset) {
+  Eigen::Vector4d point(0, 0, 0, 1);
+  std::vector<Eigen::Vector4d> points;
+
+  double r = radius + offset;
+
+  for (double theta = 0; theta < 2 * M_PI; theta += M_PI / 12) {
+    point(2) = r * std::cos(theta);
+
+    point(1) = r * std::sin(theta);
+
+    point(0) = height + offset;
+    points.push_back(point);
+  }
+
+  return points;
 }
 
 std::pair<Eigen::Vector2d, Eigen::Vector2d> CamCylExtractor::GetBoundingBox() {
@@ -482,8 +494,10 @@ std::vector<cv::Vec4i> CamCylExtractor::DetectLines(cv::Mat &orig_img,
 
   auto v = Median(gray_img);
 
-  int lower_threshold = (int)std::max(0.0, (1.0 - canny_percent_) * v);
-  int upper_threshold = (int)std::min(255.0, (1.0 + canny_percent_) * v);
+  int lower_threshold =
+      (int)std::max(0.0, (1.0 - image_processing_params_.canny_ratio) * v);
+  int upper_threshold =
+      (int)std::min(255.0, (1.0 + image_processing_params_.canny_ratio) * v);
 
   cv::cvtColor(cropped_img, cropped_gray_img, CV_BGR2GRAY);
   /// Reduce noise with a 3x3 kernel
@@ -501,8 +515,9 @@ std::vector<cv::Vec4i> CamCylExtractor::DetectLines(cv::Mat &orig_img,
 
   // Hough line transform
   std::vector<cv::Vec4i> lines;
-  cv::HoughLinesP(edge_detected_img, lines, 1, CV_PI / 180, num_intersections_,
-                  min_line_length, max_line_gap);
+  cv::HoughLinesP(edge_detected_img, lines, 1, CV_PI / 180,
+                  image_processing_params_.num_intersections, min_line_length,
+                  max_line_gap);
 
   return lines;
 }

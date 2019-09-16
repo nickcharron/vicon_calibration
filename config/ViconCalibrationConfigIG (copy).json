@@ -9,7 +9,7 @@
      "min_length_ratio": 0.5,
      "max_gap_ratio": 0.075,
      "canny_ratio": 0.1,
-     "cropbox_offset": 0.15,
+     "encoding":"rgb8",
      "show_measurements": true}
   ],
   "registration_params": [
@@ -24,9 +24,9 @@
   "target_params": [
     {"radius": 0.0635,
      "height": 0.5,
-     "crop_threshold_x": 0.2,
-     "crop_threshold_y": 0.2,
-     "crop_threshold_z": 0.3,
+     "crop_threshold_x": 5,
+     "crop_threshold_y": 5,
+     "crop_threshold_z": 5,
      "template_cloud": "cylinder_target.pcd",
      "vicon_target_frames": ["vicon/cylinder_target1/cylinder_target1", "vicon/cylinder_target2/cylinder_target2"]}
   ],
@@ -38,8 +38,18 @@
     {"topic": "/F2/image_raw",
      "frame": "F2_link",
      "intrinsics": "F2.json",
+     "time_steps": 10},
+    {"topic": "/ximea_cam/image_raw",
+     "frame": "X1_link",
+     "intrinsics": "X1.json",
      "time_steps": 10}
   ],
   "lidar_params":[
+    {"topic": "/hvlp/velodyne_points",
+     "frame": "hvlp_link",
+     "time_steps": 10},
+    {"topic": "/vvlp/velodyne_points",
+     "frame": "vvlp_link",
+     "time_steps": 10}
   ]
 }

@@ -107,7 +107,7 @@ private:
    */
   Eigen::Vector3d CalcMeasurement(cv::Vec4i edge_line1, cv::Vec4i edge_line2);
 
-  /**
+  /**image_processing_params
    * @brief Colours the pixels outside the bounding box black
    * @param image image to crop
    * @param min_vector minimum point defining the bounding box

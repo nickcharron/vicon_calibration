@@ -13,7 +13,10 @@ namespace vicon_calibration {
 
 using namespace std::literals::chrono_literals;
 
-CamCylExtractor::CamCylExtractor() { SetDefaultParameters(); }
+CamCylExtractor::CamCylExtractor() {
+  SetDefaultParameters();
+  measurement_valid_ = true;
+}
 
 void CamCylExtractor::SetTargetParams(
     vicon_calibration::CylinderTgtParams &params) {
@@ -85,20 +88,44 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
   }
 
   T_CAMERA_TARGET_EST_ = T_CAMERA_TARGET_EST;
-  auto undistorted_img = camera_model_->UndistortImage(image);
+  cv::Mat undistorted_img;
+  if(camera_params_.images_distorted){
+    undistorted_img = camera_model_->UndistortImage(image);
+  } else {
+    undistorted_img = image;
+  }
 
   auto bounding_box = GetBoundingBox();
+  if(!measurement_valid_){
+    LOG_WARN("Bounding box not within image plane, skipping measurement.");
+    if(image_processing_params_.show_measurements){
+
+      std::cout << "Showing failed measurement\n"
+                << "Press [c] to continue with other measurements\n";
+      cv::namedWindow("Invalid Measurement", cv::WINDOW_NORMAL);
+      cv::resizeWindow("Invalid Measurement", undistorted_img.cols / 2,
+                       undistorted_img.rows / 2);
+      cv::imshow("Invalid Measurement", undistorted_img);
+      auto key = cv::waitKey();
+      while (key != 67 && key != 99) {
+        key = cv::waitKey();
+      }
+      cv::destroyAllWindows();
+    }
+
+    measurement_ = Eigen::Vector3d(-1, -1, -1);
+    measurement_valid_ = false;
+    measurement_complete_ = true;
+    return;
+  }
 
   auto cropped_image =
       CropImage(undistorted_img, bounding_box.first, bounding_box.second);
-
   int min_line_length = (bounding_box.second(1) - bounding_box.first(1)) *
                         image_processing_params_.min_length_ratio;
   int max_gap = (bounding_box.second(1) - bounding_box.first(1)) *
                 image_processing_params_.max_gap_ratio;
-
   auto estimated_edge_lines = GetEstimatedEdges();
-
   std::vector<cv::Vec4i> bounding_lines;
   bounding_lines.push_back(
       cv::Vec4i(bounding_box.first(0), bounding_box.first(1),
@@ -112,7 +139,6 @@ void CamCylExtractor::ExtractCylinder(Eigen::Affine3d T_CAMERA_TARGET_EST,
   bounding_lines.push_back(
       cv::Vec4i(bounding_box.first(0), bounding_box.second(1),
                 bounding_box.second(0), bounding_box.second(1)));
-
   auto detected_lines =
       DetectLines(undistorted_img, cropped_image, min_line_length, max_gap);
 
@@ -339,15 +365,11 @@ std::vector<Eigen::Vector4d> CamCylExtractor::GetCylinderPoints(double radius,
 }
 
 std::pair<Eigen::Vector2d, Eigen::Vector2d> CamCylExtractor::GetBoundingBox() {
-  std::vector<double> u, v;
-
-  std::vector<Eigen::Vector2d> pixels_to_color;
   double minu = camera_model_->GetWidth(), minv = camera_model_->GetHeight(),
          maxu = 0, maxv = 0;
 
   for (auto point : bounding_points_) {
     auto pixel = CylinderPointToPixel(point);
-
     if (camera_model_->PixelInImage(pixel)) {
       if (pixel(0) < minu) {
         minu = pixel(0);
@@ -368,8 +390,7 @@ std::pair<Eigen::Vector2d, Eigen::Vector2d> CamCylExtractor::GetBoundingBox() {
   }
 
   if (minu > maxu && minv > maxv) {
-    throw std::runtime_error{
-        "Couldn't find minimum and maximum pixels on the image"};
+    measurement_valid_ = false;
   }
 
   Eigen::Vector2d min_vec(minu, minv);
@@ -641,7 +662,13 @@ Eigen::Vector2d CamCylExtractor::CylinderPointToPixel(Eigen::Vector4d point) {
       homogeneous_point[1] / homogeneous_point[3],
       homogeneous_point[2] / homogeneous_point[3];
 
-  return camera_model_->ProjectUndistortedPoint(transformed_point);
+  if(camera_params_.images_distorted){
+    camera_model_->SetUndistortedIntrinsics(camera_model_->GetIntrinsics());
+    return camera_model_->ProjectUndistortedPoint(transformed_point);
+  } else {
+    return camera_model_->ProjectPoint(transformed_point);
+  }
+
 }
 
 } // end namespace vicon_calibration

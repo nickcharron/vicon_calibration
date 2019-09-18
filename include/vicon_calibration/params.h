@@ -16,6 +16,7 @@ struct CameraParams {
   std::string topic;
   std::string frame;
   std::string intrinsics;
+  bool images_distorted;
   double time_steps;
 };
 
@@ -70,11 +71,14 @@ struct LidarMeasurement {
 };
 
 struct CameraMeasurement {
-  Eigen::Matrix4d measurement;
+  Eigen::Vector3d measurement;
+  Eigen::Matrix4d T_VICONBASE_TARGET;
   int camera_id;
   int target_id;
   std::string camera_frame;
   std::string target_frame;
+  std::string vicon_base_frame;
+  ros::Time stamp;
 };
 
 struct CalibrationResult {

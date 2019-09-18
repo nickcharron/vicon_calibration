@@ -9,6 +9,9 @@
 #include <tf2/buffer_core.h>
 #include <tf2_eigen/tf2_eigen.h>
 #include <tf2_msgs/TFMessage.h>
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/image_encodings.h>
 
 // ROS specific headers
 #include <geometry_msgs/TransformStamped.h>
@@ -63,6 +66,10 @@ void ViconCalibrator::LoadJSON(std::string file_name) {
         params.at("min_length_ratio");
     params_.image_processing_params.max_gap_ratio = params.at("max_gap_ratio");
     params_.image_processing_params.canny_ratio = params.at("canny_ratio");
+    params_.image_processing_params.cropbox_offset =
+        params.at("cropbox_offset");
+    params_.image_processing_params.dist_criteria = params.at("dist_criteria");
+    params_.image_processing_params.rot_criteria = params.at("rot_criteria");
     params_.image_processing_params.show_measurements =
         params.at("show_measurements");
   }
@@ -101,8 +108,10 @@ void ViconCalibrator::LoadJSON(std::string file_name) {
     vicon_calibration::CameraParams cam_params;
     cam_params.topic = camera.at("topic");
     cam_params.frame = camera.at("frame");
-    cam_params.intrinsics = camera.at("intrinsics");
+    std::string intrinsics_filename = camera.at("intrinsics");
+    cam_params.intrinsics = GetJSONFileNameData(intrinsics_filename);
     cam_params.time_steps = camera.at("time_steps");
+    cam_params.images_distorted = camera.at("images_distorted");
     params_.camera_params.push_back(cam_params);
   }
 
@@ -187,6 +196,7 @@ void ViconCalibrator::LoadLookupTree() {
   ros::Time end_time = lookup_time_ + time_window_half;
   rosbag::View view(bag_, rosbag::TopicQuery("/tf"), start_time, end_time,
                     true);
+ bool first_msg = true;
   for (const auto &msg_instance : view) {
     auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
     if (tf_message != nullptr) {
@@ -253,6 +263,13 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
   std::string sensor_frame = params_.lidar_params[lidar_iter].frame;
   rosbag::View view(bag_, rosbag::TopicQuery(topic), ros::TIME_MIN,
                     ros::TIME_MAX, true);
+
+  if (view.size() == 0) {
+    LOG_ERROR("No lidar messages read. Check your topics in config file.");
+    throw std::invalid_argument{
+        "No lidar messages read. Check your topics in config file."};
+  }
+
   pcl::PCLPointCloud2::Ptr cloud_pc2 =
       boost::make_shared<pcl::PCLPointCloud2>();
   PointCloud::Ptr cloud = boost::make_shared<PointCloud>();
@@ -311,10 +328,74 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
 }
 
 void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
-  rosbag::View view(bag_, ros::TIME_MIN, ros::TIME_MAX, true);
+  std::string topic = params_.camera_params[cam_iter].topic;
+  std::string sensor_frame = params_.camera_params[cam_iter].frame;
+
+  vicon_calibration::CamCylExtractor camera_extractor;
+  camera_extractor.SetTargetParams(params_.target_params);
+  camera_extractor.SetImageProcessingParams(params_.image_processing_params);
+  camera_extractor.SetCameraParams(params_.camera_params[cam_iter]);
+
+  rosbag::View view(bag_, rosbag::TopicQuery(topic), ros::TIME_MIN,
+                    ros::TIME_MAX, true);
+  if (view.size() == 0) {
+    LOG_ERROR("No image messages read. Check your topics in config file.");
+    throw std::invalid_argument{
+        "No image messages read. Check your topics in config file."};
+  }
+
+  ros::Duration time_step(params_.camera_params[cam_iter].time_steps);
+  ros::Time time_last(0, 0);
+  ros::Time time_zero(0, 0);
+  this->GetInitialCalibration(sensor_frame);
+  this->GetInitialCalibrationPerturbed(sensor_frame);
+
   for (auto iter = view.begin(); iter != view.end(); iter++) {
-    if (iter->getTopic() == params_.camera_params[cam_iter].topic) {
-      // Test
+    sensor_msgs::ImageConstPtr img_msg =
+        iter->instantiate<sensor_msgs::Image>();
+    ros::Time time_current = img_msg->header.stamp;
+    // skip first instance to avoid errors at beginning of bag
+    if(time_last == time_zero) {time_last = time_current;}
+    cv::Mat current_image = cv_bridge::toCvCopy(img_msg,
+            sensor_msgs::image_encodings::BGR8)->image;
+    if (time_current > time_last + time_step) {
+      lookup_time_ = time_current;
+      this->LoadLookupTree();
+      time_last = time_current;
+      std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+          T_cam_tgts_estimated, T_viconbase_tgts;
+      try {
+        T_cam_tgts_estimated = GetInitialGuess(sensor_frame);
+        T_viconbase_tgts = GetTargetLocation();
+      } catch (const std::exception err) {
+        LOG_ERROR("%s", err.what());
+        std::cout
+            << "Possible reasons for lookup error: \n"
+            << "- Start or End of bag could have message timing issues\n"
+            << "- Vicon messages not synchronized with robot's ROS time\n"
+            << "- Invalid initial calibrations, i.e. input transformations "
+               "json has missing/invalid transforms\n";
+        continue;
+      }
+      for (uint8_t n = 0; n < T_cam_tgts_estimated.size(); n++) {
+        camera_extractor.ExtractCylinder(T_cam_tgts_estimated[n],
+                                          current_image);
+        std::pair<Eigen::Vector3d, bool> measurement_info =
+            camera_extractor.GetMeasurementInfo();
+        if (measurement_info.second) {
+          vicon_calibration::CameraMeasurement camera_measurement;
+          camera_measurement.measurement = measurement_info.first.matrix();
+          camera_measurement.T_VICONBASE_TARGET = T_viconbase_tgts[n].matrix();
+          camera_measurement.camera_id = cam_iter;
+          camera_measurement.target_id = n;
+          camera_measurement.camera_frame = params_.camera_params[cam_iter].frame;
+          camera_measurement.target_frame =
+              params_.target_params.vicon_target_frames[n];
+          camera_measurement.vicon_base_frame = params_.vicon_baselink_frame;
+          camera_measurement.stamp = lookup_time_;
+          camera_measurements_.push_back(camera_measurement);
+        }
+      }
     }
   }
 }
@@ -353,11 +434,8 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
 
   // loop through each camera, get measurements and solve graph
   LOG_INFO("Loading camera measurements.");
-  camera_extractor_.SetTargetParams(params_.target_params);
-  camera_extractor_.SetImageProcessingParams(params_.image_processing_params);
   for (uint8_t cam_iter = 0; cam_iter < params_.camera_params.size();
-  cam_iter++) {
-    camera_extractor_.SetCameraParams(params_.camera_params[cam_iter]);
+       cam_iter++) {
     this->GetCameraMeasurements(cam_iter);
   }
 

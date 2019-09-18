@@ -9,6 +9,8 @@
      "min_length_ratio": 0.5,
      "max_gap_ratio": 0.075,
      "canny_ratio": 0.1,
+     "dist_criteria": 5,
+     "rot_criteria": 0.1,
      "cropbox_offset": 0.15,
      "show_measurements": true}
   ],
@@ -17,9 +19,9 @@
      "max_iterations": 100,
      "transform_epsilon": 1e-8,
      "euclidean_epsilon": 1e-2,
-     "show_transform": true,
      "dist_acceptance_criteria": 0.05,
-     "rot_acceptance_criteria": 0.5}
+     "rot_acceptance_criteria": 0.5,
+     "show_transform": true}
   ],
   "target_params": [
     {"radius": 0.0635,
@@ -34,10 +36,12 @@
     {"topic": "/F1/image_raw",
      "frame": "F1_link",
      "intrinsics": "F1.json",
+     "images_distorted": true,
      "time_steps": 10},
     {"topic": "/F2/image_raw",
      "frame": "F2_link",
      "intrinsics": "F2.json",
+     "images_distorted": false,
      "time_steps": 10}
   ],
   "lidar_params":[

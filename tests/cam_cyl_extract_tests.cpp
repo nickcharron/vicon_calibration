@@ -21,17 +21,12 @@ void SetUp() {
   std::string current_file = "tests/cam_cyl_extract_tests.cpp";
   std::string test_path = __FILE__;
   test_path.erase(test_path.end() - current_file.size(), test_path.end());
-  // image_path = test_path + "tests/data/vicon1.png";  // this is for the real
-  // image (non-sim)
-  // intrinsic_path = test_path + "tests/data/F2.json";
   image_path = test_path + "tests/data/ig_f1_sim.jpg";
   intrinsic_path = test_path + "tests/data/F1_sim.json";
   std::string template_cloud_path =
       test_path + "tests/template_pointclouds/cylinder_target.pcd";
   image = cv::imread(image_path);
 
-  // Eigen::Vector3d t_SENSOR_TARGET(-0.380727, 0, 0.634802); // this is for the
-  // real image (non-sim)
   Eigen::Vector3d t_SENSOR_TARGET(0, -0.395, 2.570);
   T_SENSOR_TARGET.setIdentity();
   T_SENSOR_TARGET.block(0, 3, 3, 1) = t_SENSOR_TARGET;
@@ -41,8 +36,6 @@ void SetUp() {
       Eigen::AngleAxisd(1.570796, Eigen::Vector3d::UnitZ());
   T_SENSOR_TARGET.block(0, 0, 3, 3) = R;
   TA_SENSOR_TARGET.matrix() = T_SENSOR_TARGET;
-  // std::vector<uint8_t> color_threshold_min{0, 0, 0};  // black target
-  // std::vector<uint8_t> color_threshold_max{30, 30, 30}; // black target
   std::vector<uint8_t> color_threshold_min{0, 95, 0};
   std::vector<uint8_t> color_threshold_max{20, 255, 20};
   target_params.radius = 0.0635;
@@ -53,7 +46,7 @@ void SetUp() {
 
   processing_params.dist_criteria = 100;
   processing_params.rot_criteria = 0.5;
-  processing_params.show_measurements = true;
+  processing_params.show_measurements = false;
   processing_params.crop_threshold_u = 600;
   processing_params.crop_threshold_v = 400;
 
@@ -93,11 +86,10 @@ TEST_CASE("Test extracting from a black image") {
   REQUIRE(cyl_extractor.GetMeasurementsValid() == false);
 }
 
-TEST_CASE("Test extracting cylinder with small offset that edges which meet "
-          "the validation criteria are not detected") {
+TEST_CASE("Test extracting cylinder with invalid offset") {
   // SetUp();
-  processing_params.crop_threshold_u = 0;
-  processing_params.crop_threshold_v = 0;
+  processing_params.crop_threshold_u = -50;
+  processing_params.crop_threshold_v = -50;
   cyl_extractor.SetImageProcessingParams(processing_params);
   cyl_extractor.SetTargetParams(target_params);
   cyl_extractor.ExtractMeasurement(TA_SENSOR_TARGET, image);

@@ -8,6 +8,7 @@
 #include <rosbag/bag.h>
 #include <ros/time.h>
 #include <Eigen/Geometry>
+#include <opencv2/opencv.hpp>
 
 namespace vicon_calibration {
 

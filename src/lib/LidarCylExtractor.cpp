@@ -42,13 +42,13 @@ void LidarCylExtractor::SetCropboxParams() {
   }
 
   Eigen::Vector3f min_vector(
-      -target_params_.crop_threshold_x,
-      -target_params_.radius - target_params_.crop_threshold_y,
-      -target_params_.radius - target_params_.crop_threshold_z);
+      -registration_params_.crop_threshold_x,
+      -target_params_.radius - registration_params_.crop_threshold_y,
+      -target_params_.radius - registration_params_.crop_threshold_z);
   Eigen::Vector3f max_vector(
-      target_params_.height + target_params_.crop_threshold_x,
-      target_params_.radius + target_params_.crop_threshold_y,
-      target_params_.radius + target_params_.crop_threshold_z);
+      target_params_.height + registration_params_.crop_threshold_x,
+      target_params_.radius + registration_params_.crop_threshold_y,
+      target_params_.radius + registration_params_.crop_threshold_z);
 
   cropper_.SetMinVector(min_vector);
   cropper_.SetMaxVector(max_vector);

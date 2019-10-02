@@ -126,6 +126,63 @@ Eigen::Matrix4d RemoveYaw2(const Eigen::Matrix4d &T_in) {
   return T_out;
 }
 
+cv::Mat
+DrawCoordinateFrame(cv::Mat &img_in, Eigen::Affine3d &T_cam_frame,
+                    std::shared_ptr<beam_calibration::CameraModel> camera_model,
+                    double &scale, bool images_distorted = true) {
+  cv::Mat img_out;
+  img_out = img_in.clone();
+  Eigen::Vector4d origin(0, 0, 0, 1), x_end(scale, 0, 0, 1),
+      y_end(0, scale, 0, 1), z_end(0, 0, scale, 1);
+  Eigen::Vector4d o_trans = T_cam_frame * origin, x_trans = T_cam_frame * x_end,
+                  y_trans = T_cam_frame * y_end, z_trans = T_cam_frame * z_end;
+
+  Eigen::Vector3d o(o_trans(0), o_trans(1), o_trans(2)),
+      x(x_trans(0), x_trans(1), x_trans(2)),
+      y(y_trans(0), y_trans(1), y_trans(2)),
+      z(z_trans(0), z_trans(1), z_trans(2));
+
+  Eigen::Vector2d start_pixel;
+  Eigen::Vector2d end_pixel_x;
+  Eigen::Vector2d end_pixel_y;
+  Eigen::Vector2d end_pixel_z;
+  if(images_distorted){
+    start_pixel = camera_model->ProjectPoint(o);
+    end_pixel_x = camera_model->ProjectPoint(x);
+    end_pixel_y = camera_model->ProjectPoint(y);
+    end_pixel_z = camera_model->ProjectPoint(z);
+  } else {
+    start_pixel = camera_model->ProjectUndistortedPoint(o);
+    end_pixel_x = camera_model->ProjectUndistortedPoint(x);
+    end_pixel_y = camera_model->ProjectUndistortedPoint(y);
+    end_pixel_z = camera_model->ProjectUndistortedPoint(z);
+  }
+
+  cv::Point start, end_x, end_y, end_z;
+  start.x = start_pixel(0);
+  start.y = start_pixel(1);
+  end_x.x = end_pixel_x(0);
+  end_x.y = end_pixel_x(1);
+  end_y.x = end_pixel_y(0);
+  end_y.y = end_pixel_y(1);
+  end_z.x = end_pixel_z(0);
+  end_z.y = end_pixel_z(1);
+
+  cv::Scalar colourX(0, 0, 255); // BGR
+  cv::Scalar colourY(0, 255, 0);
+  cv::Scalar colourZ(255, 0, 0);
+  int thickness = 3;
+
+  cv::line(img_out, start, end_x, colourX, thickness);
+  cv::line(img_out, start, end_y, colourY, thickness);
+  cv::line(img_out, start, end_z, colourZ, thickness);
+
+  // std::cout << "T_cam_frame': \n" << T_cam_frame.matrix() << "\n"
+  //           << "Origin: \n" << o << "\n"
+  //           << "Origin Projected: [" << start.x << " ," << start.y << "]\n";
+  return img_out;
+}
+
 void OutputTransformInformation(Eigen::Affine3d &T,
                                 std::string transform_name) {
   double RAD_TO_DEG = 57.29577951;

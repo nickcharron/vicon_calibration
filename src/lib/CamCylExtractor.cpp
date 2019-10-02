@@ -281,6 +281,20 @@ void CamCylExtractor::GetMeasurementPoints() {
     LOG_INFO("No target found in image. Try relaxing thresholding or check "
              "your initial calibration estimates");
     measurement_valid_ = false;
+    if(image_processing_params_.show_measurements){
+      std::cout << "Showing original invalid image (no target found after thresholding)\n"
+                << "Press [c] to continue with other measurements\n";
+      cv::namedWindow("Inalid Measurement", cv::WINDOW_NORMAL);
+      cv::resizeWindow("Inalid Measurement", image_in_->cols / 2,
+                       image_in_->rows / 2);
+      cv::imshow("Inalid Measurement", *image_in_);
+      auto key = cv::waitKey();
+      while (key != 67 && key != 99) {
+        key = cv::waitKey();
+      }
+      cv::destroyAllWindows();
+    }
+
     return;
   }
   *target_contour_ = contours[max_area_iter];

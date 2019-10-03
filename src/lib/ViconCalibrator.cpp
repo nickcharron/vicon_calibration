@@ -55,9 +55,11 @@ void ViconCalibrator::LoadJSON(std::string file_name) {
   params_.initial_calibration_file = J["initial_calibration"];
   params_.lookup_tf_calibrations = J["lookup_tf_calibrations"];
   params_.vicon_baselink_frame = J["vicon_baselink_frame"];
+  std::vector<double> vect;
   for (const auto &value : J["initial_guess_perturb"]) {
-    params_.initial_guess_perturbation.push_back(value);
+    vect.push_back(value);
   }
+  params_.initial_guess_perturbation = vect;
 
   for (const auto &params : J["image_processing_params"]) {
     params_.image_processing_params.dist_criteria = params.at("dist_criteria");
@@ -92,19 +94,23 @@ void ViconCalibrator::LoadJSON(std::string file_name) {
   for (const auto &params : J["target_params"]) {
     params_.target_params.radius = params.at("radius");
     params_.target_params.height = params.at("height");
+    std::vector<uint8_t> min, max;
     std::string template_cloud_name = params.at("template_cloud");
     for (const auto &value : params.at("color_threshold_min")) {
-      params_.target_params.color_threshold_min.push_back(value.get<int>());
+      min.push_back(value.get<uint8_t>());
     }
     for (const auto &value : params.at("color_threshold_max")) {
-      params_.target_params.color_threshold_max.push_back(value.get<int>());
+      max.push_back(value.get<uint8_t>());
     }
+    params_.target_params.color_threshold_min = min;
+    params_.target_params.color_threshold_max = max;
     params_.target_params.template_cloud =
         GetJSONFileNameData(template_cloud_name);
+    std::vector<std::string> frames;
     for (const auto &frame : params.at("vicon_target_frames")) {
-      params_.target_params.vicon_target_frames.push_back(
-          frame.get<std::string>());
+      frames.push_back(frame.get<std::string>());
     }
+    params_.target_params.vicon_target_frames = frames;
   }
 
   for (const auto &camera : J["camera_params"]) {
@@ -387,11 +393,6 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
         LOG_INFO("Extracting measurement between camera: %s and target: %s",
                  params_.camera_params[cam_iter].frame.c_str(),
                  params_.target_params.vicon_target_frames[n].c_str());
-        std::string transform_name =
-            "T_" + params_.camera_params[cam_iter].frame + "_" +
-            params_.target_params.vicon_target_frames[n];
-        utils::OutputTransformInformation(T_cam_tgts_estimated[n],
-                                          transform_name);
         camera_extractor.ExtractMeasurement(T_cam_tgts_estimated[n],
                                             current_image);
         if (camera_extractor.GetMeasurementsValid()) {

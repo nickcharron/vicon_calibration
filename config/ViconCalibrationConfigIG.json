@@ -5,8 +5,8 @@
   "initial_guess_perturb": [0, 0, 0, 0, 0, 0],
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
   "image_processing_params": [
-    {"dist_criteria": 5,
-     "rot_criteria": 0.1,
+    {"dist_criteria": 100,
+     "rot_criteria": 0.5,
      "show_measurements": true,
      "crop_threshold_u": 500,
      "crop_threshold_v": 400}
@@ -29,14 +29,19 @@
      "color_threshold_min": [0, 95, 0],
      "color_threshold_max": [20, 255, 20],
      "template_cloud": "cylinder_target.pcd",
-     "vicon_target_frames": ["vicon/cylinder_target2/cylinder_target2"]}
+     "vicon_target_frames": ["vicon/cylinder_target1/cylinder_target1", "vicon/cylinder_target2/cylinder_target2"]}
   ],
   "camera_params": [
     {"topic": "/F1/image_raw",
      "frame": "F1_link",
      "intrinsics": "F1_sim.json",
      "images_distorted": false,
-     "time_steps": 1}
+     "time_steps": 10},
+     {"topic": "/F2/image_raw",
+      "frame": "F2_link",
+      "intrinsics": "F2_sim.json",
+      "images_distorted": false,
+      "time_steps": 10}
   ],
   "lidar_params":[
   ]

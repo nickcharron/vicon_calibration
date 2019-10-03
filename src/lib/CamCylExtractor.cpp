@@ -68,7 +68,7 @@ void CamCylExtractor::ExtractMeasurement(Eigen::Affine3d T_CAMERA_TARGET_EST,
       camera_params_.images_distorted);
 
   GetMeasurementPoints();
-  if(!measurement_valid_){
+  if (!measurement_valid_) {
     measurement_complete_ = true;
     return;
   }
@@ -280,15 +280,28 @@ void CamCylExtractor::GetMeasurementPoints() {
   if (max_area < 10) {
     LOG_INFO("No target found in image. Try relaxing thresholding or check "
              "your initial calibration estimates");
+    std::cout << "Thresholding params: \n"
+              << "min: [" << target_params_.color_threshold_min[0] << ", "
+              << target_params_.color_threshold_min[1] << ", "
+              << target_params_.color_threshold_min[2] << "]\n"
+              << "max: [" << target_params_.color_threshold_max[0] << ", "
+              << target_params_.color_threshold_max[1] << ", "
+              << target_params_.color_threshold_max[2] << "]\n";
     measurement_valid_ = false;
-    if(image_processing_params_.show_measurements){
-      std::cout << "Showing original invalid image (no target found after thresholding)\n"
+    if (image_processing_params_.show_measurements) {
+      std::cout << "Showing original invalid image (no target found after "
+                   "thresholding)\n"
                 << "Press [c] to continue with other measurements\n";
       cv::namedWindow("Inalid Measurement", cv::WINDOW_NORMAL);
       cv::resizeWindow("Inalid Measurement", image_in_->cols / 2,
                        image_in_->rows / 2);
       cv::imshow("Inalid Measurement", *image_in_);
       auto key = cv::waitKey();
+      while (key != 67 && key != 99) {
+        key = cv::waitKey();
+      }
+      cv::destroyAllWindows();
+      cv::imshow("Inalid Measurement", image_binary);
       while (key != 67 && key != 99) {
         key = cv::waitKey();
       }
@@ -362,6 +375,12 @@ void CamCylExtractor::CheckError() {
   dist_err_ = std::sqrt((x_m - x_e) * (x_m - x_e) + (y_m - y_e) * (y_m - y_e));
   rot_err_ = theta_m - theta_e;
   rot_err_ = std::abs(rot_err_);
+
+  // since the vector may be in the opposite direction:
+  if(rot_err_ > 1.5708){
+    rot_err_ = rot_err_ - 3.14159;
+  }
+
   if (dist_err_ > image_processing_params_.dist_criteria) {
     measurement_valid_ = false;
     if (image_processing_params_.show_measurements) {

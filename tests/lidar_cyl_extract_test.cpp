@@ -115,23 +115,20 @@ void LoadRegistrationParams() {
   registration_params.show_transform = false;
   registration_params.dist_acceptance_criteria = 0.2;
   registration_params.rot_acceptance_criteria = 0.5;
+  registration_params.crop_threshold_x = 0.0;
+  registration_params.crop_threshold_y = 0.3;
+  registration_params.crop_threshold_z = 0.3;
 }
 
 void LoadTargetParams(){
   target_params.radius = 0.0635;
   target_params.height = 0.5;
-  target_params.crop_threshold_x = 0.0;
-  target_params.crop_threshold_y = 0.3;
-  target_params.crop_threshold_z = 0.3;
   target_params.template_cloud = template_cloud_path;
 }
 
 void LoadTargetParamsRotated(){
   target_params.radius = 0.0635;
   target_params.height = 0.5;
-  target_params.crop_threshold_x = 0.0;
-  target_params.crop_threshold_y = 0.3;
-  target_params.crop_threshold_z = 0.3;
   target_params.template_cloud = rotated_template_cloud_path;
 }
 
@@ -181,9 +178,9 @@ TEST_CASE("Test extracting cylinder target with diverged ICP registration") {
   // LoadSimulatedCloud();
   LoadRegistrationParams();
   LoadTargetParams();
-  target_params.crop_threshold_x = -0.05;
-  target_params.crop_threshold_y = -0.05;
-  target_params.crop_threshold_z = -0.05;
+  registration_params.crop_threshold_x = -0.05;
+  registration_params.crop_threshold_y = -0.05;
+  registration_params.crop_threshold_z = -0.05;
   vicon_calibration::LidarCylExtractor cyl_extractor;
   cyl_extractor.SetRegistrationParams(registration_params);
   cyl_extractor.SetTargetParams(target_params);
@@ -300,9 +297,9 @@ TEST_CASE("Test auto rejection") {
   LoadRegistrationParams();
   LoadTargetParamsRotated();
   // registration_params.show_transform = true;
-  target_params.crop_threshold_x = 1;
-  target_params.crop_threshold_y = 1;
-  target_params.crop_threshold_z = 1;
+  registration_params.crop_threshold_x = 1;
+  registration_params.crop_threshold_y = 1;
+  registration_params.crop_threshold_z = 1;
   std::pair<Eigen::Affine3d, bool> measurement_info;
   vicon_calibration::LidarCylExtractor cyl_extractor;
   cyl_extractor.SetRegistrationParams(registration_params);

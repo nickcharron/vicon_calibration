@@ -8,6 +8,7 @@
 #include <rosbag/bag.h>
 #include <ros/time.h>
 #include <Eigen/Geometry>
+#include <opencv2/opencv.hpp>
 
 namespace vicon_calibration {
 
@@ -107,7 +108,6 @@ private:
   ros::Time lookup_time_;
   beam_calibration::TfTree estimate_extrinsics_, lookup_tree_;
   vicon_calibration::LidarCylExtractor lidar_extractor_;
-  vicon_calibration::CamCylExtractor camera_extractor_;
   std::vector<vicon_calibration::LidarMeasurement> lidar_measurements_;
   std::vector<vicon_calibration::CameraMeasurement> camera_measurements_;
   std::vector<vicon_calibration::CalibrationResult> calibrations_result_,

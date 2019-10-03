@@ -1,44 +1,47 @@
 {
-  "bag_file": "/home/nick/bag_files/vicon_calibration/IG_Vicon_Sim_2019-08-29-17-18-56.bag",
+  "bag_file": "/home/nick/bag_files/vicon_calibration/IG_Vicon_Sim_2019-08-29-17-15-49.bag",
   "initial_calibration": "initial_calibration_ig_current.json",
   "lookup_tf_calibrations": true,
   "initial_guess_perturb": [0, 0, 0, 0, 0, 0],
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
   "image_processing_params": [
-    {"num_intersections" : 300,
-     "min_length_ratio": 0.5,
-     "max_gap_ratio": 0.075,
-     "canny_ratio": 0.1,
-     "cropbox_offset": 0.15,
-     "show_measurements": true}
+    {"dist_criteria": 100,
+     "rot_criteria": 0.5,
+     "show_measurements": true,
+     "crop_threshold_u": 500,
+     "crop_threshold_v": 400}
   ],
   "registration_params": [
-    {"max_correspondance_distance": 1,
+    {"crop_threshold_x": 0.2,
+     "crop_threshold_y": 0.2,
+     "crop_threshold_z": 0.3,
+     "max_correspondance_distance": 1,
      "max_iterations": 100,
      "transform_epsilon": 1e-8,
      "euclidean_epsilon": 1e-2,
-     "show_transform": true,
      "dist_acceptance_criteria": 0.05,
-     "rot_acceptance_criteria": 0.5}
+     "rot_acceptance_criteria": 0.5,
+     "show_transform": true}
   ],
   "target_params": [
     {"radius": 0.0635,
      "height": 0.5,
-     "crop_threshold_x": 0.2,
-     "crop_threshold_y": 0.2,
-     "crop_threshold_z": 0.3,
+     "color_threshold_min": [0, 95, 0],
+     "color_threshold_max": [20, 255, 20],
      "template_cloud": "cylinder_target.pcd",
      "vicon_target_frames": ["vicon/cylinder_target1/cylinder_target1", "vicon/cylinder_target2/cylinder_target2"]}
   ],
   "camera_params": [
     {"topic": "/F1/image_raw",
      "frame": "F1_link",
-     "intrinsics": "F1.json",
+     "intrinsics": "F1_sim.json",
+     "images_distorted": false,
      "time_steps": 10},
-    {"topic": "/F2/image_raw",
-     "frame": "F2_link",
-     "intrinsics": "F2.json",
-     "time_steps": 10}
+     {"topic": "/F2/image_raw",
+      "frame": "F2_link",
+      "intrinsics": "F2_sim.json",
+      "images_distorted": false,
+      "time_steps": 10}
   ],
   "lidar_params":[
   ]

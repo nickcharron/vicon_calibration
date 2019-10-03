@@ -3,6 +3,7 @@
 #include <string>
 #include <Eigen/Geometry>
 #include <ros/time.h>
+#include <opencv2/opencv.hpp>
 
 namespace vicon_calibration {
 
@@ -16,10 +17,14 @@ struct CameraParams {
   std::string topic;
   std::string frame;
   std::string intrinsics;
+  bool images_distorted;
   double time_steps;
 };
 
 struct RegistrationParams {
+  double crop_threshold_x{0.1};
+  double crop_threshold_y{0.1};
+  double crop_threshold_z{0.1};
   double max_correspondance_distance{1}; // correspondences with higher
                                          // distances will be ignored maximum
   int max_iterations{10};                // iterations in the optimization
@@ -40,22 +45,18 @@ struct RegistrationParams {
 struct CylinderTgtParams {
   double radius;
   double height;
-  double crop_threshold_x;
-  double crop_threshold_y;
-  double crop_threshold_z;
+  std::vector<uint8_t> color_threshold_min{0,0,0}; // BGR
+  std::vector<uint8_t> color_threshold_max{255,255,255}; // BGR
   std::string template_cloud;     // full path to template cloud
   std::vector<std::string> vicon_target_frames;
 };
 
 struct ImageProcessingParams {
-  int num_intersections;
-  double min_length_ratio;
-  double max_gap_ratio;
-  double canny_ratio;
-  double cropbox_offset;
-  double dist_criteria;
-  double rot_criteria;
-  bool show_measurements;
+  double dist_criteria{5};
+  double rot_criteria{0.1};
+  bool show_measurements{false};
+  uint16_t crop_threshold_u{200}; // crop theshold in pixels
+  uint16_t crop_threshold_v{100}; // crop theshold in pixels
 };
 
 struct LidarMeasurement {
@@ -70,11 +71,14 @@ struct LidarMeasurement {
 };
 
 struct CameraMeasurement {
-  Eigen::Matrix4d measurement;
+  std::shared_ptr<std::vector<cv::Point>> measured_points;
+  Eigen::Matrix4d T_VICONBASE_TARGET;
   int camera_id;
   int target_id;
   std::string camera_frame;
   std::string target_frame;
+  std::string vicon_base_frame;
+  ros::Time stamp;
 };
 
 struct CalibrationResult {

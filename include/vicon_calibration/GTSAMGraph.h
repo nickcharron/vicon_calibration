@@ -14,6 +14,8 @@ public:
   GTSAMGraph() = default;
   ~GTSAMGraph() = default;
 
+  void LoadTargetPoints(std::string &template_cloud_path);
+
   void SetLidarMeasurements(
       std::vector<vicon_calibration::LidarMeasurement> &lidar_measurements);
 
@@ -22,6 +24,9 @@ public:
 
   void SetInitialGuess(
       std::vector<vicon_calibration::CalibrationResult> &initial_guess);
+
+  void SetCameraParams(
+      std::vector<vicon_calibration::CameraParams> &camera_params);
 
   void SolveGraph();
 
@@ -34,8 +39,6 @@ private:
 
   void AddLidarMeasurements();
 
-  void AddImageMeasurements();
-
   void Clear();
 
   void Optimize();
@@ -44,8 +47,12 @@ private:
   std::vector<vicon_calibration::CameraMeasurement> camera_measurements_;
   std::vector<vicon_calibration::CalibrationResult> calibration_results_,
       calibration_initials_;
+  std::vector<vicon_calibration::CameraParams> camera_params_;
+  std::vector<Eigen::Vector4d> target_points_;
   gtsam::NonlinearFactorGraph graph_;
-  gtsam::Values initials_, results_;
+  gtsam::Values initials_, initials_updated_, results_;
+  std::vector<std::shared_ptr<beam_calibration::CameraModel>> camera_models_;
+  std::vector<vicon_calibration::CameraCorresspondance> camera_corresspondances_;
 };
 
 } // end namespace vicon_calibration

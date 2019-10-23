@@ -1,0 +1,7 @@
+{
+  "crop_scan": [0.1, 0.1, 0.1],
+  "crop_image": [200, 100],
+  "template_cloud": "cylinder_target.pcd",
+  "keypoints_lidar": [],
+  "keypoints_camera": []
+}

@@ -60,9 +60,6 @@ DrawCoordinateFrame(cv::Mat &img_in, Eigen::Affine3d &T_cam_frame,
 
 void OutputTransformInformation(Eigen::Affine3d &T, std::string transform_name);
 
-void OutputLidarMeasurements(
-    std::vector<vicon_calibration::LidarMeasurement> &measurements);
-
 void OutputCalibrations(
     std::vector<vicon_calibration::CalibrationResult> &calib,
     std::string output_string);

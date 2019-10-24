@@ -8,10 +8,17 @@ CameraExtractor::CameraExtractor() {
 
 void CameraExtractor::SetCameraParams(CameraParams &camera_params) {
   camera_params_ = camera_params;
+  camera_model_ = beam_calibration::CameraModel::LoadJSON(camera_params.intrinsics);
+  camera_params_set_ = true;
 }
 
 void CameraExtractor::SetTargetParams(TargetParams &target_params) {
   target_params_ = target_params;
+  target_params_set_ = true;
+}
+
+void CameraExtractor::SetShowMeasurements(bool &show_measurements) {
+  show_measurements_ = show_measurements;
 }
 
 bool CameraExtractor::GetMeasurementValid() {

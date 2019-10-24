@@ -1,7 +1,7 @@
 #pragma once
 
 #include "vicon_calibration/params.h"
-
+#include <beam_calibration/CameraModel.h>
 #include <Eigen/Geometry>
 #include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
@@ -37,6 +37,8 @@ public:
 
   void SetTargetParams(TargetParams &target_params);
 
+  void SetShowMeasurements(bool &show_measurements);
+
   virtual void ExtractKeypoints(Eigen::Matrix4d &T_CAMERA_TARGET_EST,
                                 cv::Mat &img_in) = 0;
 
@@ -50,7 +52,11 @@ protected:
   bool crop_image_{true};
   pcl::PointCloud<pcl::PointXY>::Ptr keypoints_measured_;
   bool measurement_complete_{false};
-  bool measurement_valid_{true};
+  bool measurement_valid_{false};
+  bool target_params_set_{false};
+  bool camera_params_set_{false};
+  bool show_measurements_{false};
+  std::shared_ptr<beam_calibration::CameraModel> camera_model_;
 };
 
 } // namespace vicon_calibration

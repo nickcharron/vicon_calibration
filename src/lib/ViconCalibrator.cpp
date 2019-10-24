@@ -329,6 +329,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
 
         lidar_extractor_->SetLidarParams(params_.lidar_params[lidar_iter]);
         lidar_extractor_->SetTargetParams(params_.target_params_list[n]);
+        lidar_extractor_->SetShowMeasurements(params_.show_measurements);
         lidar_extractor_->ExtractKeypoints(T_lidar_tgts_estimated[n].matrix(),
                                            cloud);
         if (lidar_extractor_->GetMeasurementValid()) {
@@ -413,6 +414,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
 
         camera_extractor_->SetCameraParams(params_.camera_params[cam_iter]);
         camera_extractor_->SetTargetParams(params_.target_params_list[n]);
+        camera_extractor_->SetShowMeasurements(params_.show_measurements);
         camera_extractor_->ExtractKeypoints(T_cam_tgts_estimated[n].matrix(),
                                             current_image);
         if (camera_extractor_->GetMeasurementValid()) {

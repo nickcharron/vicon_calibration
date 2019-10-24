@@ -36,6 +36,8 @@ public:
 
   void SetTargetParams(TargetParams &target_params);
 
+  void SetShowMeasurements(bool &show_measurements);
+
   virtual void
   ExtractKeypoints(Eigen::Matrix4d &T_LIDAR_TARGET_EST,
                    pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in) = 0;
@@ -50,8 +52,11 @@ protected:
   bool crop_scan_{true};
   std::string template_cloud_path_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_measured_;
-  bool measurement_valid_{true};
+  bool measurement_valid_{false};
   bool measurement_complete_{false};
+  bool target_params_set_{false};
+  bool lidar_params_set_{false};
+  bool show_measurements_{false};
 };
 
 } // namespace vicon_calibration

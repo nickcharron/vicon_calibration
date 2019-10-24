@@ -58,12 +58,12 @@ private:
                                                        // measured target
   std::pair<cv::Point, double> target_pose_estimated_; // center/angle of est.
                                                        // (projected) target
-  double dist_acceptance_criteria_{0.05}; // accept measurements if meas. vs.
+  double dist_acceptance_criteria_{300}; // accept measurements if meas. vs.
                                           // est. centers are less than this
+                                          // (in pixels)
   double rot_acceptance_criteria_{0.5};   // accept measurements if meas. vs.
                                           // est. angles are less than this
-  double dist_err_;
-  double rot_err_;
+                                          // (in rad)
 };
 
 } // namespace vicon_calibration

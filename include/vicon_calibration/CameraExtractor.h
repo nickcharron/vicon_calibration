@@ -37,7 +37,7 @@ public:
 
   void SetTargetParams(TargetParams &target_params);
 
-  void SetShowMeasurements(bool &show_measurements);
+  void SetShowMeasurements(bool show_measurements);
 
   virtual void ExtractKeypoints(Eigen::Matrix4d &T_CAMERA_TARGET_EST,
                                 cv::Mat &img_in) = 0;
@@ -45,6 +45,8 @@ public:
   bool GetMeasurementValid();
 
   pcl::PointCloud<pcl::PointXY>::Ptr GetMeasurement();
+
+  std::pair<double, double> GetErrors();
 
 protected:
   CameraParams camera_params_;
@@ -57,6 +59,8 @@ protected:
   bool camera_params_set_{false};
   bool show_measurements_{false};
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
+  double dist_err_;
+  double rot_err_;
 };
 
 } // namespace vicon_calibration

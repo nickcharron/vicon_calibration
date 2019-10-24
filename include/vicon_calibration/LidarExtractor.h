@@ -36,7 +36,7 @@ public:
 
   void SetTargetParams(TargetParams &target_params);
 
-  void SetShowMeasurements(bool &show_measurements);
+  void SetShowMeasurements(bool show_measurements);
 
   virtual void
   ExtractKeypoints(Eigen::Matrix4d &T_LIDAR_TARGET_EST,

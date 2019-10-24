@@ -16,7 +16,7 @@ void LidarExtractor::SetTargetParams(TargetParams &target_params) {
   target_params_set_ = true;
 }
 
-void LidarExtractor::SetShowMeasurements(bool &show_measurements) {
+void LidarExtractor::SetShowMeasurements(bool show_measurements) {
   show_measurements_ = show_measurements;
 }
 

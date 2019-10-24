@@ -17,7 +17,7 @@ void CameraExtractor::SetTargetParams(TargetParams &target_params) {
   target_params_set_ = true;
 }
 
-void CameraExtractor::SetShowMeasurements(bool &show_measurements) {
+void CameraExtractor::SetShowMeasurements(bool show_measurements) {
   show_measurements_ = show_measurements;
 }
 
@@ -39,6 +39,17 @@ pcl::PointCloud<pcl::PointXY>::Ptr CameraExtractor::GetMeasurement() {
     };
   }
   return keypoints_measured_;
+}
+
+std::pair<double, double> CameraExtractor::GetErrors() {
+  if (measurement_complete_) {
+    return std::make_pair(dist_err_, rot_err_);
+  } else {
+    throw std::runtime_error{"Measurement incomplete. Please run "
+                             "ExtractMeasurement() before getting the "
+                             "measurement error values."};
+  }
+  measurement_complete_ = false;
 }
 
 } // namespace vicon_calibration

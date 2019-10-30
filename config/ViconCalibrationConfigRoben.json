@@ -15,7 +15,7 @@
      "show_measurements": true}
   ],
   "registration_params": [
-    {"max_correspondance_distance": 1,
+    {"max_correspondence_distance": 1,
      "max_iterations": 100,
      "transform_epsilon": 1e-8,
      "euclidean_epsilon": 1e-2,

@@ -5,7 +5,7 @@ add_library(${PROJECT_NAME}
   CylinderCameraExtractor.cpp
   LidarExtractor.cpp
   CylinderLidarExtractor.cpp
-  #GTSAMGraph.cpp
+  GTSAMGraph.cpp
   utils.cpp
 )
 target_compile_options(${PROJECT_NAME}

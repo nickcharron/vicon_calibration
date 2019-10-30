@@ -3,7 +3,7 @@
 #include "beam_calibration/TfTree.h"
 #include "vicon_calibration/CylinderCameraExtractor.h"
 #include "vicon_calibration/CylinderLidarExtractor.h"
-//#include "vicon_calibration/GTSAMGraph.h"
+#include "vicon_calibration/GTSAMGraph.h"
 #include "vicon_calibration/params.h"
 #include <Eigen/Geometry>
 #include <opencv2/opencv.hpp>
@@ -72,10 +72,11 @@ private:
 
   void LoadLookupTree();
 
-  void GetInitialCalibration(std::string &sensor_frame, std::string type);
+  void GetInitialCalibration(std::string &sensor_frame, SensorType type,
+                             uint8_t &sensor_id);
 
   void GetInitialCalibrationPerturbed(std::string &sensor_frame,
-                                      std::string type);
+                                      SensorType type, uint8_t &sensor_id);
 
   /**
    * @brief get initial guess of where the targets are located at the current
@@ -115,7 +116,7 @@ private:
       calibrations_initial_,
       calibrations_perturbed_; // pertubed use for testing with simulation ONLY
   rosbag::Bag bag_;
-  //vicon_calibration::GTSAMGraph graph_;
+  vicon_calibration::GTSAMGraph graph_;
   Eigen::Affine3d T_SENSOR_VICONBASE_,
       T_SENSOR_pert_VICONBASE_; // pert for testing simulation ONLY
 };

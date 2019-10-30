@@ -80,7 +80,7 @@ private:
   double icp_transform_epsilon_{1e-8};
   double icp_euclidean_epsilon_{1e-2};
   int icp_max_iterations_{80};
-  double icp_max_correspondance_dist_{1};
+  double icp_max_correspondence_dist_{1};
   bool measurement_failed_{false}; // used for visualization only
   bool close_viewer_{false};
 };

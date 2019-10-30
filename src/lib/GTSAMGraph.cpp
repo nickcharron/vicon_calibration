@@ -3,11 +3,18 @@
 #include <fstream>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/inference/Key.h>
+#include <gtsam/inference/Symbol.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
 #include <pcl/registration/correspondence_estimation.h>
 
+
 namespace vicon_calibration {
+
+void GTSAMGraph::SetTargetParams(
+    std::vector<vicon_calibration::TargetParams> &target_params) {
+  target_params_ = target_params;
+}
 
 void GTSAMGraph::SetLidarMeasurements(
     std::vector<vicon_calibration::LidarMeasurement> &lidar_measurements) {
@@ -41,11 +48,18 @@ void GTSAMGraph::SolveGraph() {
   AddInitials();
   initials_updated_ = initials_;
   // AddLidarMeasurements();
-  while (!CheckConvergence()) {
-    SetImageCorrespondances();
+  uint16_t iteration = 0;
+  while (!CheckConvergence() && (iteration < max_iterations_)) {
+    iteration++;
+    SetImageCorrespondences();
+    SetLidarCorrespondences();
     SetImageFactors();
+    SetLidarFactors();
     Optimize();
     initials_updated_ = results_;
+  }
+  if (iteration >= max_iterations_) {
+    std::cout << "Reached max iterations, stopping.\n";
   }
 }
 
@@ -73,6 +87,72 @@ void GTSAMGraph::Print(std::string &file_name, bool print_to_terminal) {
   graph_file.close();
 }
 
+bool GTSAMGraph::CheckConvergence() {
+  new_error_ = graph_.error(results_);
+
+  if (output_errors_) {
+    if (new_error_ <= error_tol_)
+      std::cout << "error_tol_: " << new_error_ << " < " << error_tol_
+                << std::endl;
+    else
+      std::cout << "error_tol_: " << new_error_ << " > " << error_tol_
+                << std::endl;
+  }
+
+  if (new_error_ <= error_tol_)
+    return true;
+
+  // check if diverges
+  double absolute_decrease = current_error_ - new_error_;
+  if (output_errors_) {
+    if (absolute_decrease <= absolute_error_tol_)
+      std::cout << "absolute_decrease: " << std::setprecision(12)
+                << absolute_decrease << " < " << absolute_error_tol_
+                << std::endl;
+    else
+      std::cout << "absolute_decrease: " << std::setprecision(12)
+                << absolute_decrease << " >= " << absolute_error_tol_
+                << std::endl;
+  }
+
+  // calculate relative error decrease and update current_error_
+  double relative_decrease = absolute_decrease / current_error_;
+  if (output_errors_) {
+    if (relative_decrease <= relative_error_tol_)
+      std::cout << "relative_decrease: " << std::setprecision(12)
+                << relative_decrease << " < " << relative_error_tol_
+                << std::endl;
+    else
+      std::cout << "relative_decrease: " << std::setprecision(12)
+                << relative_decrease << " >= " << relative_error_tol_
+                << std::endl;
+  }
+
+  bool converged =
+      (relative_error_tol_ && (relative_decrease <= relative_error_tol_)) ||
+      (absolute_decrease <= absolute_error_tol_);
+
+  if (converged) {
+    if (absolute_decrease >= 0.0)
+      std::cout << "converged" << std::endl;
+    else
+      std::cout
+          << "Warning:  stopping nonlinear iterations because error increased"
+          << std::endl;
+
+    std::cout << "error_tol_: " << new_error_ << " <? " << error_tol_
+              << std::endl;
+    std::cout << "absolute_decrease: " << std::setprecision(12)
+              << absolute_decrease << " <? " << absolute_error_tol_
+              << std::endl;
+    std::cout << "relative_decrease: " << std::setprecision(12)
+              << relative_decrease << " <? " << relative_error_tol_
+              << std::endl;
+  }
+  current_error_ = new_error_;
+  return converged;
+}
+
 void GTSAMGraph::CheckInputs() {
   if (lidar_measurements_.size() == 0) {
     LOG_WARN("No lidar measurements inputted to graph.");
@@ -84,9 +164,15 @@ void GTSAMGraph::CheckInputs() {
     throw std::runtime_error{
         "No initial estimates given to graph. Cannot solve."};
   }
-  if (target_points_.size() == 0 && camera_measurements_.size() > 0) {
-    throw std::runtime_error{"Missing target required to solve graph."};
+  for (uint8_t i = 0; i < target_params_.size(); i++) {
+    if (target_params_[i].template_cloud->size() == 0 ||
+        target_params_[i].template_cloud == nullptr) {
+      LOG_ERROR("Target No. %d contains an empty template cloud.", i);
+      throw std::runtime_error{
+          "Missing target required to solve graph, or target is empty."};
+    }
   }
+
   if (camera_measurements_.size() > 0 && camera_params_.size() == 0) {
     throw std::runtime_error{"No camera params inputted."};
   }
@@ -107,23 +193,19 @@ void GTSAMGraph::AddInitials() {
   gtsam::noiseModel::Diagonal::shared_ptr prior_model =
       gtsam::noiseModel::Diagonal::Variances(v6);
   gtsam::Pose3 pose(identity_pose);
-  initials_.insert(first_key, pose);
+  initials_.insert(gtsam::Symbol('B', 0), pose);
   graph_.add(gtsam::PriorFactor<gtsam::Pose3>(gtsam::Symbol('B', 0), pose,
                                               prior_model));
 
   // add all sensors as the next poses
-  int lidar_count = 0;
-  int camera_count = 0;
-  for (uint32_t i = 0; i < lidar_initials_.size(); i++) {
+  for (uint32_t i = 0; i < calibration_initials_.size(); i++) {
     vicon_calibration::CalibrationResult calib = calibration_initials_[i];
     Eigen::Matrix4d initial_pose_matrix = calib.transform;
     gtsam::Pose3 initial_pose(initial_pose_matrix);
-    if (calibration_initials_.type == "LIDAR") {
-      lidar_count++;
-      initials_.insert(gtsam::Symbol('L', lidar_count), initial_pose);
-    } else if (calibration_initials_.type == "CAMERA") {
-      camera_count++;
-      initials_.insert(gtsam::Symbol('C', camera_count), initial_pose);
+    if (calib.type == SensorType::LIDAR) {
+      initials_.insert(gtsam::Symbol('L', calib.sensor_id), initial_pose);
+    } else if (calib.type == SensorType::CAMERA) {
+      initials_.insert(gtsam::Symbol('C', calib.sensor_id), initial_pose);
     } else {
       throw std::invalid_argument{
           "Wrong type of sensor inputted as initial calibration estimate."};
@@ -131,124 +213,98 @@ void GTSAMGraph::AddInitials() {
   }
 }
 
-void GTSAMGraph::AddLidarMeasurements() {
-  // TODO: Make this a parameter in a config file for the graph
-  // set noise model
-  gtsam::Vector6 v6;
-  v6 << 0.1, 0.1, 0.1, 0.1, 0.1, 0.1;
-  gtsam::noiseModel::Diagonal::shared_ptr noise_model =
-      gtsam::noiseModel::Diagonal::Variances(v6);
-
-  // loop through all lidar measurements and add factors
-  for (uint64_t meas_iter = 0; meas_iter < lidar_measurements_.size();
-       meas_iter++) {
-    gtsam::Key from_key = 0;
-
-    // get sensor key associated with this measurement
-    gtsam::Key to_key;
-    for (uint32_t sensor_iter = 0; sensor_iter < calibration_initials_.size();
-         sensor_iter++) {
-      if (lidar_measurements_[meas_iter].lidar_frame ==
-          calibration_initials_[sensor_iter].to_frame) {
-        gtsam::Key this_key = sensor_iter + 1;
-        to_key = this_key;
-      } else if (sensor_iter == calibration_initials_.size() - 1) {
-        LOG_ERROR("Cannot locate GTSAM key associated with lidar measurement.");
-      }
-    }
-    Eigen::Affine3d T_VICONBASE_LIDAR, T_VICONBASE_TARGET, T_LIDAR_TARGET,
-        T_TARGET_LIDAR, T_LIDAR_VICONBASE;
-    vicon_calibration::LidarMeasurement measurement =
-        lidar_measurements_[meas_iter];
-    T_VICONBASE_TARGET.matrix() = measurement.T_VICONBASE_TARGET;
-    T_LIDAR_TARGET.matrix() = measurement.T_LIDAR_TARGET;
-    T_VICONBASE_LIDAR = T_VICONBASE_TARGET * T_LIDAR_TARGET.inverse();
-    gtsam::Pose3 pose(T_VICONBASE_LIDAR.matrix());
-    graph_.add(gtsam::BetweenFactor<gtsam::Pose3>(from_key, to_key, pose,
-                                                  noise_model));
-  }
-}
-
-void GTSAMGraph::SetImageCorrespondances() {
-  camera_corresspondances_.clear();
+void GTSAMGraph::SetImageCorrespondences() {
+  camera_correspondences_.clear();
   for (uint32_t meas_iter = 0; meas_iter < camera_measurements_.size();
        meas_iter++) {
     vicon_calibration::CameraMeasurement measurement =
         camera_measurements_[meas_iter];
+    gtsam::Pose3 pose;
+    pose = initials_updated_.at<gtsam::Pose3>(
+        gtsam::Symbol('C', measurement.camera_id));
+    Eigen::Matrix4d T_CAM_VICONBASE;
+    T_CAM_VICONBASE = pose.matrix();
 
     // create point cloud of projected points
+    // TODO: Do we want to extract perimeter points as well here?
+    pcl::PointCloud<pcl::PointXYZ>::Ptr target_points;
+    target_points = target_params_[measurement.target_id].template_cloud;
     pcl::PointCloud<pcl::PointXY>::Ptr projected_pixels =
-        boost : make_shared<pcl::PointCloud<pcl::PointXY>>();
-    for (uint32_t i = 0; i < target_points_.size(); i++) {
+        boost::make_shared<pcl::PointCloud<pcl::PointXY>>();
+    for (uint32_t i = 0; i < target_points->size(); i++) {
       pcl::PointXY point_projected_pcl;
       Eigen::Vector2d point_projected;
       Eigen::Vector4d point_transformed;
-      gtsam::Pose3 pose;
-      initials_updated_.get(gtsam::Symbol('C', measurement.camera_id), pose);
-      Eigen::Matrix4d T_CAM_VICONBASE = pose; // TODO: not sure how to convert this
-      point_transformed =
-          T_CAM_VICONBASE * measurement.T_VICONBASE_TARGET * target_points_[i];
+      pcl::PointXYZ point_pcl = target_points->at(i);
+      Eigen::Vector4d point_eig(point_pcl.x, point_pcl.y, point_pcl.z, 1);
+      point_transformed = T_CAM_VICONBASE * measurement.T_VICONBASE_TARGET *
+                          point_eig;
       point_projected =
-          camera_models_[measurement.camera_id].Project(point_transformed);
+          camera_models_[measurement.camera_id]->ProjectPoint(point_transformed);
       point_projected_pcl.x = point_projected[0];
       point_projected_pcl.y = point_projected[1];
       projected_pixels->push_back(point_projected_pcl);
     }
 
-    // create point cloud of measured pixels
-    pcl::PointCloud<pcl::PointXY>::Ptr measured_pixels =
-        boost : make_shared<pcl::PointCloud<pcl::PointXY>>();
-    for (uint32_t i = 0; i < measurement.measured_points.size(); i++) {
-      pcl::PointXY point_measured_pcl;
-      point_measured_pcl.x = measurement.measured_points[i].x;
-      point_measured_pcl.y = measurement.measured_points[i].y;
-      measured_pixels->push_back(point_measured_pcl);
-    }
-
-    // get correspondances
-    pcl::CorrespondenceEstimation<pcl::PointXY, pcl::PointXY> corr_est;
+    // get correspondences
+    pcl::registration::CorrespondenceEstimation<pcl::PointXY, pcl::PointXY> corr_est;
     double max_distance = 500; // in pixels
-    pcl::Correspondences correspondances;
-    corr_est.setInputSource(measured_pixels);
+    pcl::Correspondences correspondences;
+    corr_est.setInputSource(measurement.keypoints);
     corr_est.setInputTarget(projected_pixels);
-    corr_est.determineCorrespondences(correspondances, max_distance);
-    for (uint32_t i = 0; i < correspondances.size(); i++) {
-      pcl::PointXY pixel_pcl = measured_pixels[correspondances[i].index_query];
-      Eigen::Vector4d pixel_eig =
-          target_points_[correspondances[i].index_match];
-      gtsam::Point2 pixel;
-      gtsam::Point3 point;
-      pixel.x = pixel_pcl.x;
-      pixel.y = pixel_pcl.y;
-      point.x = pixel_eig[0];
-      point.y = pixel_eig[1];
-      point.z = pixel_eig[2];
-      vicon_calibration::CameraCorresspondance camera_corresspondance;
-      camera_corresspondance.pixel = pixel;
-      camera_corresspondance.point = point;
-      camera_corresspondance.camera_id = measurement.camera_id;
-      camera_corresspondance.target_id = measurement.target_id;
-      camera_corresspondances_.push_back(camera_corresspondance);
+    corr_est.determineCorrespondences(correspondences, max_distance);
+    for (uint32_t i = 0; i < correspondences.size(); i++) {
+      vicon_calibration::Correspondence correspondence;
+      correspondence.target_point_index = correspondences[i].index_match;
+      correspondence.measured_point_index = correspondences[i].index_query;
+      correspondence.measurement_index = meas_iter;
+      camera_correspondences_.push_back(correspondence);
     }
   }
 }
 
-void GTSAMGraph::LoadTargetPoints(std::string &template_cloud_path) {
-  PointCloud::Ptr template_cloud = boost::make_shared<PointCloud>();
-  if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path,
-                                          *template_cloud) == -1) {
-    LOG_ERROR("Couldn't read template file: %s\n", template_cloud_path.c_str());
+void GTSAMGraph::SetLidarCorrespondences() {
+  lidar_correspondences_.clear();
+  for (uint32_t meas_iter = 0; meas_iter < lidar_measurements_.size();
+       meas_iter++) {
+    vicon_calibration::LidarMeasurement measurement =
+        lidar_measurements_[meas_iter];
+    gtsam::Pose3 pose;
+    pose = initials_updated_.at<gtsam::Pose3>(
+        gtsam::Symbol('L', measurement.lidar_id));
+    Eigen::Matrix4d T_LIDAR_VICONBASE, T_LIDAR_TARGET;
+    T_LIDAR_VICONBASE = pose.matrix();
+    T_LIDAR_TARGET = T_LIDAR_VICONBASE * measurement.T_VICONBASE_TARGET;
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_template =
+        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    pcl::transformPointCloud(
+        *(target_params_[measurement.target_id].template_cloud),
+        *transformed_template, T_LIDAR_TARGET);
+
+    // get correspondences
+    pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ> corr_est;
+    double max_distance = 0.005; // in meters
+    pcl::Correspondences correspondences;
+    corr_est.setInputSource(measurement.keypoints);
+    corr_est.setInputTarget(transformed_template);
+    corr_est.determineCorrespondences(correspondences, max_distance);
+    for (uint32_t i = 0; i < correspondences.size(); i++) {
+      vicon_calibration::Correspondence correspondence;
+      correspondence.target_point_index = correspondences[i].index_match;
+      correspondence.measured_point_index = correspondences[i].index_query;
+      correspondence.measurement_index = meas_iter;
+      camera_correspondences_.push_back(correspondence);
+    }
   }
-  target_points_.clear();
-  Eigen::Vector4d point_target;
-  point_target[3] = 1;
-  for (PointCloud::iterator it = template_cloud->begin();
-       it != template_cloud->end(); ++it) {
-    point_target[0] = it->x;
-    point_target[1] = it->y;
-    point_target[2] = it->z;
-    target_points_.push_back(point_target);
-  }
+}
+
+void GTSAMGraph::SetImageFactors() {
+  //
+}
+
+void GTSAMGraph::SetLidarFactors() {
+  //
 }
 
 void GTSAMGraph::Optimize() {

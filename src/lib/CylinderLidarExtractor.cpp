@@ -70,7 +70,7 @@ void CylinderLidarExtractor::RegisterScan() {
   icp.setTransformationEpsilon(icp_transform_epsilon_);
   icp.setEuclideanFitnessEpsilon(icp_euclidean_epsilon_);
   icp.setMaximumIterations(icp_max_iterations_);
-  icp.setMaxCorrespondenceDistance(icp_max_correspondance_dist_);
+  icp.setMaxCorrespondenceDistance(icp_max_correspondence_dist_);
   if (crop_scan_) {
     icp.setInputSource(scan_cropped_);
   } else {

@@ -73,7 +73,7 @@ void LidarCylExtractor::SetICPConfig() {
   icp_.setEuclideanFitnessEpsilon(registration_params_.euclidean_epsilon);
   icp_.setMaximumIterations(registration_params_.max_iterations);
   icp_.setMaxCorrespondenceDistance(
-      registration_params_.max_correspondance_distance);
+      registration_params_.max_correspondence_distance);
 }
 
 void LidarCylExtractor::SetScanTransform(Eigen::Affine3d &T_LIDAR_SCAN) {

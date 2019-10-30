@@ -1,15 +1,20 @@
 #pragma once
 
-#include <string>
 #include <Eigen/Geometry>
-#include <ros/time.h>
+#include <gtsam/geometry/Point2.h>
+#include <gtsam/geometry/Point3.h>
 #include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <gtsam/geometry/Point2.h>
-#include <gtsam/geometry/Point3.h>
+#include <ros/time.h>
+#include <string>
 
 namespace vicon_calibration {
+
+/**
+ * @brief Enum class for different types of sensors
+ */
+enum class SensorType { CAMERA = 0, LIDAR };
 
 struct LidarParams {
   std::string topic;
@@ -25,7 +30,7 @@ struct CameraParams {
   double time_steps;
 };
 
-struct TargetParams{
+struct TargetParams {
   std::string frame_id;
   std::string extractor_type;
   std::string target_config_path;
@@ -54,17 +59,17 @@ struct CameraMeasurement {
   std::string target_frame;
 };
 
-struct CameraCorresspondance {
-  gtsam::Point2 pixel;
-  gtsam::Point3 point;
-  int camera_id;
-  int target_id;
+struct Correspondence {
+  int target_point_index;
+  int measured_point_index;
+  int measurement_index;
 };
 
 struct CalibrationResult {
   Eigen::Matrix4d transform;
-  std::string type; // either LIDAR or CAMERA (TODO: make this enum??)
-  std::string to_frame; // this is the sensor frame
+  SensorType type;
+  int sensor_id;
+  std::string to_frame;   // this is the sensor frame
   std::string from_frame; // this is usually the vicon baselink on the robot
 };
 

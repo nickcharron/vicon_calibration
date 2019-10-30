@@ -226,7 +226,7 @@ TEST_CASE("Test extracting cylinder target with and without diverged ICP registr
 }
 
 /* need to view these results, can't automate the test
-TEST_CASE("Test best correspondance estimation") {
+TEST_CASE("Test best correspondence estimation") {
   // FileSetup();
   // LoadTransforms();
   // LoadSimulatedCloud();

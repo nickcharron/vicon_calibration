@@ -213,24 +213,28 @@ void ViconCalibrator::LoadLookupTree() {
 }
 
 void ViconCalibrator::GetInitialCalibration(std::string &sensor_frame,
-                                            std::string type) {
+                                            SensorType type,
+                                            uint8_t &sensor_id) {
   T_SENSOR_VICONBASE_ = estimate_extrinsics_.GetTransformEigen(
       sensor_frame, params_.vicon_baselink_frame);
   vicon_calibration::CalibrationResult calib_initial;
   calib_initial.transform = T_SENSOR_VICONBASE_.matrix();
   calib_initial.type = type;
+  calib_initial.sensor_id = sensor_id;
   calib_initial.to_frame = sensor_frame;
   calib_initial.from_frame = params_.vicon_baselink_frame;
   calibrations_initial_.push_back(calib_initial);
 }
 
 void ViconCalibrator::GetInitialCalibrationPerturbed(std::string &sensor_frame,
-                                                     std::string type) {
+                                                     SensorType type,
+                                                     uint8_t &sensor_id) {
   T_SENSOR_pert_VICONBASE_ = utils::PerturbTransform(
       T_SENSOR_VICONBASE_, params_.initial_guess_perturbation);
   vicon_calibration::CalibrationResult calib_perturbed;
   calib_perturbed.transform = T_SENSOR_pert_VICONBASE_.matrix();
   calib_perturbed.type = type;
+  calib_perturbed.sensor_id = sensor_id;
   calib_perturbed.to_frame = sensor_frame;
   calib_perturbed.from_frame = params_.vicon_baselink_frame;
   calibrations_perturbed_.push_back(calib_perturbed);
@@ -285,8 +289,8 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
   ros::Duration time_step(params_.lidar_params[lidar_iter].time_steps);
   ros::Time time_last(0, 0);
 
-  this->GetInitialCalibration(sensor_frame, "LIDAR");
-  this->GetInitialCalibrationPerturbed(sensor_frame, "LIDAR");
+  this->GetInitialCalibration(sensor_frame, SensorType::LIDAR, lidar_iter);
+  this->GetInitialCalibrationPerturbed(sensor_frame, SensorType::LIDAR, lidar_iter);
 
   for (auto iter = view.begin(); iter != view.end(); iter++) {
     boost::shared_ptr<sensor_msgs::PointCloud2> lidar_msg =
@@ -366,8 +370,8 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
   ros::Duration time_step(params_.camera_params[cam_iter].time_steps);
   ros::Time time_last(0, 0);
   ros::Time time_zero(0, 0);
-  this->GetInitialCalibration(sensor_frame, "CAMERA");
-  this->GetInitialCalibrationPerturbed(sensor_frame, "CAMERA");
+  this->GetInitialCalibration(sensor_frame, SensorType::CAMERA, cam_iter);
+  this->GetInitialCalibrationPerturbed(sensor_frame, SensorType::CAMERA, cam_iter);
 
   for (auto iter = view.begin(); iter != view.end(); iter++) {
     sensor_msgs::ImageConstPtr img_msg =
@@ -475,8 +479,8 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
   bag_.close();
 
   // Build and solve graph
-  // graph_.SetLidarMeasurements(lidar_measurements_);
-  // graph.LoadTargetPoints(params_.target_params.template_cloud);
+  graph_.SetLidarMeasurements(lidar_measurements_);
+  graph_.SetTargetParams(params_.target_params_list);
   // graph_.SetCameraMeasurements(camera_measurements_);
   // TODO: Change this to calibrations_initial_
   // graph_.SetInitialGuess(calibrations_perturbed_);

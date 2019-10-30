@@ -27,7 +27,6 @@ add_executable(${PROJECT_NAME}_generate_checkerboard_keypoints
   src/tools/generate_checkerboard_keypoints.cpp
 )
 
-#[[
 ################## tests ##################
 add_executable(${PROJECT_NAME}_lidar_cylinder_extractor_tests
   tests/lidar_cyl_extract_test.cpp
@@ -44,7 +43,6 @@ target_link_libraries(${PROJECT_NAME}_lidar_cylinder_extractor_tests
   beam::utils
   beam::filtering
 )
-]]
 
 add_executable(${PROJECT_NAME}_camera_cylinder_extractor_tests
   tests/cam_cyl_extract_tests.cpp

@@ -1,8 +1,7 @@
 #include "vicon_calibration/CylinderLidarExtractor.h"
 #include <beam_filtering/CropBox.h>
-#include <pcl/registration/icp.h>
-#include <thread>
 #include <chrono>
+#include <thread>
 
 namespace vicon_calibration {
 
@@ -13,6 +12,7 @@ void CylinderLidarExtractor::ExtractKeypoints(
   // initialize member variables
   scan_in_ = boost::make_shared<PointCloud>();
   scan_cropped_ = boost::make_shared<PointCloud>();
+  scan_best_points_ = boost::make_shared<PointCloud>();
   pcl_viewer_ = boost::make_shared<pcl::visualization::PCLVisualizer>();
   scan_in_ = cloud_in;
   T_LIDAR_TARGET_EST_ = T_LIDAR_TARGET_EST;
@@ -21,10 +21,11 @@ void CylinderLidarExtractor::ExtractKeypoints(
   measurement_valid_ = true;
   measurement_complete_ = false;
 
-  //
   this->CheckInputs();
   this->CropScan();
   this->RegisterScan();
+  this->SaveMeasurement();
+  measurement_complete_ = true;
 }
 
 void CylinderLidarExtractor::CheckInputs() {
@@ -44,10 +45,16 @@ void CylinderLidarExtractor::CheckInputs() {
 }
 
 void CylinderLidarExtractor::CropScan() {
+
   Eigen::Affine3f T_TARGET_EST_SCAN;
-  T_TARGET_EST_SCAN.matrix() =
-      T_LIDAR_TARGET_EST_.inverse().cast<float>();
+  T_TARGET_EST_SCAN.matrix() = T_LIDAR_TARGET_EST_.inverse().cast<float>();
   beam_filtering::CropBox cropper;
+  Eigen::Vector3f min_vector, max_vector;
+  max_vector = target_params_.crop_scan.cast<float>();
+  min_vector = -max_vector;
+  cropper.SetMinVector(min_vector);
+  cropper.SetMaxVector(max_vector);
+  cropper.SetRemoveOutsidePoints(true);
   cropper.SetTransform(T_TARGET_EST_SCAN);
   cropper.Filter(*scan_in_, *scan_cropped_);
 }
@@ -59,12 +66,16 @@ void CylinderLidarExtractor::RegisterScan() {
   measurement_failed_ = false;
   boost::shared_ptr<PointCloud> scan_registered;
   scan_registered = boost::make_shared<PointCloud>();
-  pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+  IterativeClosestPointCustom<pcl::PointXYZ, pcl::PointXYZ> icp;
   icp.setTransformationEpsilon(icp_transform_epsilon_);
   icp.setEuclideanFitnessEpsilon(icp_euclidean_epsilon_);
   icp.setMaximumIterations(icp_max_iterations_);
   icp.setMaxCorrespondenceDistance(icp_max_correspondance_dist_);
-  icp.setInputSource(scan_cropped_);
+  if (crop_scan_) {
+    icp.setInputSource(scan_cropped_);
+  } else {
+    icp.setInputSource(scan_in_);
+  }
   icp.setInputTarget(target_params_.template_cloud);
   icp.align(*scan_registered, T_LIDAR_TARGET_EST_.inverse().cast<float>());
 
@@ -74,7 +85,8 @@ void CylinderLidarExtractor::RegisterScan() {
     measurement_complete_ = true;
     if (show_measurements_) {
       std::cout << "ICP failed. Displaying cropped scan." << std::endl;
-      boost::shared_ptr<pcl::PointCloud<pcl::PointXYZRGB>> scan_cropped_coloured;
+      boost::shared_ptr<pcl::PointCloud<pcl::PointXYZRGB>>
+          scan_cropped_coloured;
       scan_cropped_coloured =
           boost::make_shared<pcl::PointCloud<pcl::PointXYZRGB>>();
       Eigen::Affine3d T_identity;
@@ -148,12 +160,28 @@ void CylinderLidarExtractor::RegisterScan() {
         this->ColourPointCloud(target_params_.template_cloud, 0, 255, 0);
     pcl::transformPointCloud(*measured_template_cloud, *measured_template_cloud,
                              TA_LIDAR_TARGET_OPT);
-    AddColouredPointCloudToViewer(
-        measured_template_cloud, "measured template cloud", TA_LIDAR_TARGET_OPT);
+    this->AddColouredPointCloudToViewer(measured_template_cloud,
+                                        "measured template cloud",
+                                        TA_LIDAR_TARGET_OPT);
     Eigen::Affine3d T_identity;
     T_identity.setIdentity();
     this->AddPointCloudToViewer(scan_cropped_, "cropped scan", T_identity);
     this->ShowFinalTransformation();
+  }
+
+  pcl::CorrespondencesPtr correspondences = icp.getCorrespondencesPtr();
+  for (uint32_t i = 0; i < correspondences->size(); i++) {
+    pcl::Correspondence corr_i = (*correspondences)[i];
+    int source_index_i = corr_i.index_query;
+    if(corr_i.distance < max_keypoint_distance_){
+      pcl::PointXYZ point;
+      if (crop_scan_) {
+        point = scan_cropped_->points[source_index_i];
+      } else {
+        point = scan_in_->points[source_index_i];
+      }
+      scan_best_points_->points.push_back(point);
+    }
   }
 }
 
@@ -271,6 +299,17 @@ void CylinderLidarExtractor::ShowFinalTransformation() {
     std::cout << "Accepting measurement" << std::endl;
   } else {
     std::cout << "Rejecting measurement" << std::endl;
+  }
+}
+
+void CylinderLidarExtractor::SaveMeasurement() {
+  if (!measurement_valid_) {
+    return;
+  }
+  if (!crop_scan_) {
+    keypoints_measured_ = scan_in_;
+  } else {
+    keypoints_measured_ = scan_best_points_;
   }
 }
 

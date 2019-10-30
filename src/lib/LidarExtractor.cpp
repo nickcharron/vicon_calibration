@@ -14,6 +14,11 @@ void LidarExtractor::SetLidarParams(LidarParams &lidar_params) {
 void LidarExtractor::SetTargetParams(TargetParams &target_params) {
   target_params_ = target_params;
   target_params_set_ = true;
+  if(target_params_.crop_scan[0] == 0 && target_params_.crop_scan[1] == 0 && target_params_.crop_scan[2] == 0){
+    crop_scan_ = false;
+  } else {
+    crop_scan_ = true;
+  }
 }
 
 void LidarExtractor::SetShowMeasurements(bool show_measurements) {

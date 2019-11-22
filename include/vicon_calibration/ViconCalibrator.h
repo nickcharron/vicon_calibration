@@ -103,6 +103,8 @@ private:
    */
   void GetCameraMeasurements(uint8_t &cam_iter);
 
+  void GetLoopClosureMeasurements();
+  
   void SetCalibrationInitials();
 
   CalibratorConfig params_;

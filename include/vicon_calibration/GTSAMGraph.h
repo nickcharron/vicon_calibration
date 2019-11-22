@@ -52,10 +52,13 @@ private:
 
   void SetLidarFactors();
 
+  void SetLidarCameraFactors();
+
   void Optimize();
 
   std::vector<vicon_calibration::LidarMeasurement> lidar_measurements_;
   std::vector<vicon_calibration::CameraMeasurement> camera_measurements_;
+  std::vector<vicon_calibration::LoopClosureMeasurement> loop_closure_measurements_;
   std::vector<vicon_calibration::CalibrationResult> calibration_results_;
   std::vector<vicon_calibration::CalibrationResult> calibration_initials_;
   std::vector<vicon_calibration::CameraParams> camera_params_;

@@ -5,6 +5,8 @@ add_library(${PROJECT_NAME}
   CylinderCameraExtractor.cpp
   LidarExtractor.cpp
   CylinderLidarExtractor.cpp
+  #CameraFactor.cpp
+  #LidarFactor.cpp
   GTSAMGraph.cpp
   utils.cpp
 )

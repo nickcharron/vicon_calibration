@@ -69,7 +69,7 @@ Eigen::Affine3d PerturbTransform(const Eigen::Affine3d &T_in,
   return T_out;
 }
 
-Eigen::Vector3d invSkewTransform(const Eigen::Matrix3d &M) {
+Eigen::Vector3d InvSkewTransform(const Eigen::Matrix3d &M) {
   Eigen::Vector3d V;
   V(0) = M(2, 1);
   V(1) = M(0, 2);
@@ -77,7 +77,7 @@ Eigen::Vector3d invSkewTransform(const Eigen::Matrix3d &M) {
   return V;
 }
 
-Eigen::Matrix3d skewTransform(const Eigen::Vector3d &V) {
+Eigen::Matrix3d SkewTransform(const Eigen::Vector3d &V) {
   Eigen::Matrix3d M;
   M(0, 0) = 0;
   M(0, 1) = -V(2, 0);
@@ -92,38 +92,19 @@ Eigen::Matrix3d skewTransform(const Eigen::Vector3d &V) {
 }
 
 Eigen::Vector3d RToLieAlgebra(const Eigen::Matrix3d &R) {
-  return invSkewTransform(R.log());
+  return InvSkewTransform(R.log());
 }
 
 Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d &eps) {
-  return skewTransform(eps).exp();
+  return SkewTransform(eps).exp();
 }
 
-Eigen::Matrix4d RemoveYaw(const Eigen::Matrix4d &T_in) {
-  Eigen::Matrix4d T_out = T_in;
-  Eigen::Matrix3d R_in = T_in.block(0, 0, 3, 3);
-  Eigen::Vector3d rpy = R_in.eulerAngles(0, 1, 2);
-  Eigen::Matrix3d R_out;
-  // R_out = Eigen::AngleAxisd(rpy[2], Eigen::Vector3d::UnitZ()) *
-  //         Eigen::AngleAxisd(rpy[1], Eigen::Vector3d::UnitY()) *
-  //         Eigen::AngleAxisd(rpy[0], Eigen::Vector3d::UnitX());
-  R_out = Eigen::AngleAxisd(rpy[0], Eigen::Vector3d::UnitX()) *
-          Eigen::AngleAxisd(rpy[1], Eigen::Vector3d::UnitY()) *
-          Eigen::AngleAxisd(0, Eigen::Vector3d::UnitZ());
-  T_out.block(0, 0, 3, 3) = R_out;
-  return T_out;
-}
-
-Eigen::Matrix4d RemoveYaw2(const Eigen::Matrix4d &T_in) {
-  Eigen::Matrix4d T_out = T_in;
-  Eigen::Matrix3d R_in = T_in.block(0, 0, 3, 3);
-  Eigen::Vector3d rpy = R_in.eulerAngles(2, 1, 0);
-  Eigen::Matrix3d R_out;
-  R_out = Eigen::AngleAxisd(0, Eigen::Vector3d::UnitZ()) *
-          Eigen::AngleAxisd(rpy[1], Eigen::Vector3d::UnitY()) *
-          Eigen::AngleAxisd(rpy[0], Eigen::Vector3d::UnitX());
-  T_out.block(0, 0, 3, 3) = R_out;
-  return T_out;
+Eigen::Matrix4d InvertTransform(const Eigen::Matrix4d &T){
+  Eigen::Matrix4d T_inv;
+  T_inv.setIdentity();
+  T_inv.block(0,0,3,3) = T.block(0,0,3,3).transpose();
+  T_inv.block(0,3,3,1) = - T.block(0,0,3,3).transpose() * T.block(0,3,3,1);
+  return T_inv;
 }
 
 cv::Mat

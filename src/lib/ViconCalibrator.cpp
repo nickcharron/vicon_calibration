@@ -439,6 +439,10 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
   }
 }
 
+void ViconCalibrator::GetLoopClosureMeasurements(){
+  // TODO: complete this
+}
+
 void ViconCalibrator::RunCalibration(std::string config_file) {
 
   // get configuration settings

@@ -1,5 +1,9 @@
 #include "vicon_calibration/GTSAMGraph.h"
+#include "vicon_calibration/CameraFactor.h"
+#include "vicon_calibration/CameraLidarFactor.h"
+#include "vicon_calibration/LidarFactor.h"
 #include "vicon_calibration/utils.h"
+#include <algorithm>
 #include <fstream>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/inference/Key.h>
@@ -54,11 +58,12 @@ void GTSAMGraph::SolveGraph() {
     SetLidarCorrespondences();
     SetImageFactors();
     SetLidarFactors();
+    SetLidarCameraFactors();
     Optimize();
     initials_updated_ = results_;
   }
   if (iteration >= max_iterations_) {
-    std::cout << "Reached max iterations, stopping.\n";
+    LOG_WARN("Reached max iterations, stopping.");
   }
 }
 
@@ -242,8 +247,7 @@ void GTSAMGraph::SetImageCorrespondences() {
           T_CAM_VICONBASE * measurement.T_VICONBASE_TARGET * point_eig;
       point_projected = camera_models_[measurement.camera_id]->ProjectPoint(
           point_transformed);
-      point_projected_pcl.x = point_projected[0];
-      point_projected_pcl.y = point_projected[1];
+      point_projected_pcl = utils::EigenPixelToPCL(point_projected);
       projected_pixels->push_back(point_projected_pcl);
     }
 
@@ -303,61 +307,93 @@ void GTSAMGraph::SetLidarCorrespondences() {
 }
 
 void GTSAMGraph::SetImageFactors() {
-  gtsam::Key to_key, from_key;
-  to_key = gtsam::Symbol('B', 0);
   pcl::PointXY pixel_pcl;
   pcl::PointXYZ point_pcl;
-  Eigen::Vector4d point_eig(0, 0, 0, 1), point_eig_transformed(0, 0, 0, 1);
+  Eigen::Vector3d point_eig(0, 0, 0);
+  Eigen::Vector2d pixel_eig(0, 0);
   int target_index, camera_index;
+  // TODO: Figure out a smart way to do this. Do we want to tune the COV based
+  // on the number of points per measurement?
+  gtsam::Vector6 noise_vec;
+  noise_vec << 0.2, 0.2, 0.2, 0.1, 0.1, 0.1;
+  gtsam::noiseModel::Diagonal::shared_ptr ImageNoise =
+      gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   for (vicon_calibration::Correspondence corr : camera_correspondences_) {
     target_index = camera_measurements_[corr.measurement_index].target_id;
     camera_index = camera_measurements_[corr.measurement_index].camera_id;
     point_pcl = target_params_[target_index].template_cloud->at(
         corr.target_point_index);
-    from_key = gtsam::Symbol('C', camera_index);
+    point_eig = utils::PCLPointToEigen(point_pcl);
     pixel_pcl = camera_measurements_[corr.measurement_index].keypoints->at(
         corr.measured_point_index);
-    gtsam::Point2 pixel(pixel_pcl.x, pixel_pcl.y);
-    point_eig[0] = point_pcl.x;
-    point_eig[1] = point_pcl.y;
-    point_eig[2] = point_pcl.z;
-    point_eig_transformed =
-        camera_measurements_[corr.measurement_index].T_VICONBASE_TARGET *
-        point_eig;
-    gtsam::Point3(point_eig_transformed[0], point_eig_transformed[1], point_eig_transformed[2]);
-    // TODO: write this factor
-    // graph_.emplace_shared<ImageFactor>(to_key, from_key, pixel, point,
-    //                                    camera_models_[camera_index],
-    //                                    ImageNoise);
+    pixel_eig = utils::PCLPixelToEigen(pixel_pcl);
+
+    gtsam::Key key = gtsam::Symbol('C', camera_index);
+    Eigen::Matrix4d T_VICONBASE_TARGET =
+        camera_measurements_[corr.measurement_index].T_VICONBASE_TARGET;
+    graph_.emplace_shared<CameraFactor>(key, pixel_eig, point_eig,
+                                        camera_models_[camera_index],
+                                        T_VICONBASE_TARGET, ImageNoise);
   }
 }
 
 void GTSAMGraph::SetLidarFactors() {
-  gtsam::Key to_key, from_key;
-  to_key = gtsam::Symbol('B', 0);
   pcl::PointXYZ point_measured_pcl, point_predicted_pcl;
   Eigen::Vector4d point_eig(0, 0, 0, 1), point_eig_transformed(0, 0, 0, 1);
+  Eigen::Vector3d point_predicted, point_measured;
   int target_index, lidar_index;
+  // TODO: Figure out a smart way to do this. Do we want to tune the COV based
+  // on the number of points per measurement? ALso, shouldn't this be 2x2?
+  gtsam::Vector6 noise_vec;
+  noise_vec << 0.2, 0.2, 0.2, 0.1, 0.1, 0.1;
+  gtsam::noiseModel::Diagonal::shared_ptr LidarNoise =
+      gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   for (vicon_calibration::Correspondence corr : lidar_correspondences_) {
-    target_index = lidar_measurements_[corr.measurement_index].target_id;
-    lidar_index = lidar_measurements_[corr.measurement_index].lidar_id;
+    LidarMeasurement measurement = lidar_measurements_[corr.measurement_index];
+    target_index = measurement.target_id;
+    lidar_index = measurement.lidar_id;
     point_predicted_pcl = target_params_[target_index].template_cloud->at(
         corr.target_point_index);
-    from_key = gtsam::Symbol('L', lidar_index);
-    point_measured_pcl = lidar_measurements_[corr.measurement_index].keypoints->at(
-        corr.measured_point_index);
-    gtsam::Point3 point_measured(point_measured_pcl.x, point_measured_pcl.y, point_measured_pcl.z);
-    point_eig[0] = point_predicted_pcl.x;
-    point_eig[1] = point_predicted_pcl.y;
-    point_eig[2] = point_predicted_pcl.z;
-    point_eig_transformed =
-        lidar_measurements_[corr.measurement_index].T_VICONBASE_TARGET *
-        point_eig;
-    gtsam::Point3 point_predicted(point_eig_transformed[0], point_eig_transformed[1], point_eig_transformed[2]);
-    // TODO: write this factor
-    // graph_.emplace_shared<LidarFactor>(to_key, from_key, point_measured,
-    //                                    point_predicted,
-    //                                    LidarNoise);
+    gtsam::Key key = gtsam::Symbol('L', lidar_index);
+    point_measured_pcl = measurement.keypoints->at(corr.measured_point_index);
+    point_measured = utils::PCLPointToEigen(point_measured_pcl);
+    point_eig = utils::PointToHomoPoint(utils::PCLPointToEigen(point_predicted_pcl));
+    point_eig_transformed = measurement.T_VICONBASE_TARGET * point_eig;
+    point_predicted = utils::HomoPointToPoint(point_eig_transformed);
+    graph_.emplace_shared<LidarFactor>(key, point_measured, point_predicted,
+                                       measurement.T_VICONBASE_TARGET,
+                                       LidarNoise);
+  }
+}
+
+void GTSAMGraph::SetLidarCameraFactors() {
+  gtsam::Vector6 noise_vec;
+  noise_vec << 0.2, 0.2, 0.2, 0.1, 0.1, 0.1;
+  gtsam::noiseModel::Diagonal::shared_ptr noiseModel =
+      gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
+  gtsam::Key to_key, from_key;
+  Eigen::Vector2d pixel_detected;
+  Eigen::Vector3d point_detected, P_T_li, P_T_ci;
+  for (uint32_t i = 0; i < loop_closure_measurements_.size(); i++) {
+    vicon_calibration::LoopClosureMeasurement measurement =
+        loop_closure_measurements_[i];
+    uint16_t num_factors =
+        std::max<uint16_t>(measurement.keypoints_camera->size(),
+                           measurement.keypoints_lidar->size());
+    for (uint16_t j = 0; j < num_factors; j++) {
+      to_key = gtsam::Symbol('L', measurement.lidar_id);
+      from_key = gtsam::Symbol('C', measurement.camera_id);
+      pixel_detected =
+          utils::PCLPixelToEigen(measurement.keypoints_camera->at(j));
+      point_detected =
+          utils::PCLPointToEigen(measurement.keypoints_lidar->at(j));
+
+      // TODO: Need to calculate the correspondences (pixel_detected -> P_T_ci,
+      // point_detected -> P_T_li). Use same approach as other correspondences?
+      graph_.emplace_shared<CameraLidarFactor>(
+          to_key, from_key, pixel_detected, point_detected, P_T_ci, P_T_li,
+          camera_models_[measurement.camera_id], noiseModel);
+    }
   }
 }
 

@@ -59,6 +59,18 @@ struct CameraMeasurement {
   std::string target_frame;
 };
 
+struct LoopClosureMeasurement {
+  pcl::PointCloud<pcl::PointXY>::Ptr keypoints_camera;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_lidar;
+  Eigen::Matrix4d T_VICONBASE_TARGET;
+  int camera_id;
+  int lidar_id;
+  int target_id;
+  std::string camera_frame;
+  std::string lidar_frame;
+  std::string target_frame;
+};
+
 struct Correspondence {
   int target_point_index;
   int measured_point_index;

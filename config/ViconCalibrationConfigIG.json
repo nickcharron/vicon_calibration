@@ -4,32 +4,16 @@
   "lookup_tf_calibrations": true,
   "initial_guess_perturb": [0, 0, 0, 0, 0, 0],
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
-  "image_processing_params": [
-    {"dist_criteria": 100,
-     "rot_criteria": 0.5,
-     "show_measurements": true,
-     "crop_threshold_u": 500,
-     "crop_threshold_v": 400}
-  ],
-  "registration_params": [
-    {"crop_threshold_x": 0.2,
-     "crop_threshold_y": 0.2,
-     "crop_threshold_z": 0.3,
-     "max_correspondance_distance": 1,
-     "max_iterations": 100,
-     "transform_epsilon": 1e-8,
-     "euclidean_epsilon": 1e-2,
-     "dist_acceptance_criteria": 0.05,
-     "rot_acceptance_criteria": 0.5,
-     "show_transform": true}
-  ],
-  "target_params": [
-    {"radius": 0.0635,
-     "height": 0.5,
-     "color_threshold_min": [0, 95, 0],
-     "color_threshold_max": [20, 255, 20],
-     "template_cloud": "cylinder_target.pcd",
-     "vicon_target_frames": ["vicon/cylinder_target1/cylinder_target1", "vicon/cylinder_target2/cylinder_target2"]}
+  "show_measurements": true,
+  "targets":[
+    {"frame_id": "vicon/cylinder_target1/cylinder_target1",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    },
+    {"frame_id": "vicon/cylinder_target2/cylinder_target2",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    }
   ],
   "camera_params": [
     {"topic": "/F1/image_raw",
@@ -44,5 +28,11 @@
       "time_steps": 10}
   ],
   "lidar_params":[
+    {"topic": "/hvlp/velodyne_points",
+     "frame": "hvlp_link",
+     "time_steps": 10},
+    {"topic": "/vvlp/velodyne_points",
+     "frame": "vvlp_link",
+     "time_steps": 10}
   ]
 }

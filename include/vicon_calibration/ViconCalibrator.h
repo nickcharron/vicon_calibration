@@ -1,14 +1,14 @@
 #pragma once
 
-#include "vicon_calibration/params.h"
 #include "beam_calibration/TfTree.h"
-#include "vicon_calibration/LidarCylExtractor.h"
-#include "vicon_calibration/CamCylExtractor.h"
+#include "vicon_calibration/CylinderCameraExtractor.h"
+#include "vicon_calibration/CylinderLidarExtractor.h"
 #include "vicon_calibration/GTSAMGraph.h"
-#include <rosbag/bag.h>
-#include <ros/time.h>
+#include "vicon_calibration/params.h"
 #include <Eigen/Geometry>
 #include <opencv2/opencv.hpp>
+#include <ros/time.h>
+#include <rosbag/bag.h>
 
 namespace vicon_calibration {
 
@@ -22,10 +22,9 @@ class ViconCalibrator {
     std::string initial_calibration_file;
     bool lookup_tf_calibrations;
     std::string vicon_baselink_frame;
+    bool show_measurements;
     std::vector<double> initial_guess_perturbation; // for testing sim
-    vicon_calibration::ImageProcessingParams image_processing_params;
-    vicon_calibration::RegistrationParams registration_params;
-    vicon_calibration::CylinderTgtParams target_params;
+    std::vector<vicon_calibration::TargetParams> target_params_list;
     std::vector<vicon_calibration::CameraParams> camera_params;
     std::vector<vicon_calibration::LidarParams> lidar_params;
   };
@@ -73,9 +72,11 @@ private:
 
   void LoadLookupTree();
 
-  void GetInitialCalibration(std::string &sensor_frame);
+  void GetInitialCalibration(std::string &sensor_frame, SensorType type,
+                             uint8_t &sensor_id);
 
-  void GetInitialCalibrationPerturbed(std::string &sensor_frame);
+  void GetInitialCalibrationPerturbed(std::string &sensor_frame,
+                                      SensorType type, uint8_t &sensor_id);
 
   /**
    * @brief get initial guess of where the targets are located at the current
@@ -102,19 +103,24 @@ private:
    */
   void GetCameraMeasurements(uint8_t &cam_iter);
 
+  void GetLoopClosureMeasurements();
+  
   void SetCalibrationInitials();
 
   CalibratorConfig params_;
+  std::shared_ptr<LidarExtractor> lidar_extractor_;
+  std::shared_ptr<CameraExtractor> camera_extractor_;
   ros::Time lookup_time_;
   beam_calibration::TfTree estimate_extrinsics_, lookup_tree_;
-  vicon_calibration::LidarCylExtractor lidar_extractor_;
   std::vector<vicon_calibration::LidarMeasurement> lidar_measurements_;
   std::vector<vicon_calibration::CameraMeasurement> camera_measurements_;
   std::vector<vicon_calibration::CalibrationResult> calibrations_result_,
-      calibrations_initial_, calibrations_perturbed_; // pertubed use for testing with simulation ONLY
+      calibrations_initial_,
+      calibrations_perturbed_; // pertubed use for testing with simulation ONLY
   rosbag::Bag bag_;
   vicon_calibration::GTSAMGraph graph_;
-  Eigen::Affine3d T_SENSOR_VICONBASE_, T_SENSOR_pert_VICONBASE_; // pert for testing simulation ONLY
+  Eigen::Affine3d T_SENSOR_VICONBASE_,
+      T_SENSOR_pert_VICONBASE_; // pert for testing simulation ONLY
 };
 
 } // end namespace vicon_calibration

@@ -22,6 +22,11 @@ find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(Catch2 REQUIRED)
 find_package(GTSAM REQUIRED)
 
+################## tools ##################
+add_executable(${PROJECT_NAME}_generate_checkerboard_keypoints
+  src/tools/generate_checkerboard_keypoints.cpp
+)
+
 ################## tests ##################
 add_executable(${PROJECT_NAME}_lidar_cylinder_extractor_tests
   tests/lidar_cyl_extract_test.cpp

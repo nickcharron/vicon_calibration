@@ -1,11 +1,20 @@
 #pragma once
 
-#include <string>
 #include <Eigen/Geometry>
-#include <ros/time.h>
+#include <gtsam/geometry/Point2.h>
+#include <gtsam/geometry/Point3.h>
 #include <opencv2/opencv.hpp>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <ros/time.h>
+#include <string>
 
 namespace vicon_calibration {
+
+/**
+ * @brief Enum class for different types of sensors
+ */
+enum class SensorType { CAMERA = 0, LIDAR };
 
 struct LidarParams {
   std::string topic;
@@ -21,69 +30,58 @@ struct CameraParams {
   double time_steps;
 };
 
-struct RegistrationParams {
-  double crop_threshold_x{0.1};
-  double crop_threshold_y{0.1};
-  double crop_threshold_z{0.1};
-  double max_correspondance_distance{1}; // correspondences with higher
-                                         // distances will be ignored maximum
-  int max_iterations{10};                // iterations in the optimization
-  double transform_epsilon{1e-8}; // The epsilon (difference) between the
-                                  // previous transformation and the current
-                                  // estimated transformation required for
-                                  // convergence
-  double euclidean_epsilon{1e-4}; // The sum of Euclidean squared errors for
-                                  // convergence requirement
-  bool show_transform{false};            // show the transform used for the
-                                         // measurement calc
-  double dist_acceptance_criteria{0.05}; // maximum distance measurement from
-                                         // initial guess for acceptance
-  double rot_acceptance_criteria{0.5};  // maximum rotation measurement from
-                                        // initial guess for acceptance
-};
-
-struct CylinderTgtParams {
-  double radius;
-  double height;
-  std::vector<uint8_t> color_threshold_min{0,0,0}; // BGR
-  std::vector<uint8_t> color_threshold_max{255,255,255}; // BGR
-  std::string template_cloud;     // full path to template cloud
-  std::vector<std::string> vicon_target_frames;
-};
-
-struct ImageProcessingParams {
-  double dist_criteria{5};
-  double rot_criteria{0.1};
-  bool show_measurements{false};
-  uint16_t crop_threshold_u{200}; // crop theshold in pixels
-  uint16_t crop_threshold_v{100}; // crop theshold in pixels
+struct TargetParams {
+  std::string frame_id;
+  std::string extractor_type;
+  std::string target_config_path;
+  Eigen::Vector3d crop_scan;
+  Eigen::Vector2d crop_image;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr template_cloud;
+  std::vector<Eigen::Vector3d> keypoints_lidar;
+  std::vector<Eigen::Vector3d> keypoints_camera;
 };
 
 struct LidarMeasurement {
-  Eigen::Matrix4d T_LIDAR_TARGET;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints;
   Eigen::Matrix4d T_VICONBASE_TARGET;
   int lidar_id;
   int target_id;
   std::string lidar_frame;
   std::string target_frame;
-  std::string vicon_base_frame;
-  ros::Time stamp;
 };
 
 struct CameraMeasurement {
-  std::shared_ptr<std::vector<cv::Point>> measured_points;
+  pcl::PointCloud<pcl::PointXY>::Ptr keypoints;
   Eigen::Matrix4d T_VICONBASE_TARGET;
   int camera_id;
   int target_id;
   std::string camera_frame;
   std::string target_frame;
-  std::string vicon_base_frame;
-  ros::Time stamp;
+};
+
+struct LoopClosureMeasurement {
+  pcl::PointCloud<pcl::PointXY>::Ptr keypoints_camera;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_lidar;
+  Eigen::Matrix4d T_VICONBASE_TARGET;
+  int camera_id;
+  int lidar_id;
+  int target_id;
+  std::string camera_frame;
+  std::string lidar_frame;
+  std::string target_frame;
+};
+
+struct Correspondence {
+  int target_point_index;
+  int measured_point_index;
+  int measurement_index;
 };
 
 struct CalibrationResult {
   Eigen::Matrix4d transform;
-  std::string to_frame; // this is the sensor frame
+  SensorType type;
+  int sensor_id;
+  std::string to_frame;   // this is the sensor frame
   std::string from_frame; // this is usually the vicon baselink on the robot
 };
 

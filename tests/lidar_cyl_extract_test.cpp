@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
 
-#include "vicon_calibration/LidarCylExtractor.h"
+#include "vicon_calibration/CylinderLidarExtractor.h"
 #include "vicon_calibration/utils.h"
 
 #include <beam_calibration/TfTree.h>
@@ -24,11 +24,13 @@ std::string rotated_template_cloud_path;
 Eigen::Affine3d T_SCAN_TARGET1_EST, T_SCAN_TARGET2_EST, T_SCAN_TARGET1_TRUE,
     T_SCAN_TARGET2_TRUE;
 ros::Time transform_lookup_time;
-vicon_calibration::RegistrationParams registration_params;
-vicon_calibration::CylinderTgtParams target_params;
-vicon_calibration::PointCloud::Ptr
-    temp_cloud(new vicon_calibration::PointCloud);
+vicon_calibration::TargetParams target_params;
+vicon_calibration::LidarParams lidar_params;
+boost::shared_ptr<pcl::visualization::PCLVisualizer> pcl_viewer = boost::make_shared<pcl::visualization::PCLVisualizer>();
 vicon_calibration::PointCloud::Ptr sim_cloud(new vicon_calibration::PointCloud);
+bool close_viewer{false};
+
+using namespace std::literals::chrono_literals;
 
 void FileSetup() {
   test_path.erase(test_path.end() - current_file.size(), test_path.end());
@@ -38,20 +40,12 @@ void FileSetup() {
       test_path + "template_pointclouds/cylinder_target_rotated.pcd";
 }
 
-void LoadTemplateCloud(std::string temp_cloud_path) {
-
-  if (pcl::io::loadPCDFile<pcl::PointXYZ>(temp_cloud_path, *temp_cloud) == -1) {
-    PCL_ERROR("Couldn't read file %s \n", temp_cloud_path);
-  }
-}
-
 void LoadSimulatedCloud() {
 
   rosbag::Bag bag;
   bag.open(bag_path, rosbag::bagmode::Read);
   rosbag::View cloud_bag_view = {bag,
                                  rosbag::TopicQuery("/m3d/aggregator/cloud")};
-
   for (const auto &msg_instance : cloud_bag_view) {
     auto cloud_message = msg_instance.instantiate<sensor_msgs::PointCloud2>();
     if (cloud_message != nullptr) {
@@ -99,213 +93,188 @@ void LoadTransforms() {
   Eigen::Vector3d t_perturb(0.1, 0.1, 0.2);
   T_SCAN_TARGET1_EST = T_SCAN_TARGET1_TRUE;
   T_SCAN_TARGET2_EST = T_SCAN_TARGET2_TRUE;
-  T_SCAN_TARGET1_EST.translation() = T_SCAN_TARGET1_EST.translation() + t_perturb;
-  T_SCAN_TARGET2_EST.translation() = T_SCAN_TARGET2_EST.translation() + t_perturb;
-  // std::cout << "T_SCAN_TARGET1_TRUE:\n" << T_SCAN_TARGET1_TRUE.matrix() << "\n";
-  // std::cout << "T_SCAN_TARGET2_TRUE:\n" << T_SCAN_TARGET2_TRUE.matrix() << "\n";
-  // std::cout << "T_SCAN_TARGET1_EST:\n" << T_SCAN_TARGET1_EST.matrix() << "\n";
-  // std::cout << "T_SCAN_TARGET2_EST:\n" << T_SCAN_TARGET2_EST.matrix() << "\n";
+  T_SCAN_TARGET1_EST.translation() =
+      T_SCAN_TARGET1_EST.translation() + t_perturb;
+  T_SCAN_TARGET2_EST.translation() =
+      T_SCAN_TARGET2_EST.translation() + t_perturb;
 }
 
-void LoadRegistrationParams() {
-  registration_params.max_correspondance_distance = 1;
-  registration_params.max_iterations = 10;
-  registration_params.transform_epsilon = 1e-8;
-  registration_params.euclidean_epsilon = 1e-4;
-  registration_params.show_transform = false;
-  registration_params.dist_acceptance_criteria = 0.2;
-  registration_params.rot_acceptance_criteria = 0.5;
-  registration_params.crop_threshold_x = 0.0;
-  registration_params.crop_threshold_y = 0.3;
-  registration_params.crop_threshold_z = 0.3;
+void LoadTargetParams() {
+  vicon_calibration::PointCloud::Ptr temp_cloud;
+  temp_cloud = boost::make_shared<vicon_calibration::PointCloud>();
+  if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path, *temp_cloud) ==
+      -1) {
+    PCL_ERROR("Couldn't read file %s \n", template_cloud_path.c_str());
+  }
+  target_params.template_cloud = temp_cloud;
+  Eigen::Vector3d crop_scan(0.3, 0.3, 0.3);
+  target_params.crop_scan = crop_scan;
 }
 
-void LoadTargetParams(){
-  target_params.radius = 0.0635;
-  target_params.height = 0.5;
-  target_params.template_cloud = template_cloud_path;
+void LoadLidarParams() {
+  lidar_params.topic = "null_topic";
+  lidar_params.frame = "lidar";
+  lidar_params.time_steps = 10;
 }
 
-void LoadTargetParamsRotated(){
-  target_params.radius = 0.0635;
-  target_params.height = 0.5;
-  target_params.template_cloud = rotated_template_cloud_path;
+void LoadTargetParamsRotated() {
+  vicon_calibration::PointCloud::Ptr temp_cloud;
+  temp_cloud = boost::make_shared<vicon_calibration::PointCloud>();
+  if (pcl::io::loadPCDFile<pcl::PointXYZ>(rotated_template_cloud_path,
+                                          *temp_cloud) == -1) {
+    PCL_ERROR("Couldn't read file %s \n", rotated_template_cloud_path.c_str());
+  }
+  target_params.template_cloud = temp_cloud;
+  Eigen::Vector3d crop_scan(0, 0.3, 0.3);
+  target_params.crop_scan = crop_scan;
 }
 
-TEST_CASE("Test cylinder extractor with empty template cloud (nullptr)") {
+void ConfirmMeasurementKeyboardCallback(
+    const pcl::visualization::KeyboardEvent &event, void *viewer_void) {
+  if (event.getKeySym() == "c" && event.keyDown()) {
+    close_viewer = true;
+  }
+}
+
+void AddPointCloudToViewer(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
+                           std::string cloud_name, Eigen::Affine3d &T) {
+  pcl_viewer->addPointCloud<pcl::PointXYZ>(cloud, cloud_name);
+  pcl_viewer->addCoordinateSystem(1, T.cast<float>(), cloud_name + "frame");
+  pcl::PointXYZ point;
+  point.x = T.translation()(0);
+  point.y = T.translation()(1);
+  point.z = T.translation()(2);
+  pcl_viewer->addText3D(cloud_name + " ", point, 0.05, 0.05, 0.05);
+  pcl_viewer->setPointCloudRenderingProperties(
+      pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, cloud_name);
+}
+
+TEST_CASE("Test cylinder extractor with empty template cloud && empty scan") {
   FileSetup();
   LoadTransforms();
-  LoadTemplateCloud(template_cloud_path);
   LoadSimulatedCloud();
-  LoadRegistrationParams();
   LoadTargetParams();
-  vicon_calibration::LidarCylExtractor cyl_extractor;
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(T_SCAN_TARGET1_EST));
-}
-
-TEST_CASE("Test extracting cylinder from empty scan (nullptr)") {
-  // FileSetup();
-  // LoadTransforms();
-  // LoadTemplateCloud(template_cloud_path);
-  // LoadSimulatedCloud();
-  LoadRegistrationParams();
-  LoadTargetParams();
-  vicon_calibration::LidarCylExtractor cyl_extractor;
-  cyl_extractor.SetRegistrationParams(registration_params);
-  cyl_extractor.SetTargetParams(target_params);
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(T_SCAN_TARGET1_EST));
+  LoadLidarParams();
+  vicon_calibration::TargetParams invalid_target_params;
+  invalid_target_params = target_params;
+  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> null_cloud;
+  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> empty_cloud;
+  empty_cloud = boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  invalid_target_params.template_cloud = null_cloud;
+  std::shared_ptr<vicon_calibration::LidarExtractor> cyl_extractor;
+  cyl_extractor = std::make_shared<vicon_calibration::CylinderLidarExtractor>();
+  cyl_extractor->SetShowMeasurements(false);
+  cyl_extractor->SetLidarParams(lidar_params);
+  cyl_extractor->SetTargetParams(invalid_target_params);
+  REQUIRE_THROWS(
+      cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_EST.matrix(), sim_cloud));
+  invalid_target_params.template_cloud = empty_cloud;
+  cyl_extractor->SetTargetParams(invalid_target_params);
+  REQUIRE_THROWS(
+      cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_EST.matrix(), sim_cloud));
+  cyl_extractor->SetTargetParams(target_params);
+  REQUIRE_THROWS(
+      cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_EST.matrix(), null_cloud));
+  REQUIRE_THROWS(cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_EST.matrix(),
+                                                 empty_cloud));
 }
 
 TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
-  // FileSetup(); // only run this command once
-  // LoadTransforms();
-  // LoadTemplateCloud(template_cloud_path);
-  // LoadSimulatedCloud();
-  LoadRegistrationParams();
-  LoadTargetParams();
-  Eigen::Affine3d T_INVALID;
-  vicon_calibration::LidarCylExtractor cyl_extractor;
-  cyl_extractor.SetRegistrationParams(registration_params);
-  cyl_extractor.SetTargetParams(target_params);
-  cyl_extractor.SetScan(sim_cloud);
-  REQUIRE_THROWS(cyl_extractor.ExtractCylinder(T_INVALID));
+  Eigen::Affine3d TA_INVALID1;
+  Eigen::Matrix4d T_INVALID2, T_INVALID3;
+  T_INVALID3.setIdentity();
+  T_INVALID3(3, 0) = 1;
+  std::shared_ptr<vicon_calibration::LidarExtractor> cyl_extractor;
+  cyl_extractor = std::make_shared<vicon_calibration::CylinderLidarExtractor>();
+  cyl_extractor->SetShowMeasurements(false);
+  cyl_extractor->SetLidarParams(lidar_params);
+  cyl_extractor->SetTargetParams(target_params);
+  REQUIRE_THROWS(
+      cyl_extractor->ExtractKeypoints(TA_INVALID1.matrix(), sim_cloud));
+  REQUIRE_THROWS(cyl_extractor->ExtractKeypoints(T_INVALID2, sim_cloud));
+  REQUIRE_THROWS(cyl_extractor->ExtractKeypoints(T_INVALID3, sim_cloud));
 }
 
-TEST_CASE("Test extracting cylinder target with diverged ICP registration") {
+TEST_CASE("Test extracting cylinder target with and without diverged ICP registration") {
   // FileSetup();
   // LoadTransforms();
-  // LoadTemplateCloud(template_cloud_path);
   // LoadSimulatedCloud();
-  LoadRegistrationParams();
-  LoadTargetParams();
-  registration_params.crop_threshold_x = -0.05;
-  registration_params.crop_threshold_y = -0.05;
-  registration_params.crop_threshold_z = -0.05;
-  vicon_calibration::LidarCylExtractor cyl_extractor;
-  cyl_extractor.SetRegistrationParams(registration_params);
-  cyl_extractor.SetTargetParams(target_params);
-  cyl_extractor.SetScan(sim_cloud);
-  cyl_extractor.ExtractCylinder(T_SCAN_TARGET1_TRUE);
-  auto measurement_info = cyl_extractor.GetMeasurementInfo();
-  REQUIRE(measurement_info.second == false);
+  // LoadTargetParams();
+  // LoadLidarParams();
+  vicon_calibration::TargetParams div_target_params;
+  div_target_params = target_params;
+  Eigen::Vector3d div_crop1(-0.05, -0.05, -0.05);
+  Eigen::Vector3d div_crop2(1, 1, 1);
+  Eigen::Vector3d good_crop(0.3, 0.3, 0.3);
+  div_target_params.crop_scan = div_crop1;
+  std::shared_ptr<vicon_calibration::LidarExtractor> cyl_extractor;
+  cyl_extractor = std::make_shared<vicon_calibration::CylinderLidarExtractor>();
+  cyl_extractor->SetShowMeasurements(false);
+  cyl_extractor->SetLidarParams(lidar_params);
+  cyl_extractor->SetTargetParams(div_target_params);
+  REQUIRE_THROWS(cyl_extractor->GetMeasurementValid());
+  cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
+  REQUIRE(cyl_extractor->GetMeasurementValid() == false);
+  div_target_params.crop_scan = div_crop2;
+  cyl_extractor->SetTargetParams(div_target_params);
+  cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
+  REQUIRE(cyl_extractor->GetMeasurementValid() == false);
+  div_target_params.crop_scan = good_crop;
+  cyl_extractor->SetTargetParams(div_target_params);
+  cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
+  REQUIRE(cyl_extractor->GetMeasurementValid() == true);
 }
 
-TEST_CASE("Test extracting cylinder with invalid parameters") {
+/* need to view these results, can't automate the test
+TEST_CASE("Test best correspondence estimation") {
   // FileSetup();
   // LoadTransforms();
-  // LoadTemplateCloud(template_cloud_path);
   // LoadSimulatedCloud();
-  LoadRegistrationParams();
-  LoadTargetParams();
-  target_params.radius = 0;
-  vicon_calibration::LidarCylExtractor cyl_extractor;
-  cyl_extractor.SetRegistrationParams(registration_params);
-  REQUIRE_THROWS(cyl_extractor.SetTargetParams(target_params));
-  target_params.radius = 0.0635;
-  target_params.height = 0;
-  REQUIRE_THROWS(cyl_extractor.SetTargetParams(target_params));
+  // LoadTargetParams();
+  // LoadLidarParams();
+  Eigen::Affine3d T_identity;
+  T_identity.setIdentity();
+  std::shared_ptr<vicon_calibration::LidarExtractor> cyl_extractor;
+  cyl_extractor = std::make_shared<vicon_calibration::CylinderLidarExtractor>();
+  vicon_calibration::TargetParams target_params2;
+  target_params2 = target_params;
+  Eigen::Vector3d div_crop(0.5, 0.2, 0.2);
+  target_params2.crop_scan = div_crop;
+  cyl_extractor->SetShowMeasurements(true);
+  cyl_extractor->SetLidarParams(lidar_params);
+  cyl_extractor->SetTargetParams(target_params2);
+  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> keypoints1, keypoints2;
+
+  // view keypoints 1
+  cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
+  keypoints1 = cyl_extractor->GetMeasurement();
+  //pcl_viewer = boost::make_shared<pcl::visualization::PCLVisualizer>();
+  AddPointCloudToViewer(keypoints1, "keypoints1", T_identity);
+  while (!pcl_viewer->wasStopped() && !close_viewer) {
+    pcl_viewer->spinOnce(10);
+    pcl_viewer->registerKeyboardCallback(&ConfirmMeasurementKeyboardCallback);
+    std::this_thread::sleep_for(10ms);
+  }
+  pcl_viewer->removeAllPointClouds();
+  pcl_viewer->close();
+  pcl_viewer->resetStoppedFlag();
+
+  // view keypoints 2
+  // can't run these both at the same time
+  // Eigen::Vector3d div_crop2(0.7, 0.5, 0.5);
+  // target_params2.crop_scan = div_crop2;
+  // cyl_extractor->SetTargetParams(target_params2);
+  // cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_EST.matrix(), sim_cloud);
+  // keypoints2 = cyl_extractor->GetMeasurement();
+  // pcl_viewer = boost::make_shared<pcl::visualization::PCLVisualizer>();
+  // AddPointCloudToViewer(keypoints2, "keypoints2", T_identity);
+  // while (!pcl_viewer->wasStopped() && !close_viewer) {
+  //   pcl_viewer->spinOnce(10);
+  // pcl_viewer->registerKeyboardCallback(&ConfirmMeasurementKeyboardCallback);
+  //   std::this_thread::sleep_for(10ms);
+  // }
+  // pcl_viewer->removeAllPointClouds();
+  // pcl_viewer->close();
+  // pcl_viewer->resetStoppedFlag();
 }
-
-TEST_CASE("Test getting measurement information before extracting cylinder") {
-  // FileSetup();
-  // LoadTransforms();
-  // LoadTemplateCloud(template_cloud_path);
-  // LoadSimulatedCloud();
-  LoadRegistrationParams();
-  LoadTargetParams();
-  vicon_calibration::LidarCylExtractor cyl_extractor;
-  cyl_extractor.SetRegistrationParams(registration_params);
-  cyl_extractor.SetTargetParams(target_params);
-  cyl_extractor.SetScan(sim_cloud);
-  REQUIRE_THROWS(cyl_extractor.GetMeasurementInfo());
-}
-
-TEST_CASE("Test cylinder extractor") {
-  // FileSetup();
-  // LoadTransforms();
-  // LoadTemplateCloud(template_cloud_path);
-  // LoadSimulatedCloud();
-  LoadRegistrationParams();
-  LoadTargetParams();
-  vicon_calibration::LidarCylExtractor cyl_extractor;
-  // registration_params.show_transform = true;
-  cyl_extractor.SetRegistrationParams(registration_params);
-  cyl_extractor.SetTargetParams(target_params);
-  cyl_extractor.SetScan(sim_cloud);
-
-  std::pair<Eigen::Affine3d, bool> measurement_info1, measurement_info2;
-  cyl_extractor.ExtractCylinder(T_SCAN_TARGET1_EST, 1);
-  measurement_info1 = cyl_extractor.GetMeasurementInfo();
-  Eigen::Affine3d measurement1 = measurement_info1.first;
-  bool measurement1_valid = measurement_info1.second;
-
-  cyl_extractor.ExtractCylinder(T_SCAN_TARGET2_EST, 2);
-  measurement_info2 = cyl_extractor.GetMeasurementInfo();
-  Eigen::Affine3d measurement2 = measurement_info2.first;
-  bool measurement2_valid = measurement_info2.second;
-
-  Eigen::Vector2d dist_diff1(
-      measurement1.matrix()(0, 3) - T_SCAN_TARGET1_TRUE.matrix()(0, 3),
-      measurement1.matrix()(1, 3) - T_SCAN_TARGET1_TRUE.matrix()(1, 3));
-  Eigen::Vector2d dist_diff2(
-      measurement2.matrix()(0, 3) - T_SCAN_TARGET2_TRUE.matrix()(0, 3),
-      measurement2.matrix()(1, 3) - T_SCAN_TARGET2_TRUE.matrix()(1, 3));
-  double dist_err1 = std::round(dist_diff1.norm() * 10000) / 10000;
-  double dist_err2 = std::round(dist_diff2.norm() * 1000) / 1000;
-  REQUIRE(dist_err1 <= 0.03); // less than 3 cm
-  REQUIRE(dist_err2 <= 0.03);
-  REQUIRE(measurement1_valid == true);
-  REQUIRE(measurement2_valid == true);
-
-  // ------------------------------
-  // Below is some test to calculate the difference betwwen true rotation and
-  // estimated transform. The issue is the yaw rotation will be off since it's
-  // not constrained
-
-  // Eigen::Vector3d ypr_measured1, ypr_true1;
-  // ypr_measured1 = measurement1.rotation().eulerAngles(2, 1, 0);
-  // ypr_true1 = T_SCAN_TARGET1_TRUE.rotation().eulerAngles(2, 1, 0);
-  //
-  // Eigen::Vector2d rot_diff1(ypr_measured1(0) - ypr_true1(0),
-  //                           ypr_measured1(1) - ypr_true1(1));
-  // std::cout << "ypr_measured1:\n " << ypr_measured1 << "\n"
-  //           << "ypr_true1:\n " << ypr_true1 << "\n";
-
-  // Eigen::Vector3d ypr_measured2, ypr_true2;
-  // ypr_measured2 = measurement2.rotation().eulerAngles(2, 1, 0);
-  // ypr_true2 = T_SCAN_TARGET2_TRUE.rotation().eulerAngles(2, 1, 0);
-  // Eigen::Vector2d rot_diff2(ypr_measured2(1) - ypr_true2(1),
-  //                           ypr_measured2(2) - ypr_true2(2));
-  // double rot_err1 = std::round(rot_diff1.norm() * 10000) / 10000;
-  // double rot_err2 = std::round(rot_diff2.norm() * 1000) / 1000;
-
-  // std::cout << "\ndist_err1: " << dist_err1
-  //           << "\ndist_err2: " << dist_err2
-  //           << "\nrot_err1: " << rot_err1
-  //           << "\nrot_err2: " << rot_err2 << "\n";
-
-  // REQUIRE(rot_err1 <= 0.3); // less than 0.3 rad
-  // REQUIRE(rot_err2 <= 0.3);
-  // -----------------------------
-}
-
-TEST_CASE("Test auto rejection") {
-  // FileSetup();
-  // LoadTransforms();
-  // LoadTemplateCloud(template_cloud_path);
-  // LoadSimulatedCloud();
-  LoadRegistrationParams();
-  LoadTargetParamsRotated();
-  // registration_params.show_transform = true;
-  registration_params.crop_threshold_x = 1;
-  registration_params.crop_threshold_y = 1;
-  registration_params.crop_threshold_z = 1;
-  std::pair<Eigen::Affine3d, bool> measurement_info;
-  vicon_calibration::LidarCylExtractor cyl_extractor;
-  cyl_extractor.SetRegistrationParams(registration_params);
-  cyl_extractor.SetTargetParams(target_params);
-  cyl_extractor.SetScan(sim_cloud);
-  cyl_extractor.ExtractCylinder(T_SCAN_TARGET1_EST, 3);
-  measurement_info = cyl_extractor.GetMeasurementInfo();
-  REQUIRE(measurement_info.second == false);
-}
+*/

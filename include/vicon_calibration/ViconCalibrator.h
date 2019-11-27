@@ -104,7 +104,7 @@ private:
   void GetCameraMeasurements(uint8_t &cam_iter);
 
   void GetLoopClosureMeasurements();
-  
+
   void SetCalibrationInitials();
 
   CalibratorConfig params_;
@@ -119,8 +119,8 @@ private:
       calibrations_perturbed_; // pertubed use for testing with simulation ONLY
   rosbag::Bag bag_;
   vicon_calibration::GTSAMGraph graph_;
-  Eigen::Affine3d T_SENSOR_VICONBASE_,
-      T_SENSOR_pert_VICONBASE_; // pert for testing simulation ONLY
+  Eigen::Affine3d T_VICONBASE_SENSOR_,
+      T_VICONBASE_SENSOR_pert_; // pert for testing simulation ONLY
 };
 
 } // end namespace vicon_calibration

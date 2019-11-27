@@ -215,28 +215,28 @@ void ViconCalibrator::LoadLookupTree() {
 void ViconCalibrator::GetInitialCalibration(std::string &sensor_frame,
                                             SensorType type,
                                             uint8_t &sensor_id) {
-  T_SENSOR_VICONBASE_ = estimate_extrinsics_.GetTransformEigen(
-      sensor_frame, params_.vicon_baselink_frame);
+  T_VICONBASE_SENSOR_ = estimate_extrinsics_.GetTransformEigen(
+      params_.vicon_baselink_frame, sensor_frame);
   vicon_calibration::CalibrationResult calib_initial;
-  calib_initial.transform = T_SENSOR_VICONBASE_.matrix();
+  calib_initial.transform = T_VICONBASE_SENSOR_.matrix();
   calib_initial.type = type;
   calib_initial.sensor_id = sensor_id;
-  calib_initial.to_frame = sensor_frame;
-  calib_initial.from_frame = params_.vicon_baselink_frame;
+  calib_initial.to_frame = params_.vicon_baselink_frame;
+  calib_initial.from_frame = sensor_frame;
   calibrations_initial_.push_back(calib_initial);
 }
 
 void ViconCalibrator::GetInitialCalibrationPerturbed(std::string &sensor_frame,
                                                      SensorType type,
                                                      uint8_t &sensor_id) {
-  T_SENSOR_pert_VICONBASE_ = utils::PerturbTransform(
-      T_SENSOR_VICONBASE_, params_.initial_guess_perturbation);
+  T_VICONBASE_SENSOR_pert_ = utils::PerturbTransform(
+      T_VICONBASE_SENSOR_, params_.initial_guess_perturbation);
   vicon_calibration::CalibrationResult calib_perturbed;
-  calib_perturbed.transform = T_SENSOR_pert_VICONBASE_.matrix();
+  calib_perturbed.transform = T_VICONBASE_SENSOR_pert_.matrix();
   calib_perturbed.type = type;
   calib_perturbed.sensor_id = sensor_id;
-  calib_perturbed.to_frame = sensor_frame;
-  calib_perturbed.from_frame = params_.vicon_baselink_frame;
+  calib_perturbed.to_frame = params_.vicon_baselink_frame;
+  calib_perturbed.from_frame = sensor_frame;
   calibrations_perturbed_.push_back(calib_perturbed);
 }
 
@@ -251,7 +251,7 @@ ViconCalibrator::GetInitialGuess(std::string &sensor_frame) {
         lookup_time_);
     // perturb  for simulation testing ONLY
     Eigen::Affine3d T_SENSOR_pert_TGTn =
-        T_SENSOR_pert_VICONBASE_ * T_VICONBASE_TGTn;
+        T_VICONBASE_SENSOR_pert_.inverse() * T_VICONBASE_TGTn;
     T_sensor_tgts_estimated.push_back(T_SENSOR_pert_TGTn);
   }
   return T_sensor_tgts_estimated;

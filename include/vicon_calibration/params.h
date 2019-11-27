@@ -81,8 +81,8 @@ struct CalibrationResult {
   Eigen::Matrix4d transform;
   SensorType type;
   int sensor_id;
-  std::string to_frame;   // this is the sensor frame
-  std::string from_frame; // this is usually the vicon baselink on the robot
+  std::string to_frame;   // this is usually the vicon baselink on the robot
+  std::string from_frame; // this is the sensor frame
 };
 
 } // end namespace vicon_calibration

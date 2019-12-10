@@ -23,7 +23,7 @@ class ViconCalibrator {
     bool lookup_tf_calibrations;
     std::string vicon_baselink_frame;
     bool show_measurements;
-    std::vector<double> initial_guess_perturbation; // for testing sim
+    Eigen::VectorXd initial_guess_perturbation; // for testing sim
     std::vector<vicon_calibration::TargetParams> target_params_list;
     std::vector<vicon_calibration::CameraParams> camera_params;
     std::vector<vicon_calibration::LidarParams> lidar_params;

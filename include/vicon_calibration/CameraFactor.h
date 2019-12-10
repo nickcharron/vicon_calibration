@@ -14,6 +14,7 @@ class CameraFactor : public gtsam::NoiseModelFactor1<gtsam::Pose3> {
   Eigen::Matrix4d T_VICONBASE_TARGET_;
   Eigen::Vector2d measured_pixel_;
   Eigen::Vector3d corresponding_point_;
+  double Fx_, Fy_, Cx_, Cy_;
 
 public:
   CameraFactor(gtsam::Key i, Eigen::Vector2d measured_pixel,
@@ -24,7 +25,9 @@ public:
       : gtsam::NoiseModelFactor1<gtsam::Pose3>(model, i),
         measured_pixel_(measured_pixel),
         corresponding_point_(corresponding_point), camera_model_(camera_model),
-        T_VICONBASE_TARGET_(T_VICONBASE_TARGET) {}
+        T_VICONBASE_TARGET_(T_VICONBASE_TARGET), Fx_(camera_model->GetFx()),
+        Fy_(camera_model->GetFy()), Cx_(camera_model->GetCx()),
+        Cy_(camera_model->GetCy()) {}
 
   /** destructor */
   ~CameraFactor() {}
@@ -42,18 +45,33 @@ public:
     t_op = T_op.block(0, 3, 3, 1);
     Eigen::Vector3d point_transformed =
         R_op.transpose() * (R_VT * corresponding_point_ + t_VT - t_op);
-    Eigen::Vector2d projected_point =
-        camera_model_->ProjectPoint(point_transformed);
+    Eigen::Vector2d projected_point;
+    projected_point[0] =
+        Cx_ + point_transformed[0] * Fx_ / point_transformed[2];
+    projected_point[1] =
+        Cy_ + point_transformed[1] * Fy_ / point_transformed[2];
+    // Eigen::Vector2d projected_point =
+    //     camera_model_->ProjectUndistortedPoint(point_transformed);
     gtsam::Vector error = measured_pixel_ - projected_point;
 
     if (H) {
-      Eigen::Matrix3d K = camera_model_->GetCameraMatrix();
-      Eigen::MatrixXd H_(3, 6);
-      H_.block(0, 0, 3, 3) = -K * utils::SkewTransform(point_transformed);
-      H_.block(0, 3, 3, 3) = K * R_op.transpose();
-      // TODO: Not sure if this is correct. We usually normalize but in this
-      // case it isn't a 3 x 1 that we can normalize
-      (*H) = H_.block(0, 0, 2, 6);
+      // Assume e(R,t) = measured_pixel - f(g(R,t))
+      // -> de/d(R,t) = - [df/dg * dg/dR , df/dg * dg/dt]
+      Eigen::MatrixXd H_(2, 6), dfdg(2, 3), dgdR(3, 3), dgdt(3, 3);
+      dfdg(0, 0) = Fx_ / point_transformed[2];
+      dfdg(1, 0) = 0;
+      dfdg(0, 1) = 0;
+      dfdg(1, 1) = Fy_ / point_transformed[2];
+      dfdg(0, 2) = -point_transformed[0] * Fx_ /
+                   ((point_transformed[2]) * (point_transformed[2]));
+      dfdg(1, 2) = -point_transformed[1] * Fy_ /
+                   ((point_transformed[2]) * (point_transformed[2]));
+      dgdR = utils::SkewTransform(R_op.transpose() *
+                                  (R_VT * corresponding_point_ + t_VT - t_op));
+      dgdt = -R_op.transpose();
+      H_.block(0, 0, 2, 3) = -dfdg * dgdR;
+      H_.block(0, 3, 2, 3) = -dfdg * dgdt;
+      (*H) = H_;
     }
     return error;
   }

@@ -314,8 +314,8 @@ void GTSAMGraph::SetImageFactors() {
   int target_index, camera_index;
   // TODO: Figure out a smart way to do this. Do we want to tune the COV based
   // on the number of points per measurement?
-  gtsam::Vector6 noise_vec;
-  noise_vec << 0.2, 0.2, 0.2, 0.1, 0.1, 0.1;
+  gtsam::Vector2 noise_vec;
+  noise_vec << 0.2, 0.2;
   gtsam::noiseModel::Diagonal::shared_ptr ImageNoise =
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   for (vicon_calibration::Correspondence corr : camera_correspondences_) {
@@ -344,8 +344,8 @@ void GTSAMGraph::SetLidarFactors() {
   int target_index, lidar_index;
   // TODO: Figure out a smart way to do this. Do we want to tune the COV based
   // on the number of points per measurement? ALso, shouldn't this be 2x2?
-  gtsam::Vector6 noise_vec;
-  noise_vec << 0.2, 0.2, 0.2, 0.1, 0.1, 0.1;
+  gtsam::Vector3 noise_vec;
+  noise_vec << 0.2, 0.2, 0.2;
   gtsam::noiseModel::Diagonal::shared_ptr LidarNoise =
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   for (vicon_calibration::Correspondence corr : lidar_correspondences_) {

@@ -54,18 +54,16 @@ bool IsTransformationMatrix(const Eigen::Matrix4d T) {
   }
 }
 
-Eigen::Affine3d PerturbTransform(const Eigen::Affine3d &T_in,
-                                 const std::vector<double> &perturbations) {
-  Eigen::Vector3d r_perturb(perturbations[3], perturbations[4],
-                            perturbations[5]);
-  Eigen::Vector3d t_perturb(perturbations[0], perturbations[1],
-                            perturbations[2]);
-  Eigen::Matrix3d R_in = T_in.rotation();
+Eigen::Matrix4d PerturbTransform(const Eigen::Matrix4d &T_in,
+                                 const Eigen::VectorXd &perturbations) {
+  Eigen::Vector3d r_perturb = perturbations.block(0,0,3,1);
+  Eigen::Vector3d t_perturb = perturbations.block(3,0,3,1);
+  Eigen::Matrix3d R_in = T_in.block(0,0,3,3);
   Eigen::Vector3d r_in = RToLieAlgebra(R_in);
   Eigen::Matrix3d R_out = LieAlgebraToR(r_in + r_perturb);
-  Eigen::Affine3d T_out;
-  T_out.matrix().block(0, 3, 3, 1) = T_in.translation() + t_perturb;
-  T_out.matrix().block(0, 0, 3, 3) = R_out;
+  Eigen::Matrix4d T_out;
+  T_out.block(0, 3, 3, 1) = T_in.block(0,3,3,1) + t_perturb;
+  T_out.block(0, 0, 3, 3) = R_out;
   return T_out;
 }
 

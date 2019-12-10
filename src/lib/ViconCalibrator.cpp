@@ -21,9 +21,9 @@
 
 // PCL specific headers
 #include <pcl/common/transforms.h>
+#include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <pcl/io/pcd_io.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -59,7 +59,9 @@ void ViconCalibrator::LoadJSON(std::string file_name) {
   for (const auto &value : J["initial_guess_perturb"]) {
     vect.push_back(value);
   }
-  params_.initial_guess_perturbation = vect;
+  Eigen::VectorXd tmp(6,1);
+  tmp << vect[0], vect[1], vect[2], vect[3], vect[4], vect[5];
+  params_.initial_guess_perturbation = tmp;
   params_.vicon_baselink_frame = J["vicon_baselink_frame"];
   params_.show_measurements = J["show_measurements"];
 
@@ -229,8 +231,8 @@ void ViconCalibrator::GetInitialCalibration(std::string &sensor_frame,
 void ViconCalibrator::GetInitialCalibrationPerturbed(std::string &sensor_frame,
                                                      SensorType type,
                                                      uint8_t &sensor_id) {
-  T_VICONBASE_SENSOR_pert_ = utils::PerturbTransform(
-      T_VICONBASE_SENSOR_, params_.initial_guess_perturbation);
+  T_VICONBASE_SENSOR_pert_.matrix() = utils::PerturbTransform(
+      T_VICONBASE_SENSOR_.matrix(), params_.initial_guess_perturbation);
   vicon_calibration::CalibrationResult calib_perturbed;
   calib_perturbed.transform = T_VICONBASE_SENSOR_pert_.matrix();
   calib_perturbed.type = type;
@@ -290,7 +292,8 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
   ros::Time time_last(0, 0);
 
   this->GetInitialCalibration(sensor_frame, SensorType::LIDAR, lidar_iter);
-  this->GetInitialCalibrationPerturbed(sensor_frame, SensorType::LIDAR, lidar_iter);
+  this->GetInitialCalibrationPerturbed(sensor_frame, SensorType::LIDAR,
+                                       lidar_iter);
 
   for (auto iter = view.begin(); iter != view.end(); iter++) {
     boost::shared_ptr<sensor_msgs::PointCloud2> lidar_msg =
@@ -371,7 +374,8 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
   ros::Time time_last(0, 0);
   ros::Time time_zero(0, 0);
   this->GetInitialCalibration(sensor_frame, SensorType::CAMERA, cam_iter);
-  this->GetInitialCalibrationPerturbed(sensor_frame, SensorType::CAMERA, cam_iter);
+  this->GetInitialCalibrationPerturbed(sensor_frame, SensorType::CAMERA,
+                                       cam_iter);
 
   for (auto iter = view.begin(); iter != view.end(); iter++) {
     sensor_msgs::ImageConstPtr img_msg =
@@ -439,7 +443,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
   }
 }
 
-void ViconCalibrator::GetLoopClosureMeasurements(){
+void ViconCalibrator::GetLoopClosureMeasurements() {
   // TODO: complete this
 }
 

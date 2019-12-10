@@ -12,71 +12,88 @@ namespace vicon_calibration {
 class CameraLidarFactor
     : public gtsam::NoiseModelFactor2<gtsam::Pose3, gtsam::Pose3> {
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
-  Eigen::Matrix4d T_VICONBASE_TARGET_;
   Eigen::Vector2d pixel_detected_;
   Eigen::Vector3d point_detected_, P_T_ci_, P_T_li_;
+  double Fx_, Fy_, Cx_, Cy_;
 
 public:
   CameraLidarFactor(
-      gtsam::Key i, gtsam::Key j, Eigen::Vector2d pixel_detected,
+      gtsam::Key lid_key, gtsam::Key cam_key, Eigen::Vector2d pixel_detected,
       Eigen::Vector3d point_detected, Eigen::Vector3d P_T_ci,
       Eigen::Vector3d P_T_li,
       std::shared_ptr<beam_calibration::CameraModel> &camera_model,
       const gtsam::SharedNoiseModel &model)
-      : gtsam::NoiseModelFactor2<gtsam::Pose3, gtsam::Pose3>(model, i, j),
+      : gtsam::NoiseModelFactor2<gtsam::Pose3, gtsam::Pose3>(model, lid_key,
+                                                             cam_key),
         pixel_detected_(pixel_detected), point_detected_(point_detected),
-        P_T_ci_(P_T_ci), P_T_li_(P_T_li), camera_model_(camera_model) {}
+        P_T_ci_(P_T_ci), P_T_li_(P_T_li), camera_model_(camera_model),
+        Fx_(camera_model->GetFx()), Fy_(camera_model->GetFy()),
+        Cx_(camera_model->GetCx()), Cy_(camera_model->GetCy()) {}
 
   /** destructor */
   ~CameraLidarFactor() {}
 
   gtsam::Vector
-  evaluateError(const gtsam::Pose3 &T_B_L, const gtsam::Pose3 &T_B_C,
+  evaluateError(const gtsam::Pose3 &_T_VL, const gtsam::Pose3 &_T_VC,
                 boost::optional<gtsam::Matrix &> HL = boost::none,
                 boost::optional<gtsam::Matrix &> HC = boost::none) const {
-    Eigen::Matrix4d T_B_C_eig = T_B_C.matrix();
-    Eigen::Matrix4d T_B_L_eig = T_B_L.matrix();
-    Eigen::Vector4d tmp_point =
-        utils::InvertTransform(T_B_C_eig) * T_B_L_eig *
-        utils::PointToHomoPoint(point_detected_ + P_T_ci_ + P_T_li_);
-    Eigen::Vector2d projected_point = camera_model_->ProjectPoint(tmp_point);
+    Eigen::Matrix4d T_VC = _T_VC.matrix();
+    Eigen::Matrix4d T_VL = _T_VL.matrix();
+    Eigen::Matrix3d R_VC = T_VC.block(0, 0, 3, 3);
+    Eigen::Vector3d t_VC = T_VC.block(0, 3, 3, 1);
+    Eigen::Matrix3d R_VL = T_VL.block(0, 0, 3, 3);
+    Eigen::Vector3d t_VL = T_VL.block(0, 3, 3, 1);
+    Eigen::Vector3d tmp_point = point_detected_ + P_T_ci_ - P_T_li_;
+    Eigen::Vector3d point_transformed =
+        R_VC.transpose() * (R_VL * tmp_point + t_VL - t_VC);
+    Eigen::Vector2d projected_point;
+    projected_point[0] =
+        Cx_ + point_transformed[0] * Fx_ / point_transformed[2];
+    projected_point[1] =
+        Cy_ + point_transformed[1] * Fy_ / point_transformed[2];
     gtsam::Vector error = pixel_detected_ - projected_point;
 
+    // Assume e(R,t) = measured_pixel - f(g(R,t))
+    // -> de/d(R,t) = [de/df * df/dg * dg/dR , de/df * df/dg * dg/dt]
     if (HL) {
-      Eigen::Matrix3d K = camera_model_->GetCameraMatrix();
-      Eigen::Matrix3d R_B_L = T_B_L_eig.block(0, 0, 3, 3);
-      Eigen::Matrix3d R_C_B = utils::InvertTransform(T_B_C_eig).block(0, 0, 3, 3);
-      Eigen::Vector3d t_C_B = utils::InvertTransform(T_B_C_eig).block(0, 3, 3, 1);
-      Eigen::Matrix3d tmp =
-          R_B_L * utils::SkewTransform(-(point_detected_ + P_T_ci_ + P_T_li_));
-      Eigen::MatrixXd HL_(3, 6);
-      HL_.block(0, 0, 3, 3) = - K * (R_C_B * tmp);
-      HL_.block(0, 3, 3, 3) =
-          -K * (utils::InvertTransform(T_B_C_eig).block(0, 0, 3, 3) +
-                utils::InvertTransform(T_B_C_eig).block(0, 3, 3, 1));
-      // TODO: Not sure if this is correct. We usually normalize but in this
-      // case it isn't a 3 x 1 that we can normalize
-      (*HL) = HL_.block(0, 0, 2, 6);
+      Eigen::MatrixXd H_(2, 6), dfdg(2, 3), dgdR(3, 3), dgdt(3, 3), dedf(2, 2);
+      dfdg(0, 0) = Fx_ / point_transformed[2];
+      dfdg(1, 0) = 0;
+      dfdg(0, 1) = 0;
+      dfdg(1, 1) = Fy_ / point_transformed[2];
+      dfdg(0, 2) = -point_transformed[0] * Fx_ /
+                   ((point_transformed[2]) * (point_transformed[2]));
+      dfdg(1, 2) = -point_transformed[1] * Fy_ /
+                   ((point_transformed[2]) * (point_transformed[2]));
+
+      dgdR = R_VC.transpose() * R_VL * utils::SkewTransform(-1 * tmp_point);
+      dgdt = R_VC.transpose();
+      dedf.setIdentity();
+      dedf = -1 * dedf;
+      H_.block(0, 0, 2, 3) = dedf * dfdg * dgdR;
+      H_.block(0, 3, 2, 3) = dedf * dfdg * dgdt;
+      (*HL) = H_;
     }
     if (HC) {
-      Eigen::Matrix3d K = camera_model_->GetCameraMatrix();
-      Eigen::MatrixXd HC_(3, 6);
-      Eigen::Matrix3d R_B_L = T_B_L_eig.block(0, 0, 3, 3);
-      Eigen::Matrix3d R_B_C = T_B_C_eig.block(0, 0, 3, 3);
-      Eigen::Vector3d t_B_L = T_B_L_eig.block(0, 3, 3, 1);
-      Eigen::Vector3d t_B_C = T_B_C_eig.block(0, 3, 3, 1);
-      Eigen::Vector3d tmp1 =
-          R_B_C.transpose() * R_B_L * (point_detected_ + P_T_ci_ + P_T_li_) +
-          t_B_L;
-      Eigen::Vector3d tmp2 = R_B_C.transpose() * t_B_C;
-      HC_.block(0, 0, 3, 3) =
-          -K * (utils::SkewTransform(tmp1) - utils::SkewTransform(tmp2));
-      HC_.block(0, 3, 3, 3) = -K * R_B_C.transpose();
-      // TODO: Not sure if this is correct. We usually normalize but in this
-      // case it isn't a 3 x 1 that we can normalize
-      (*HC) = HC_.block(0, 0, 2, 6);
-    }
+      Eigen::MatrixXd H_(2, 6), dfdg(2, 3), dgdR(3, 3), dgdt(3, 3), dedf(2, 2);
+      dfdg(0, 0) = Fx_ / point_transformed[2];
+      dfdg(1, 0) = 0;
+      dfdg(0, 1) = 0;
+      dfdg(1, 1) = Fy_ / point_transformed[2];
+      dfdg(0, 2) = -point_transformed[0] * Fx_ /
+                   ((point_transformed[2]) * (point_transformed[2]));
+      dfdg(1, 2) = -point_transformed[1] * Fy_ /
+                   ((point_transformed[2]) * (point_transformed[2]));
 
+      dgdR = utils::SkewTransform(R_VC.transpose() *
+                                  (R_VL * tmp_point + t_VL - t_VC));
+      dgdt = -1 * R_VC.transpose();
+      dedf.setIdentity();
+      dedf = -1 * dedf;
+      H_.block(0, 0, 2, 3) = dedf * dfdg * dgdR;
+      H_.block(0, 3, 2, 3) = dedf * dfdg * dgdt;
+      (*HC) = H_;
+    }
     return error;
   }
 

@@ -40,8 +40,8 @@ bool IsRotationMatrix(const Eigen::Matrix3d R);
 
 bool IsTransformationMatrix(const Eigen::Matrix4d T);
 
-Eigen::Affine3d PerturbTransform(const Eigen::Affine3d &T_in,
-                                 const std::vector<double> &perturbations);
+Eigen::Matrix4d PerturbTransform(const Eigen::Matrix4d &T_in,
+                                 const Eigen::VectorXd &perturbations);
 
 Eigen::Vector3d InvSkewTransform(const Eigen::Matrix3d &M);
 

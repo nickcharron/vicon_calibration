@@ -58,6 +58,22 @@ target_link_libraries(${PROJECT_NAME}_camera_cylinder_extractor_tests
   Catch2::Catch2
 )
 
+add_executable(${PROJECT_NAME}_gtsam_factors_test
+  tests/gtsam_factors_test.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_gtsam_factors_test
+  PUBLIC
+    include
+)
+
+target_link_libraries(${PROJECT_NAME}_gtsam_factors_test
+  ${PROJECT_NAME}
+  Catch2::Catch2
+  beam::calibration
+)
+#############################
+
 # Add the core library
 add_subdirectory(src/lib)
 add_subdirectory(tests)

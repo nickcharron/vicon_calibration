@@ -1,0 +1,32 @@
+{
+  "camera_type": "pinhole",
+  "date": "2019_11_27",
+  "method": "manual",
+  "calibration": [
+    {
+      "image_width": 2048,
+      "image_height": 1536,
+      "frame_id": "camera_link",
+      "distortion_model": "radtan",
+      "intrinsics": [
+        2352.19427,
+        2352.19427,
+        945.77417,
+        765.26225
+      ],
+      "distortion_coefficients": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "undistorted_intrinsics": [
+        2352.19427,
+        2352.19427,
+        1024,
+        768
+      ]
+    }
+  ]
+}

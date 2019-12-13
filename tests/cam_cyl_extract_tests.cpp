@@ -12,8 +12,8 @@ std::string image_path;
 std::string intrinsic_path;
 cv::Mat image;
 std::shared_ptr<vicon_calibration::CameraExtractor> cyl_extractor;
-vicon_calibration::TargetParams target_params;
-vicon_calibration::CameraParams camera_params;
+std::shared_ptr<vicon_calibration::TargetParams> target_params;
+std::shared_ptr<vicon_calibration::CameraParams> camera_params;
 
 Eigen::Matrix4d T_SENSOR_TARGET;
 Eigen::Affine3d TA_SENSOR_TARGET;
@@ -45,13 +45,15 @@ void SetUp() {
       boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path, *template_cloud);
 
-  target_params.extractor_type = "CYLINDER";
-  target_params.target_config_path = target_config_path;
-  target_params.crop_image = crop_image;
-  target_params.template_cloud = template_cloud;
+  target_params = std::make_shared<vicon_calibration::TargetParams>();
+  target_params->extractor_type = "CYLINDER";
+  target_params->target_config_path = target_config_path;
+  target_params->crop_image = crop_image;
+  target_params->template_cloud = template_cloud;
 
-  camera_params.intrinsics = intrinsic_path;
-  camera_params.images_distorted = false;
+  camera_params = std::make_shared<vicon_calibration::CameraParams>();
+  camera_params->intrinsics = intrinsic_path;
+  camera_params->images_distorted = false;
 
   cyl_extractor->SetTargetParams(target_params);
   cyl_extractor->SetShowMeasurements(false);
@@ -76,20 +78,6 @@ TEST_CASE("Test extracting from a black image") {
   REQUIRE(cyl_extractor->GetMeasurementValid() == false);
 }
 
-TEST_CASE("Test extracting cylinder with invalid cropping") {
-  // SetUp();
-  Eigen::Vector2d crop_image_invalid(-100, -100);
-  target_params.crop_image = crop_image_invalid;
-  cyl_extractor->SetTargetParams(target_params);
-  // cyl_extractor->SetShowMeasurements(true);
-  cyl_extractor->ExtractKeypoints(TA_SENSOR_TARGET.matrix(), image);
-  bool measurement_valid = cyl_extractor->GetMeasurementValid();
-  Eigen::Vector2d crop_image_valid(600, 400);
-  target_params.crop_image = crop_image_valid;
-  cyl_extractor->SetTargetParams(target_params);
-  REQUIRE(measurement_valid == false);
-}
-
 TEST_CASE("Test extracting cylinder") {
   //SetUp();
   // cyl_extractor->SetShowMeasurements(true);
@@ -98,4 +86,18 @@ TEST_CASE("Test extracting cylinder") {
   auto errors = cyl_extractor->GetErrors();
   REQUIRE(errors.first <= 300);
   REQUIRE(errors.second <= 0.05);
+}
+
+TEST_CASE("Test extracting cylinder with invalid cropping") {
+  // SetUp();
+  Eigen::Vector2d crop_image_invalid(-100, -100);
+  target_params->crop_image = crop_image_invalid;
+  cyl_extractor->SetTargetParams(target_params);
+  // cyl_extractor->SetShowMeasurements(true);
+  cyl_extractor->ExtractKeypoints(TA_SENSOR_TARGET.matrix(), image);
+  bool measurement_valid = cyl_extractor->GetMeasurementValid();
+  Eigen::Vector2d crop_image_valid(600, 400);
+  target_params->crop_image = crop_image_valid;
+  cyl_extractor->SetTargetParams(target_params);
+  REQUIRE(measurement_valid == false);
 }

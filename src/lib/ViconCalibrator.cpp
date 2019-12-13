@@ -48,6 +48,7 @@ std::string ViconCalibrator::GetJSONFileNameConfig(std::string file_name) {
 
 // TODO: add try and catch blocks
 void ViconCalibrator::LoadJSON(std::string file_name) {
+  LOG_INFO("Loading ViconCalibrator Config File: %s", file_name.c_str());
   nlohmann::json J;
   std::ifstream file(file_name);
   file >> J;
@@ -59,19 +60,20 @@ void ViconCalibrator::LoadJSON(std::string file_name) {
   for (const auto &value : J["initial_guess_perturb"]) {
     vect.push_back(value);
   }
-  Eigen::VectorXd tmp(6,1);
+  Eigen::VectorXd tmp(6, 1);
   tmp << vect[0], vect[1], vect[2], vect[3], vect[4], vect[5];
   params_.initial_guess_perturbation = tmp;
   params_.vicon_baselink_frame = J["vicon_baselink_frame"];
   params_.show_measurements = J["show_measurements"];
 
   for (const auto &target : J["targets"]) {
-    vicon_calibration::TargetParams target_info;
-    target_info.frame_id = target.at("frame_id");
-    target_info.extractor_type = target.at("extractor_type");
+    std::shared_ptr<vicon_calibration::TargetParams> target_info =
+        std::make_shared<vicon_calibration::TargetParams>();
+    target_info->frame_id = target.at("frame_id");
+    target_info->extractor_type = target.at("extractor_type");
     std::string target_config_path =
         GetJSONFileNameConfig(target.at("target_config"));
-    target_info.target_config_path = target_config_path;
+    target_info->target_config_path = target_config_path;
     nlohmann::json J_target;
     std::ifstream file(target_config_path);
     file >> J_target;
@@ -81,15 +83,15 @@ void ViconCalibrator::LoadJSON(std::string file_name) {
     }
     Eigen::Vector3d crop_scan;
     crop_scan << vect1[0], vect1[1], vect1[2];
-    target_info.crop_scan = crop_scan;
+    target_info->crop_scan = crop_scan;
     for (const auto &value : J_target["crop_image"]) {
       vect2.push_back(value);
     }
     Eigen::Vector2d crop_image;
     crop_image << vect2[0], vect2[1];
-    target_info.crop_image = crop_image;
+    target_info->crop_image = crop_image;
     std::string template_cloud_path =
-        GetJSONFileNameConfig(target.at("template_cloud_path"));
+        GetJSONFileNameData(J_target.at("template_cloud"));
     pcl::PointCloud<pcl::PointXYZ>::Ptr template_cloud =
         boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
     if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path,
@@ -97,43 +99,46 @@ void ViconCalibrator::LoadJSON(std::string file_name) {
       LOG_ERROR("Couldn't read template file: %s\n",
                 template_cloud_path.c_str());
     }
-    target_info.template_cloud = template_cloud;
+    target_info->template_cloud = template_cloud;
     for (const auto &keypoint : J_target["keypoints_lidar"]) {
       Eigen::Vector3d point;
       point << keypoint.at("x"), keypoint.at("y"), keypoint.at("z");
-      target_info.keypoints_lidar.push_back(point);
+      target_info->keypoints_lidar.push_back(point);
     }
     for (const auto &keypoint : J_target["keypoints_camera"]) {
       Eigen::Vector3d point;
       point << keypoint.at("x"), keypoint.at("y"), keypoint.at("z");
-      target_info.keypoints_camera.push_back(point);
+      target_info->keypoints_camera.push_back(point);
     }
     params_.target_params_list.push_back(target_info);
   }
 
   for (const auto &camera : J["camera_params"]) {
-    vicon_calibration::CameraParams cam_params;
-    cam_params.topic = camera.at("topic");
-    cam_params.frame = camera.at("frame");
+    std::shared_ptr<vicon_calibration::CameraParams> cam_params =
+        std::make_shared<vicon_calibration::CameraParams>();
+    cam_params->topic = camera.at("topic");
+    cam_params->frame = camera.at("frame");
     std::string intrinsics_filename = camera.at("intrinsics");
-    cam_params.intrinsics = GetJSONFileNameData(intrinsics_filename);
-    cam_params.time_steps = camera.at("time_steps");
-    cam_params.images_distorted = camera.at("images_distorted");
+    cam_params->intrinsics = GetJSONFileNameData(intrinsics_filename);
+    cam_params->time_steps = camera.at("time_steps");
+    cam_params->images_distorted = camera.at("images_distorted");
     params_.camera_params.push_back(cam_params);
   }
 
   for (const auto &lidar : J["lidar_params"]) {
-    vicon_calibration::LidarParams lid_params;
-    lid_params.topic = lidar.at("topic");
-    lid_params.frame = lidar.at("frame");
-    lid_params.time_steps = lidar.at("time_steps");
+    std::shared_ptr<vicon_calibration::LidarParams> lid_params =
+        std::make_shared<vicon_calibration::LidarParams>();
+    lid_params->topic = lidar.at("topic");
+    lid_params->frame = lidar.at("frame");
+    lid_params->time_steps = lidar.at("time_steps");
     params_.lidar_params.push_back(lid_params);
   }
 }
 
 void ViconCalibrator::LoadEstimatedExtrinsics() {
-
+  LOG_INFO("Loading estimated extrinsics");
   if (!params_.lookup_tf_calibrations) {
+    // Look up transforms from json file
     std::string initial_calibration_file_dir;
     try {
       initial_calibration_file_dir =
@@ -151,7 +156,11 @@ void ViconCalibrator::LoadEstimatedExtrinsics() {
       auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
       if (tf_message != nullptr) {
         for (geometry_msgs::TransformStamped tf : tf_message->transforms) {
-          estimate_extrinsics_.AddTransform(tf, true);
+          try {
+            estimate_extrinsics_.AddTransform(tf, true);
+          } catch (...) {
+            // Nothing
+          }
         }
       }
     }
@@ -218,9 +227,9 @@ void ViconCalibrator::GetInitialCalibration(std::string &sensor_frame,
                                             SensorType type,
                                             uint8_t &sensor_id) {
   T_VICONBASE_SENSOR_ = estimate_extrinsics_.GetTransformEigen(
-      params_.vicon_baselink_frame, sensor_frame);
+      params_.vicon_baselink_frame, sensor_frame).matrix();
   vicon_calibration::CalibrationResult calib_initial;
-  calib_initial.transform = T_VICONBASE_SENSOR_.matrix();
+  calib_initial.transform = T_VICONBASE_SENSOR_;
   calib_initial.type = type;
   calib_initial.sensor_id = sensor_id;
   calib_initial.to_frame = params_.vicon_baselink_frame;
@@ -231,10 +240,10 @@ void ViconCalibrator::GetInitialCalibration(std::string &sensor_frame,
 void ViconCalibrator::GetInitialCalibrationPerturbed(std::string &sensor_frame,
                                                      SensorType type,
                                                      uint8_t &sensor_id) {
-  T_VICONBASE_SENSOR_pert_.matrix() = utils::PerturbTransform(
-      T_VICONBASE_SENSOR_.matrix(), params_.initial_guess_perturbation);
+  T_VICONBASE_SENSOR_pert_ = utils::PerturbTransform(
+      T_VICONBASE_SENSOR_, params_.initial_guess_perturbation);
   vicon_calibration::CalibrationResult calib_perturbed;
-  calib_perturbed.transform = T_VICONBASE_SENSOR_pert_.matrix();
+  calib_perturbed.transform = T_VICONBASE_SENSOR_pert_;
   calib_perturbed.type = type;
   calib_perturbed.sensor_id = sensor_id;
   calib_perturbed.to_frame = params_.vicon_baselink_frame;
@@ -249,11 +258,13 @@ ViconCalibrator::GetInitialGuess(std::string &sensor_frame) {
   for (uint8_t n; n < params_.target_params_list.size(); n++) {
     // get transform from sensor to target
     Eigen::Affine3d T_VICONBASE_TGTn = lookup_tree_.GetTransformEigen(
-        params_.vicon_baselink_frame, params_.target_params_list[n].frame_id,
+        params_.vicon_baselink_frame, params_.target_params_list[n]->frame_id,
         lookup_time_);
     // perturb  for simulation testing ONLY
+    Eigen::Affine3d TA_VICONBASE_SENSOR_pert_;
+    TA_VICONBASE_SENSOR_pert_.matrix() = T_VICONBASE_SENSOR_pert_;
     Eigen::Affine3d T_SENSOR_pert_TGTn =
-        T_VICONBASE_SENSOR_pert_.inverse() * T_VICONBASE_TGTn;
+        TA_VICONBASE_SENSOR_pert_.inverse() * T_VICONBASE_TGTn;
     T_sensor_tgts_estimated.push_back(T_SENSOR_pert_TGTn);
   }
   return T_sensor_tgts_estimated;
@@ -265,7 +276,7 @@ ViconCalibrator::GetTargetLocation() {
       T_viconbase_tgts;
   for (uint8_t n; n < params_.target_params_list.size(); n++) {
     Eigen::Affine3d T_viconbase_tgt = lookup_tree_.GetTransformEigen(
-        params_.vicon_baselink_frame, params_.target_params_list[n].frame_id,
+        params_.vicon_baselink_frame, params_.target_params_list[n]->frame_id,
         lookup_time_);
     T_viconbase_tgts.push_back(T_viconbase_tgt);
   }
@@ -273,8 +284,8 @@ ViconCalibrator::GetTargetLocation() {
 }
 
 void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
-  std::string topic = params_.lidar_params[lidar_iter].topic;
-  std::string sensor_frame = params_.lidar_params[lidar_iter].frame;
+  std::string topic = params_.lidar_params[lidar_iter]->topic;
+  std::string sensor_frame = params_.lidar_params[lidar_iter]->frame;
   LOG_INFO("Getting lidar measurements for frame id: %s and topic: %s .",
            sensor_frame.c_str(), topic.c_str());
   rosbag::View view(bag_, rosbag::TopicQuery(topic), ros::TIME_MIN,
@@ -288,13 +299,11 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
   pcl::PCLPointCloud2::Ptr cloud_pc2 =
       boost::make_shared<pcl::PCLPointCloud2>();
   PointCloud::Ptr cloud = boost::make_shared<PointCloud>();
-  ros::Duration time_step(params_.lidar_params[lidar_iter].time_steps);
+  ros::Duration time_step(params_.lidar_params.at(lidar_iter)->time_steps);
   ros::Time time_last(0, 0);
-
   this->GetInitialCalibration(sensor_frame, SensorType::LIDAR, lidar_iter);
   this->GetInitialCalibrationPerturbed(sensor_frame, SensorType::LIDAR,
                                        lidar_iter);
-
   for (auto iter = view.begin(); iter != view.end(); iter++) {
     boost::shared_ptr<sensor_msgs::PointCloud2> lidar_msg =
         iter->instantiate<sensor_msgs::PointCloud2>();
@@ -322,7 +331,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
       }
       for (uint8_t n = 0; n < T_lidar_tgts_estimated.size(); n++) {
         std::string extractor_type =
-            params_.target_params_list[n].extractor_type;
+            params_.target_params_list[n]->extractor_type;
         if (extractor_type == "CYLINDER") {
           lidar_extractor_ =
               std::make_shared<vicon_calibration::CylinderLidarExtractor>();
@@ -334,7 +343,6 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
           throw std::invalid_argument{
               "Invalid extractor type. Options: CYLINDER, DIAMOND"};
         }
-
         lidar_extractor_->SetLidarParams(params_.lidar_params[lidar_iter]);
         lidar_extractor_->SetTargetParams(params_.target_params_list[n]);
         lidar_extractor_->SetShowMeasurements(params_.show_measurements);
@@ -347,9 +355,9 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
           lidar_measurement.lidar_id = lidar_iter;
           lidar_measurement.target_id = n;
           lidar_measurement.lidar_frame =
-              params_.lidar_params[lidar_iter].frame;
+              params_.lidar_params[lidar_iter]->frame;
           lidar_measurement.target_frame =
-              params_.target_params_list[n].frame_id;
+              params_.target_params_list[n]->frame_id;
           lidar_measurements_.push_back(lidar_measurement);
         }
       }
@@ -358,8 +366,8 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
 }
 
 void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
-  std::string topic = params_.camera_params[cam_iter].topic;
-  std::string sensor_frame = params_.camera_params[cam_iter].frame;
+  std::string topic = params_.camera_params[cam_iter]->topic;
+  std::string sensor_frame = params_.camera_params[cam_iter]->frame;
   LOG_INFO("Getting camera measurements for frame id: %s and topic: %s .",
            sensor_frame.c_str(), topic.c_str());
 
@@ -370,7 +378,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
         "No image messages read. Check your topics in config file."};
   }
 
-  ros::Duration time_step(params_.camera_params[cam_iter].time_steps);
+  ros::Duration time_step(params_.camera_params[cam_iter]->time_steps);
   ros::Time time_last(0, 0);
   ros::Time time_zero(0, 0);
   this->GetInitialCalibration(sensor_frame, SensorType::CAMERA, cam_iter);
@@ -408,7 +416,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
       }
       for (uint8_t n = 0; n < T_cam_tgts_estimated.size(); n++) {
         std::string extractor_type =
-            params_.target_params_list[n].extractor_type;
+            params_.target_params_list[n]->extractor_type;
         if (extractor_type == "CYLINDER") {
           camera_extractor_ =
               std::make_shared<vicon_calibration::CylinderCameraExtractor>();
@@ -433,9 +441,9 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
           camera_measurement.camera_id = cam_iter;
           camera_measurement.target_id = n;
           camera_measurement.camera_frame =
-              params_.camera_params[cam_iter].frame;
+              params_.camera_params[cam_iter]->frame;
           camera_measurement.target_frame =
-              params_.target_params_list[n].frame_id;
+              params_.target_params_list[n]->frame_id;
           camera_measurements_.push_back(camera_measurement);
         }
       }

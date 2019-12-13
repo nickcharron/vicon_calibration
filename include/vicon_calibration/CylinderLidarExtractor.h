@@ -2,8 +2,8 @@
 
 #include "vicon_calibration/LidarExtractor.h"
 #include "vicon_calibration/utils.h"
-#include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/registration/icp.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 namespace vicon_calibration {
 
@@ -15,6 +15,8 @@ template <typename PointSource, typename PointTarget, typename Scalar = float>
 class IterativeClosestPointCustom
     : public pcl::IterativeClosestPoint<PointSource, PointTarget, Scalar> {
 public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   pcl::CorrespondencesPtr getCorrespondencesPtr() {
     return this->correspondences_;
   }
@@ -22,6 +24,8 @@ public:
 
 class CylinderLidarExtractor : public LidarExtractor {
 public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   // Inherit base class constructors
   using LidarExtractor::LidarExtractor;
 
@@ -68,7 +72,7 @@ private:
   PointCloud::Ptr scan_in_;
   PointCloud::Ptr scan_cropped_;
   PointCloud::Ptr scan_best_points_; // points that are corresponding after icp
-  Eigen::Matrix4d T_LIDAR_TARGET_EST_;
+  Eigen::MatrixXd T_LIDAR_TARGET_EST_ = Eigen::MatrixXd(4,4);
   pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
   bool test_registration_{true}; // Whether to use ICP to test that the target
                                  // template can converge to the scan correctly
@@ -76,7 +80,7 @@ private:
                                         // the correspondence distance with the
                                         // est. tgt. loc. is less than this
   double dist_acceptance_criteria_{0.025}; // acceptable error between estimated
-                                          // target and registered target
+                                           // target and registered target
   double icp_transform_epsilon_{1e-8};
   double icp_euclidean_epsilon_{1e-2};
   int icp_max_iterations_{80};

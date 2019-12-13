@@ -33,9 +33,9 @@ public:
    */
   virtual CameraExtractorType GetType() const = 0;
 
-  void SetCameraParams(CameraParams &camera_params);
+  void SetCameraParams(std::shared_ptr<vicon_calibration::CameraParams> &camera_params);
 
-  void SetTargetParams(TargetParams &target_params);
+  void SetTargetParams(std::shared_ptr<vicon_calibration::TargetParams> &target_params);
 
   void SetShowMeasurements(bool show_measurements);
 
@@ -49,8 +49,8 @@ public:
   std::pair<double, double> GetErrors();
 
 protected:
-  CameraParams camera_params_;
-  TargetParams target_params_;
+  std::shared_ptr<vicon_calibration::CameraParams> camera_params_;
+  std::shared_ptr<vicon_calibration::TargetParams> target_params_;
   bool crop_image_{true};
   pcl::PointCloud<pcl::PointXY>::Ptr keypoints_measured_;
   bool measurement_complete_{false};

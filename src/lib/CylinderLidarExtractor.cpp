@@ -29,8 +29,8 @@ void CylinderLidarExtractor::ExtractKeypoints(
 }
 
 void CylinderLidarExtractor::CheckInputs() {
-  if (target_params_.template_cloud == nullptr ||
-      target_params_.template_cloud->size() == 0) {
+  if (target_params_->template_cloud == nullptr ||
+      target_params_->template_cloud->size() == 0) {
     throw std::runtime_error{"Template cloud is empty"};
   }
 
@@ -50,7 +50,7 @@ void CylinderLidarExtractor::CropScan() {
   T_TARGET_EST_SCAN.matrix() = T_LIDAR_TARGET_EST_.inverse().cast<float>();
   beam_filtering::CropBox cropper;
   Eigen::Vector3f min_vector, max_vector;
-  max_vector = target_params_.crop_scan.cast<float>();
+  max_vector = target_params_->crop_scan.cast<float>();
   min_vector = -max_vector;
   cropper.SetMinVector(min_vector);
   cropper.SetMaxVector(max_vector);
@@ -76,7 +76,7 @@ void CylinderLidarExtractor::RegisterScan() {
   } else {
     icp.setInputSource(scan_in_);
   }
-  icp.setInputTarget(target_params_.template_cloud);
+  icp.setInputTarget(target_params_->template_cloud);
   icp.align(*scan_registered, T_LIDAR_TARGET_EST_.inverse().cast<float>());
 
   if (!icp.hasConverged()) {
@@ -107,8 +107,8 @@ void CylinderLidarExtractor::RegisterScan() {
   TA_LIDAR_TARGET_EST.matrix() = T_LIDAR_TARGET_EST_;
 
   Eigen::Vector2d dist_diff(
-      TA_LIDAR_TARGET_OPT.matrix()(0, 3) - T_LIDAR_TARGET_EST_.matrix()(0, 3),
-      TA_LIDAR_TARGET_OPT.matrix()(1, 3) - T_LIDAR_TARGET_EST_.matrix()(1, 3));
+      TA_LIDAR_TARGET_OPT.matrix()(0, 3) - (T_LIDAR_TARGET_EST_)(0, 3),
+      TA_LIDAR_TARGET_OPT.matrix()(1, 3) - (T_LIDAR_TARGET_EST_)(1, 3));
   double dist_err = std::round(dist_diff.norm() * 10000) / 10000;
 
   if (dist_err >= dist_acceptance_criteria_) {
@@ -147,7 +147,7 @@ void CylinderLidarExtractor::RegisterScan() {
     PointCloudColor::Ptr estimated_template_cloud =
         boost::make_shared<PointCloudColor>();
     estimated_template_cloud =
-        this->ColourPointCloud(target_params_.template_cloud, 0, 0, 255);
+        this->ColourPointCloud(target_params_->template_cloud, 0, 0, 255);
     pcl::transformPointCloud(*estimated_template_cloud,
                              *estimated_template_cloud, TA_LIDAR_TARGET_EST);
     this->AddColouredPointCloudToViewer(estimated_template_cloud,
@@ -157,7 +157,7 @@ void CylinderLidarExtractor::RegisterScan() {
     PointCloudColor::Ptr measured_template_cloud =
         boost::make_shared<PointCloudColor>();
     measured_template_cloud =
-        this->ColourPointCloud(target_params_.template_cloud, 0, 255, 0);
+        this->ColourPointCloud(target_params_->template_cloud, 0, 255, 0);
     pcl::transformPointCloud(*measured_template_cloud, *measured_template_cloud,
                              TA_LIDAR_TARGET_OPT);
     this->AddColouredPointCloudToViewer(measured_template_cloud,

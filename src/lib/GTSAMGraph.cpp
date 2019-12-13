@@ -15,7 +15,7 @@
 namespace vicon_calibration {
 
 void GTSAMGraph::SetTargetParams(
-    std::vector<vicon_calibration::TargetParams> &target_params) {
+    std::vector<std::shared_ptr<vicon_calibration::TargetParams>> &target_params) {
   target_params_ = target_params;
 }
 
@@ -35,12 +35,12 @@ void GTSAMGraph::SetInitialGuess(
 }
 
 void GTSAMGraph::SetCameraParams(
-    std::vector<vicon_calibration::CameraParams> &camera_params) {
+    std::vector<std::shared_ptr<vicon_calibration::CameraParams>> &camera_params) {
   camera_params_ = camera_params;
   for (uint16_t i = 0; i < camera_params_.size(); i++) {
     std::shared_ptr<beam_calibration::CameraModel> cam_pointer;
     cam_pointer =
-        beam_calibration::CameraModel::LoadJSON(camera_params_[i].intrinsics);
+        beam_calibration::CameraModel::LoadJSON(camera_params_[i]->intrinsics);
     camera_models_.push_back(cam_pointer);
   }
 }
@@ -58,7 +58,7 @@ void GTSAMGraph::SolveGraph() {
     SetLidarCorrespondences();
     SetImageFactors();
     SetLidarFactors();
-    SetLidarCameraFactors();
+    // SetLidarCameraFactors();
     Optimize();
     initials_updated_ = results_;
   }
@@ -169,8 +169,8 @@ void GTSAMGraph::CheckInputs() {
         "No initial estimates given to graph. Cannot solve."};
   }
   for (uint8_t i = 0; i < target_params_.size(); i++) {
-    if (target_params_[i].template_cloud->size() == 0 ||
-        target_params_[i].template_cloud == nullptr) {
+    if (target_params_[i]->template_cloud->size() == 0 ||
+        target_params_[i]->template_cloud == nullptr) {
       LOG_ERROR("Target No. %d contains an empty template cloud.", i);
       throw std::runtime_error{
           "Missing target required to solve graph, or target is empty."};
@@ -234,7 +234,7 @@ void GTSAMGraph::SetImageCorrespondences() {
     // create point cloud of projected points
     // TODO: Do we want to extract perimeter points as well here?
     pcl::PointCloud<pcl::PointXYZ>::Ptr target_points;
-    target_points = target_params_[measurement.target_id].template_cloud;
+    target_points = target_params_[measurement.target_id]->template_cloud;
     pcl::PointCloud<pcl::PointXY>::Ptr projected_pixels =
         boost::make_shared<pcl::PointCloud<pcl::PointXY>>();
     for (uint32_t i = 0; i < target_points->size(); i++) {
@@ -285,7 +285,7 @@ void GTSAMGraph::SetLidarCorrespondences() {
     pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_template =
         boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
     pcl::transformPointCloud(
-        *(target_params_[measurement.target_id].template_cloud),
+        *(target_params_[measurement.target_id]->template_cloud),
         *transformed_template, T_LIDAR_TARGET);
 
     // get correspondences
@@ -315,13 +315,13 @@ void GTSAMGraph::SetImageFactors() {
   // TODO: Figure out a smart way to do this. Do we want to tune the COV based
   // on the number of points per measurement?
   gtsam::Vector2 noise_vec;
-  noise_vec << 0.2, 0.2;
+  noise_vec << 5, 5;
   gtsam::noiseModel::Diagonal::shared_ptr ImageNoise =
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   for (vicon_calibration::Correspondence corr : camera_correspondences_) {
     target_index = camera_measurements_[corr.measurement_index].target_id;
     camera_index = camera_measurements_[corr.measurement_index].camera_id;
-    point_pcl = target_params_[target_index].template_cloud->at(
+    point_pcl = target_params_[target_index]->template_cloud->at(
         corr.target_point_index);
     point_eig = utils::PCLPointToEigen(point_pcl);
     pixel_pcl = camera_measurements_[corr.measurement_index].keypoints->at(
@@ -345,14 +345,14 @@ void GTSAMGraph::SetLidarFactors() {
   // TODO: Figure out a smart way to do this. Do we want to tune the COV based
   // on the number of points per measurement? ALso, shouldn't this be 2x2?
   gtsam::Vector3 noise_vec;
-  noise_vec << 0.2, 0.2, 0.2;
+  noise_vec << 0.02, 0.02, 0.02;
   gtsam::noiseModel::Diagonal::shared_ptr LidarNoise =
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   for (vicon_calibration::Correspondence corr : lidar_correspondences_) {
     LidarMeasurement measurement = lidar_measurements_[corr.measurement_index];
     target_index = measurement.target_id;
     lidar_index = measurement.lidar_id;
-    point_predicted_pcl = target_params_[target_index].template_cloud->at(
+    point_predicted_pcl = target_params_[target_index]->template_cloud->at(
         corr.target_point_index);
     gtsam::Key key = gtsam::Symbol('L', lidar_index);
     point_measured_pcl = measurement.keypoints->at(corr.measured_point_index);
@@ -367,11 +367,11 @@ void GTSAMGraph::SetLidarFactors() {
 }
 
 void GTSAMGraph::SetLidarCameraFactors() {
-  gtsam::Vector6 noise_vec;
-  noise_vec << 0.2, 0.2, 0.2, 0.1, 0.1, 0.1;
+  gtsam::Vector2 noise_vec;
+  noise_vec << 10, 10;
   gtsam::noiseModel::Diagonal::shared_ptr noiseModel =
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
-  gtsam::Key to_key, from_key;
+  gtsam::Key lidar_key, camera_key;
   Eigen::Vector2d pixel_detected;
   Eigen::Vector3d point_detected, P_T_li, P_T_ci;
   for (uint32_t i = 0; i < loop_closure_measurements_.size(); i++) {
@@ -381,8 +381,8 @@ void GTSAMGraph::SetLidarCameraFactors() {
         std::max<uint16_t>(measurement.keypoints_camera->size(),
                            measurement.keypoints_lidar->size());
     for (uint16_t j = 0; j < num_factors; j++) {
-      to_key = gtsam::Symbol('L', measurement.lidar_id);
-      from_key = gtsam::Symbol('C', measurement.camera_id);
+      lidar_key = gtsam::Symbol('L', measurement.lidar_id);
+      camera_key = gtsam::Symbol('C', measurement.camera_id);
       pixel_detected =
           utils::PCLPixelToEigen(measurement.keypoints_camera->at(j));
       point_detected =
@@ -391,7 +391,7 @@ void GTSAMGraph::SetLidarCameraFactors() {
       // TODO: Need to calculate the correspondences (pixel_detected -> P_T_ci,
       // point_detected -> P_T_li). Use same approach as other correspondences?
       graph_.emplace_shared<CameraLidarFactor>(
-          to_key, from_key, pixel_detected, point_detected, P_T_ci, P_T_li,
+          lidar_key, camera_key, pixel_detected, point_detected, P_T_ci, P_T_li,
           camera_models_[measurement.camera_id], noiseModel);
     }
   }

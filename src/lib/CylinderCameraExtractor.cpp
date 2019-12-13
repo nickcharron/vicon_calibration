@@ -22,7 +22,7 @@ void CylinderCameraExtractor::ExtractKeypoints(
   }
   *image_annotated_ = utils::DrawCoordinateFrame(
       *image_cropped_, T_CAMERA_TARGET_EST_, camera_model_, axis_plot_scale_,
-      camera_params_.images_distorted);
+      camera_params_->images_distorted);
   this->GetMeasurementPoints();
   if (!measurement_valid_) {
     measurement_complete_ = true;
@@ -39,7 +39,7 @@ void CylinderCameraExtractor::CheckInputs() {
     throw std::invalid_argument{"No image data"};
   }
 
-  if (!utils::IsTransformationMatrix(T_CAMERA_TARGET_EST_.matrix())) {
+  if (!utils::IsTransformationMatrix(T_CAMERA_TARGET_EST_)) {
     throw std::invalid_argument{"Invalid transform"};
   }
 
@@ -75,7 +75,7 @@ void CylinderCameraExtractor::DisplayImage(cv::Mat &img,
 }
 
 void CylinderCameraExtractor::UndistortImage() {
-  if (camera_params_.images_distorted) {
+  if (camera_params_->images_distorted) {
     *image_undistorted_ = camera_model_->UndistortImage(*image_in_);
   } else {
     image_undistorted_ = image_in_;
@@ -86,8 +86,8 @@ bool CylinderCameraExtractor::CropImage() {
   // project taget points to image
   Eigen::Vector4d point_target(0, 0, 0, 1);
   std::vector<double> u, v;
-  for (PointCloud::iterator it = target_params_.template_cloud->begin();
-       it != target_params_.template_cloud->end(); ++it) {
+  for (PointCloud::iterator it = target_params_->template_cloud->begin();
+       it != target_params_->template_cloud->end(); ++it) {
     point_target[0] = it->x;
     point_target[1] = it->y;
     point_target[2] = it->z;
@@ -104,10 +104,10 @@ bool CylinderCameraExtractor::CropImage() {
   double maxv = *std::max_element(v.begin(), v.end());
   Eigen::Vector2d min_vec(minu, minv);
   Eigen::Vector2d max_vec(maxu, maxv);
-  Eigen::Vector2d min_vec_buffer(minu - target_params_.crop_image(0, 0) / 2,
-                                 minv - target_params_.crop_image(1, 0) / 2);
-  Eigen::Vector2d max_vec_buffer(maxu + target_params_.crop_image(0, 0) / 2,
-                                 maxv + target_params_.crop_image(1, 0) / 2);
+  Eigen::Vector2d min_vec_buffer(minu - target_params_->crop_image(0, 0) / 2,
+                                 minv - target_params_->crop_image(1, 0) / 2);
+  Eigen::Vector2d max_vec_buffer(maxu + target_params_->crop_image(0, 0) / 2,
+                                 maxv + target_params_->crop_image(1, 0) / 2);
   if (!camera_model_->PixelInImage(min_vec) ||
       !camera_model_->PixelInImage(max_vec)) {
     target_in_image = false;
@@ -125,7 +125,7 @@ bool CylinderCameraExtractor::CropImage() {
                camera_model_->GetHeight());
       cv::Mat current_image_w_axes = utils::DrawCoordinateFrame(
           *image_undistorted_, T_CAMERA_TARGET_EST_, camera_model_,
-          axis_plot_scale_, camera_params_.images_distorted);
+          axis_plot_scale_, camera_params_->images_distorted);
       this->DisplayImage(current_image_w_axes, "Invalid Measurement",
                          "Showing failed measurement (target not in image)");
     }
@@ -144,7 +144,7 @@ bool CylinderCameraExtractor::CropImage() {
                camera_model_->GetHeight());
       cv::Mat current_image_w_axes = utils::DrawCoordinateFrame(
           *image_undistorted_, T_CAMERA_TARGET_EST_, camera_model_,
-          axis_plot_scale_, camera_params_.images_distorted);
+          axis_plot_scale_, camera_params_->images_distorted);
       this->DisplayImage(current_image_w_axes, "Invalid Measurement",
                          "Showing failed measurement (cropbox not in image)");
     }
@@ -173,12 +173,12 @@ CylinderCameraExtractor::TargetPointToPixel(Eigen::Vector4d point) {
   Eigen::Vector3d transformed_point;
   Eigen::Vector4d homogeneous_point;
 
-  homogeneous_point = T_CAMERA_TARGET_EST_.matrix() * point;
+  homogeneous_point = T_CAMERA_TARGET_EST_ * point;
 
   transformed_point << homogeneous_point[0], homogeneous_point[1],
       homogeneous_point[2];
 
-  if (camera_params_.images_distorted) {
+  if (camera_params_->images_distorted) {
     camera_model_->SetUndistortedIntrinsics(camera_model_->GetIntrinsics());
     return camera_model_->ProjectUndistortedPoint(transformed_point);
   } else {
@@ -296,8 +296,8 @@ void CylinderCameraExtractor::GetEstimatedPose() {
   // first, we need to determine the height of the target. Assume coordinate
   // frame is at the top of the template cloud.
   double target_height = 0;
-  for (PointCloud::iterator it = target_params_.template_cloud->begin();
-       it != target_params_.template_cloud->end(); ++it) {
+  for (PointCloud::iterator it = target_params_->template_cloud->begin();
+       it != target_params_->template_cloud->end(); ++it) {
     double z_coord = it->z;
     if(z_coord > target_height){
       target_height = z_coord;

@@ -18,6 +18,8 @@ enum class LidarExtractorType { CYLINDER = 0, DIAMOND };
  */
 class LidarExtractor {
 public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  
   LidarExtractor(); // ADD INITIALIZATION OF POINTERS
 
   virtual ~LidarExtractor() = default;
@@ -32,9 +34,9 @@ public:
    */
   virtual LidarExtractorType GetType() const = 0;
 
-  void SetLidarParams(LidarParams &camera_params);
+  void SetLidarParams(std::shared_ptr<vicon_calibration::LidarParams> &lidar_params);
 
-  void SetTargetParams(TargetParams &target_params);
+  void SetTargetParams(std::shared_ptr<vicon_calibration::TargetParams> &target_params);
 
   void SetShowMeasurements(bool show_measurements);
 
@@ -47,8 +49,8 @@ public:
   pcl::PointCloud<pcl::PointXYZ>::Ptr GetMeasurement();
 
 protected:
-  LidarParams lidar_params_;
-  TargetParams target_params_;
+  std::shared_ptr<vicon_calibration::LidarParams> lidar_params_;
+  std::shared_ptr<vicon_calibration::TargetParams> target_params_;
   bool crop_scan_{true};
   std::string template_cloud_path_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_measured_;
@@ -57,6 +59,7 @@ protected:
   bool target_params_set_{false};
   bool lidar_params_set_{false};
   bool show_measurements_{false};
+
 };
 
 } // namespace vicon_calibration

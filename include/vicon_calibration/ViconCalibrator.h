@@ -1,9 +1,9 @@
 #pragma once
 
-#include "beam_calibration/TfTree.h"
 #include "vicon_calibration/CylinderCameraExtractor.h"
 #include "vicon_calibration/CylinderLidarExtractor.h"
 #include "vicon_calibration/GTSAMGraph.h"
+#include "vicon_calibration/TfTree.h"
 #include "vicon_calibration/params.h"
 #include <Eigen/Geometry>
 #include <opencv2/opencv.hpp>
@@ -24,9 +24,11 @@ class ViconCalibrator {
     std::string vicon_baselink_frame;
     bool show_measurements;
     Eigen::VectorXd initial_guess_perturbation; // for testing sim
-    std::vector<vicon_calibration::TargetParams> target_params_list;
-    std::vector<vicon_calibration::CameraParams> camera_params;
-    std::vector<vicon_calibration::LidarParams> lidar_params;
+    std::vector<std::shared_ptr<vicon_calibration::TargetParams>>
+        target_params_list;
+    std::vector<std::shared_ptr<vicon_calibration::CameraParams>> camera_params;
+    std::vector<std::shared_ptr<vicon_calibration::LidarParams>> lidar_params;
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   };
 
 public:
@@ -111,7 +113,7 @@ private:
   std::shared_ptr<LidarExtractor> lidar_extractor_;
   std::shared_ptr<CameraExtractor> camera_extractor_;
   ros::Time lookup_time_;
-  beam_calibration::TfTree estimate_extrinsics_, lookup_tree_;
+  TfTree estimate_extrinsics_, lookup_tree_;
   std::vector<vicon_calibration::LidarMeasurement> lidar_measurements_;
   std::vector<vicon_calibration::CameraMeasurement> camera_measurements_;
   std::vector<vicon_calibration::CalibrationResult> calibrations_result_,
@@ -119,8 +121,9 @@ private:
       calibrations_perturbed_; // pertubed use for testing with simulation ONLY
   rosbag::Bag bag_;
   vicon_calibration::GTSAMGraph graph_;
-  Eigen::Affine3d T_VICONBASE_SENSOR_,
-      T_VICONBASE_SENSOR_pert_; // pert for testing simulation ONLY
+  Eigen::MatrixXd T_VICONBASE_SENSOR_ = Eigen::MatrixXd(4,4);
+  Eigen::MatrixXd T_VICONBASE_SENSOR_pert_ = Eigen::MatrixXd(4,4);
+          // Pert for testing simulation ONLY
 };
 
 } // end namespace vicon_calibration

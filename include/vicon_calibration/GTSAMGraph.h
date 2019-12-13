@@ -15,7 +15,7 @@ public:
   GTSAMGraph() = default;
   ~GTSAMGraph() = default;
 
-  void SetTargetParams(std::vector<vicon_calibration::TargetParams> &target_params);
+  void SetTargetParams(std::vector<std::shared_ptr<vicon_calibration::TargetParams>> &target_params);
 
   void SetLidarMeasurements(
       std::vector<vicon_calibration::LidarMeasurement> &lidar_measurements);
@@ -27,7 +27,7 @@ public:
       std::vector<vicon_calibration::CalibrationResult> &initial_guess);
 
   void SetCameraParams(
-      std::vector<vicon_calibration::CameraParams> &camera_params);
+      std::vector<std::shared_ptr<vicon_calibration::CameraParams>> &camera_params);
 
   void SolveGraph();
 
@@ -61,8 +61,8 @@ private:
   std::vector<vicon_calibration::LoopClosureMeasurement> loop_closure_measurements_;
   std::vector<vicon_calibration::CalibrationResult> calibration_results_;
   std::vector<vicon_calibration::CalibrationResult> calibration_initials_;
-  std::vector<vicon_calibration::CameraParams> camera_params_;
-  std::vector<vicon_calibration::TargetParams> target_params_;
+  std::vector<std::shared_ptr<vicon_calibration::CameraParams>> camera_params_;
+  std::vector<std::shared_ptr<vicon_calibration::TargetParams>> target_params_;
   gtsam::NonlinearFactorGraph graph_;
   gtsam::Values initials_, initials_updated_, results_;
   std::vector<std::shared_ptr<beam_calibration::CameraModel>> camera_models_;

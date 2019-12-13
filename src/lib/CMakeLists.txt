@@ -1,3 +1,5 @@
+SET(CMAKE_CXX_STANDARD 17)
+
 # Core library
 add_library(${PROJECT_NAME}
   ViconCalibrator.cpp
@@ -5,6 +7,7 @@ add_library(${PROJECT_NAME}
   CylinderCameraExtractor.cpp
   LidarExtractor.cpp
   CylinderLidarExtractor.cpp
+  TfTree.cpp
   #CameraFactor.cpp
   #LidarFactor.cpp
   GTSAMGraph.cpp

@@ -54,7 +54,7 @@ Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d &eps);
 Eigen::Matrix4d InvertTransform(const Eigen::Matrix4d &T);
 
 cv::Mat
-DrawCoordinateFrame(cv::Mat &img_in, Eigen::Affine3d &T_cam_frame,
+DrawCoordinateFrame(cv::Mat &img_in, Eigen::MatrixXd &T_cam_frame,
                     std::shared_ptr<beam_calibration::CameraModel> camera_model,
                     double &scale, bool images_distorted);
 

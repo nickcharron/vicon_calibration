@@ -31,44 +31,61 @@ struct CameraParams {
 };
 
 struct TargetParams {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   std::string frame_id;
   std::string extractor_type;
   std::string target_config_path;
-  Eigen::Vector3d crop_scan;
-  Eigen::Vector2d crop_image;
+  Eigen::VectorXd crop_scan;
+  Eigen::VectorXd crop_image;
   pcl::PointCloud<pcl::PointXYZ>::Ptr template_cloud;
-  std::vector<Eigen::Vector3d> keypoints_lidar;
-  std::vector<Eigen::Vector3d> keypoints_camera;
+  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>> keypoints_lidar;
+  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>> keypoints_camera;
+  TargetParams(){
+    crop_scan = Eigen::VectorXd(3);
+    crop_image = Eigen::VectorXd(2);
+  }
 };
 
 struct LidarMeasurement {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints;
-  Eigen::Matrix4d T_VICONBASE_TARGET;
+  Eigen::MatrixXd T_VICONBASE_TARGET;
   int lidar_id;
   int target_id;
   std::string lidar_frame;
   std::string target_frame;
+  LidarMeasurement(){
+    T_VICONBASE_TARGET = Eigen::MatrixXd(4,4);
+  }
 };
 
 struct CameraMeasurement {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   pcl::PointCloud<pcl::PointXY>::Ptr keypoints;
-  Eigen::Matrix4d T_VICONBASE_TARGET;
+  Eigen::MatrixXd T_VICONBASE_TARGET;
   int camera_id;
   int target_id;
   std::string camera_frame;
   std::string target_frame;
+  CameraMeasurement(){
+    T_VICONBASE_TARGET = Eigen::MatrixXd(4,4);
+  }
 };
 
 struct LoopClosureMeasurement {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   pcl::PointCloud<pcl::PointXY>::Ptr keypoints_camera;
   pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_lidar;
-  Eigen::Matrix4d T_VICONBASE_TARGET;
+  Eigen::MatrixXd T_VICONBASE_TARGET;
   int camera_id;
   int lidar_id;
   int target_id;
   std::string camera_frame;
   std::string lidar_frame;
   std::string target_frame;
+  LoopClosureMeasurement(){
+    T_VICONBASE_TARGET = Eigen::MatrixXd(4,4);
+  }
 };
 
 struct Correspondence {
@@ -78,11 +95,15 @@ struct Correspondence {
 };
 
 struct CalibrationResult {
-  Eigen::Matrix4d transform;
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  Eigen::MatrixXd transform;
   SensorType type;
   int sensor_id;
   std::string to_frame;   // this is usually the vicon baselink on the robot
   std::string from_frame; // this is the sensor frame
+  CalibrationResult(){
+    transform = Eigen::MatrixXd(4,4);
+  }
 };
 
 } // end namespace vicon_calibration

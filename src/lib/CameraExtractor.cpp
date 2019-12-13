@@ -6,13 +6,13 @@ CameraExtractor::CameraExtractor() {
   keypoints_measured_ = boost::make_shared<pcl::PointCloud<pcl::PointXY>>();
 }
 
-void CameraExtractor::SetCameraParams(CameraParams &camera_params) {
+void CameraExtractor::SetCameraParams(std::shared_ptr<vicon_calibration::CameraParams> &camera_params) {
   camera_params_ = camera_params;
-  camera_model_ = beam_calibration::CameraModel::LoadJSON(camera_params.intrinsics);
+  camera_model_ = beam_calibration::CameraModel::LoadJSON(camera_params->intrinsics);
   camera_params_set_ = true;
 }
 
-void CameraExtractor::SetTargetParams(TargetParams &target_params) {
+void CameraExtractor::SetTargetParams(std::shared_ptr<vicon_calibration::TargetParams> &target_params) {
   target_params_ = target_params;
   target_params_set_ = true;
 }

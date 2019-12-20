@@ -11,22 +11,26 @@
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
 #include <pcl/registration/correspondence_estimation.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 namespace vicon_calibration {
 
 void GTSAMGraph::SetTargetParams(
-    std::vector<std::shared_ptr<vicon_calibration::TargetParams>> &target_params) {
+    std::vector<std::shared_ptr<vicon_calibration::TargetParams>>
+        &target_params) {
   target_params_ = target_params;
 }
 
 void GTSAMGraph::SetLidarMeasurements(
     std::vector<vicon_calibration::LidarMeasurement> &lidar_measurements) {
   lidar_measurements_ = lidar_measurements;
+  LOG_INFO("Added %d lidar measurements", lidar_measurements.size());
 }
 
 void GTSAMGraph::SetCameraMeasurements(
     std::vector<vicon_calibration::CameraMeasurement> &camera_measurements) {
   camera_measurements_ = camera_measurements;
+  LOG_INFO("Added %d camera measurements", camera_measurements.size());
 }
 
 void GTSAMGraph::SetInitialGuess(
@@ -35,7 +39,8 @@ void GTSAMGraph::SetInitialGuess(
 }
 
 void GTSAMGraph::SetCameraParams(
-    std::vector<std::shared_ptr<vicon_calibration::CameraParams>> &camera_params) {
+    std::vector<std::shared_ptr<vicon_calibration::CameraParams>>
+        &camera_params) {
   camera_params_ = camera_params;
   for (uint16_t i = 0; i < camera_params_.size(); i++) {
     std::shared_ptr<beam_calibration::CameraModel> cam_pointer;
@@ -46,33 +51,46 @@ void GTSAMGraph::SetCameraParams(
 }
 
 void GTSAMGraph::SolveGraph() {
+  initials_.clear();
+  initials_updated_.clear();
+  calibration_results_.clear();
   CheckInputs();
-  Clear();
   AddInitials();
   initials_updated_ = initials_;
-  // AddLidarMeasurements();
   uint16_t iteration = 0;
-  while (!CheckConvergence() && (iteration < max_iterations_)) {
+  bool converged = false;
+  while (!converged) {
     iteration++;
+    LOG_INFO("Iteration: %d", iteration);
+    Clear();
     SetImageCorrespondences();
     SetLidarCorrespondences();
     SetImageFactors();
     SetLidarFactors();
     // SetLidarCameraFactors();
     Optimize();
+    converged = HasConverged(iteration);
+    LOG_INFO("Updating initials");
     initials_updated_ = results_;
   }
   if (iteration >= max_iterations_) {
     LOG_WARN("Reached max iterations, stopping.");
+  } else {
+    LOG_INFO("Converged after %d iterations.", iteration);
   }
 }
 
 std::vector<vicon_calibration::CalibrationResult> GTSAMGraph::GetResults() {
   for (uint32_t i = 0; i < calibration_initials_.size(); i++) {
-    vicon_calibration::CalibrationResult calib;
-    calib.to_frame = calibration_initials_[i].to_frame;
-    calib.from_frame = calibration_initials_[i].from_frame;
-    gtsam::Key sensor_key = i + 1;
+    vicon_calibration::CalibrationResult calib = calibration_initials_[i];
+    gtsam::Key sensor_key;
+    if (calib.type == SensorType::LIDAR) {
+      sensor_key = gtsam::symbol('L', calib.sensor_id);
+    } else if (calib.type == SensorType::CAMERA) {
+      sensor_key = gtsam::symbol('C', calib.sensor_id);
+    } else {
+      throw std::runtime_error{"Invalid sensor type in calibration initials"};
+    }
     calib.transform = results_.at<gtsam::Pose3>(sensor_key).matrix();
     calibration_results_.push_back(calib);
   }
@@ -89,72 +107,6 @@ void GTSAMGraph::Print(std::string &file_name, bool print_to_terminal) {
   std::ofstream graph_file(file_name);
   graph_.saveGraph(graph_file);
   graph_file.close();
-}
-
-bool GTSAMGraph::CheckConvergence() {
-  new_error_ = graph_.error(results_);
-
-  if (output_errors_) {
-    if (new_error_ <= error_tol_)
-      std::cout << "error_tol_: " << new_error_ << " < " << error_tol_
-                << std::endl;
-    else
-      std::cout << "error_tol_: " << new_error_ << " > " << error_tol_
-                << std::endl;
-  }
-
-  if (new_error_ <= error_tol_)
-    return true;
-
-  // check if diverges
-  double absolute_decrease = current_error_ - new_error_;
-  if (output_errors_) {
-    if (absolute_decrease <= absolute_error_tol_)
-      std::cout << "absolute_decrease: " << std::setprecision(12)
-                << absolute_decrease << " < " << absolute_error_tol_
-                << std::endl;
-    else
-      std::cout << "absolute_decrease: " << std::setprecision(12)
-                << absolute_decrease << " >= " << absolute_error_tol_
-                << std::endl;
-  }
-
-  // calculate relative error decrease and update current_error_
-  double relative_decrease = absolute_decrease / current_error_;
-  if (output_errors_) {
-    if (relative_decrease <= relative_error_tol_)
-      std::cout << "relative_decrease: " << std::setprecision(12)
-                << relative_decrease << " < " << relative_error_tol_
-                << std::endl;
-    else
-      std::cout << "relative_decrease: " << std::setprecision(12)
-                << relative_decrease << " >= " << relative_error_tol_
-                << std::endl;
-  }
-
-  bool converged =
-      (relative_error_tol_ && (relative_decrease <= relative_error_tol_)) ||
-      (absolute_decrease <= absolute_error_tol_);
-
-  if (converged) {
-    if (absolute_decrease >= 0.0)
-      std::cout << "converged" << std::endl;
-    else
-      std::cout
-          << "Warning:  stopping nonlinear iterations because error increased"
-          << std::endl;
-
-    std::cout << "error_tol_: " << new_error_ << " <? " << error_tol_
-              << std::endl;
-    std::cout << "absolute_decrease: " << std::setprecision(12)
-              << absolute_decrease << " <? " << absolute_error_tol_
-              << std::endl;
-    std::cout << "relative_decrease: " << std::setprecision(12)
-              << relative_decrease << " <? " << relative_error_tol_
-              << std::endl;
-  }
-  current_error_ = new_error_;
-  return converged;
 }
 
 void GTSAMGraph::CheckInputs() {
@@ -184,25 +136,12 @@ void GTSAMGraph::CheckInputs() {
 
 void GTSAMGraph::Clear() {
   graph_.erase(graph_.begin(), graph_.end());
-  initials_.clear();
-  calibration_results_.clear();
+  results_.clear();
   camera_correspondences_.clear();
   lidar_correspondences_.clear();
 }
 
 void GTSAMGraph::AddInitials() {
-  // add base link frame as initial pose with 100% certainty
-  gtsam::Vector6 v6;
-  v6 << 1e-6, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6;
-  Eigen::Matrix4d identity_pose;
-  identity_pose.setIdentity();
-  gtsam::noiseModel::Diagonal::shared_ptr prior_model =
-      gtsam::noiseModel::Diagonal::Variances(v6);
-  gtsam::Pose3 pose(identity_pose);
-  initials_.insert(gtsam::Symbol('B', 0), pose);
-  graph_.add(gtsam::PriorFactor<gtsam::Pose3>(gtsam::Symbol('B', 0), pose,
-                                              prior_model));
-
   // add all sensors as the next poses
   for (uint32_t i = 0; i < calibration_initials_.size(); i++) {
     vicon_calibration::CalibrationResult calib = calibration_initials_[i];
@@ -220,7 +159,8 @@ void GTSAMGraph::AddInitials() {
 }
 
 void GTSAMGraph::SetImageCorrespondences() {
-  camera_correspondences_.clear();
+  LOG_INFO("Setting image correspondances");
+  int counter = 0;
   for (uint32_t meas_iter = 0; meas_iter < camera_measurements_.size();
        meas_iter++) {
     vicon_calibration::CameraMeasurement measurement =
@@ -228,8 +168,8 @@ void GTSAMGraph::SetImageCorrespondences() {
     gtsam::Pose3 pose;
     pose = initials_updated_.at<gtsam::Pose3>(
         gtsam::Symbol('C', measurement.camera_id));
-    Eigen::Matrix4d T_CAM_VICONBASE;
-    T_CAM_VICONBASE = pose.matrix();
+    Eigen::Matrix4d T_VICONBASE_CAM = pose.matrix();
+    Eigen::Matrix4d T_CAM_VICONBASE = utils::InvertTransform(T_VICONBASE_CAM);
 
     // create point cloud of projected points
     // TODO: Do we want to extract perimeter points as well here?
@@ -254,12 +194,12 @@ void GTSAMGraph::SetImageCorrespondences() {
     // get correspondences
     pcl::registration::CorrespondenceEstimation<pcl::PointXY, pcl::PointXY>
         corr_est;
-    double max_distance = 500; // in pixels
     pcl::Correspondences correspondences;
     corr_est.setInputSource(measurement.keypoints);
     corr_est.setInputTarget(projected_pixels);
-    corr_est.determineCorrespondences(correspondences, max_distance);
+    corr_est.determineCorrespondences(correspondences, max_pixel_cor_dist_);
     for (uint32_t i = 0; i < correspondences.size(); i++) {
+      counter++;
       vicon_calibration::Correspondence correspondence;
       correspondence.target_point_index = correspondences[i].index_match;
       correspondence.measured_point_index = correspondences[i].index_query;
@@ -267,10 +207,12 @@ void GTSAMGraph::SetImageCorrespondences() {
       camera_correspondences_.push_back(correspondence);
     }
   }
+  LOG_INFO("Added %d camera correspondances.", counter);
 }
 
 void GTSAMGraph::SetLidarCorrespondences() {
-  lidar_correspondences_.clear();
+  LOG_INFO("Setting lidar correspondances");
+  int counter = 0;
   for (uint32_t meas_iter = 0; meas_iter < lidar_measurements_.size();
        meas_iter++) {
     vicon_calibration::LidarMeasurement measurement =
@@ -278,9 +220,10 @@ void GTSAMGraph::SetLidarCorrespondences() {
     gtsam::Pose3 pose;
     pose = initials_updated_.at<gtsam::Pose3>(
         gtsam::Symbol('L', measurement.lidar_id));
-    Eigen::Matrix4d T_LIDAR_VICONBASE, T_LIDAR_TARGET;
-    T_LIDAR_VICONBASE = pose.matrix();
-    T_LIDAR_TARGET = T_LIDAR_VICONBASE * measurement.T_VICONBASE_TARGET;
+    Eigen::Matrix4d T_VICONBASE_LIDAR, T_LIDAR_TARGET;
+    T_VICONBASE_LIDAR = pose.matrix();
+    T_LIDAR_TARGET = utils::InvertTransform(T_VICONBASE_LIDAR) *
+                     measurement.T_VICONBASE_TARGET;
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_template =
         boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
@@ -291,22 +234,25 @@ void GTSAMGraph::SetLidarCorrespondences() {
     // get correspondences
     pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
         corr_est;
-    double max_distance = 0.005; // in meters
     pcl::Correspondences correspondences;
+    // ViewClouds(measurement.keypoints, transformed_template);
     corr_est.setInputSource(measurement.keypoints);
     corr_est.setInputTarget(transformed_template);
-    corr_est.determineCorrespondences(correspondences, max_distance);
+    corr_est.determineCorrespondences(correspondences, max_point_cor_dist_);
     for (uint32_t i = 0; i < correspondences.size(); i++) {
+      counter++;
       vicon_calibration::Correspondence correspondence;
       correspondence.target_point_index = correspondences[i].index_match;
       correspondence.measured_point_index = correspondences[i].index_query;
       correspondence.measurement_index = meas_iter;
-      camera_correspondences_.push_back(correspondence);
+      lidar_correspondences_.push_back(correspondence);
     }
   }
+  LOG_INFO("Added %d lidar correspondances.", counter);
 }
 
 void GTSAMGraph::SetImageFactors() {
+  LOG_INFO("Setting image factors");
   pcl::PointXY pixel_pcl;
   pcl::PointXYZ point_pcl;
   Eigen::Vector3d point_eig(0, 0, 0);
@@ -315,40 +261,41 @@ void GTSAMGraph::SetImageFactors() {
   // TODO: Figure out a smart way to do this. Do we want to tune the COV based
   // on the number of points per measurement?
   gtsam::Vector2 noise_vec;
-  noise_vec << 5, 5;
+  noise_vec << image_noise_[0], image_noise_[1];
   gtsam::noiseModel::Diagonal::shared_ptr ImageNoise =
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   for (vicon_calibration::Correspondence corr : camera_correspondences_) {
-    target_index = camera_measurements_[corr.measurement_index].target_id;
-    camera_index = camera_measurements_[corr.measurement_index].camera_id;
+    CameraMeasurement measurement =
+        camera_measurements_[corr.measurement_index];
+    target_index = measurement.target_id;
+    camera_index = measurement.camera_id;
     point_pcl = target_params_[target_index]->template_cloud->at(
         corr.target_point_index);
     point_eig = utils::PCLPointToEigen(point_pcl);
-    pixel_pcl = camera_measurements_[corr.measurement_index].keypoints->at(
-        corr.measured_point_index);
+    pixel_pcl = measurement.keypoints->at(corr.measured_point_index);
     pixel_eig = utils::PCLPixelToEigen(pixel_pcl);
 
     gtsam::Key key = gtsam::Symbol('C', camera_index);
-    Eigen::Matrix4d T_VICONBASE_TARGET =
-        camera_measurements_[corr.measurement_index].T_VICONBASE_TARGET;
-    graph_.emplace_shared<CameraFactor>(key, pixel_eig, point_eig,
-                                        camera_models_[camera_index],
-                                        T_VICONBASE_TARGET, ImageNoise);
+    graph_.emplace_shared<CameraFactor>(
+        key, pixel_eig, point_eig, camera_models_[camera_index],
+        measurement.T_VICONBASE_TARGET, ImageNoise);
   }
 }
 
 void GTSAMGraph::SetLidarFactors() {
+  LOG_INFO("Setting lidar factors");
   pcl::PointXYZ point_measured_pcl, point_predicted_pcl;
-  Eigen::Vector4d point_eig(0, 0, 0, 1), point_eig_transformed(0, 0, 0, 1);
   Eigen::Vector3d point_predicted, point_measured;
   int target_index, lidar_index;
   // TODO: Figure out a smart way to do this. Do we want to tune the COV based
   // on the number of points per measurement? ALso, shouldn't this be 2x2?
   gtsam::Vector3 noise_vec;
-  noise_vec << 0.02, 0.02, 0.02;
+  noise_vec << lidar_noise_[0], lidar_noise_[1], lidar_noise_[2];
   gtsam::noiseModel::Diagonal::shared_ptr LidarNoise =
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
+  int counter = 0;
   for (vicon_calibration::Correspondence corr : lidar_correspondences_) {
+    counter++;
     LidarMeasurement measurement = lidar_measurements_[corr.measurement_index];
     target_index = measurement.target_id;
     lidar_index = measurement.lidar_id;
@@ -357,16 +304,16 @@ void GTSAMGraph::SetLidarFactors() {
     gtsam::Key key = gtsam::Symbol('L', lidar_index);
     point_measured_pcl = measurement.keypoints->at(corr.measured_point_index);
     point_measured = utils::PCLPointToEigen(point_measured_pcl);
-    point_eig = utils::PointToHomoPoint(utils::PCLPointToEigen(point_predicted_pcl));
-    point_eig_transformed = measurement.T_VICONBASE_TARGET * point_eig;
-    point_predicted = utils::HomoPointToPoint(point_eig_transformed);
+    point_predicted = utils::PCLPointToEigen(point_predicted_pcl);
     graph_.emplace_shared<LidarFactor>(key, point_measured, point_predicted,
                                        measurement.T_VICONBASE_TARGET,
                                        LidarNoise);
   }
+  LOG_INFO("Added %d lidar factors.", counter);
 }
 
 void GTSAMGraph::SetLidarCameraFactors() {
+  LOG_INFO("Setting lidar-camera factors");
   gtsam::Vector2 noise_vec;
   noise_vec << 10, 10;
   gtsam::noiseModel::Diagonal::shared_ptr noiseModel =
@@ -398,6 +345,7 @@ void GTSAMGraph::SetLidarCameraFactors() {
 }
 
 void GTSAMGraph::Optimize() {
+  LOG_INFO("Optimizing graph");
   gtsam::LevenbergMarquardtParams params;
   params.setVerbosity("TERMINATION");
   params.absoluteErrorTol = 1e-8;
@@ -411,6 +359,12 @@ void GTSAMGraph::Optimize() {
 
   try {
     results_ = optimizer.optimize();
+    // LOG_INFO("Printing Graph:");
+    // graph_.print();
+    LOG_INFO("Printing Initials:");
+    initials_.print();
+    LOG_INFO("Printing Results:");
+    results_.print();
   } catch (...) {
     LOG_ERROR("Error optimizing GTSAM Graph. Printing graph and initial "
               "estimates to terminal.");
@@ -419,6 +373,96 @@ void GTSAMGraph::Optimize() {
     eptr = std::current_exception();
     std::rethrow_exception(eptr);
   }
+}
+
+bool GTSAMGraph::HasConverged(uint16_t iteration) {
+  if (iteration == 0) {
+    return false;
+  } else if (iteration == max_iterations_) {
+    return true;
+  }
+
+  // Loop through results
+  Eigen::Matrix4d T_last, T_curr;
+  Eigen::Vector3d R_curr, R_last, t_curr, t_last, R_error, t_error;
+  double eR, et, eR_abs, et_abs;
+  for (uint32_t i = 0; i < calibration_initials_.size(); i++) {
+    gtsam::Key sensor_key;
+    if (calibration_initials_[i].type == SensorType::LIDAR) {
+      sensor_key = gtsam::symbol('L', calibration_initials_[i].sensor_id);
+    } else if (calibration_initials_[i].type == SensorType::CAMERA) {
+      sensor_key = gtsam::symbol('C', calibration_initials_[i].sensor_id);
+    } else {
+      throw std::runtime_error{"Invalid sensor type in calibration initials"};
+    }
+    T_last = initials_updated_.at<gtsam::Pose3>(sensor_key).matrix();
+    T_curr = results_.at<gtsam::Pose3>(sensor_key).matrix();
+
+    // Check all DOFs to see if the change is greater than the tolerance
+    R_curr = utils::RToLieAlgebra(T_curr.block(0,0,3,3));
+    R_last = utils::RToLieAlgebra(T_last.block(0,0,3,3));
+    t_curr = T_curr.block(0,3,3,1);
+    t_last = T_last.block(0,3,3,1);
+    R_error = R_curr - R_last;
+    t_error = t_curr - t_last;
+    for (int i = 0; i < 3; i++){
+      eR = R_error[i];
+      et = t_error[i];
+      eR_abs = sqrt(eR*eR*1000*1000)/1000;
+      et_abs = sqrt(et*et*1000*1000)/1000;
+      if(eR_abs > error_tol_[i]){
+        return false;
+      }
+      if(et_abs > error_tol_[i+3]){
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+void GTSAMGraph::ViewClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr c1,
+                            pcl::PointCloud<pcl::PointXYZ>::Ptr c2) {
+  PointCloudColor::Ptr c1_col = boost::make_shared<PointCloudColor>();
+  PointCloudColor::Ptr c2_col = boost::make_shared<PointCloudColor>();
+
+  uint32_t rgb1 = (static_cast<uint32_t>(255) << 16 |
+                   static_cast<uint32_t>(0) << 8 | static_cast<uint32_t>(0));
+  uint32_t rgb2 = (static_cast<uint32_t>(0) << 16 |
+                   static_cast<uint32_t>(255) << 8 | static_cast<uint32_t>(0));
+  pcl::PointXYZRGB point;
+  for (PointCloud::iterator it = c1->begin(); it != c1->end(); ++it) {
+    point.x = it->x;
+    point.y = it->y;
+    point.z = it->z;
+    point.rgb = *reinterpret_cast<float *>(&rgb1);
+    c1_col->push_back(point);
+  }
+  for (PointCloud::iterator it = c2->begin(); it != c2->end(); ++it) {
+    point.x = it->x;
+    point.y = it->y;
+    point.z = it->z;
+    point.rgb = *reinterpret_cast<float *>(&rgb2);
+    c2_col->push_back(point);
+  }
+  pcl::visualization::PCLVisualizer::Ptr pcl_viewer =
+      boost::make_shared<pcl::visualization::PCLVisualizer>();
+  pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1_(
+      c1_col);
+  pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb2_(
+      c2_col);
+  pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, "Cloud1");
+  pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, "Cloud2");
+  std::cout << "\nViewer Legend:\n"
+            << "  Red   -> cloud 1\n"
+            << "  Green -> cloud 2\n"
+            << "Press [c] to continue with other measurements\n";
+  while (!pcl_viewer->wasStopped()) {
+    pcl_viewer->spinOnce(10);
+  }
+  pcl_viewer->removeAllPointClouds();
+  pcl_viewer->close();
+  pcl_viewer->resetStoppedFlag();
 }
 
 } // end namespace vicon_calibration

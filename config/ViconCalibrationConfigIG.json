@@ -1,16 +1,46 @@
 {
-  "bag_file": "/home/nick/bag_files/vicon_calibration/IG_Vicon_Sim_2019-08-29-17-15-49.bag",
+  "bag_file": "/home/nick/bag_files/vicon_calibration/2019-12-16-16-40-24-IG_CALIB_1.bag",
   "initial_calibration": "initial_calibration_ig_current.json",
   "lookup_tf_calibrations": true,
   "initial_guess_perturb": [0, 0, 0, 0, 0, 0],
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
   "show_measurements": true,
+  "save_results": true,
+  "output_directory": "/home/nick/vicon_calibration_results/",
   "targets":[
     {"frame_id": "vicon/cylinder_target1/cylinder_target1",
      "extractor_type": "CYLINDER",
      "target_config": "CylinderTarget.json"
     },
     {"frame_id": "vicon/cylinder_target2/cylinder_target2",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    },
+    {"frame_id": "vicon/cylinder_target5/cylinder_target5",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    },
+    {"frame_id": "vicon/cylinder_target6/cylinder_target6",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    },
+    {"frame_id": "vicon/cylinder_target7/cylinder_target7",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    },
+    {"frame_id": "vicon/cylinder_target8/cylinder_target8",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    },
+    {"frame_id": "vicon/cylinder_target9/cylinder_target9",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    },
+    {"frame_id": "vicon/cylinder_target10/cylinder_target10",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    },
+    {"frame_id": "vicon/cylinder_target11/cylinder_target11",
      "extractor_type": "CYLINDER",
      "target_config": "CylinderTarget.json"
     }
@@ -20,19 +50,8 @@
      "frame": "F1_link",
      "intrinsics": "F1_sim.json",
      "images_distorted": false,
-     "time_steps": 10},
-     {"topic": "/F2/image_raw",
-      "frame": "F2_link",
-      "intrinsics": "F2_sim.json",
-      "images_distorted": false,
-      "time_steps": 10}
+     "time_steps": 9}
   ],
   "lidar_params":[
-    {"topic": "/hvlp/velodyne_points",
-     "frame": "hvlp_link",
-     "time_steps": 10},
-    {"topic": "/vvlp/velodyne_points",
-     "frame": "vvlp_link",
-     "time_steps": 10}
   ]
 }

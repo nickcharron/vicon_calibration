@@ -21,6 +21,7 @@
 
 // PCL specific headers
 #include <pcl/common/transforms.h>
+#include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -65,6 +66,8 @@ void ViconCalibrator::LoadJSON(std::string file_name) {
   params_.initial_guess_perturbation = tmp;
   params_.vicon_baselink_frame = J["vicon_baselink_frame"];
   params_.show_measurements = J["show_measurements"];
+  params_.save_results = J["save_results"];
+  params_.output_directory = J["output_directory"];
 
   for (const auto &target : J["targets"]) {
     std::shared_ptr<vicon_calibration::TargetParams> target_info =
@@ -226,8 +229,10 @@ void ViconCalibrator::LoadLookupTree() {
 void ViconCalibrator::GetInitialCalibration(std::string &sensor_frame,
                                             SensorType type,
                                             uint8_t &sensor_id) {
-  T_VICONBASE_SENSOR_ = estimate_extrinsics_.GetTransformEigen(
-      params_.vicon_baselink_frame, sensor_frame).matrix();
+  T_VICONBASE_SENSOR_ =
+      estimate_extrinsics_
+          .GetTransformEigen(params_.vicon_baselink_frame, sensor_frame)
+          .matrix();
   vicon_calibration::CalibrationResult calib_initial;
   calib_initial.transform = T_VICONBASE_SENSOR_;
   calib_initial.type = type;
@@ -458,12 +463,11 @@ void ViconCalibrator::GetLoopClosureMeasurements() {
 void ViconCalibrator::RunCalibration(std::string config_file) {
 
   // get configuration settings
-  std::string config_file_path;
-  config_file_path = GetJSONFileNameConfig(config_file);
+  config_file_path_ = GetJSONFileNameConfig(config_file);
   try {
-    LoadJSON(config_file_path);
+    LoadJSON(config_file_path_);
   } catch (nlohmann::detail::parse_error &ex) {
-    LOG_ERROR("Unable to load json config file: %s", config_file_path.c_str());
+    LOG_ERROR("Unable to load json config file: %s", config_file_path_.c_str());
     LOG_ERROR("%s", ex.what());
   }
 
@@ -499,19 +503,203 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
   graph_.SetTargetParams(params_.target_params_list);
   // graph_.SetCameraMeasurements(camera_measurements_);
   // TODO: Change this to calibrations_initial_
-  // graph_.SetInitialGuess(calibrations_perturbed_);
-  // graph_.SolveGraph();
-  // calibrations_result_ = graph_.GetResults();
-  // std::string file_name_print = "file.dot";
-  // graph_.Print(file_name_print, true);
-  // utils::OutputLidarMeasurements(lidar_measurements_);
+  // graph_.SetInitialGuess(calibrations_initial_);
+  graph_.SetInitialGuess(calibrations_perturbed_);
+  graph_.SolveGraph();
+  calibrations_result_ = graph_.GetResults();
   utils::OutputCalibrations(calibrations_initial_,
                             "Initial Calibration Estimates:");
   utils::OutputCalibrations(calibrations_perturbed_, "Perturbed Calibrations:");
   utils::OutputCalibrations(calibrations_result_, "Optimized Calibrations:");
   // this->OutputErrorMetrics();
-
+  if (params_.show_measurements || params_.save_results) {
+    this->ProcessCalibResults();
+  }
   return;
+}
+
+void ViconCalibrator::ProcessCalibResults() {
+  LOG_INFO("Processing results.");
+  // load bag file
+  try {
+    bag_.open(params_.bag_file, rosbag::bagmode::Read);
+  } catch (rosbag::BagException &ex) {
+    LOG_ERROR("Bag exception : %s", ex.what());
+  }
+
+  // create output directory
+  if (params_.save_results) {
+    std::string dateandtime =
+        utils::ConvertTimeToDate(std::chrono::system_clock::now());
+    results_directory_ = params_.output_directory + dateandtime + "/";
+    boost::filesystem::create_directory(results_directory_);
+    LOG_INFO("Saving results to: %s", results_directory_.c_str());
+    std::string file_name_print = results_directory_ + "graph.xdot";
+    graph_.Print(file_name_print, false);
+    utils::PrintCalibrations(calibrations_initial_,
+                             results_directory_ + "initial_calibrations.txt");
+    utils::PrintCalibrations(calibrations_perturbed_,
+                             results_directory_ + "perturbed_calibrations.txt");
+    utils::PrintCalibrations(calibrations_result_,
+                             results_directory_ + "optimized_calibrations.txt");
+    // get configuration settings
+    nlohmann::json J_in;
+    std::ifstream file_in(config_file_path_);
+    std::ofstream file_out(results_directory_ + "config.json");
+    file_in >> J_in;
+    file_out << std::setw(4) << J_in << std::endl;
+  }
+
+  // Iterate over each lidar
+  for (uint8_t lidar_iter = 0; lidar_iter < params_.lidar_params.size();
+       lidar_iter++) {
+    // get lidar info
+    std::string topic = params_.lidar_params[lidar_iter]->topic;
+    std::string sensor_frame = params_.lidar_params[lidar_iter]->frame;
+    ros::Duration time_step(params_.lidar_params.at(lidar_iter)->time_steps);
+    ros::Time time_last(0, 0);
+
+    // get initial calibration and optimized calibration
+    Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_opt;
+    for (CalibrationResult calib : calibrations_perturbed_) {
+      if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
+        TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
+        break;
+      }
+    }
+    for (CalibrationResult calib : calibrations_result_) {
+      if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
+        TA_VICONBASE_SENSOR_opt.matrix() = calib.transform;
+        break;
+      }
+    }
+
+    // Initialize all the clouds we will need
+    pcl::PCLPointCloud2::Ptr cloud_pc2 =
+        boost::make_shared<pcl::PCLPointCloud2>();
+    PointCloud::Ptr scan = boost::make_shared<PointCloud>();
+    PointCloud::Ptr scan_trans_est = boost::make_shared<PointCloud>();
+    PointCloud::Ptr scan_trans_opt = boost::make_shared<PointCloud>();
+    PointCloud::Ptr target = boost::make_shared<PointCloud>();
+    PointCloud::Ptr target_transformed = boost::make_shared<PointCloud>();
+    PointCloud::Ptr targets_combined = boost::make_shared<PointCloud>();
+
+    // create a voxel grid filter for filtering the template cloud
+    pcl::VoxelGrid<pcl::PointXYZ> vox;
+    vox.setLeafSize(0.005f, 0.01f, 0.01f);
+
+    // iterate through all scans in bag for this lidar
+    rosbag::View view(bag_, rosbag::TopicQuery(topic), ros::TIME_MIN,
+                      ros::TIME_MAX, true);
+    int counter = 0;
+    for (auto iter = view.begin(); iter != view.end(); iter++) {
+      boost::shared_ptr<sensor_msgs::PointCloud2> lidar_msg =
+          iter->instantiate<sensor_msgs::PointCloud2>();
+      ros::Time time_current = lidar_msg->header.stamp;
+      // check if we want to use this scan
+      if (time_current > time_last + time_step) {
+        // set time and transforms
+        counter++;
+        lookup_time_ = time_current;
+        this->LoadLookupTree();
+        time_last = time_current;
+
+        // load scan and transform to viconbase frame
+        pcl_conversions::toPCL(*lidar_msg, *cloud_pc2);
+        pcl::fromPCLPointCloud2(*cloud_pc2, *scan);
+        pcl::transformPointCloud(*scan, *scan_trans_est,
+                                 TA_VICONBASE_SENSOR_est);
+        pcl::transformPointCloud(*scan, *scan_trans_opt,
+                                 TA_VICONBASE_SENSOR_opt);
+
+        // load targets and transform to viconbase frame
+        std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+            T_viconbase_tgts = GetTargetLocation();
+        ;
+        for (uint8_t n = 0; n < T_viconbase_tgts.size(); n++) {
+          target = params_.target_params_list[n]->template_cloud;
+          vox.setInputCloud(target);
+          vox.filter(*target);
+          pcl::transformPointCloud(*target, *target_transformed,
+                                   T_viconbase_tgts[n]);
+          *targets_combined = *targets_combined + *target_transformed;
+        }
+        // save all the scans that are viewed
+        if (params_.save_results) {
+          std::string save_path1, save_path2, save_path3;
+          save_path1 = results_directory_ + "scan_est_" +
+                       std::to_string(counter) + ".pcd";
+          save_path2 = results_directory_ + "scan_opt_" +
+                       std::to_string(counter) + ".pcd";
+          save_path3 = results_directory_ + "targets_" +
+                       std::to_string(counter) + ".pcd";
+          pcl::io::savePCDFileBinary(save_path1, *scan_trans_est);
+          pcl::io::savePCDFileBinary(save_path2, *scan_trans_opt);
+          pcl::io::savePCDFileBinary(save_path3, *targets_combined);
+        }
+        // view all clouds
+        if (params_.show_measurements){
+          ViewClouds(scan_trans_est, scan_trans_opt, targets_combined);
+        }
+      }
+    }
+  }
+}
+
+void ViconCalibrator::ViewClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr c1,
+                                 pcl::PointCloud<pcl::PointXYZ>::Ptr c2,
+                                 pcl::PointCloud<pcl::PointXYZ>::Ptr c3) {
+  PointCloudColor::Ptr c1_col = boost::make_shared<PointCloudColor>();
+  PointCloudColor::Ptr c2_col = boost::make_shared<PointCloudColor>();
+  PointCloudColor::Ptr c3_col = boost::make_shared<PointCloudColor>();
+
+  uint32_t rgb1 = (static_cast<uint32_t>(255) << 16 |
+                   static_cast<uint32_t>(0) << 8 | static_cast<uint32_t>(0));
+  uint32_t rgb2 = (static_cast<uint32_t>(0) << 16 |
+                   static_cast<uint32_t>(255) << 8 | static_cast<uint32_t>(0));
+  uint32_t rgb3 = (static_cast<uint32_t>(0) << 16 |
+                   static_cast<uint32_t>(0) << 8 | static_cast<uint32_t>(255));
+  pcl::PointXYZRGB point;
+  for (PointCloud::iterator it = c1->begin(); it != c1->end(); ++it) {
+    point.x = it->x;
+    point.y = it->y;
+    point.z = it->z;
+    point.rgb = *reinterpret_cast<float *>(&rgb1);
+    c1_col->push_back(point);
+  }
+  for (PointCloud::iterator it = c2->begin(); it != c2->end(); ++it) {
+    point.x = it->x;
+    point.y = it->y;
+    point.z = it->z;
+    point.rgb = *reinterpret_cast<float *>(&rgb2);
+    c2_col->push_back(point);
+  }
+  for (PointCloud::iterator it = c3->begin(); it != c3->end(); ++it) {
+    point.x = it->x;
+    point.y = it->y;
+    point.z = it->z;
+    point.rgb = *reinterpret_cast<float *>(&rgb3);
+    c3_col->push_back(point);
+  }
+  pcl::visualization::PCLVisualizer::Ptr pcl_viewer =
+      boost::make_shared<pcl::visualization::PCLVisualizer>();
+  pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1_(
+      c1_col),
+      rgb2_(c2_col), rgb3_(c3_col);
+  pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, "Cloud1");
+  pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, "Cloud2");
+  pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c3_col, rgb3_, "Cloud3");
+  std::cout << "\nViewer Legend:\n"
+            << "  Red   -> Estimated Calibration \n"
+            << "  Green -> Optimized Calibration\n"
+            << "  Blue -> Targets\n"
+            << "Press exit to continue with other measurements\n";
+  while (!pcl_viewer->wasStopped()) {
+    pcl_viewer->spinOnce(10);
+  }
+  pcl_viewer->removeAllPointClouds();
+  pcl_viewer->close();
+  pcl_viewer->resetStoppedFlag();
 }
 
 } // end namespace vicon_calibration

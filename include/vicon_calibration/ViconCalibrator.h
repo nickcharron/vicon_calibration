@@ -18,17 +18,19 @@ namespace vicon_calibration {
 class ViconCalibrator {
 
   struct CalibratorConfig {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     std::string bag_file;
     std::string initial_calibration_file;
-    bool lookup_tf_calibrations;
+    bool lookup_tf_calibrations{false};
     std::string vicon_baselink_frame;
-    bool show_measurements;
+    bool show_measurements{false};
+    bool save_results{true};
+    std::string output_directory;
     Eigen::VectorXd initial_guess_perturbation; // for testing sim
     std::vector<std::shared_ptr<vicon_calibration::TargetParams>>
         target_params_list;
     std::vector<std::shared_ptr<vicon_calibration::CameraParams>> camera_params;
     std::vector<std::shared_ptr<vicon_calibration::LidarParams>> lidar_params;
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   };
 
 public:
@@ -109,7 +111,15 @@ private:
 
   void SetCalibrationInitials();
 
+  void ProcessCalibResults();
+
+  void ViewClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr c1,
+                  pcl::PointCloud<pcl::PointXYZ>::Ptr c2,
+                  pcl::PointCloud<pcl::PointXYZ>::Ptr c3);
+
   CalibratorConfig params_;
+  std::string results_directory_;
+  std::string config_file_path_;
   std::shared_ptr<LidarExtractor> lidar_extractor_;
   std::shared_ptr<CameraExtractor> camera_extractor_;
   ros::Time lookup_time_;

@@ -79,7 +79,7 @@ private:
   double max_keypoint_distance_{0.005}; // keypoints will only be the taken when
                                         // the correspondence distance with the
                                         // est. tgt. loc. is less than this
-  double dist_acceptance_criteria_{0.025}; // acceptable error between estimated
+  double dist_acceptance_criteria_{0.05}; // acceptable error between estimated
                                            // target and registered target
   double icp_transform_epsilon_{1e-8};
   double icp_euclidean_epsilon_{1e-2};

@@ -13,7 +13,9 @@ void CylinderLidarExtractor::ExtractKeypoints(
   scan_in_ = boost::make_shared<PointCloud>();
   scan_cropped_ = boost::make_shared<PointCloud>();
   scan_best_points_ = boost::make_shared<PointCloud>();
-  pcl_viewer_ = boost::make_shared<pcl::visualization::PCLVisualizer>();
+  if(show_measurements_){
+    pcl_viewer_ = boost::make_shared<pcl::visualization::PCLVisualizer>();  
+  }
   scan_in_ = cloud_in;
   T_LIDAR_TARGET_EST_ = T_LIDAR_TARGET_EST;
   Eigen::Affine3d T_identity;

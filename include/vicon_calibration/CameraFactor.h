@@ -17,10 +17,10 @@ class CameraFactor : public gtsam::NoiseModelFactor1<gtsam::Pose3> {
   double Fx_, Fy_, Cx_, Cy_;
 
 public:
-  CameraFactor(gtsam::Key i, Eigen::Vector2d measured_pixel,
-               Eigen::Vector3d corresponding_point,
-               std::shared_ptr<beam_calibration::CameraModel> &camera_model,
-               Eigen::Matrix4d &T_VICONBASE_TARGET,
+  CameraFactor(const gtsam::Key i, const Eigen::Vector2d measured_pixel,
+               const Eigen::Vector3d corresponding_point,
+               const std::shared_ptr<beam_calibration::CameraModel> &camera_model,
+               const Eigen::Matrix4d &T_VICONBASE_TARGET,
                const gtsam::SharedNoiseModel &model)
       : gtsam::NoiseModelFactor1<gtsam::Pose3>(model, i),
         measured_pixel_(measured_pixel),

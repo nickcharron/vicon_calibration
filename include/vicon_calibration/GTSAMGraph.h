@@ -36,7 +36,9 @@ public:
   void Print(std::string &file_name, bool print_to_terminal);
 
 private:
-  bool CheckConvergence();
+  void ViewClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr c1, pcl::PointCloud<pcl::PointXYZ>::Ptr c2);
+
+  bool HasConverged(uint16_t iteration);
 
   void CheckInputs();
 
@@ -69,14 +71,13 @@ private:
   std::vector<vicon_calibration::Correspondence> camera_correspondences_;
   std::vector<vicon_calibration::Correspondence> lidar_correspondences_;
 
-  //convergence params:
-  bool output_errors_{true};
-  double relative_error_tol_{1e-5};
-  double absolute_error_tol_{1e-5};
-  double error_tol_{1e-9};
-  uint16_t max_iterations_{50};
-  double current_error_{0}, new_error_{1};
-
+  // params
+  uint16_t max_iterations_{40};
+  double max_pixel_cor_dist_{500}; // in pixels
+  double max_point_cor_dist_{0.3}; // in m
+  std::vector<double> error_tol_{0.0001, 0.0001, 0.0001, 0.0005, 0.0005, 0.0005};
+  std::vector<double> image_noise_{5, 5};
+  std::vector<double> lidar_noise_{0.02, 0.02, 0.02};
 };
 
 } // end namespace vicon_calibration

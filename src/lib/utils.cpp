@@ -5,6 +5,21 @@ namespace vicon_calibration {
 
 namespace utils {
 
+double RAD_TO_DEG = 57.29577951;  
+
+double WrapToPi(double angle) {
+  double wrapped_angle = WrapToTwoPi(angle + M_PI) - M_PI;
+  return wrapped_angle;
+}
+
+double WrapToTwoPi(double angle) {
+  double wrapped_angle = fmod(angle, 2 * M_PI);
+  if (wrapped_angle < 0) {
+    wrapped_angle += 2 * M_PI;
+  }
+  return wrapped_angle;
+}
+
 Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd &M, int precision) {
   Eigen::MatrixXd Mround(M.rows(), M.cols());
   for (int i = 0; i < M.rows(); i++) {
@@ -56,13 +71,13 @@ bool IsTransformationMatrix(const Eigen::Matrix4d T) {
 
 Eigen::Matrix4d PerturbTransform(const Eigen::Matrix4d &T_in,
                                  const Eigen::VectorXd &perturbations) {
-  Eigen::Vector3d r_perturb = perturbations.block(0,0,3,1);
-  Eigen::Vector3d t_perturb = perturbations.block(3,0,3,1);
-  Eigen::Matrix3d R_in = T_in.block(0,0,3,3);
+  Eigen::Vector3d r_perturb = perturbations.block(0, 0, 3, 1);
+  Eigen::Vector3d t_perturb = perturbations.block(3, 0, 3, 1);
+  Eigen::Matrix3d R_in = T_in.block(0, 0, 3, 3);
   Eigen::Vector3d r_in = RToLieAlgebra(R_in);
   Eigen::Matrix3d R_out = LieAlgebraToR(r_in + r_perturb);
   Eigen::Matrix4d T_out;
-  T_out.block(0, 3, 3, 1) = T_in.block(0,3,3,1) + t_perturb;
+  T_out.block(0, 3, 3, 1) = T_in.block(0, 3, 3, 1) + t_perturb;
   T_out.block(0, 0, 3, 3) = R_out;
   return T_out;
 }
@@ -97,11 +112,12 @@ Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d &eps) {
   return SkewTransform(eps).exp();
 }
 
-Eigen::Matrix4d InvertTransform(const Eigen::Matrix4d &T){
+Eigen::Matrix4d InvertTransform(const Eigen::Matrix4d &T) {
   Eigen::Matrix4d T_inv;
   T_inv.setIdentity();
-  T_inv.block(0,0,3,3) = T.block(0,0,3,3).transpose();
-  T_inv.block(0,3,3,1) = - T.block(0,0,3,3).transpose() * T.block(0,3,3,1);
+  T_inv.block(0, 0, 3, 3) = T.block(0, 0, 3, 3).transpose();
+  T_inv.block(0, 3, 3, 1) =
+      -T.block(0, 0, 3, 3).transpose() * T.block(0, 3, 3, 1);
   return T_inv;
 }
 
@@ -125,7 +141,7 @@ DrawCoordinateFrame(cv::Mat &img_in, Eigen::MatrixXd &T_cam_frame,
   Eigen::Vector2d end_pixel_x;
   Eigen::Vector2d end_pixel_y;
   Eigen::Vector2d end_pixel_z;
-  if(images_distorted){
+  if (images_distorted) {
     start_pixel = camera_model->ProjectPoint(o);
     end_pixel_x = camera_model->ProjectPoint(x);
     end_pixel_y = camera_model->ProjectPoint(y);
@@ -164,13 +180,13 @@ DrawCoordinateFrame(cv::Mat &img_in, Eigen::MatrixXd &T_cam_frame,
 
 void OutputTransformInformation(Eigen::Affine3d &T,
                                 std::string transform_name) {
-  double RAD_TO_DEG = 57.29577951;
   Eigen::Matrix3d R = T.rotation();
   Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
   std::cout << transform_name << ":\n"
             << T.matrix() << "\n"
-            << "rpy (deg): [" << rpy[0] * RAD_TO_DEG << ", "
-            << rpy[1] * RAD_TO_DEG << ", " << rpy[2] * RAD_TO_DEG << "]\n";
+            << "rpy (deg): [" << WrapToPi(rpy[0]) * RAD_TO_DEG << ", "
+            << WrapToPi(rpy[1]) * RAD_TO_DEG << ", "
+            << WrapToPi(rpy[2]) * RAD_TO_DEG << "]\n";
 }
 
 void OutputCalibrations(
@@ -178,11 +194,48 @@ void OutputCalibrations(
     std::string output_string) {
   std::cout << "----------------------\n" << output_string << "\n";
   for (uint16_t i = 0; i < calib.size(); i++) {
+    Eigen::Matrix4d T = calib[i].transform;
+    Eigen::Matrix3d R = T.block(0, 0, 3, 3);
+    Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
     std::cout << "T_" << calib[i].to_frame << "_" << calib[i].from_frame
               << ":\n"
-              << calib[i].transform << "\n";
+              << T << "\n"
+              << "rpy (deg): [" << WrapToPi(rpy[0]) * RAD_TO_DEG << ", "
+              << WrapToPi(rpy[1]) * RAD_TO_DEG << ", "
+              << WrapToPi(rpy[2]) * RAD_TO_DEG << "]\n";
   }
 }
+
+void PrintCalibrations(std::vector<vicon_calibration::CalibrationResult> &calib,
+                       std::string output_path) {
+  std::ofstream file(output_path);
+  for (uint16_t i = 0; i < calib.size(); i++) {
+    Eigen::Matrix4d T = calib[i].transform;
+    Eigen::Matrix3d R = T.block(0, 0, 3, 3);
+    Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
+    file << "T_" << calib[i].to_frame << "_" << calib[i].from_frame << ":\n"
+         << T << "\n"
+         << "rpy (deg): [" << WrapToPi(rpy[0]) * RAD_TO_DEG << ", "
+         << WrapToPi(rpy[1]) * RAD_TO_DEG << ", "
+         << WrapToPi(rpy[2]) * RAD_TO_DEG << "]\n";
+  }
+}
+
+std::string ConvertTimeToDate(std::chrono::system_clock::time_point time_) {
+  using namespace std;
+  using namespace std::chrono;
+  system_clock::duration tp = time_.time_since_epoch();
+  time_t tt = system_clock::to_time_t(time_);
+  tm local_tm = *localtime(&tt);
+
+  string outputTime =
+      to_string(local_tm.tm_year + 1900) + "_" +
+      to_string(local_tm.tm_mon + 1) + "_" + to_string(local_tm.tm_mday) + "_" +
+      to_string(local_tm.tm_hour) + "_" + to_string(local_tm.tm_min) + "_" +
+      to_string(local_tm.tm_sec);
+  return outputTime;
+}
+
 } // namespace utils
 
 } // end namespace vicon_calibration

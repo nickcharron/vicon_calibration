@@ -34,6 +34,18 @@ typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudColor;
 
 namespace utils {
 
+/** Wraps input angle to the interval [-PI, PI).
+ * @param[in] angle the original angle.
+ * @return the wrapped angle.
+ */
+double WrapToPi(double angle);
+
+/** Wraps input angle to the interval [0, 2*PI).
+ * @param[in] angle the original angle.
+ * @return the wrapped angle.
+ */
+double WrapToTwoPi(double angle);
+
 Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd &M, int precision);
 
 bool IsRotationMatrix(const Eigen::Matrix3d R);
@@ -63,6 +75,9 @@ void OutputTransformInformation(Eigen::Affine3d &T, std::string transform_name);
 void OutputCalibrations(
     std::vector<vicon_calibration::CalibrationResult> &calib,
     std::string output_string);
+
+void PrintCalibrations(std::vector<vicon_calibration::CalibrationResult> &calib,
+                       std::string output_path);
 
 inline Eigen::Vector3d PCLPointToEigen(const pcl::PointXYZ &pt_in) {
   return Eigen::Vector3d(pt_in.x, pt_in.y, pt_in.z);
@@ -110,6 +125,8 @@ inline Eigen::Vector3d HomoPointToPoint(const Eigen::Vector4d &pt_in) {
 inline Eigen::Vector4d PointToHomoPoint(const Eigen::Vector3d &pt_in) {
   return Eigen::Vector4d(pt_in[0], pt_in[1], pt_in[2], 1);
 }
+
+std::string ConvertTimeToDate(std::chrono::system_clock::time_point time_);
 
 } // namespace utils
 

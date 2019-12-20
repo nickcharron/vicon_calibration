@@ -2,11 +2,9 @@
   "bag_file": "/home/nick/bag_files/vicon_calibration/2019-12-16-15-38-42_ROBEN_CALIB_2.bag",
   "initial_calibration": "initial_calibration_roben.json",
   "lookup_tf_calibrations": true,
-  "initial_guess_perturb": [0.007, 0.015, 0, 0.0, 0.0, 0.0],
+  "initial_guess_perturb": [0, 0, 0, 0.015, 0.02, 0.01],
   "vicon_baselink_frame": "vicon/roben/roben",
   "show_measurements": false,
-  "save_results": true,
-  "output_directory": "/home/nick/vicon_calibration_results/",
   "targets":[
     {"frame_id": "vicon/cylinder_target1/cylinder_target1",
      "extractor_type": "CYLINDER",

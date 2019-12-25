@@ -427,14 +427,14 @@ TEST_CASE("Test camera factor in Optimization") {
   int count = 0;
   for (int i = 0; i < points.size(); i++) {
     point_transformed = T_CV * T_VT * points[i];
-    // pixel = camera_model->ProjectUndistortedPoint(
-    //     vicon_calibration::utils::HomoPointToPoint(point_transformed));
-    pixel[0] = camera_model->GetCx() + point_transformed[0] *
-                                           camera_model->GetFx() /
-                                           point_transformed[2];
-    pixel[1] = camera_model->GetCy() + point_transformed[1] *
-                                           camera_model->GetFy() /
-                                           point_transformed[2];
+    pixel = camera_model->ProjectUndistortedPoint(
+        vicon_calibration::utils::HomoPointToPoint(point_transformed));
+    // pixel[0] = camera_model->GetCx() + point_transformed[0] *
+    //                                        camera_model->GetFx() /
+    //                                        point_transformed[2];
+    // pixel[1] = camera_model->GetCy() + point_transformed[1] *
+    //                                        camera_model->GetFy() /
+    //                                        point_transformed[2];
     pixels[i] = pixel;
     if (camera_model->PixelInImage(pixel)) {
       pixels_valid[i] = true;

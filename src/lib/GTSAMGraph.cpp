@@ -22,8 +22,7 @@ void GTSAMGraph::SetTargetParams(
 
   // Downsample template cloud
   pcl::VoxelGrid<pcl::PointXYZ> vox;
-  vox.setLeafSize(template_downsample_size_[0],
-                  template_downsample_size_[0],
+  vox.setLeafSize(template_downsample_size_[0], template_downsample_size_[0],
                   template_downsample_size_[0]);
   boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> downsampled_cloud =
       boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
@@ -32,8 +31,6 @@ void GTSAMGraph::SetTargetParams(
     vox.filter(*downsampled_cloud);
     target_params_[i]->template_cloud = downsampled_cloud;
   }
-
-
 }
 
 void GTSAMGraph::SetLidarMeasurements(
@@ -186,13 +183,13 @@ void GTSAMGraph::SetImageCorrespondences() {
         gtsam::Symbol('C', measurement.camera_id));
     T_VICONBASE_CAM = pose.matrix();
     T_CAM_TARGET = utils::InvertTransform(T_VICONBASE_CAM) *
-                     measurement.T_VICONBASE_TARGET;
+                   measurement.T_VICONBASE_TARGET;
 
-   pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_template =
-       boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-   pcl::transformPointCloud(
-       *(target_params_[measurement.target_id]->template_cloud),
-       *transformed_template, T_CAM_TARGET);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_template =
+        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    pcl::transformPointCloud(
+        *(target_params_[measurement.target_id]->template_cloud),
+        *transformed_template, T_CAM_TARGET);
 
     // create point cloud of projected points
     pcl::PointCloud<pcl::PointXY>::Ptr projected_pixels =
@@ -200,13 +197,16 @@ void GTSAMGraph::SetImageCorrespondences() {
     for (uint32_t i = 0; i < transformed_template->size(); i++) {
       pcl::PointXY point_projected_pcl;
       pcl::PointXYZ point_pcl = transformed_template->at(i);
-      // TODO: Check if images are distorted
-      Eigen::Vector2d point_projected =
-          camera_models_[measurement.camera_id]->ProjectUndistortedPoint(
-              utils::PCLPointToEigen(point_pcl));
-      point_projected_pcl.x = point_projected[0];
-      point_projected_pcl.y = point_projected[1];
-      projected_pixels->push_back(point_projected_pcl);
+      Eigen::Vector2d point_projected;
+      if (camera_params_[measurement.camera_id]->images_distorted) {
+        point_projected = camera_models_[measurement.camera_id]->ProjectPoint(
+            utils::PCLPointToEigen(point_pcl));
+      } else {
+        point_projected =
+            camera_models_[measurement.camera_id]->ProjectUndistortedPoint(
+                utils::PCLPointToEigen(point_pcl));
+      }
+      projected_pixels->push_back(utils::EigenPixelToPCL(point_projected));
     }
 
     // get correspondences

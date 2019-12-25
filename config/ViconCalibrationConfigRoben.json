@@ -3,6 +3,7 @@
   "initial_calibration": "initial_calibration_roben.json",
   "lookup_tf_calibrations": true,
   "initial_guess_perturb": [0.007, 0.015, 0, 0.0, 0.0, 0.0],
+  "min_measurement_motion": 0.05,
   "vicon_baselink_frame": "vicon/roben/roben",
   "show_measurements": false,
   "save_results": true,
@@ -42,6 +43,6 @@
   "lidar_params":[
     {"topic": "/m3d/aggregator/cloud",
      "frame": "m3d_link",
-     "time_steps": 1}
+     "time_steps": 10}
   ]
 }

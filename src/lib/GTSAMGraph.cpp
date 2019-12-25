@@ -10,7 +10,7 @@
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
-#include <pcl/registration/correspondence_estimation.h>
+#include <pcl/filters/voxel_grid.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
 namespace vicon_calibration {
@@ -19,6 +19,21 @@ void GTSAMGraph::SetTargetParams(
     std::vector<std::shared_ptr<vicon_calibration::TargetParams>>
         &target_params) {
   target_params_ = target_params;
+
+  // Downsample template cloud
+  pcl::VoxelGrid<pcl::PointXYZ> vox;
+  vox.setLeafSize(template_downsample_size_[0],
+                  template_downsample_size_[0],
+                  template_downsample_size_[0]);
+  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> downsampled_cloud =
+      boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  for (int i = 0; i < target_params_.size(); i++) {
+    vox.setInputCloud(target_params_[i]->template_cloud);
+    vox.filter(*downsampled_cloud);
+    target_params_[i]->template_cloud = downsampled_cloud;
+  }
+
+
 }
 
 void GTSAMGraph::SetLidarMeasurements(
@@ -161,6 +176,7 @@ void GTSAMGraph::AddInitials() {
 void GTSAMGraph::SetImageCorrespondences() {
   LOG_INFO("Setting image correspondances");
   int counter = 0;
+  Eigen::Matrix4d T_VICONBASE_CAM, T_CAM_TARGET;
   for (uint32_t meas_iter = 0; meas_iter < camera_measurements_.size();
        meas_iter++) {
     vicon_calibration::CameraMeasurement measurement =
@@ -168,26 +184,28 @@ void GTSAMGraph::SetImageCorrespondences() {
     gtsam::Pose3 pose;
     pose = initials_updated_.at<gtsam::Pose3>(
         gtsam::Symbol('C', measurement.camera_id));
-    Eigen::Matrix4d T_VICONBASE_CAM = pose.matrix();
-    Eigen::Matrix4d T_CAM_VICONBASE = utils::InvertTransform(T_VICONBASE_CAM);
+    T_VICONBASE_CAM = pose.matrix();
+    T_CAM_TARGET = utils::InvertTransform(T_VICONBASE_CAM) *
+                     measurement.T_VICONBASE_TARGET;
+
+   pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_template =
+       boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+   pcl::transformPointCloud(
+       *(target_params_[measurement.target_id]->template_cloud),
+       *transformed_template, T_CAM_TARGET);
 
     // create point cloud of projected points
-    // TODO: Do we want to extract perimeter points as well here?
-    pcl::PointCloud<pcl::PointXYZ>::Ptr target_points;
-    target_points = target_params_[measurement.target_id]->template_cloud;
     pcl::PointCloud<pcl::PointXY>::Ptr projected_pixels =
         boost::make_shared<pcl::PointCloud<pcl::PointXY>>();
-    for (uint32_t i = 0; i < target_points->size(); i++) {
+    for (uint32_t i = 0; i < transformed_template->size(); i++) {
       pcl::PointXY point_projected_pcl;
-      Eigen::Vector2d point_projected;
-      Eigen::Vector4d point_transformed;
-      pcl::PointXYZ point_pcl = target_points->at(i);
-      Eigen::Vector4d point_eig(point_pcl.x, point_pcl.y, point_pcl.z, 1);
-      point_transformed =
-          T_CAM_VICONBASE * measurement.T_VICONBASE_TARGET * point_eig;
-      point_projected = camera_models_[measurement.camera_id]->ProjectPoint(
-          point_transformed);
-      point_projected_pcl = utils::EigenPixelToPCL(point_projected);
+      pcl::PointXYZ point_pcl = transformed_template->at(i);
+      // TODO: Check if images are distorted
+      Eigen::Vector2d point_projected =
+          camera_models_[measurement.camera_id]->ProjectUndistortedPoint(
+              utils::PCLPointToEigen(point_pcl));
+      point_projected_pcl.x = point_projected[0];
+      point_projected_pcl.y = point_projected[1];
       projected_pixels->push_back(point_projected_pcl);
     }
 
@@ -198,6 +216,10 @@ void GTSAMGraph::SetImageCorrespondences() {
     corr_est.setInputSource(measurement.keypoints);
     corr_est.setInputTarget(projected_pixels);
     corr_est.determineCorrespondences(correspondences, max_pixel_cor_dist_);
+    if (show_camera_measurements_) {
+      ViewCameraMeasurements(measurement.keypoints, projected_pixels,
+                             correspondences);
+    }
     for (uint32_t i = 0; i < correspondences.size(); i++) {
       counter++;
       vicon_calibration::Correspondence correspondence;
@@ -207,12 +229,13 @@ void GTSAMGraph::SetImageCorrespondences() {
       camera_correspondences_.push_back(correspondence);
     }
   }
-  LOG_INFO("Added %d camera correspondances.", counter);
+  LOG_INFO("Added %d image correspondances.", counter);
 }
 
 void GTSAMGraph::SetLidarCorrespondences() {
   LOG_INFO("Setting lidar correspondances");
   int counter = 0;
+  Eigen::Matrix4d T_VICONBASE_LIDAR, T_LIDAR_TARGET;
   for (uint32_t meas_iter = 0; meas_iter < lidar_measurements_.size();
        meas_iter++) {
     vicon_calibration::LidarMeasurement measurement =
@@ -220,7 +243,6 @@ void GTSAMGraph::SetLidarCorrespondences() {
     gtsam::Pose3 pose;
     pose = initials_updated_.at<gtsam::Pose3>(
         gtsam::Symbol('L', measurement.lidar_id));
-    Eigen::Matrix4d T_VICONBASE_LIDAR, T_LIDAR_TARGET;
     T_VICONBASE_LIDAR = pose.matrix();
     T_LIDAR_TARGET = utils::InvertTransform(T_VICONBASE_LIDAR) *
                      measurement.T_VICONBASE_TARGET;
@@ -253,6 +275,7 @@ void GTSAMGraph::SetLidarCorrespondences() {
 
 void GTSAMGraph::SetImageFactors() {
   LOG_INFO("Setting image factors");
+  int counter = 0;
   pcl::PointXY pixel_pcl;
   pcl::PointXYZ point_pcl;
   Eigen::Vector3d point_eig(0, 0, 0);
@@ -274,12 +297,13 @@ void GTSAMGraph::SetImageFactors() {
     point_eig = utils::PCLPointToEigen(point_pcl);
     pixel_pcl = measurement.keypoints->at(corr.measured_point_index);
     pixel_eig = utils::PCLPixelToEigen(pixel_pcl);
-
     gtsam::Key key = gtsam::Symbol('C', camera_index);
     graph_.emplace_shared<CameraFactor>(
         key, pixel_eig, point_eig, camera_models_[camera_index],
         measurement.T_VICONBASE_TARGET, ImageNoise);
+    counter++;
   }
+  LOG_INFO("Added %d image factors.", counter);
 }
 
 void GTSAMGraph::SetLidarFactors() {
@@ -399,26 +423,73 @@ bool GTSAMGraph::HasConverged(uint16_t iteration) {
     T_curr = results_.at<gtsam::Pose3>(sensor_key).matrix();
 
     // Check all DOFs to see if the change is greater than the tolerance
-    R_curr = utils::RToLieAlgebra(T_curr.block(0,0,3,3));
-    R_last = utils::RToLieAlgebra(T_last.block(0,0,3,3));
-    t_curr = T_curr.block(0,3,3,1);
-    t_last = T_last.block(0,3,3,1);
+    R_curr = utils::RToLieAlgebra(T_curr.block(0, 0, 3, 3));
+    R_last = utils::RToLieAlgebra(T_last.block(0, 0, 3, 3));
+    t_curr = T_curr.block(0, 3, 3, 1);
+    t_last = T_last.block(0, 3, 3, 1);
     R_error = R_curr - R_last;
     t_error = t_curr - t_last;
-    for (int i = 0; i < 3; i++){
+    for (int i = 0; i < 3; i++) {
       eR = R_error[i];
       et = t_error[i];
-      eR_abs = sqrt(eR*eR*1000*1000)/1000;
-      et_abs = sqrt(et*et*1000*1000)/1000;
-      if(eR_abs > error_tol_[i]){
+      eR_abs = sqrt(eR * eR * 1000 * 1000) / 1000;
+      et_abs = sqrt(et * et * 1000 * 1000) / 1000;
+      if (eR_abs > error_tol_[i]) {
         return false;
       }
-      if(et_abs > error_tol_[i+3]){
+      if (et_abs > error_tol_[i + 3]) {
         return false;
       }
     }
   }
   return true;
+}
+
+void GTSAMGraph::ViewCameraMeasurements(pcl::PointCloud<pcl::PointXY>::Ptr c1,
+                                        pcl::PointCloud<pcl::PointXY>::Ptr c2,
+                                        pcl::Correspondences &correspondences) {
+  PointCloudColor::Ptr c1_col = boost::make_shared<PointCloudColor>();
+  PointCloudColor::Ptr c2_col = boost::make_shared<PointCloudColor>();
+  uint32_t rgb1 = (static_cast<uint32_t>(255) << 16 |
+                   static_cast<uint32_t>(0) << 8 | static_cast<uint32_t>(0));
+  uint32_t rgb2 = (static_cast<uint32_t>(0) << 16 |
+                   static_cast<uint32_t>(255) << 8 | static_cast<uint32_t>(0));
+  pcl::PointXYZRGB point;
+  for (pcl::PointCloud<pcl::PointXY>::iterator it = c1->begin();
+       it != c1->end(); ++it) {
+    point.x = it->x;
+    point.y = it->y;
+    point.z = 0;
+    point.rgb = *reinterpret_cast<float *>(&rgb1);
+    c1_col->push_back(point);
+  }
+  for (pcl::PointCloud<pcl::PointXY>::iterator it = c2->begin();
+       it != c2->end(); ++it) {
+    point.x = it->x;
+    point.y = it->y;
+    point.z = 0;
+    point.rgb = *reinterpret_cast<float *>(&rgb2);
+    c2_col->push_back(point);
+  }
+  pcl::visualization::PCLVisualizer::Ptr pcl_viewer =
+      boost::make_shared<pcl::visualization::PCLVisualizer>();
+  pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1_(
+      c1_col);
+  pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb2_(
+      c2_col);
+  pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, "Cloud1");
+  pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, "Cloud2");
+  pcl_viewer->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
+                                                   correspondences);
+  std::cout << "\nViewer Legend:\n"
+            << "  Red   -> detected points\n"
+            << "  Green -> projected points\n";
+  while (!pcl_viewer->wasStopped()) {
+    pcl_viewer->spinOnce(10);
+  }
+  pcl_viewer->removeAllPointClouds();
+  pcl_viewer->close();
+  pcl_viewer->resetStoppedFlag();
 }
 
 void GTSAMGraph::ViewClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr c1,
@@ -455,8 +526,7 @@ void GTSAMGraph::ViewClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr c1,
   pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, "Cloud2");
   std::cout << "\nViewer Legend:\n"
             << "  Red   -> cloud 1\n"
-            << "  Green -> cloud 2\n"
-            << "Press [c] to continue with other measurements\n";
+            << "  Green -> cloud 2\n";
   while (!pcl_viewer->wasStopped()) {
     pcl_viewer->spinOnce(10);
   }

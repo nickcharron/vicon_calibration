@@ -64,6 +64,7 @@ void ViconCalibrator::LoadJSON(std::string file_name) {
   Eigen::VectorXd tmp(6, 1);
   tmp << vect[0], vect[1], vect[2], vect[3], vect[4], vect[5];
   params_.initial_guess_perturbation = tmp;
+  params_.min_measurement_motion = J["min_measurement_motion"];
   params_.vicon_baselink_frame = J["vicon_baselink_frame"];
   params_.show_measurements = J["show_measurements"];
   params_.save_results = J["save_results"];
@@ -293,6 +294,8 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
   std::string sensor_frame = params_.lidar_params[lidar_iter]->frame;
   LOG_INFO("Getting lidar measurements for frame id: %s and topic: %s .",
            sensor_frame.c_str(), topic.c_str());
+  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+      T_lidar_tgts_estimated_prev;
   rosbag::View view(bag_, rosbag::TopicQuery(topic), ros::TIME_MIN,
                     ros::TIME_MAX, true);
 
@@ -335,6 +338,21 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
         continue;
       }
       for (uint8_t n = 0; n < T_lidar_tgts_estimated.size(); n++) {
+        // check minimal translation
+        if (T_lidar_tgts_estimated_prev.size() > 0) {
+          Eigen::Vector3d error = T_lidar_tgts_estimated[n].translation() -
+                                  T_lidar_tgts_estimated_prev[n].translation();
+          error[0] = sqrt(error[0] * error[0] * 1000000) / 1000;
+          error[1] = sqrt(error[1] * error[1] * 1000000) / 1000;
+          error[2] = sqrt(error[2] * error[2] * 1000000) / 1000;
+          if (error[0] < params_.min_measurement_motion &&
+              error[1] < params_.min_measurement_motion &&
+              error[2] < params_.min_measurement_motion) {
+            LOG_INFO("Target has not moved relative to base since last "
+                     "measurement. Skipping.");
+            continue;
+          }
+        }
         std::string extractor_type =
             params_.target_params_list[n]->extractor_type;
         if (extractor_type == "CYLINDER") {
@@ -366,6 +384,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
           lidar_measurements_.push_back(lidar_measurement);
         }
       }
+      T_lidar_tgts_estimated_prev = T_lidar_tgts_estimated;
     }
   }
 }
@@ -375,7 +394,8 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
   std::string sensor_frame = params_.camera_params[cam_iter]->frame;
   LOG_INFO("Getting camera measurements for frame id: %s and topic: %s .",
            sensor_frame.c_str(), topic.c_str());
-
+  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+      T_cam_tgts_estimated_prev;
   rosbag::View view(bag_, rosbag::TopicQuery(topic), ros::TIME_MIN,
                     ros::TIME_MAX, true);
   if (view.size() == 0) {
@@ -383,6 +403,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
         "No image messages read. Check your topics in config file."};
   }
 
+  int counter = 0;
   ros::Duration time_step(params_.camera_params[cam_iter]->time_steps);
   ros::Time time_last(0, 0);
   ros::Time time_zero(0, 0);
@@ -420,6 +441,21 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
         continue;
       }
       for (uint8_t n = 0; n < T_cam_tgts_estimated.size(); n++) {
+        // check minimal translation
+        if (T_cam_tgts_estimated_prev.size() > 0) {
+          Eigen::Vector3d error = T_cam_tgts_estimated[n].translation() -
+                                  T_cam_tgts_estimated_prev[n].translation();
+          error[0] = sqrt(error[0] * error[0] * 1000000) / 1000;
+          error[1] = sqrt(error[1] * error[1] * 1000000) / 1000;
+          error[2] = sqrt(error[2] * error[2] * 1000000) / 1000;
+          if (error[0] < params_.min_measurement_motion &&
+              error[1] < params_.min_measurement_motion &&
+              error[2] < params_.min_measurement_motion) {
+            LOG_INFO("Target has not moved relative to base since last "
+                     "measurement. Skipping.");
+            continue;
+          }
+        }
         std::string extractor_type =
             params_.target_params_list[n]->extractor_type;
         if (extractor_type == "CYLINDER") {
@@ -439,7 +475,9 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
         camera_extractor_->SetShowMeasurements(params_.show_measurements);
         camera_extractor_->ExtractKeypoints(T_cam_tgts_estimated[n].matrix(),
                                             current_image);
+
         if (camera_extractor_->GetMeasurementValid()) {
+          counter++;
           vicon_calibration::CameraMeasurement camera_measurement;
           camera_measurement.keypoints = camera_extractor_->GetMeasurement();
           camera_measurement.T_VICONBASE_TARGET = T_viconbase_tgts[n].matrix();
@@ -452,8 +490,11 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
           camera_measurements_.push_back(camera_measurement);
         }
       }
+      T_cam_tgts_estimated_prev = T_cam_tgts_estimated;
     }
   }
+  LOG_INFO("Stored %d measurements for camera with frame id: %s", counter,
+           sensor_frame.c_str());
 }
 
 void ViconCalibrator::GetLoopClosureMeasurements() {
@@ -501,7 +542,8 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
   // Build and solve graph
   graph_.SetLidarMeasurements(lidar_measurements_);
   graph_.SetTargetParams(params_.target_params_list);
-  // graph_.SetCameraMeasurements(camera_measurements_);
+  graph_.SetCameraParams(params_.camera_params);
+  graph_.SetCameraMeasurements(camera_measurements_);
   // TODO: Change this to calibrations_initial_
   // graph_.SetInitialGuess(calibrations_initial_);
   graph_.SetInitialGuess(calibrations_perturbed_);
@@ -638,7 +680,7 @@ void ViconCalibrator::ProcessCalibResults() {
           pcl::io::savePCDFileBinary(save_path3, *targets_combined);
         }
         // view all clouds
-        if (params_.show_measurements){
+        if (params_.show_measurements) {
           ViewClouds(scan_trans_est, scan_trans_opt, targets_combined);
         }
       }

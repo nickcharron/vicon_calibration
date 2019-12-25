@@ -14,8 +14,17 @@ void CylinderCameraExtractor::ExtractKeypoints(
   *image_in_ = img_in;
   measurement_valid_ = true;
   measurement_complete_ = false;
-
   this->CheckInputs();
+
+  // first check if target is in FOV of camera:
+  Eigen::Vector4d point_origin{0, 0, 0, 1};
+  Eigen::Vector2d pixel_projected = TargetPointToPixel(point_origin);
+  if (!camera_model_->PixelInImage(pixel_projected)) {
+    measurement_complete_ = true;
+    measurement_valid_ = false;
+    return;
+  }
+
   this->UndistortImage();
   if (!this->CropImage()) {
     return;
@@ -299,7 +308,7 @@ void CylinderCameraExtractor::GetEstimatedPose() {
   for (PointCloud::iterator it = target_params_->template_cloud->begin();
        it != target_params_->template_cloud->end(); ++it) {
     double z_coord = it->z;
-    if(z_coord > target_height){
+    if (z_coord > target_height) {
       target_height = z_coord;
     }
   }
@@ -331,7 +340,7 @@ void CylinderCameraExtractor::CheckError() {
   rot_err_ = std::abs(rot_err_);
 
   // since the vector may be in the opposite direction:
-  if(rot_err_ > 1.5708){
+  if (rot_err_ > 1.5708) {
     rot_err_ = rot_err_ - 3.14159;
   }
 
@@ -340,8 +349,11 @@ void CylinderCameraExtractor::CheckError() {
     if (show_measurements_) {
       LOG_INFO("Measurement invalid because the measured distance error is "
                "larger than the specified threshold. Distance error measured: "
-               "%.3f, threshold: %.3f", dist_err_, dist_acceptance_criteria_);
-      this->DisplayImage(*image_annotated_, "Invalid Measurement", "Showing failed measurement (distance error greater than threshold)");
+               "%.3f, threshold: %.3f",
+               dist_err_, dist_acceptance_criteria_);
+      this->DisplayImage(
+          *image_annotated_, "Invalid Measurement",
+          "Showing failed measurement (distance error greater than threshold)");
     }
     return;
   }
@@ -350,12 +362,16 @@ void CylinderCameraExtractor::CheckError() {
     if (show_measurements_) {
       LOG_INFO("Measurement invalid because the measured rotation error is "
                "larger than the specified threshold. Rotation error measured: "
-               "%.3f, threshold: %.3f", rot_err_, rot_acceptance_criteria_);
-      this->DisplayImage(*image_annotated_, "Invalid Measurement", "Showing failed measurement (rotation error greater than threshold)");
+               "%.3f, threshold: %.3f",
+               rot_err_, rot_acceptance_criteria_);
+      this->DisplayImage(
+          *image_annotated_, "Invalid Measurement",
+          "Showing failed measurement (rotation error greater than threshold)");
     }
     return;
   }
-  this->DisplayImage(*image_annotated_, "Valid Measurement", "Showing passed measurement");
+  this->DisplayImage(*image_annotated_, "Valid Measurement",
+                     "Showing passed measurement");
   measurement_valid_ = true;
 }
 

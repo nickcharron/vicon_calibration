@@ -27,6 +27,7 @@ class ViconCalibrator {
     bool save_results{true};
     std::string output_directory;
     Eigen::VectorXd initial_guess_perturbation; // for testing sim
+    double min_measurement_motion{0.01};
     std::vector<std::shared_ptr<vicon_calibration::TargetParams>>
         target_params_list;
     std::vector<std::shared_ptr<vicon_calibration::CameraParams>> camera_params;

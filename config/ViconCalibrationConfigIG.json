@@ -2,9 +2,10 @@
   "bag_file": "/home/nick/bag_files/vicon_calibration/2019-12-16-16-40-24-IG_CALIB_1.bag",
   "initial_calibration": "initial_calibration_ig_current.json",
   "lookup_tf_calibrations": true,
-  "initial_guess_perturb": [0, 0, 0, 0, 0, 0],
+  "initial_guess_perturb": [0.01, 0.0, 0.05, 0.0, 0.0, 0.0],
+  "min_measurement_motion": 0.05,
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
-  "show_measurements": true,
+  "show_measurements": false,
   "save_results": true,
   "output_directory": "/home/nick/vicon_calibration_results/",
   "targets":[
@@ -50,7 +51,7 @@
      "frame": "F1_link",
      "intrinsics": "F1_sim.json",
      "images_distorted": false,
-     "time_steps": 9}
+     "time_steps": 2}
   ],
   "lidar_params":[
   ]

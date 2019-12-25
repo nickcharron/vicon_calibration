@@ -3,6 +3,7 @@
 #include "vicon_calibration/params.h"
 #include <beam_calibration/CameraModel.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+#include <pcl/registration/correspondence_estimation.h>
 
 namespace vicon_calibration {
 
@@ -15,7 +16,9 @@ public:
   GTSAMGraph() = default;
   ~GTSAMGraph() = default;
 
-  void SetTargetParams(std::vector<std::shared_ptr<vicon_calibration::TargetParams>> &target_params);
+  void
+  SetTargetParams(std::vector<std::shared_ptr<vicon_calibration::TargetParams>>
+                      &target_params);
 
   void SetLidarMeasurements(
       std::vector<vicon_calibration::LidarMeasurement> &lidar_measurements);
@@ -26,8 +29,9 @@ public:
   void SetInitialGuess(
       std::vector<vicon_calibration::CalibrationResult> &initial_guess);
 
-  void SetCameraParams(
-      std::vector<std::shared_ptr<vicon_calibration::CameraParams>> &camera_params);
+  void
+  SetCameraParams(std::vector<std::shared_ptr<vicon_calibration::CameraParams>>
+                      &camera_params);
 
   void SolveGraph();
 
@@ -36,7 +40,8 @@ public:
   void Print(std::string &file_name, bool print_to_terminal);
 
 private:
-  void ViewClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr c1, pcl::PointCloud<pcl::PointXYZ>::Ptr c2);
+  void ViewClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr c1,
+                  pcl::PointCloud<pcl::PointXYZ>::Ptr c2);
 
   bool HasConverged(uint16_t iteration);
 
@@ -58,9 +63,14 @@ private:
 
   void Optimize();
 
+  void ViewCameraMeasurements(pcl::PointCloud<pcl::PointXY>::Ptr c1,
+                              pcl::PointCloud<pcl::PointXY>::Ptr c2,
+                              pcl::Correspondences &correspondences);
+
   std::vector<vicon_calibration::LidarMeasurement> lidar_measurements_;
   std::vector<vicon_calibration::CameraMeasurement> camera_measurements_;
-  std::vector<vicon_calibration::LoopClosureMeasurement> loop_closure_measurements_;
+  std::vector<vicon_calibration::LoopClosureMeasurement>
+      loop_closure_measurements_;
   std::vector<vicon_calibration::CalibrationResult> calibration_results_;
   std::vector<vicon_calibration::CalibrationResult> calibration_initials_;
   std::vector<std::shared_ptr<vicon_calibration::CameraParams>> camera_params_;
@@ -73,11 +83,14 @@ private:
 
   // params
   uint16_t max_iterations_{40};
+  bool show_camera_measurements_{true};
   double max_pixel_cor_dist_{500}; // in pixels
   double max_point_cor_dist_{0.3}; // in m
-  std::vector<double> error_tol_{0.0001, 0.0001, 0.0001, 0.0005, 0.0005, 0.0005};
+  std::vector<double> error_tol_{0.0001, 0.0001, 0.0001,
+                                 0.0005, 0.0005, 0.0005};
   std::vector<double> image_noise_{5, 5};
   std::vector<double> lidar_noise_{0.02, 0.02, 0.02};
+  std::vector<double> template_downsample_size_{0.005, 0.005, 0.005}; 
 };
 
 } // end namespace vicon_calibration

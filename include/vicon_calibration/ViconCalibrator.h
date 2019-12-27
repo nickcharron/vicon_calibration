@@ -1,8 +1,8 @@
 #pragma once
 
-#include "vicon_calibration/CylinderCameraExtractor.h"
-#include "vicon_calibration/CylinderLidarExtractor.h"
-#include "vicon_calibration/GTSAMGraph.h"
+#include "vicon_calibration/measurement_extractors/CylinderCameraExtractor.h"
+#include "vicon_calibration/measurement_extractors/CylinderLidarExtractor.h"
+#include "vicon_calibration/gtsam/Graph.h"
 #include "vicon_calibration/TfTree.h"
 #include "vicon_calibration/params.h"
 #include <Eigen/Geometry>
@@ -131,7 +131,7 @@ private:
       calibrations_initial_,
       calibrations_perturbed_; // pertubed use for testing with simulation ONLY
   rosbag::Bag bag_;
-  vicon_calibration::GTSAMGraph graph_;
+  vicon_calibration::Graph graph_;
   Eigen::MatrixXd T_VICONBASE_SENSOR_ = Eigen::MatrixXd(4,4);
   Eigen::MatrixXd T_VICONBASE_SENSOR_pert_ = Eigen::MatrixXd(4,4);
           // Pert for testing simulation ONLY

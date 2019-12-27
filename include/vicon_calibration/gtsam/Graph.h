@@ -11,10 +11,10 @@ namespace vicon_calibration {
  * @brief class for building and storing the GTSAM graph used in
  * vicon_calibration
  */
-class GTSAMGraph {
+class Graph {
 public:
-  GTSAMGraph() = default;
-  ~GTSAMGraph() = default;
+  Graph() = default;
+  ~Graph() = default;
 
   void
   SetTargetParams(std::vector<std::shared_ptr<vicon_calibration::TargetParams>>
@@ -90,7 +90,8 @@ private:
                                  0.0005, 0.0005, 0.0005};
   std::vector<double> image_noise_{5, 5};
   std::vector<double> lidar_noise_{0.02, 0.02, 0.02};
-  std::vector<double> template_downsample_size_{0.005, 0.005, 0.005}; 
+  std::vector<double> template_downsample_size_{0.005, 0.005, 0.005};
+  double concave_hull_alpha_{1};
 };
 
 } // end namespace vicon_calibration

@@ -28,46 +28,46 @@ add_executable(${PROJECT_NAME}_generate_checkerboard_keypoints
 )
 
 ################## tests ##################
-add_executable(${PROJECT_NAME}_lidar_cylinder_extractor_tests
+add_executable(${PROJECT_NAME}_tests_lidar_cylinder_extractor
   tests/lidar_cyl_extract_test.cpp
 )
 
-target_include_directories(${PROJECT_NAME}_lidar_cylinder_extractor_tests
+target_include_directories(${PROJECT_NAME}_tests_lidar_cylinder_extractor
   PUBLIC
     include
 )
 
-target_link_libraries(${PROJECT_NAME}_lidar_cylinder_extractor_tests
+target_link_libraries(${PROJECT_NAME}_tests_lidar_cylinder_extractor
   ${PROJECT_NAME}
   Catch2::Catch2
   beam::utils
   beam::filtering
 )
 
-add_executable(${PROJECT_NAME}_camera_cylinder_extractor_tests
+add_executable(${PROJECT_NAME}_tests_camera_cylinder_extractor
   tests/cam_cyl_extract_tests.cpp
 )
 
-target_include_directories(${PROJECT_NAME}_camera_cylinder_extractor_tests
+target_include_directories(${PROJECT_NAME}_tests_camera_cylinder_extractor
   PUBLIC
     include
 )
 
-target_link_libraries(${PROJECT_NAME}_camera_cylinder_extractor_tests
+target_link_libraries(${PROJECT_NAME}_tests_camera_cylinder_extractor
   ${PROJECT_NAME}
   Catch2::Catch2
 )
 
-add_executable(${PROJECT_NAME}_gtsam_factors_test
+add_executable(${PROJECT_NAME}_tests_gtsam_factors
   tests/gtsam_factors_test.cpp
 )
 
-target_include_directories(${PROJECT_NAME}_gtsam_factors_test
+target_include_directories(${PROJECT_NAME}_tests_gtsam_factors
   PUBLIC
     include
 )
 
-target_link_libraries(${PROJECT_NAME}_gtsam_factors_test
+target_link_libraries(${PROJECT_NAME}_tests_gtsam_factors
   ${PROJECT_NAME}
   Catch2::Catch2
   beam::calibration

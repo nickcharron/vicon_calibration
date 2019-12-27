@@ -1,6 +1,6 @@
 #define CATCH_CONFIG_MAIN
 
-#include "vicon_calibration/CylinderCameraExtractor.h"
+#include "vicon_calibration/measurement_extractors/CylinderCameraExtractor.h"
 
 #include <catch2/catch.hpp>
 #include <pcl/point_cloud.h>

@@ -1,7 +1,7 @@
-#include "vicon_calibration/GTSAMGraph.h"
-#include "vicon_calibration/CameraFactor.h"
-#include "vicon_calibration/CameraLidarFactor.h"
-#include "vicon_calibration/LidarFactor.h"
+#include "vicon_calibration/gtsam/Graph.h"
+#include "vicon_calibration/gtsam/CameraFactor.h"
+#include "vicon_calibration/gtsam/LidarFactor.h"
+#include "vicon_calibration/gtsam/CameraLidarFactor.h"
 #include "vicon_calibration/utils.h"
 #include <algorithm>
 #include <fstream>
@@ -12,10 +12,11 @@
 #include <gtsam/slam/PriorFactor.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/surface/concave_hull.h>
 
 namespace vicon_calibration {
 
-void GTSAMGraph::SetTargetParams(
+void Graph::SetTargetParams(
     std::vector<std::shared_ptr<vicon_calibration::TargetParams>>
         &target_params) {
   target_params_ = target_params;
@@ -33,24 +34,24 @@ void GTSAMGraph::SetTargetParams(
   }
 }
 
-void GTSAMGraph::SetLidarMeasurements(
+void Graph::SetLidarMeasurements(
     std::vector<vicon_calibration::LidarMeasurement> &lidar_measurements) {
   lidar_measurements_ = lidar_measurements;
   LOG_INFO("Added %d lidar measurements", lidar_measurements.size());
 }
 
-void GTSAMGraph::SetCameraMeasurements(
+void Graph::SetCameraMeasurements(
     std::vector<vicon_calibration::CameraMeasurement> &camera_measurements) {
   camera_measurements_ = camera_measurements;
   LOG_INFO("Added %d camera measurements", camera_measurements.size());
 }
 
-void GTSAMGraph::SetInitialGuess(
+void Graph::SetInitialGuess(
     std::vector<vicon_calibration::CalibrationResult> &initial_guess) {
   calibration_initials_ = initial_guess;
 }
 
-void GTSAMGraph::SetCameraParams(
+void Graph::SetCameraParams(
     std::vector<std::shared_ptr<vicon_calibration::CameraParams>>
         &camera_params) {
   camera_params_ = camera_params;
@@ -62,7 +63,7 @@ void GTSAMGraph::SetCameraParams(
   }
 }
 
-void GTSAMGraph::SolveGraph() {
+void Graph::SolveGraph() {
   initials_.clear();
   initials_updated_.clear();
   calibration_results_.clear();
@@ -92,7 +93,7 @@ void GTSAMGraph::SolveGraph() {
   }
 }
 
-std::vector<vicon_calibration::CalibrationResult> GTSAMGraph::GetResults() {
+std::vector<vicon_calibration::CalibrationResult> Graph::GetResults() {
   for (uint32_t i = 0; i < calibration_initials_.size(); i++) {
     vicon_calibration::CalibrationResult calib = calibration_initials_[i];
     gtsam::Key sensor_key;
@@ -109,7 +110,7 @@ std::vector<vicon_calibration::CalibrationResult> GTSAMGraph::GetResults() {
   return calibration_results_;
 }
 
-void GTSAMGraph::Print(std::string &file_name, bool print_to_terminal) {
+void Graph::Print(std::string &file_name, bool print_to_terminal) {
   if (print_to_terminal) {
     graph_.print();
     gtsam::KeyFormatter print_format = gtsam::DefaultKeyFormatter;
@@ -121,7 +122,7 @@ void GTSAMGraph::Print(std::string &file_name, bool print_to_terminal) {
   graph_file.close();
 }
 
-void GTSAMGraph::CheckInputs() {
+void Graph::CheckInputs() {
   if (lidar_measurements_.size() == 0) {
     LOG_WARN("No lidar measurements inputted to graph.");
   }
@@ -146,14 +147,14 @@ void GTSAMGraph::CheckInputs() {
   }
 }
 
-void GTSAMGraph::Clear() {
+void Graph::Clear() {
   graph_.erase(graph_.begin(), graph_.end());
   results_.clear();
   camera_correspondences_.clear();
   lidar_correspondences_.clear();
 }
 
-void GTSAMGraph::AddInitials() {
+void Graph::AddInitials() {
   // add all sensors as the next poses
   for (uint32_t i = 0; i < calibration_initials_.size(); i++) {
     vicon_calibration::CalibrationResult calib = calibration_initials_[i];
@@ -170,7 +171,7 @@ void GTSAMGraph::AddInitials() {
   }
 }
 
-void GTSAMGraph::SetImageCorrespondences() {
+void Graph::SetImageCorrespondences() {
   LOG_INFO("Setting image correspondances");
   int counter = 0;
   Eigen::Matrix4d T_VICONBASE_CAM, T_CAM_TARGET;
@@ -208,6 +209,10 @@ void GTSAMGraph::SetImageCorrespondences() {
       }
       projected_pixels->push_back(utils::EigenPixelToPCL(point_projected));
     }
+    // pcl::ConcaveHull<pcl::PointXY> concave_hull;
+    // concave_hull.setInputCloud(projected_pixels);
+    // concave_hull.setAlpha(concave_hull_alpha_);
+    // concave_hull.reconstruct(*projected_pixels);
 
     // get correspondences
     pcl::registration::CorrespondenceEstimation<pcl::PointXY, pcl::PointXY>
@@ -232,7 +237,7 @@ void GTSAMGraph::SetImageCorrespondences() {
   LOG_INFO("Added %d image correspondances.", counter);
 }
 
-void GTSAMGraph::SetLidarCorrespondences() {
+void Graph::SetLidarCorrespondences() {
   LOG_INFO("Setting lidar correspondances");
   int counter = 0;
   Eigen::Matrix4d T_VICONBASE_LIDAR, T_LIDAR_TARGET;
@@ -273,7 +278,7 @@ void GTSAMGraph::SetLidarCorrespondences() {
   LOG_INFO("Added %d lidar correspondances.", counter);
 }
 
-void GTSAMGraph::SetImageFactors() {
+void Graph::SetImageFactors() {
   LOG_INFO("Setting image factors");
   int counter = 0;
   pcl::PointXY pixel_pcl;
@@ -306,7 +311,7 @@ void GTSAMGraph::SetImageFactors() {
   LOG_INFO("Added %d image factors.", counter);
 }
 
-void GTSAMGraph::SetLidarFactors() {
+void Graph::SetLidarFactors() {
   LOG_INFO("Setting lidar factors");
   pcl::PointXYZ point_measured_pcl, point_predicted_pcl;
   Eigen::Vector3d point_predicted, point_measured;
@@ -336,7 +341,7 @@ void GTSAMGraph::SetLidarFactors() {
   LOG_INFO("Added %d lidar factors.", counter);
 }
 
-void GTSAMGraph::SetLidarCameraFactors() {
+void Graph::SetLidarCameraFactors() {
   LOG_INFO("Setting lidar-camera factors");
   gtsam::Vector2 noise_vec;
   noise_vec << 10, 10;
@@ -368,7 +373,7 @@ void GTSAMGraph::SetLidarCameraFactors() {
   }
 }
 
-void GTSAMGraph::Optimize() {
+void Graph::Optimize() {
   LOG_INFO("Optimizing graph");
   gtsam::LevenbergMarquardtParams params;
   params.setVerbosity("TERMINATION");
@@ -399,7 +404,7 @@ void GTSAMGraph::Optimize() {
   }
 }
 
-bool GTSAMGraph::HasConverged(uint16_t iteration) {
+bool Graph::HasConverged(uint16_t iteration) {
   if (iteration == 0) {
     return false;
   } else if (iteration == max_iterations_) {
@@ -445,7 +450,7 @@ bool GTSAMGraph::HasConverged(uint16_t iteration) {
   return true;
 }
 
-void GTSAMGraph::ViewCameraMeasurements(pcl::PointCloud<pcl::PointXY>::Ptr c1,
+void Graph::ViewCameraMeasurements(pcl::PointCloud<pcl::PointXY>::Ptr c1,
                                         pcl::PointCloud<pcl::PointXY>::Ptr c2,
                                         pcl::Correspondences &correspondences) {
   PointCloudColor::Ptr c1_col = boost::make_shared<PointCloudColor>();
@@ -492,7 +497,7 @@ void GTSAMGraph::ViewCameraMeasurements(pcl::PointCloud<pcl::PointXY>::Ptr c1,
   pcl_viewer->resetStoppedFlag();
 }
 
-void GTSAMGraph::ViewClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr c1,
+void Graph::ViewClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr c1,
                             pcl::PointCloud<pcl::PointXYZ>::Ptr c2) {
   PointCloudColor::Ptr c1_col = boost::make_shared<PointCloudColor>();
   PointCloudColor::Ptr c2_col = boost::make_shared<PointCloudColor>();

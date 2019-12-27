@@ -1,4 +1,4 @@
-#include "vicon_calibration/CylinderLidarExtractor.h"
+#include "vicon_calibration/measurement_extractors/CylinderLidarExtractor.h"
 #include <beam_filtering/CropBox.h>
 #include <chrono>
 #include <thread>
@@ -13,8 +13,8 @@ void CylinderLidarExtractor::ExtractKeypoints(
   scan_in_ = boost::make_shared<PointCloud>();
   scan_cropped_ = boost::make_shared<PointCloud>();
   scan_best_points_ = boost::make_shared<PointCloud>();
-  if(show_measurements_){
-    pcl_viewer_ = boost::make_shared<pcl::visualization::PCLVisualizer>();  
+  if (show_measurements_) {
+    pcl_viewer_ = boost::make_shared<pcl::visualization::PCLVisualizer>();
   }
   scan_in_ = cloud_in;
   T_LIDAR_TARGET_EST_ = T_LIDAR_TARGET_EST;
@@ -91,7 +91,7 @@ void CylinderLidarExtractor::RegisterScan() {
           scan_cropped_coloured;
       scan_cropped_coloured =
           boost::make_shared<pcl::PointCloud<pcl::PointXYZRGB>>();
-      Eigen::Affine3d T_identity;
+      Eigen::Matrix4d T_identity;
       T_identity.setIdentity();
       scan_cropped_coloured = this->ColourPointCloud(scan_cropped_, 255, 0, 0);
       this->AddColouredPointCloudToViewer(scan_cropped_coloured,
@@ -103,47 +103,55 @@ void CylinderLidarExtractor::RegisterScan() {
     return;
   }
 
-  Eigen::Affine3d TA_LIDAR_TARGET_OPT, TA_LIDAR_TARGET_EST;
-  TA_LIDAR_TARGET_OPT.matrix() =
+  Eigen::Matrix4d T_LIDAR_TARGET_OPT =
       icp.getFinalTransformation().inverse().cast<double>();
-  TA_LIDAR_TARGET_EST.matrix() = T_LIDAR_TARGET_EST_;
+  Eigen::Vector4d point_end_tgt(0.3, 0, 0, 1);
+  Eigen::Vector4d point_end_est = T_LIDAR_TARGET_EST_ * point_end_tgt;
+  Eigen::Vector4d point_end_opt = T_LIDAR_TARGET_OPT * point_end_tgt;
 
-  Eigen::Vector2d dist_diff(
-      TA_LIDAR_TARGET_OPT.matrix()(0, 3) - (T_LIDAR_TARGET_EST_)(0, 3),
-      TA_LIDAR_TARGET_OPT.matrix()(1, 3) - (T_LIDAR_TARGET_EST_)(1, 3));
-  double dist_err = std::round(dist_diff.norm() * 10000) / 10000;
+  Eigen::Vector4d error_end = point_end_opt - point_end_est;
+  error_end[0] = sqrt(error_end[0] * error_end[0] * 1000000) / 1000;
+  error_end[1] = sqrt(error_end[1] * error_end[1] * 1000000) / 1000;
+  error_end[2] = sqrt(error_end[2] * error_end[2] * 1000000) / 1000;
 
-  if (dist_err >= dist_acceptance_criteria_) {
+  Eigen::Vector3d error_origin = T_LIDAR_TARGET_OPT.block(0, 3, 3, 1) -
+                                 T_LIDAR_TARGET_EST_.block(0, 3, 3, 1);
+  error_origin[0] = sqrt(error_origin[0] * error_origin[0] * 1000000) / 1000;
+  error_origin[1] = sqrt(error_origin[1] * error_origin[1] * 1000000) / 1000;
+  error_origin[2] = sqrt(error_origin[2] * error_origin[2] * 1000000) / 1000;
+
+  if (error_origin[0] > dist_acceptance_criteria_ ||
+      error_origin[1] > dist_acceptance_criteria_ ||
+      error_origin[2] > dist_acceptance_criteria_ ||
+      error_end[0] > dist_acceptance_criteria_ ||
+      error_end[1] > dist_acceptance_criteria_ ||
+      error_end[2] > dist_acceptance_criteria_) {
     measurement_valid_ = false;
-    std::cout << "-----------------------------\n"
-              << "Measurement Invalid\n"
-              << "Distance error norm: " << dist_err << "\n"
-              << "Distance acceptance criteria: " << dist_acceptance_criteria_
-              << "\n";
   } else {
     measurement_valid_ = true;
-    std::cout << "-----------------------------\n"
-              << "Measurement Valid\n"
-              << "Distance error norm: " << dist_err << "\n"
-              << "Distance acceptance criteria: " << dist_acceptance_criteria_
-              << "\n";
   }
 
   if (show_measurements_) {
-    // output error information
     if (!measurement_valid_) {
       std::cout << "-----------------------------\n"
                 << "Measurement Invalid\n"
-                << "Distance error norm: " << dist_err << "\n"
+                << "Target origin error: [" << error_origin[0] << ", "
+                << error_origin[2] << ", " << error_origin[2] << "]\n"
+                << "Target end error: [" << error_end[0] << ", "
+                << error_end[2] << ", " << error_end[2] << "]\n"
                 << "Distance acceptance criteria: " << dist_acceptance_criteria_
                 << "\n";
     } else {
       std::cout << "-----------------------------\n"
                 << "Measurement Valid\n"
-                << "Distance error norm: " << dist_err << "\n"
+                << "Target origin error: [" << error_origin[0] << ", "
+                << error_origin[2] << ", " << error_origin[2] << "]\n"
+                << "Target end error: [" << error_end[0] << ", "
+                << error_end[2] << ", " << error_end[2] << "]\n"
                 << "Distance acceptance criteria: " << dist_acceptance_criteria_
                 << "\n";
     }
+
     // Display clouds for testing
     // transform template cloud from target to lidar
     PointCloudColor::Ptr estimated_template_cloud =
@@ -151,21 +159,21 @@ void CylinderLidarExtractor::RegisterScan() {
     estimated_template_cloud =
         this->ColourPointCloud(target_params_->template_cloud, 0, 0, 255);
     pcl::transformPointCloud(*estimated_template_cloud,
-                             *estimated_template_cloud, TA_LIDAR_TARGET_EST);
+                             *estimated_template_cloud,
+                             T_LIDAR_TARGET_EST_.cast<float>());
     this->AddColouredPointCloudToViewer(estimated_template_cloud,
                                         "estimated template cloud ",
-                                        TA_LIDAR_TARGET_EST);
+                                        T_LIDAR_TARGET_EST_);
 
     PointCloudColor::Ptr measured_template_cloud =
         boost::make_shared<PointCloudColor>();
     measured_template_cloud =
         this->ColourPointCloud(target_params_->template_cloud, 0, 255, 0);
     pcl::transformPointCloud(*measured_template_cloud, *measured_template_cloud,
-                             TA_LIDAR_TARGET_OPT);
-    this->AddColouredPointCloudToViewer(measured_template_cloud,
-                                        "measured template cloud",
-                                        TA_LIDAR_TARGET_OPT);
-    Eigen::Affine3d T_identity;
+                             T_LIDAR_TARGET_OPT.cast<float>());
+    this->AddColouredPointCloudToViewer(
+        measured_template_cloud, "measured template cloud", T_LIDAR_TARGET_OPT);
+    Eigen::Matrix4d T_identity;
     T_identity.setIdentity();
     this->AddPointCloudToViewer(scan_cropped_, "cropped scan", T_identity);
     this->ShowFinalTransformation();
@@ -175,7 +183,7 @@ void CylinderLidarExtractor::RegisterScan() {
   for (uint32_t i = 0; i < correspondences->size(); i++) {
     pcl::Correspondence corr_i = (*correspondences)[i];
     int source_index_i = corr_i.index_query;
-    if(corr_i.distance < max_keypoint_distance_){
+    if (corr_i.distance < max_keypoint_distance_) {
       pcl::PointXYZ point;
       if (crop_scan_) {
         point = scan_cropped_->points[source_index_i];
@@ -206,29 +214,34 @@ CylinderLidarExtractor::ColourPointCloud(PointCloud::Ptr &cloud, int r, int g,
 }
 
 void CylinderLidarExtractor::AddColouredPointCloudToViewer(
-    PointCloudColor::Ptr cloud, std::string cloud_name, Eigen::Affine3d &T) {
+    PointCloudColor::Ptr cloud, const std::string &cloud_name,
+    const Eigen::Matrix4d &T) {
+  Eigen::Affine3f TA;
+  TA.matrix() = T.cast<float>();
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(
       cloud);
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(cloud, rgb, cloud_name);
-  pcl_viewer_->addCoordinateSystem(1, T.cast<float>(), cloud_name + "frame");
+  pcl_viewer_->addCoordinateSystem(1, TA, cloud_name + "frame");
   pcl::PointXYZ point;
-  point.x = T.translation()(0);
-  point.y = T.translation()(1);
-  point.z = T.translation()(2);
+  point.x = T(0, 3);
+  point.y = T(1, 3);
+  point.z = T(2, 3);
   pcl_viewer_->addText3D(cloud_name + " ", point, 0.05, 0.05, 0.05);
   pcl_viewer_->setPointCloudRenderingProperties(
       pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, cloud_name);
 }
 
-void CylinderLidarExtractor::AddPointCloudToViewer(PointCloud::Ptr cloud,
-                                                   std::string cloud_name,
-                                                   Eigen::Affine3d &T) {
+void CylinderLidarExtractor::AddPointCloudToViewer(
+    PointCloud::Ptr cloud, const std::string &cloud_name,
+    const Eigen::Matrix4d &T) {
+  Eigen::Affine3f TA;
+  TA.matrix() = T.cast<float>();
   pcl_viewer_->addPointCloud<pcl::PointXYZ>(cloud, cloud_name);
-  pcl_viewer_->addCoordinateSystem(1, T.cast<float>(), cloud_name + "frame");
+  pcl_viewer_->addCoordinateSystem(1, TA, cloud_name + "frame");
   pcl::PointXYZ point;
-  point.x = T.translation()(0);
-  point.y = T.translation()(1);
-  point.z = T.translation()(2);
+  point.x = T(0, 3);
+  point.y = T(1, 3);
+  point.z = T(2, 3);
   pcl_viewer_->addText3D(cloud_name + " ", point, 0.05, 0.05, 0.05);
   pcl_viewer_->setPointCloudRenderingProperties(
       pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, cloud_name);

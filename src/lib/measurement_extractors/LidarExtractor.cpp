@@ -1,4 +1,4 @@
-#include "vicon_calibration/LidarExtractor.h"
+#include "vicon_calibration/measurement_extractors/LidarExtractor.h"
 #include <boost/make_shared.hpp>
 
 namespace vicon_calibration {

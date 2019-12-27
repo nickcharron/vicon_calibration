@@ -1,4 +1,4 @@
-#include "vicon_calibration/CylinderCameraExtractor.h"
+#include "vicon_calibration/measurement_extractors/CylinderCameraExtractor.h"
 #include "vicon_calibration/utils.h"
 
 namespace vicon_calibration {

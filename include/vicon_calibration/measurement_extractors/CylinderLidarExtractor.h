@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vicon_calibration/LidarExtractor.h"
+#include "vicon_calibration/measurement_extractors/LidarExtractor.h"
 #include "vicon_calibration/utils.h"
 #include <pcl/registration/icp.h>
 #include <pcl/visualization/pcl_visualizer.h>
@@ -53,12 +53,13 @@ private:
   PointCloudColor::Ptr ColourPointCloud(PointCloud::Ptr &cloud, int r, int g,
                                         int b);
 
-  void AddPointCloudToViewer(PointCloud::Ptr cloud, std::string cloud_name,
-                             Eigen::Affine3d &T);
+  void AddPointCloudToViewer(PointCloud::Ptr cloud,
+                             const std::string &cloud_name,
+                             const Eigen::Matrix4d &T);
 
   void AddColouredPointCloudToViewer(PointCloudColor::Ptr cloud,
-                                     std::string cloud_name,
-                                     Eigen::Affine3d &T);
+                                     const std::string &cloud_name,
+                                     const Eigen::Matrix4d &T);
 
   void ShowFailedMeasurement();
 
@@ -72,7 +73,7 @@ private:
   PointCloud::Ptr scan_in_;
   PointCloud::Ptr scan_cropped_;
   PointCloud::Ptr scan_best_points_; // points that are corresponding after icp
-  Eigen::MatrixXd T_LIDAR_TARGET_EST_ = Eigen::MatrixXd(4,4);
+  Eigen::MatrixXd T_LIDAR_TARGET_EST_ = Eigen::MatrixXd(4, 4);
   pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
   bool test_registration_{true}; // Whether to use ICP to test that the target
                                  // template can converge to the scan correctly
@@ -80,7 +81,7 @@ private:
                                         // the correspondence distance with the
                                         // est. tgt. loc. is less than this
   double dist_acceptance_criteria_{0.05}; // acceptable error between estimated
-                                           // target and registered target
+                                          // target and registered target
   double icp_transform_epsilon_{1e-8};
   double icp_euclidean_epsilon_{1e-2};
   int icp_max_iterations_{80};

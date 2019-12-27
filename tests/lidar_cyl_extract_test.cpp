@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
 
-#include "vicon_calibration/CylinderLidarExtractor.h"
+#include "vicon_calibration/measurement_extractors/CylinderLidarExtractor.h"
 #include "vicon_calibration/TfTree.h"
 #include "vicon_calibration/utils.h"
 

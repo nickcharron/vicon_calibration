@@ -23,8 +23,8 @@ void Graph::SetTargetParams(
 
   // Downsample template cloud
   pcl::VoxelGrid<pcl::PointXYZ> vox;
-  vox.setLeafSize(template_downsample_size_[0], template_downsample_size_[0],
-                  template_downsample_size_[0]);
+  vox.setLeafSize(template_downsample_size_[0], template_downsample_size_[1],
+                  template_downsample_size_[2]);
   boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> downsampled_cloud =
       boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   for (int i = 0; i < target_params_.size(); i++) {
@@ -196,7 +196,6 @@ void Graph::SetImageCorrespondences() {
     pcl::PointCloud<pcl::PointXY>::Ptr projected_pixels =
         boost::make_shared<pcl::PointCloud<pcl::PointXY>>();
     for (uint32_t i = 0; i < transformed_template->size(); i++) {
-      pcl::PointXY point_projected_pcl;
       pcl::PointXYZ point_pcl = transformed_template->at(i);
       Eigen::Vector2d point_projected;
       if (camera_params_[measurement.camera_id]->images_distorted) {
@@ -209,10 +208,6 @@ void Graph::SetImageCorrespondences() {
       }
       projected_pixels->push_back(utils::EigenPixelToPCL(point_projected));
     }
-    // pcl::ConcaveHull<pcl::PointXY> concave_hull;
-    // concave_hull.setInputCloud(projected_pixels);
-    // concave_hull.setAlpha(concave_hull_alpha_);
-    // concave_hull.reconstruct(*projected_pixels);
 
     // get correspondences
     pcl::registration::CorrespondenceEstimation<pcl::PointXY, pcl::PointXY>
@@ -377,9 +372,9 @@ void Graph::Optimize() {
   LOG_INFO("Optimizing graph");
   gtsam::LevenbergMarquardtParams params;
   params.setVerbosity("TERMINATION");
-  params.absoluteErrorTol = 1e-8;
-  params.relativeErrorTol = 1e-8;
-  params.setlambdaUpperBound(1e8);
+  params.absoluteErrorTol = abs_error_tol_;
+  params.relativeErrorTol = rel_error_tol_;
+  params.setlambdaUpperBound(lambda_upper_bound_);
   gtsam::KeyFormatter key_formatter = gtsam::DefaultKeyFormatter;
   gtsam::LevenbergMarquardtOptimizer optimizer(graph_, initials_updated_,
                                                params);

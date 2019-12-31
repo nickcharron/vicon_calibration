@@ -1,5 +1,6 @@
 #pragma once
 
+#include "vicon_calibration/TfTree.h"
 #include "vicon_calibration/params.h"
 #include <Eigen/Geometry>
 #include <beam_calibration/CameraModel.h>
@@ -32,7 +33,13 @@ typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudColor;
 #define LOG_WARN(M, ...) fprintf(stdout, "[WARNING] " M "\n", ##__VA_ARGS__)
 #endif
 
+#ifndef RAD_TO_DEG
+#define RAD_TO_DEG 57.29577951
+#endif
+
 namespace utils {
+
+double time_now(void);
 
 /** Wraps input angle to the interval [-PI, PI).
  * @param[in] angle the original angle.
@@ -70,14 +77,15 @@ DrawCoordinateFrame(cv::Mat &img_in, Eigen::MatrixXd &T_cam_frame,
                     std::shared_ptr<beam_calibration::CameraModel> camera_model,
                     double &scale, bool images_distorted);
 
-void OutputTransformInformation(Eigen::Affine3d &T, std::string transform_name);
+void OutputTransformInformation(const Eigen::Affine3d &T,
+                                const std::string &transform_name);
+
+void OutputTransformInformation(const Eigen::Matrix4d &T,
+                                const std::string &transform_name);
 
 void OutputCalibrations(
     std::vector<vicon_calibration::CalibrationResult> &calib,
     std::string output_string);
-
-void PrintCalibrations(std::vector<vicon_calibration::CalibrationResult> &calib,
-                       std::string output_path);
 
 inline Eigen::Vector3d PCLPointToEigen(const pcl::PointXYZ &pt_in) {
   return Eigen::Vector3d(pt_in.x, pt_in.y, pt_in.z);
@@ -127,6 +135,13 @@ inline Eigen::Vector4d PointToHomoPoint(const Eigen::Vector3d &pt_in) {
 }
 
 std::string ConvertTimeToDate(std::chrono::system_clock::time_point time_);
+
+std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+GetTargetLocation(
+    const std::vector<std::shared_ptr<vicon_calibration::TargetParams>>
+        &target_params,
+    const std::string &vicon_baselink_frame, const ros::Time &lookup_time,
+    const std::shared_ptr<vicon_calibration::TfTree> &lookup_tree);
 
 } // namespace utils
 

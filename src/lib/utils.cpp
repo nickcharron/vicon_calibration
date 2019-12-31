@@ -5,7 +5,11 @@ namespace vicon_calibration {
 
 namespace utils {
 
-double RAD_TO_DEG = 57.29577951;  
+double time_now(void) {
+  struct timeval t;
+  gettimeofday(&t, NULL);
+  return ((double)t.tv_sec + ((double)t.tv_usec) / 1000000.0);
+}
 
 double WrapToPi(double angle) {
   double wrapped_angle = WrapToTwoPi(angle + M_PI) - M_PI;
@@ -172,18 +176,20 @@ DrawCoordinateFrame(cv::Mat &img_in, Eigen::MatrixXd &T_cam_frame,
   cv::line(img_out, start, end_y, colourY, thickness);
   cv::line(img_out, start, end_z, colourZ, thickness);
 
-  // std::cout << "T_cam_frame': \n" << T_cam_frame.matrix() << "\n"
-  //           << "Origin: \n" << o << "\n"
-  //           << "Origin Projected: [" << start.x << " ," << start.y << "]\n";
   return img_out;
 }
 
-void OutputTransformInformation(Eigen::Affine3d &T,
-                                std::string transform_name) {
-  Eigen::Matrix3d R = T.rotation();
+void OutputTransformInformation(const Eigen::Affine3d &T,
+                                const std::string &transform_name) {
+  OutputTransformInformation(T.matrix(), transform_name);
+}
+
+void OutputTransformInformation(const Eigen::Matrix4d &T,
+                                const std::string &transform_name) {
+  Eigen::Matrix3d R = T.block(0,0,3,3);
   Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
   std::cout << transform_name << ":\n"
-            << T.matrix() << "\n"
+            << T << "\n"
             << "rpy (deg): [" << WrapToPi(rpy[0]) * RAD_TO_DEG << ", "
             << WrapToPi(rpy[1]) * RAD_TO_DEG << ", "
             << WrapToPi(rpy[2]) * RAD_TO_DEG << "]\n";
@@ -206,21 +212,6 @@ void OutputCalibrations(
   }
 }
 
-void PrintCalibrations(std::vector<vicon_calibration::CalibrationResult> &calib,
-                       std::string output_path) {
-  std::ofstream file(output_path);
-  for (uint16_t i = 0; i < calib.size(); i++) {
-    Eigen::Matrix4d T = calib[i].transform;
-    Eigen::Matrix3d R = T.block(0, 0, 3, 3);
-    Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
-    file << "T_" << calib[i].to_frame << "_" << calib[i].from_frame << ":\n"
-         << T << "\n"
-         << "rpy (deg): [" << WrapToPi(rpy[0]) * RAD_TO_DEG << ", "
-         << WrapToPi(rpy[1]) * RAD_TO_DEG << ", "
-         << WrapToPi(rpy[2]) * RAD_TO_DEG << "]\n";
-  }
-}
-
 std::string ConvertTimeToDate(std::chrono::system_clock::time_point time_) {
   using namespace std;
   using namespace std::chrono;
@@ -234,6 +225,23 @@ std::string ConvertTimeToDate(std::chrono::system_clock::time_point time_) {
       to_string(local_tm.tm_hour) + "_" + to_string(local_tm.tm_min) + "_" +
       to_string(local_tm.tm_sec);
   return outputTime;
+}
+
+std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+GetTargetLocation(
+    const std::vector<std::shared_ptr<vicon_calibration::TargetParams>>
+        &target_params,
+    const std::string &vicon_baselink_frame, const ros::Time &lookup_time,
+    const std::shared_ptr<vicon_calibration::TfTree> &lookup_tree) {
+  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+      T_viconbase_tgts;
+  for (uint8_t n; n < target_params.size(); n++) {
+    Eigen::Affine3d T_viconbase_tgt;
+    T_viconbase_tgt = lookup_tree->GetTransformEigen(
+        vicon_baselink_frame, target_params[n]->frame_id, lookup_time);
+    T_viconbase_tgts.push_back(T_viconbase_tgt);
+  }
+  return T_viconbase_tgts;
 }
 
 } // namespace utils

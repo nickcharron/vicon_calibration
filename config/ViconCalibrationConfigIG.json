@@ -6,8 +6,7 @@
   "min_measurement_motion": 0.05,
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
   "show_measurements": false,
-  "save_results": true,
-  "output_directory": "/home/nick/vicon_calibration_results/",
+  "run_verification": true,
   "targets":[
     {"frame_id": "vicon/cylinder_target1/cylinder_target1",
      "extractor_type": "CYLINDER",

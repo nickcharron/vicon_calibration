@@ -6,7 +6,7 @@
   "min_measurement_motion": 0.05,
   "vicon_baselink_frame": "vicon/roben/roben",
   "show_measurements": false,
-  "save_results": true,
+  "run_verification": true,
   "output_directory": "/home/nick/vicon_calibration_results/",
   "targets":[
     {"frame_id": "vicon/cylinder_target1/cylinder_target1",

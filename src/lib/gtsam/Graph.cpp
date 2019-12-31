@@ -1,7 +1,7 @@
 #include "vicon_calibration/gtsam/Graph.h"
 #include "vicon_calibration/gtsam/CameraFactor.h"
-#include "vicon_calibration/gtsam/LidarFactor.h"
 #include "vicon_calibration/gtsam/CameraLidarFactor.h"
+#include "vicon_calibration/gtsam/LidarFactor.h"
 #include "vicon_calibration/utils.h"
 #include <algorithm>
 #include <fstream>
@@ -11,8 +11,8 @@
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
 #include <pcl/filters/voxel_grid.h>
-#include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/surface/concave_hull.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 namespace vicon_calibration {
 
@@ -186,15 +186,27 @@ void Graph::SetImageCorrespondences() {
     T_CAM_TARGET = utils::InvertTransform(T_VICONBASE_CAM) *
                    measurement.T_VICONBASE_TARGET;
 
+    // convert measurement to 3D (set z to 0)
+    pcl::PointCloud<pcl::PointXYZ>::Ptr measurement_3d =
+        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    pcl::PointXYZ point;
+    for (pcl::PointCloud<pcl::PointXY>::iterator it = measurement.keypoints->begin();
+         it != measurement.keypoints->end(); ++it) {
+      point.x = it->x;
+      point.y = it->y;
+      point.z = 0;
+      measurement_3d->push_back(point);
+    }
+
+    // create point cloud of projected points
     pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_template =
         boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
     pcl::transformPointCloud(
         *(target_params_[measurement.target_id]->template_cloud),
         *transformed_template, T_CAM_TARGET);
 
-    // create point cloud of projected points
-    pcl::PointCloud<pcl::PointXY>::Ptr projected_pixels =
-        boost::make_shared<pcl::PointCloud<pcl::PointXY>>();
+    pcl::PointCloud<pcl::PointXYZ>::Ptr projected_pixels =
+        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
     for (uint32_t i = 0; i < transformed_template->size(); i++) {
       pcl::PointXYZ point_pcl = transformed_template->at(i);
       Eigen::Vector2d point_projected;
@@ -206,25 +218,60 @@ void Graph::SetImageCorrespondences() {
             camera_models_[measurement.camera_id]->ProjectUndistortedPoint(
                 utils::PCLPointToEigen(point_pcl));
       }
-      projected_pixels->push_back(utils::EigenPixelToPCL(point_projected));
+      projected_pixels->push_back(
+          pcl::PointXYZ(point_projected[0], point_projected[1], 0));
     }
 
-    // get correspondences
-    pcl::registration::CorrespondenceEstimation<pcl::PointXY, pcl::PointXY>
+    pcl::PointCloud<pcl::PointXYZ>::Ptr hull_cloud;
+    boost::shared_ptr<pcl::Correspondences> correspondences =
+        boost::make_shared<pcl::Correspondences>();
+    pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
         corr_est;
-    pcl::Correspondences correspondences;
-    corr_est.setInputSource(measurement.keypoints);
-    corr_est.setInputTarget(projected_pixels);
-    corr_est.determineCorrespondences(correspondences, max_pixel_cor_dist_);
-    if (show_camera_measurements_) {
-      ViewCameraMeasurements(measurement.keypoints, projected_pixels,
-                             correspondences);
+    if (extract_image_target_perimeter_) {
+      // keep only perimeter points
+      hull_cloud = boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+      pcl::PointIndices::Ptr hull_point_correspondances =
+          boost::make_shared<pcl::PointIndices>();
+      pcl::ConcaveHull<pcl::PointXYZ> concave_hull;
+      concave_hull.setInputCloud(projected_pixels);
+      concave_hull.setAlpha(concave_hull_alpha_);
+      concave_hull.setKeepInformation(true);
+      concave_hull.reconstruct(*hull_cloud);
+      concave_hull.getHullPointIndices(*hull_point_correspondances);
+
+      // get correspondences
+      boost::shared_ptr<pcl::Correspondences> correspondences_tmp =
+          boost::make_shared<pcl::Correspondences>();
+      corr_est.setInputSource(measurement_3d);
+      corr_est.setInputTarget(hull_cloud);
+      corr_est.determineCorrespondences(*correspondences_tmp,
+                                        max_pixel_cor_dist_);
+      for (int i = 0; i < correspondences_tmp->size(); i++) {
+        int measurement_index = correspondences_tmp->at(i).index_query;
+        int hull_index = correspondences_tmp->at(i).index_match;
+        int target_index = hull_point_correspondances->indices.at(hull_index);
+        correspondences->push_back(
+            pcl::Correspondence(measurement_index, target_index, 0));
+      }
+      if (show_camera_measurements_) {
+        this->ViewCameraMeasurements(measurement_3d, hull_cloud,
+                                     correspondences_tmp);
+      }
+    } else {
+      // get correspondences
+      corr_est.setInputSource(measurement_3d);
+      corr_est.setInputTarget(projected_pixels);
+      corr_est.determineCorrespondences(*correspondences, max_pixel_cor_dist_);
+      if (show_camera_measurements_) {
+        ViewCameraMeasurements(measurement_3d, projected_pixels,
+                               correspondences);
+      }
     }
-    for (uint32_t i = 0; i < correspondences.size(); i++) {
+    for (uint32_t i = 0; i < correspondences->size(); i++) {
       counter++;
       vicon_calibration::Correspondence correspondence;
-      correspondence.target_point_index = correspondences[i].index_match;
-      correspondence.measured_point_index = correspondences[i].index_query;
+      correspondence.measured_point_index = correspondences->at(i).index_query;
+      correspondence.target_point_index = correspondences->at(i).index_match;
       correspondence.measurement_index = meas_iter;
       camera_correspondences_.push_back(correspondence);
     }
@@ -445,9 +492,10 @@ bool Graph::HasConverged(uint16_t iteration) {
   return true;
 }
 
-void Graph::ViewCameraMeasurements(pcl::PointCloud<pcl::PointXY>::Ptr c1,
-                                        pcl::PointCloud<pcl::PointXY>::Ptr c2,
-                                        pcl::Correspondences &correspondences) {
+void Graph::ViewCameraMeasurements(
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr &c2,
+    const boost::shared_ptr<pcl::Correspondences> &correspondences) {
   PointCloudColor::Ptr c1_col = boost::make_shared<PointCloudColor>();
   PointCloudColor::Ptr c2_col = boost::make_shared<PointCloudColor>();
   uint32_t rgb1 = (static_cast<uint32_t>(255) << 16 |
@@ -455,19 +503,19 @@ void Graph::ViewCameraMeasurements(pcl::PointCloud<pcl::PointXY>::Ptr c1,
   uint32_t rgb2 = (static_cast<uint32_t>(0) << 16 |
                    static_cast<uint32_t>(255) << 8 | static_cast<uint32_t>(0));
   pcl::PointXYZRGB point;
-  for (pcl::PointCloud<pcl::PointXY>::iterator it = c1->begin();
+  for (pcl::PointCloud<pcl::PointXYZ>::iterator it = c1->begin();
        it != c1->end(); ++it) {
     point.x = it->x;
     point.y = it->y;
-    point.z = 0;
+    point.z = it->z;
     point.rgb = *reinterpret_cast<float *>(&rgb1);
     c1_col->push_back(point);
   }
-  for (pcl::PointCloud<pcl::PointXY>::iterator it = c2->begin();
+  for (pcl::PointCloud<pcl::PointXYZ>::iterator it = c2->begin();
        it != c2->end(); ++it) {
     point.x = it->x;
     point.y = it->y;
-    point.z = 0;
+    point.z = it->z;
     point.rgb = *reinterpret_cast<float *>(&rgb2);
     c2_col->push_back(point);
   }
@@ -480,7 +528,7 @@ void Graph::ViewCameraMeasurements(pcl::PointCloud<pcl::PointXY>::Ptr c1,
   pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, "Cloud1");
   pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, "Cloud2");
   pcl_viewer->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
-                                                   correspondences);
+                                                   *correspondences);
   std::cout << "\nViewer Legend:\n"
             << "  Red   -> detected points\n"
             << "  Green -> projected points\n";
@@ -493,7 +541,7 @@ void Graph::ViewCameraMeasurements(pcl::PointCloud<pcl::PointXY>::Ptr c1,
 }
 
 void Graph::ViewClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr c1,
-                            pcl::PointCloud<pcl::PointXYZ>::Ptr c2) {
+                       pcl::PointCloud<pcl::PointXYZ>::Ptr c2) {
   PointCloudColor::Ptr c1_col = boost::make_shared<PointCloudColor>();
   PointCloudColor::Ptr c2_col = boost::make_shared<PointCloudColor>();
 

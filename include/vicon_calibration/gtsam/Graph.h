@@ -63,9 +63,10 @@ private:
 
   void Optimize();
 
-  void ViewCameraMeasurements(pcl::PointCloud<pcl::PointXY>::Ptr c1,
-                              pcl::PointCloud<pcl::PointXY>::Ptr c2,
-                              pcl::Correspondences &correspondences);
+  void ViewCameraMeasurements(
+      const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,
+      const pcl::PointCloud<pcl::PointXYZ>::Ptr &c2,
+      const boost::shared_ptr<pcl::Correspondences> &correspondences);
 
   std::vector<vicon_calibration::LidarMeasurement> lidar_measurements_;
   std::vector<vicon_calibration::CameraMeasurement> camera_measurements_;
@@ -84,18 +85,21 @@ private:
   // params
   uint16_t max_iterations_{40};
   bool show_camera_measurements_{false};
+  bool extract_image_target_perimeter_{false};
+  double concave_hull_alpha_{10};
   double max_pixel_cor_dist_{500}; // in pixels
   double max_point_cor_dist_{0.3}; // in m
   double abs_error_tol_{1e-9};
   double rel_error_tol_{1e-9};
-  double lambda_upper_bound_{1e8}; // the maximum lambda to try before assuming the optimization has failed (default: 1e5)
+  double lambda_upper_bound_{1e8}; // the maximum lambda to try before assuming
+                                   // the optimization has failed (default: 1e5)
 
   std::vector<double> error_tol_{0.0001, 0.0001, 0.0001,
                                  0.0002, 0.0002, 0.0002};
-  std::vector<double> image_noise_{5, 5};
+  std::vector<double> image_noise_{20, 20};
   std::vector<double> lidar_noise_{0.02, 0.02, 0.02};
-  std::vector<double> template_downsample_size_{0.005, 0.005, 0.005};
-  //double concave_hull_alpha_{1};
+  std::vector<double> template_downsample_size_{0.003, 0.003, 0.003};
+  // double concave_hull_alpha_{1};
 };
 
 } // end namespace vicon_calibration

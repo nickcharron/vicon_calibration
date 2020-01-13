@@ -45,9 +45,9 @@ int main(int argc, char *argv[]) {
 
   std::vector<double> point{0,0,0};
   for(int n = 0; n < width; n++){
-    point[0] = point[0] + d;
+    point[1] = point[1] + d;
     for(int m = 0; m < height; m++){
-      point[1] = point[1] + d;
+      point[0] = point[0] + d;
       points+= "{ \"x\": " + std::to_string(point[0])
                 + ", \"y\": " + std::to_string(point[1])
                 + ", \"z\": " + std::to_string(point[2])

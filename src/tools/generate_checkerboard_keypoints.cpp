@@ -44,15 +44,16 @@ int main(int argc, char *argv[]) {
   std::string points = "{ \"keypoints_camera\": [";
 
   std::vector<double> point{0,0,0};
-  for(int n = 0; n < width; n++){
+  for(int n = 1; n < height+1; n++){
     point[1] = point[1] + d;
-    for(int m = 0; m < height; m++){
+    point[0] = 0;
+    for(int m = 1; m < width+1; m++){
       point[0] = point[0] + d;
       points+= "{ \"x\": " + std::to_string(point[0])
                 + ", \"y\": " + std::to_string(point[1])
                 + ", \"z\": " + std::to_string(point[2])
                 + "}";
-      if(n+1 < width || m+1 < height){
+      if(n != height || m != width){
         points+= ",";
       }
     }

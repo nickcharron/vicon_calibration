@@ -1,6 +1,7 @@
 #include "vicon_calibration/ViconCalibrator.h"
 #include "vicon_calibration/CalibrationVerification.h"
 #include "vicon_calibration/utils.h"
+#include "vicon_calibration/JsonTools.h"
 #include <Eigen/StdVector>
 #include <beam_utils/math.hpp>
 #include <cv_bridge/cv_bridge.h>
@@ -43,97 +44,6 @@ ViconCalibrator::GetJSONFileNameConfig(const std::string &file_name) {
   file_location += "config/";
   file_location += file_name;
   return file_location;
-}
-
-// TODO: add try and catch blocks
-void ViconCalibrator::LoadJSON(const std::string &file_name) {
-  LOG_INFO("Loading ViconCalibrator Config File: %s", file_name.c_str());
-  nlohmann::json J;
-  std::ifstream file(file_name);
-  file >> J;
-
-  params_->bag_file = J["bag_file"];
-  params_->initial_calibration_file = J["initial_calibration"];
-  params_->lookup_tf_calibrations = J["lookup_tf_calibrations"];
-  std::vector<double> vect;
-  for (const auto &value : J["initial_guess_perturb"]) {
-    vect.push_back(value);
-  }
-  Eigen::VectorXd tmp(6, 1);
-  tmp << vect[0], vect[1], vect[2], vect[3], vect[4], vect[5];
-  params_->initial_guess_perturbation = tmp;
-  params_->min_measurement_motion = J["min_measurement_motion"];
-  params_->vicon_baselink_frame = J["vicon_baselink_frame"];
-  params_->show_measurements = J["show_measurements"];
-  params_->run_verification = J["run_verification"];
-
-  for (const auto &target : J["targets"]) {
-    std::shared_ptr<vicon_calibration::TargetParams> target_info =
-        std::make_shared<vicon_calibration::TargetParams>();
-    target_info->frame_id = target.at("frame_id");
-    target_info->extractor_type = target.at("extractor_type");
-    std::string target_config_path =
-        GetJSONFileNameConfig(target.at("target_config"));
-    target_info->target_config_path = target_config_path;
-    nlohmann::json J_target;
-    std::ifstream file(target_config_path);
-    file >> J_target;
-    std::vector<double> vect1, vect2;
-    for (const auto &value : J_target["crop_scan"]) {
-      vect1.push_back(value);
-    }
-    Eigen::Vector3d crop_scan;
-    crop_scan << vect1[0], vect1[1], vect1[2];
-    target_info->crop_scan = crop_scan;
-    for (const auto &value : J_target["crop_image"]) {
-      vect2.push_back(value);
-    }
-    Eigen::Vector2d crop_image;
-    crop_image << vect2[0], vect2[1];
-    target_info->crop_image = crop_image;
-    std::string template_cloud_path =
-        GetJSONFileNameData(J_target.at("template_cloud"));
-    pcl::PointCloud<pcl::PointXYZ>::Ptr template_cloud =
-        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path,
-                                            *template_cloud) == -1) {
-      LOG_ERROR("Couldn't read template file: %s\n",
-                template_cloud_path.c_str());
-    }
-    target_info->template_cloud = template_cloud;
-    for (const auto &keypoint : J_target["keypoints_lidar"]) {
-      Eigen::Vector3d point;
-      point << keypoint.at("x"), keypoint.at("y"), keypoint.at("z");
-      target_info->keypoints_lidar.push_back(point);
-    }
-    for (const auto &keypoint : J_target["keypoints_camera"]) {
-      Eigen::Vector3d point;
-      point << keypoint.at("x"), keypoint.at("y"), keypoint.at("z");
-      target_info->keypoints_camera.push_back(point);
-    }
-    params_->target_params.push_back(target_info);
-  }
-
-  for (const auto &camera : J["camera_params"]) {
-    std::shared_ptr<vicon_calibration::CameraParams> cam_params =
-        std::make_shared<vicon_calibration::CameraParams>();
-    cam_params->topic = camera.at("topic");
-    cam_params->frame = camera.at("frame");
-    std::string intrinsics_filename = camera.at("intrinsics");
-    cam_params->intrinsics = GetJSONFileNameData(intrinsics_filename);
-    cam_params->time_steps = camera.at("time_steps");
-    cam_params->images_distorted = camera.at("images_distorted");
-    params_->camera_params.push_back(cam_params);
-  }
-
-  for (const auto &lidar : J["lidar_params"]) {
-    std::shared_ptr<vicon_calibration::LidarParams> lid_params =
-        std::make_shared<vicon_calibration::LidarParams>();
-    lid_params->topic = lidar.at("topic");
-    lid_params->frame = lidar.at("frame");
-    lid_params->time_steps = lidar.at("time_steps");
-    params_->lidar_params.push_back(lid_params);
-  }
 }
 
 void ViconCalibrator::LoadEstimatedExtrinsics() {
@@ -448,9 +358,8 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
           camera_extractor_ =
               std::make_shared<vicon_calibration::CylinderCameraExtractor>();
         } else if (extractor_type == "DIAMOND") {
-          // TODO: uncomment this when implementing the extractor
-          // camera_extractor_ =
-          //     std::make_shared<vicon_calibration::DiamondCameraExtractor>();
+          camera_extractor_ =
+              std::make_shared<vicon_calibration::DiamondCameraExtractor>();
         } else {
           throw std::invalid_argument{
               "Invalid extractor type. Options: CYLINDER, DIAMOND"};
@@ -491,8 +400,10 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
 
   // get configuration settings
   config_file_path_ = GetJSONFileNameConfig(config_file);
+
   try {
-    LoadJSON(config_file_path_);
+    JsonTools json_loader;
+    params_ = json_loader.LoadViconCalibratorParams(config_file_path_);
   } catch (nlohmann::detail::parse_error &ex) {
     LOG_ERROR("Unable to load json config file: %s", config_file_path_.c_str());
     LOG_ERROR("%s", ex.what());

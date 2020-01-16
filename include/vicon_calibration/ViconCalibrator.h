@@ -4,6 +4,8 @@
 #include "vicon_calibration/gtsam/Graph.h"
 #include "vicon_calibration/measurement_extractors/CylinderCameraExtractor.h"
 #include "vicon_calibration/measurement_extractors/CylinderLidarExtractor.h"
+#include "vicon_calibration/measurement_extractors/DiamondCameraExtractor.h"
+// #include "vicon_calibration/measurement_extractors/DiamondLidarExtractor.h"
 #include "vicon_calibration/params.h"
 #include <Eigen/Geometry>
 #include <opencv2/opencv.hpp>
@@ -92,7 +94,7 @@ private:
 
   void SetCalibrationInitials();
 
-  std::shared_ptr<CalibratorConfig> params_ = std::make_shared<CalibratorConfig>();
+  std::shared_ptr<CalibratorConfig> params_;
   std::string results_directory_;
   std::string config_file_path_;
   std::shared_ptr<LidarExtractor> lidar_extractor_;

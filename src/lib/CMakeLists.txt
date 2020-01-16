@@ -7,9 +7,12 @@ add_library(${PROJECT_NAME}
   measurement_extractors/LidarExtractor.cpp
   measurement_extractors/CylinderCameraExtractor.cpp
   measurement_extractors/CylinderLidarExtractor.cpp
+  measurement_extractors/DiamondCameraExtractor.cpp
+  #measurement_extractors/DiamondLidarExtractor.cpp
   gtsam/Graph.cpp
   TfTree.cpp
   utils.cpp
+  JsonTools.cpp
   CalibrationVerification.cpp
 )
 target_compile_options(${PROJECT_NAME}

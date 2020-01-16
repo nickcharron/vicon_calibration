@@ -179,6 +179,26 @@ DrawCoordinateFrame(cv::Mat &img_in, Eigen::MatrixXd &T_cam_frame,
   return img_out;
 }
 
+cv::Mat ProjectPointsToImage(
+    cv::Mat &img, boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
+    Eigen::MatrixXd &T_IMAGE_CLOUD,
+    std::shared_ptr<beam_calibration::CameraModel> &camera_model) {
+  cv::Mat img_out;
+  img_out = img.clone();
+  Eigen::Vector2d pixel(0, 0);
+  Eigen::Vector4d point(0, 0, 0, 1);
+  Eigen::Vector4d point_transformed(0, 0, 0, 1);
+  for (int i = 0; i < cloud->size(); i++) {
+    point[0] = cloud->at(i).x;
+    point[1] = cloud->at(i).y;
+    point[2] = cloud->at(i).z;
+    point_transformed = T_IMAGE_CLOUD * point;
+    pixel = camera_model->ProjectPoint(point_transformed);
+    cv::circle(img_out, cv::Point(pixel[0], pixel[1]), 2,
+               cv::Scalar(0, 255, 0));
+  }
+  return img_out;
+}
 void OutputTransformInformation(const Eigen::Affine3d &T,
                                 const std::string &transform_name) {
   OutputTransformInformation(T.matrix(), transform_name);
@@ -186,7 +206,7 @@ void OutputTransformInformation(const Eigen::Affine3d &T,
 
 void OutputTransformInformation(const Eigen::Matrix4d &T,
                                 const std::string &transform_name) {
-  Eigen::Matrix3d R = T.block(0,0,3,3);
+  Eigen::Matrix3d R = T.block(0, 0, 3, 3);
   Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
   std::cout << transform_name << ":\n"
             << T << "\n"

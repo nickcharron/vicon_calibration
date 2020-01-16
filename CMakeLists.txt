@@ -22,59 +22,7 @@ find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(Catch2 REQUIRED)
 find_package(GTSAM REQUIRED)
 
-################## tools ##################
-add_executable(${PROJECT_NAME}_generate_checkerboard_keypoints
-  src/tools/generate_checkerboard_keypoints.cpp
-)
-
-################## tests ##################
-add_executable(${PROJECT_NAME}_tests_lidar_cylinder_extractor
-  tests/lidar_cyl_extract_test.cpp
-)
-
-target_include_directories(${PROJECT_NAME}_tests_lidar_cylinder_extractor
-  PUBLIC
-    include
-)
-
-target_link_libraries(${PROJECT_NAME}_tests_lidar_cylinder_extractor
-  ${PROJECT_NAME}
-  Catch2::Catch2
-  beam::utils
-  beam::filtering
-)
-
-add_executable(${PROJECT_NAME}_tests_camera_cylinder_extractor
-  tests/cam_cyl_extract_tests.cpp
-)
-
-target_include_directories(${PROJECT_NAME}_tests_camera_cylinder_extractor
-  PUBLIC
-    include
-)
-
-target_link_libraries(${PROJECT_NAME}_tests_camera_cylinder_extractor
-  ${PROJECT_NAME}
-  Catch2::Catch2
-)
-
-add_executable(${PROJECT_NAME}_tests_gtsam_factors
-  tests/gtsam_factors_test.cpp
-)
-
-target_include_directories(${PROJECT_NAME}_tests_gtsam_factors
-  PUBLIC
-    include
-)
-
-target_link_libraries(${PROJECT_NAME}_tests_gtsam_factors
-  ${PROJECT_NAME}
-  Catch2::Catch2
-  beam::calibration
-)
-#############################
-
-# Add the core library
+################## Add the core library ##################
 add_subdirectory(src/lib)
 add_subdirectory(tests)
 
@@ -111,3 +59,76 @@ target_link_libraries(${PROJECT_NAME}_main_roben
 	beam::calibration
   beam::filtering
 )
+
+################## tools ##################
+add_executable(${PROJECT_NAME}_generate_checkerboard_keypoints
+  src/tools/generate_checkerboard_keypoints.cpp
+)
+
+################## tests ##################
+
+### TEST1 ###
+add_executable(${PROJECT_NAME}_tests_cylinder_lidar_extractor
+  tests/cylinder_lidar_extractor_test.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_tests_cylinder_lidar_extractor
+  PUBLIC
+    include
+)
+
+target_link_libraries(${PROJECT_NAME}_tests_cylinder_lidar_extractor
+  ${PROJECT_NAME}
+  Catch2::Catch2
+  beam::utils
+  beam::filtering
+)
+
+### TEST2 ###
+add_executable(${PROJECT_NAME}_tests_cylinder_camera_extractor
+  tests/cylinder_camera_extractor_test.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_tests_cylinder_camera_extractor
+  PUBLIC
+    include
+)
+
+target_link_libraries(${PROJECT_NAME}_tests_cylinder_camera_extractor
+  ${PROJECT_NAME}
+  Catch2::Catch2
+)
+
+### TEST3 ###
+add_executable(${PROJECT_NAME}_tests_gtsam_factors
+  tests/gtsam_factors_test.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_tests_gtsam_factors
+  PUBLIC
+    include
+)
+
+target_link_libraries(${PROJECT_NAME}_tests_gtsam_factors
+  ${PROJECT_NAME}
+  Catch2::Catch2
+  beam::calibration
+)
+
+### TEST4 ###
+add_executable(${PROJECT_NAME}_tests_diamond_camera_extractor
+  tests/diamond_camera_extractor_test.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_tests_diamond_camera_extractor
+  PUBLIC
+    include
+)
+
+target_link_libraries(${PROJECT_NAME}_tests_diamond_camera_extractor
+  ${PROJECT_NAME}
+  Catch2::Catch2
+  beam::calibration
+)
+
+#############################

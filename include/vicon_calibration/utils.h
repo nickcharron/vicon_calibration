@@ -77,6 +77,11 @@ DrawCoordinateFrame(cv::Mat &img_in, Eigen::MatrixXd &T_cam_frame,
                     std::shared_ptr<beam_calibration::CameraModel> camera_model,
                     double &scale, bool images_distorted);
 
+cv::Mat ProjectPointsToImage(
+    cv::Mat &img, boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
+    Eigen::MatrixXd &T_IMAGE_CLOUD,
+    std::shared_ptr<beam_calibration::CameraModel> &camera_model);
+
 void OutputTransformInformation(const Eigen::Affine3d &T,
                                 const std::string &transform_name);
 

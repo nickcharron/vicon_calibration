@@ -15,7 +15,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 // Global variables for testing
-std::string current_file = "lidar_cyl_extract_test.cpp";
+std::string current_file = "cylinder_lidar_extractor_test.cpp";
 std::string test_path = __FILE__;
 std::string bag_path;
 std::string template_cloud_path;

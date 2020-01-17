@@ -190,7 +190,8 @@ void Graph::SetImageCorrespondences() {
     pcl::PointCloud<pcl::PointXYZ>::Ptr measurement_3d =
         boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
     pcl::PointXYZ point;
-    for (pcl::PointCloud<pcl::PointXY>::iterator it = measurement.keypoints->begin();
+    for (pcl::PointCloud<pcl::PointXY>::iterator it =
+             measurement.keypoints->begin();
          it != measurement.keypoints->end(); ++it) {
       point.x = it->x;
       point.y = it->y;
@@ -198,17 +199,40 @@ void Graph::SetImageCorrespondences() {
       measurement_3d->push_back(point);
     }
 
-    // create point cloud of projected points
-    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_template =
-        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-    pcl::transformPointCloud(
-        *(target_params_[measurement.target_id]->template_cloud),
-        *transformed_template, T_CAM_TARGET);
+    // Check keypoints to see if we want to find correspondances between
+    // keypoints or between all target points
+    bool use_target_keypoints{false};
+    if (target_params_[measurement.target_id]->keypoints_camera.size() > 0) {
+      use_target_keypoints = true;
+    }
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr projected_pixels =
+    // get point cloud of projected keypoints
+    pcl::PointCloud<pcl::PointXYZ>::Ptr projected_keypoints =
         boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-    for (uint32_t i = 0; i < transformed_template->size(); i++) {
-      pcl::PointXYZ point_pcl = transformed_template->at(i);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints =
+        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    if (use_target_keypoints) {
+      // use keypoints specified in json
+      Eigen::Vector4d keypoint_homo;
+      Eigen::Vector3d keypoint_transformed;
+      pcl::PointXYZ keypoint_transformed_pcl;
+      for (Eigen::Vector3d keypoint :
+           target_params_[measurement.target_id]->keypoints_camera) {
+        keypoint_homo = utils::PointToHomoPoint(keypoint);
+        keypoint_transformed =
+            utils::HomoPointToPoint(T_CAM_TARGET * keypoint_homo);
+        keypoint_transformed_pcl = utils::EigenPointToPCL(keypoint_transformed);
+        transformed_keypoints->push_back(keypoint_transformed_pcl);
+      }
+    } else {
+      // use all points from template cloud
+      pcl::transformPointCloud(
+          *(target_params_[measurement.target_id]->template_cloud),
+          *transformed_keypoints, T_CAM_TARGET);
+    }
+
+    for (uint32_t i = 0; i < transformed_keypoints->size(); i++) {
+      pcl::PointXYZ point_pcl = transformed_keypoints->at(i);
       Eigen::Vector2d point_projected;
       if (camera_params_[measurement.camera_id]->images_distorted) {
         point_projected = camera_models_[measurement.camera_id]->ProjectPoint(
@@ -218,22 +242,23 @@ void Graph::SetImageCorrespondences() {
             camera_models_[measurement.camera_id]->ProjectUndistortedPoint(
                 utils::PCLPointToEigen(point_pcl));
       }
-      projected_pixels->push_back(
+      projected_keypoints->push_back(
           pcl::PointXYZ(point_projected[0], point_projected[1], 0));
     }
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr hull_cloud;
     boost::shared_ptr<pcl::Correspondences> correspondences =
         boost::make_shared<pcl::Correspondences>();
     pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
         corr_est;
-    if (extract_image_target_perimeter_) {
+
+    if (extract_image_target_perimeter_ && !use_target_keypoints) {
       // keep only perimeter points
-      hull_cloud = boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+      pcl::PointCloud<pcl::PointXYZ>::Ptr hull_cloud =
+          boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
       pcl::PointIndices::Ptr hull_point_correspondances =
           boost::make_shared<pcl::PointIndices>();
       pcl::ConcaveHull<pcl::PointXYZ> concave_hull;
-      concave_hull.setInputCloud(projected_pixels);
+      concave_hull.setInputCloud(projected_keypoints);
       concave_hull.setAlpha(concave_hull_alpha_);
       concave_hull.setKeepInformation(true);
       concave_hull.reconstruct(*hull_cloud);
@@ -260,13 +285,14 @@ void Graph::SetImageCorrespondences() {
     } else {
       // get correspondences
       corr_est.setInputSource(measurement_3d);
-      corr_est.setInputTarget(projected_pixels);
+      corr_est.setInputTarget(projected_keypoints);
       corr_est.determineCorrespondences(*correspondences, max_pixel_cor_dist_);
       if (show_camera_measurements_) {
-        ViewCameraMeasurements(measurement_3d, projected_pixels,
+        ViewCameraMeasurements(measurement_3d, projected_keypoints,
                                correspondences);
       }
     }
+
     for (uint32_t i = 0; i < correspondences->size(); i++) {
       counter++;
       vicon_calibration::Correspondence correspondence;
@@ -293,6 +319,9 @@ void Graph::SetLidarCorrespondences() {
     T_VICONBASE_LIDAR = pose.matrix();
     T_LIDAR_TARGET = utils::InvertTransform(T_VICONBASE_LIDAR) *
                      measurement.T_VICONBASE_TARGET;
+
+    // TODO: here we have to check keypoints to see if we want to find
+    // correspondances between keypoints or between all target points
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_template =
         boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
@@ -339,8 +368,15 @@ void Graph::SetImageFactors() {
         camera_measurements_[corr.measurement_index];
     target_index = measurement.target_id;
     camera_index = measurement.camera_id;
-    point_pcl = target_params_[target_index]->template_cloud->at(
-        corr.target_point_index);
+
+    if (target_params_[target_index]->keypoints_camera.size() > 0) {
+      point_pcl = utils::EigenPointToPCL(
+          target_params_[target_index]
+              ->keypoints_camera[corr.target_point_index]);
+    } else {
+      point_pcl = target_params_[target_index]->template_cloud->at(
+          corr.target_point_index);
+    }
     point_eig = utils::PCLPointToEigen(point_pcl);
     pixel_pcl = measurement.keypoints->at(corr.measured_point_index);
     pixel_eig = utils::PCLPixelToEigen(pixel_pcl);
@@ -373,6 +409,8 @@ void Graph::SetLidarFactors() {
     point_predicted_pcl = target_params_[target_index]->template_cloud->at(
         corr.target_point_index);
     gtsam::Key key = gtsam::Symbol('L', lidar_index);
+
+    // TODO: check if we use keypoints or template points
     point_measured_pcl = measurement.keypoints->at(corr.measured_point_index);
     point_measured = utils::PCLPointToEigen(point_measured_pcl);
     point_predicted = utils::PCLPointToEigen(point_predicted_pcl);

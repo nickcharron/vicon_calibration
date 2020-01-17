@@ -40,9 +40,6 @@ public:
   void Print(std::string &file_name, bool print_to_terminal);
 
 private:
-  void ViewClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr c1,
-                  pcl::PointCloud<pcl::PointXYZ>::Ptr c2);
-
   bool HasConverged(uint16_t iteration);
 
   void CheckInputs();
@@ -62,6 +59,11 @@ private:
   void SetLidarCameraFactors();
 
   void Optimize();
+
+  void ViewLidarMeasurements(
+      const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,
+      const pcl::PointCloud<pcl::PointXYZ>::Ptr &c2,
+      const boost::shared_ptr<pcl::Correspondences> &correspondences);
 
   void ViewCameraMeasurements(
       const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,
@@ -85,6 +87,7 @@ private:
   // params
   uint16_t max_iterations_{40};
   bool show_camera_measurements_{false};
+  bool show_lidar_measurements_{false};
   bool extract_image_target_perimeter_{true};
   double concave_hull_alpha_{10};
   double max_pixel_cor_dist_{500}; // in pixels

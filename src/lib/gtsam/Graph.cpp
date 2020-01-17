@@ -320,28 +320,47 @@ void Graph::SetLidarCorrespondences() {
     T_LIDAR_TARGET = utils::InvertTransform(T_VICONBASE_LIDAR) *
                      measurement.T_VICONBASE_TARGET;
 
-    // TODO: here we have to check keypoints to see if we want to find
-    // correspondances between keypoints or between all target points
-
-    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_template =
+    // Check keypoints to see if we want to find correspondances between
+    // keypoints or between all target points
+    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints =
         boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-    pcl::transformPointCloud(
-        *(target_params_[measurement.target_id]->template_cloud),
-        *transformed_template, T_LIDAR_TARGET);
+    if (target_params_[measurement.target_id]->keypoints_lidar.size() > 0) {
+      // use keypoints specified in json
+      Eigen::Vector4d keypoint_homo;
+      Eigen::Vector3d keypoint_transformed;
+      pcl::PointXYZ keypoint_transformed_pcl;
+      for (Eigen::Vector3d keypoint :
+           target_params_[measurement.target_id]->keypoints_lidar) {
+        keypoint_homo = utils::PointToHomoPoint(keypoint);
+        keypoint_transformed =
+            utils::HomoPointToPoint(T_LIDAR_TARGET * keypoint_homo);
+        keypoint_transformed_pcl = utils::EigenPointToPCL(keypoint_transformed);
+        transformed_keypoints->push_back(keypoint_transformed_pcl);
+      }
+    } else {
+      // use all points from template cloud
+      pcl::transformPointCloud(
+          *(target_params_[measurement.target_id]->template_cloud),
+          *transformed_keypoints, T_LIDAR_TARGET);
+    }
 
     // get correspondences
     pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
         corr_est;
-    pcl::Correspondences correspondences;
-    // ViewClouds(measurement.keypoints, transformed_template);
+    boost::shared_ptr<pcl::Correspondences> correspondences =
+        boost::make_shared<pcl::Correspondences>();
     corr_est.setInputSource(measurement.keypoints);
-    corr_est.setInputTarget(transformed_template);
-    corr_est.determineCorrespondences(correspondences, max_point_cor_dist_);
-    for (uint32_t i = 0; i < correspondences.size(); i++) {
+    corr_est.setInputTarget(transformed_keypoints);
+    corr_est.determineCorrespondences(*correspondences, max_point_cor_dist_);
+    if (show_lidar_measurements_) {
+      ViewLidarMeasurements(measurement.keypoints, transformed_keypoints,
+                            correspondences);
+    }
+    for (uint32_t i = 0; i < correspondences->size(); i++) {
       counter++;
       vicon_calibration::Correspondence correspondence;
-      correspondence.target_point_index = correspondences[i].index_match;
-      correspondence.measured_point_index = correspondences[i].index_query;
+      correspondence.target_point_index = correspondences->at(i).index_match;
+      correspondence.measured_point_index = correspondences->at(i).index_query;
       correspondence.measurement_index = meas_iter;
       lidar_correspondences_.push_back(correspondence);
     }
@@ -352,11 +371,10 @@ void Graph::SetLidarCorrespondences() {
 void Graph::SetImageFactors() {
   LOG_INFO("Setting image factors");
   int counter = 0;
-  pcl::PointXY pixel_pcl;
-  pcl::PointXYZ point_pcl;
-  Eigen::Vector3d point_eig(0, 0, 0);
-  Eigen::Vector2d pixel_eig(0, 0);
+  Eigen::Vector3d point(0, 0, 0);
+  Eigen::Vector2d pixel(0, 0);
   int target_index, camera_index;
+
   // TODO: Figure out a smart way to do this. Do we want to tune the COV based
   // on the number of points per measurement?
   gtsam::Vector2 noise_vec;
@@ -364,34 +382,33 @@ void Graph::SetImageFactors() {
   gtsam::noiseModel::Diagonal::shared_ptr ImageNoise =
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   for (vicon_calibration::Correspondence corr : camera_correspondences_) {
+    counter++;
     CameraMeasurement measurement =
         camera_measurements_[corr.measurement_index];
     target_index = measurement.target_id;
     camera_index = measurement.camera_id;
 
     if (target_params_[target_index]->keypoints_camera.size() > 0) {
-      point_pcl = utils::EigenPointToPCL(
-          target_params_[target_index]
-              ->keypoints_camera[corr.target_point_index]);
+      point = target_params_[target_index]
+                  ->keypoints_camera[corr.target_point_index];
     } else {
-      point_pcl = target_params_[target_index]->template_cloud->at(
-          corr.target_point_index);
+      point = utils::PCLPointToEigen(
+          target_params_[target_index]->template_cloud->at(
+              corr.target_point_index));
     }
-    point_eig = utils::PCLPointToEigen(point_pcl);
-    pixel_pcl = measurement.keypoints->at(corr.measured_point_index);
-    pixel_eig = utils::PCLPixelToEigen(pixel_pcl);
+
+    pixel = utils::PCLPixelToEigen(
+        measurement.keypoints->at(corr.measured_point_index));
     gtsam::Key key = gtsam::Symbol('C', camera_index);
     graph_.emplace_shared<CameraFactor>(
-        key, pixel_eig, point_eig, camera_models_[camera_index],
+        key, pixel, point, camera_models_[camera_index],
         measurement.T_VICONBASE_TARGET, ImageNoise);
-    counter++;
   }
   LOG_INFO("Added %d image factors.", counter);
 }
 
 void Graph::SetLidarFactors() {
   LOG_INFO("Setting lidar factors");
-  pcl::PointXYZ point_measured_pcl, point_predicted_pcl;
   Eigen::Vector3d point_predicted, point_measured;
   int target_index, lidar_index;
   // TODO: Figure out a smart way to do this. Do we want to tune the COV based
@@ -406,14 +423,19 @@ void Graph::SetLidarFactors() {
     LidarMeasurement measurement = lidar_measurements_[corr.measurement_index];
     target_index = measurement.target_id;
     lidar_index = measurement.lidar_id;
-    point_predicted_pcl = target_params_[target_index]->template_cloud->at(
-        corr.target_point_index);
-    gtsam::Key key = gtsam::Symbol('L', lidar_index);
 
-    // TODO: check if we use keypoints or template points
-    point_measured_pcl = measurement.keypoints->at(corr.measured_point_index);
-    point_measured = utils::PCLPointToEigen(point_measured_pcl);
-    point_predicted = utils::PCLPointToEigen(point_predicted_pcl);
+    if (target_params_[target_index]->keypoints_lidar.size() > 0) {
+      point_predicted = target_params_[target_index]
+                            ->keypoints_lidar[corr.target_point_index];
+    } else {
+      point_predicted = utils::PCLPointToEigen(
+          target_params_[target_index]->template_cloud->at(
+              corr.target_point_index));
+    }
+
+    point_measured = utils::PCLPointToEigen(
+        measurement.keypoints->at(corr.measured_point_index));
+    gtsam::Key key = gtsam::Symbol('L', lidar_index);
     graph_.emplace_shared<LidarFactor>(key, point_measured, point_predicted,
                                        measurement.T_VICONBASE_TARGET,
                                        LidarNoise);
@@ -578,8 +600,10 @@ void Graph::ViewCameraMeasurements(
   pcl_viewer->resetStoppedFlag();
 }
 
-void Graph::ViewClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr c1,
-                       pcl::PointCloud<pcl::PointXYZ>::Ptr c2) {
+void Graph::ViewLidarMeasurements(
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr &c2,
+    const boost::shared_ptr<pcl::Correspondences> &correspondences) {
   PointCloudColor::Ptr c1_col = boost::make_shared<PointCloudColor>();
   PointCloudColor::Ptr c2_col = boost::make_shared<PointCloudColor>();
 
@@ -610,6 +634,8 @@ void Graph::ViewClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr c1,
       c2_col);
   pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, "Cloud1");
   pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, "Cloud2");
+  pcl_viewer->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
+                                                   *correspondences);
   std::cout << "\nViewer Legend:\n"
             << "  Red   -> cloud 1\n"
             << "  Green -> cloud 2\n";

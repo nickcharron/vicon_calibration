@@ -188,10 +188,9 @@ CylinderCameraExtractor::TargetPointToPixel(Eigen::Vector4d point) {
       homogeneous_point[2];
 
   if (camera_params_->images_distorted) {
-    camera_model_->SetUndistortedIntrinsics(camera_model_->GetIntrinsics());
-    return camera_model_->ProjectUndistortedPoint(transformed_point);
-  } else {
     return camera_model_->ProjectPoint(transformed_point);
+  } else {
+    return camera_model_->ProjectUndistortedPoint(transformed_point);
   }
 }
 

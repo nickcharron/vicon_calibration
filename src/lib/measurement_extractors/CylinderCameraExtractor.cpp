@@ -52,6 +52,11 @@ void CylinderCameraExtractor::GetKeypoints() {
   this->CheckError();
 }
 
+// TODO: redo the error metrics to check for false measurements. I want to have
+//       3 error checks:
+//       1) check origin point is approximately the same spot.
+//       2) check that the angle is approximately equal to estimated
+//       3) check that area is approx. equal to the template projected area
 void CylinderCameraExtractor::GetMeasuredPose() {
   // Construct a buffer used by the pca analysis
   int sz = static_cast<int>(target_contour_.size());
@@ -121,6 +126,15 @@ void CylinderCameraExtractor::GetEstimatedPose() {
 }
 
 void CylinderCameraExtractor::CheckError() {
+  std::cout << "Measured Pose: \n"
+            << "Center: [" << target_pose_measured_.first.x << ", "
+            << target_pose_measured_.first.y << " ]\n"
+            << "Angle: " << target_pose_measured_.second << "\n"
+            << "Estimated Pose: \n"
+            << "Center: [" << target_pose_estimated_.first.x << ", "
+            << target_pose_estimated_.first.y << " ]\n"
+            << "Angle: " << target_pose_estimated_.second << "\n";
+
   double x_m = target_pose_measured_.first.x;
   double x_e = target_pose_estimated_.first.x;
   double y_m = target_pose_measured_.first.y;
@@ -168,22 +182,24 @@ void CylinderCameraExtractor::CheckError() {
 }
 
 void CylinderCameraExtractor::DrawContourAxis(
-    std::shared_ptr<cv::Mat> &img_pointer, cv::Point &p, cv::Point &q,
-    const cv::Scalar &colour, const float scale = 0.2) {
+    std::shared_ptr<cv::Mat> &img_pointer, const cv::Point &p,
+    const cv::Point &q, const cv::Scalar &colour, const float scale = 0.2) {
+  cv::Point p_ = p;
+  cv::Point q_ = q;
   double angle =
-      std::atan2((double)p.y - q.y, (double)p.x - q.x); // angle in radians
+      std::atan2((double)p_.y - q_.y, (double)p_.x - q_.x); // angle in radians
   double hypotenuse =
-      std::sqrt((double)(p.y - q.y) * (p.y - q.y) + (p.x - q.x) * (p.x - q.x));
+      std::sqrt((double)(p_.y - q_.y) * (p_.y - q_.y) + (p_.x - q_.x) * (p_.x - q_.x));
   // Here we lengthen the arrow by a factor of scale
-  q.x = (int)(p.x - scale * hypotenuse * std::cos(angle));
-  q.y = (int)(p.y - scale * hypotenuse * std::sin(angle));
+  q_.x = (int)(p_.x - scale * hypotenuse * std::cos(angle));
+  q_.y = (int)(p_.y - scale * hypotenuse * std::sin(angle));
   cv::line(*img_pointer, p, q, colour, 1, cv::LINE_AA);
   // create the arrow hooks
-  p.x = (int)(q.x + 9 * std::cos(angle + CV_PI / 4));
-  p.y = (int)(q.y + 9 * std::sin(angle + CV_PI / 4));
+  p_.x = (int)(q_.x + 9 * std::cos(angle + CV_PI / 4));
+  p_.y = (int)(q_.y + 9 * std::sin(angle + CV_PI / 4));
   cv::line(*img_pointer, p, q, colour, 1, cv::LINE_AA);
-  p.x = (int)(q.x + 9 * std::cos(angle - CV_PI / 4));
-  p.y = (int)(q.y + 9 * std::sin(angle - CV_PI / 4));
+  p_.x = (int)(q_.x + 9 * std::cos(angle - CV_PI / 4));
+  p_.y = (int)(q_.y + 9 * std::sin(angle - CV_PI / 4));
   cv::line(*img_pointer, p, q, colour, 1, cv::LINE_AA);
 }
 

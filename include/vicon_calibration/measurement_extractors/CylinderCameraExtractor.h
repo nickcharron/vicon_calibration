@@ -28,9 +28,9 @@ private:
 
   void CheckError();
 
-  void DrawContourAxis(std::shared_ptr<cv::Mat> &img_pointer, cv::Point &p,
-                       cv::Point &q, const cv::Scalar &colour,
-                       const float scale);
+  void DrawContourAxis(std::shared_ptr<cv::Mat> &img_pointer,
+                       const cv::Point &p, const cv::Point &q,
+                       const cv::Scalar &colour, const float scale);
 
   // params:
   cv::Scalar color_threshold_min_{0, 95, 0}; // Min BGR to threshold img for tgt

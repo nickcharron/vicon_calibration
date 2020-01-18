@@ -61,7 +61,7 @@ void SetUp() {
 TEST_CASE("Test extracting cylinder with invalid image") {
   SetUp();
   cv::Mat invalid_image;
-  REQUIRE_THROWS(cyl_extractor->ProcessMeasurement(TA_SENSOR_TARGET.matrix(),
+  REQUIRE_THROWS(cyl_extractor->ProcessMeasurement(T_SENSOR_TARGET,
                                                  invalid_image));
 }
 
@@ -73,25 +73,36 @@ TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
 TEST_CASE("Test extracting from a black image") {
   cv::Mat black_image(image.rows, image.cols, image.type(),
                       cv::Scalar(0, 0, 0));
-  cyl_extractor->ProcessMeasurement(TA_SENSOR_TARGET.matrix(), black_image);
+  cyl_extractor->ProcessMeasurement(T_SENSOR_TARGET, black_image);
   REQUIRE(cyl_extractor->GetMeasurementValid() == false);
 }
 
 TEST_CASE("Test extracting cylinder") {
   // SetUp();
-  cyl_extractor->SetShowMeasurements(true);
-  cyl_extractor->ProcessMeasurement(TA_SENSOR_TARGET.matrix(), image);
+  // cyl_extractor->SetShowMeasurements(true);
+  cyl_extractor->ProcessMeasurement(T_SENSOR_TARGET, image);
   REQUIRE(cyl_extractor->GetMeasurementValid() == true);
 }
 
-TEST_CASE("Test extracting diamond with invalid cropping") {
+TEST_CASE("Test extracting cylinder with invalid cropping") {
   // SetUp();
   std::shared_ptr<TargetParams> invalid_target_params = std::make_shared<TargetParams>();
   *invalid_target_params = *target_params;
-  invalid_target_params->crop_image = Eigen::Vector2d(0,0);
-  cyl_extractor->SetTargetParams(target_params);
-  // diamond_extractor->SetShowMeasurements(true);
+  cyl_extractor->SetTargetParams(invalid_target_params);
+  bool measurement_valid;
+
+  // case 1: crop out 100% of target. Calculated area should be below min
+  invalid_target_params->crop_image = Eigen::Vector2d(-100,-100);
   cyl_extractor->ProcessMeasurement(T_SENSOR_TARGET, image);
-  bool measurement_valid = cyl_extractor->GetMeasurementValid();
+  measurement_valid = cyl_extractor->GetMeasurementValid();
   REQUIRE(measurement_valid == false);
+
+  // case 2: this should create a cropbox that is outside the image plane
+  invalid_target_params->crop_image = Eigen::Vector2d(500,500);
+  cyl_extractor->ProcessMeasurement(T_SENSOR_TARGET, image);
+  measurement_valid = cyl_extractor->GetMeasurementValid();
+  REQUIRE(measurement_valid == false);
+
+  // reset
+  cyl_extractor->SetTargetParams(target_params);
 }

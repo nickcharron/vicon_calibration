@@ -87,3 +87,26 @@ TEST_CASE("Test extracting diamond") {
   diamond_extractor->ProcessMeasurement(T_SENSOR_TARGET, image);
   REQUIRE(diamond_extractor->GetMeasurementValid() == true);
 }
+
+TEST_CASE("Test extracting diamond with invalid cropping") {
+  // SetUp();
+  std::shared_ptr<TargetParams> invalid_target_params = std::make_shared<TargetParams>();
+  *invalid_target_params = *target_params;
+  diamond_extractor->SetTargetParams(invalid_target_params);
+  bool measurement_valid;
+
+  // case 1: crop out 100% of target. Calculated area should be below min
+  invalid_target_params->crop_image = Eigen::Vector2d(-100,-100);
+  diamond_extractor->ProcessMeasurement(T_SENSOR_TARGET, image);
+  measurement_valid = diamond_extractor->GetMeasurementValid();
+  REQUIRE(measurement_valid == false);
+
+  // case 2: this should create a cropbox that is outside the image plane
+  invalid_target_params->crop_image = Eigen::Vector2d(500,500);
+  diamond_extractor->ProcessMeasurement(T_SENSOR_TARGET, image);
+  measurement_valid = diamond_extractor->GetMeasurementValid();
+  REQUIRE(measurement_valid == false);
+
+  // reset
+  diamond_extractor->SetTargetParams(target_params);
+}

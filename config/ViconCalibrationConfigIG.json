@@ -1,56 +1,28 @@
 {
-  "bag_file": "/home/nick/bag_files/vicon_calibration/2019-12-16-16-40-24-IG_CALIB_1.bag",
+  "bag_file": "/home/nick/bag_files/vicon_calibration/ig_calibration_f1_diamond_2020-01-16-20-57-00.bag",
   "initial_calibration": "initial_calibration_ig_current.json",
   "lookup_tf_calibrations": true,
   "initial_guess_perturb": [0.01, 0.0, 0.05, 0.0, 0.0, 0.0],
   "min_measurement_motion": 0.05,
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
-  "show_measurements": true,
+  "show_measurements": false,
   "run_verification": true,
   "targets":[
-    {"frame_id": "vicon/cylinder_target1/cylinder_target1",
-     "extractor_type": "CYLINDER",
-     "target_config": "CylinderTarget.json"
+    {"frame_id": "vicon/target3/target3",
+     "extractor_type": "DIAMOND",
+     "target_config": "DiamondTarget.json"
     },
-    {"frame_id": "vicon/cylinder_target2/cylinder_target2",
-     "extractor_type": "CYLINDER",
-     "target_config": "CylinderTarget.json"
-    },
-    {"frame_id": "vicon/cylinder_target5/cylinder_target5",
-     "extractor_type": "CYLINDER",
-     "target_config": "CylinderTarget.json"
-    },
-    {"frame_id": "vicon/cylinder_target6/cylinder_target6",
-     "extractor_type": "CYLINDER",
-     "target_config": "CylinderTarget.json"
-    },
-    {"frame_id": "vicon/cylinder_target7/cylinder_target7",
-     "extractor_type": "CYLINDER",
-     "target_config": "CylinderTarget.json"
-    },
-    {"frame_id": "vicon/cylinder_target8/cylinder_target8",
-     "extractor_type": "CYLINDER",
-     "target_config": "CylinderTarget.json"
-    },
-    {"frame_id": "vicon/cylinder_target9/cylinder_target9",
-     "extractor_type": "CYLINDER",
-     "target_config": "CylinderTarget.json"
-    },
-    {"frame_id": "vicon/cylinder_target10/cylinder_target10",
-     "extractor_type": "CYLINDER",
-     "target_config": "CylinderTarget.json"
-    },
-    {"frame_id": "vicon/cylinder_target11/cylinder_target11",
-     "extractor_type": "CYLINDER",
-     "target_config": "CylinderTarget.json"
+    {"frame_id": "vicon/target4/target4",
+     "extractor_type": "DIAMOND",
+     "target_config": "DiamondTarget.json"
     }
   ],
   "camera_params": [
     {"topic": "/F1/image_raw",
      "frame": "F1_link",
      "intrinsics": "F1_sim.json",
-     "images_distorted": false,
-     "time_steps": 2}
+     "images_distorted": true,
+     "time_steps": 1}
   ],
   "lidar_params":[
   ]

@@ -6,24 +6,6 @@
 
 namespace vicon_calibration {
 
-std::string JsonTools::GetJSONFileNameConfig(const std::string &file_name) {
-  std::string file_location = __FILE__;
-  std::string current_location = "src/lib/JsonTools.cpp";
-  file_location.erase(file_location.end() - current_location.size(), file_location.end());
-  file_location += "config/";
-  file_location += file_name;
-  return file_location;
-}
-
-std::string JsonTools::GetJSONFileNameData(const std::string &file_name) {
-  std::string file_location = __FILE__;
-  std::string current_location = "src/lib/JsonTools.cpp";
-  file_location.erase(file_location.end() - current_location.size(), file_location.end());
-  file_location += "data/";
-  file_location += file_name;
-  return file_location;
-}
-
 std::shared_ptr<TargetParams>
 JsonTools::LoadTargetParams(const std::string &file_name) {
   LOG_INFO("Loading Target Config File: %s", file_name.c_str());
@@ -45,16 +27,21 @@ JsonTools::LoadTargetParams(const std::string &file_name) {
   Eigen::Vector2d crop_image;
   crop_image << vect2[0], vect2[1];
   params->crop_image = crop_image;
-  std::string template_cloud_path =
-      GetJSONFileNameData(J_target.at("template_cloud"));
-  pcl::PointCloud<pcl::PointXYZ>::Ptr template_cloud =
-      boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-  if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path,
-                                          *template_cloud) == -1) {
-    LOG_ERROR("Couldn't read template file: %s\n",
-              template_cloud_path.c_str());
+  std::string template_name = J_target.at("template_cloud");
+  if(template_name.size() > 5){
+    std::string template_cloud_path = utils::GetFilePathData(template_name);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr template_cloud =
+        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path,
+                                            *template_cloud) == -1) {
+      LOG_ERROR("Couldn't read template file: %s\n",
+                template_cloud_path.c_str());
+    }
+    params->template_cloud = template_cloud;
+  } else {
+    LOG_WARN("No valid template cloud specified in target config file.");
   }
-  params->template_cloud = template_cloud;
+
   for (const auto &keypoint : J_target["keypoints_lidar"]) {
     Eigen::Vector3d point;
     point << keypoint.at("x"), keypoint.at("y"), keypoint.at("z");
@@ -70,7 +57,7 @@ JsonTools::LoadTargetParams(const std::string &file_name) {
 
 std::shared_ptr<TargetParams> JsonTools::LoadTargetParams(const nlohmann::json &J_in) {
   std::string target_config = J_in.at("target_config");
-  std::string target_config_full_path = GetJSONFileNameConfig(target_config);
+  std::string target_config_full_path = utils::GetFilePathConfig(target_config);
   std::shared_ptr<TargetParams> params = LoadTargetParams(target_config_full_path);
   params->frame_id = J_in.at("frame_id");
   params->extractor_type = J_in.at("extractor_type");
@@ -84,7 +71,7 @@ JsonTools::LoadCameraParams(const nlohmann::json &J_in) {
   params->topic = J_in.at("topic");
   params->frame = J_in.at("frame");
   std::string intrinsics_filename = J_in.at("intrinsics");
-  params->intrinsics = GetJSONFileNameData(intrinsics_filename);
+  params->intrinsics = utils::GetFilePathData(intrinsics_filename);
   params->time_steps = J_in.at("time_steps");
   params->images_distorted = J_in.at("images_distorted");
   return params;

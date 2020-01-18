@@ -29,23 +29,6 @@
 
 namespace vicon_calibration {
 
-std::string ViconCalibrator::GetJSONFileNameData(const std::string &file_name) {
-  std::string file_location = __FILE__;
-  file_location.erase(file_location.end() - 27, file_location.end());
-  file_location += "data/";
-  file_location += file_name;
-  return file_location;
-}
-
-std::string
-ViconCalibrator::GetJSONFileNameConfig(const std::string &file_name) {
-  std::string file_location = __FILE__;
-  file_location.erase(file_location.end() - 27, file_location.end());
-  file_location += "config/";
-  file_location += file_name;
-  return file_location;
-}
-
 void ViconCalibrator::LoadEstimatedExtrinsics() {
   LOG_INFO("Loading estimated extrinsics");
   if (!params_->lookup_tf_calibrations) {
@@ -53,7 +36,7 @@ void ViconCalibrator::LoadEstimatedExtrinsics() {
     std::string initial_calibration_file_dir;
     try {
       initial_calibration_file_dir =
-          GetJSONFileNameData(params_->initial_calibration_file);
+          utils::GetFilePathData(params_->initial_calibration_file);
       estimate_extrinsics_->LoadJSON(initial_calibration_file_dir);
     } catch (nlohmann::detail::parse_error &ex) {
       LOG_ERROR("Unable to load json calibration file: %s",
@@ -181,6 +164,13 @@ ViconCalibrator::GetInitialGuess(std::string &sensor_frame) {
   return T_sensor_tgts_estimated;
 }
 
+/** TODO: create aggregator which does the following:
+  * 1) checks if "aggregate_scans" param is set to true
+  * 2) checks to see if target has remained stationary over specified time wind.
+  * 3) transforms scans over time window to pose associated with inital time
+  * 4) aggregates scans together for that time window to create one point cloud
+  *    measurement which should be denser and result in better accuracy
+  */
 void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
   std::string topic = params_->lidar_params[lidar_iter]->topic;
   std::string sensor_frame = params_->lidar_params[lidar_iter]->frame;
@@ -249,13 +239,15 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
         }
         std::string extractor_type =
             params_->target_params[n]->extractor_type;
+        // TODO: add factory method [create(...)] to initialize these
+        //       automatically without having to do these if statements.
+        //       This increases extensibility
         if (extractor_type == "CYLINDER") {
           lidar_extractor_ =
               std::make_shared<vicon_calibration::CylinderLidarExtractor>();
         } else if (extractor_type == "DIAMOND") {
-          // TODO: uncomment this when implementing the extractor
-          // lidar_extractor_ =
-          //    std::make_shared<vicon_calibration::DiamondLidarExtractor>();
+          lidar_extractor_ =
+             std::make_shared<vicon_calibration::DiamondLidarExtractor>();
         } else {
           throw std::invalid_argument{
               "Invalid extractor type. Options: CYLINDER, DIAMOND"};
@@ -399,7 +391,7 @@ void ViconCalibrator::GetLoopClosureMeasurements() {
 void ViconCalibrator::RunCalibration(std::string config_file) {
 
   // get configuration settings
-  config_file_path_ = GetJSONFileNameConfig(config_file);
+  config_file_path_ = utils::GetFilePathConfig(config_file);
 
   try {
     JsonTools json_loader;

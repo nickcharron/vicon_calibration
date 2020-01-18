@@ -4,7 +4,7 @@ file(COPY test_bags
   DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-file(COPY template_pointclouds
+file(COPY template_clouds
   DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
 )
 

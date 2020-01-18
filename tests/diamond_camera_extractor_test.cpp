@@ -1,7 +1,8 @@
 #define CATCH_CONFIG_MAIN
 
-#include "vicon_calibration/measurement_extractors/DiamondCameraExtractor.h"
 #include "vicon_calibration/JsonTools.h"
+#include "vicon_calibration/measurement_extractors/DiamondCameraExtractor.h"
+#include "vicon_calibration/utils.h"
 
 #include <catch2/catch.hpp>
 #include <opencv2/opencv.hpp>
@@ -9,28 +10,26 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
+using namespace vicon_calibration;
+
 std::string image_path;
 std::string intrinsic_path;
 cv::Mat image;
-std::shared_ptr<vicon_calibration::CameraExtractor> diamond_extractor;
-std::shared_ptr<vicon_calibration::TargetParams> target_params;
-std::shared_ptr<vicon_calibration::CameraParams> camera_params;
+std::shared_ptr<CameraExtractor> diamond_extractor;
+std::shared_ptr<TargetParams> target_params;
+std::shared_ptr<CameraParams> camera_params;
 
 Eigen::Matrix4d T_SENSOR_TARGET;
 Eigen::Affine3d TA_SENSOR_TARGET;
 
 void SetUp() {
-  diamond_extractor =
-      std::make_shared<vicon_calibration::DiamondCameraExtractor>();
-  std::string current_file = "tests/diamond_camera_extractor_test.cpp";
-  std::string test_path = __FILE__;
-  test_path.erase(test_path.end() - current_file.size(), test_path.end());
-  image_path = test_path + "tests/data/ig_f1_sim_dia.jpg";
-  intrinsic_path = test_path + "tests/data/F1_sim.json";
+  diamond_extractor = std::make_shared<DiamondCameraExtractor>();
+  image_path = utils::GetFilePathTestData("ig_f1_sim_dia.jpg");
+  intrinsic_path = utils::GetFilePathTestData("F1_sim.json");
   std::string template_cloud_path =
-      test_path + "tests/template_pointclouds/diamond_target_simulation.pcd";
+      utils::GetFilePathTestClouds("diamond_target_simulation.pcd");
   std::string target_config_path =
-      test_path + "tests/data/DiamondTargetSim.json";
+      utils::GetFilePathTestData("DiamondTargetSim.json");
   image = cv::imread(image_path);
 
   Eigen::Vector3d t_SENSOR_TARGET(-0.357, -0.272, 2.2070);
@@ -50,14 +49,14 @@ void SetUp() {
       boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path, *template_cloud);
 
-  vicon_calibration::JsonTools json_loader;
+  JsonTools json_loader;
   target_params = json_loader.LoadTargetParams(target_config_path);
   target_params->extractor_type = "DIAMOND";
   target_params->target_config_path = target_config_path;
   target_params->crop_image = crop_image;
   target_params->template_cloud = template_cloud;
 
-  camera_params = std::make_shared<vicon_calibration::CameraParams>();
+  camera_params = std::make_shared<CameraParams>();
   camera_params->intrinsics = intrinsic_path;
   camera_params->images_distorted = true;
 

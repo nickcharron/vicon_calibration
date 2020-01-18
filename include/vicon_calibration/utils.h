@@ -70,7 +70,7 @@ Eigen::Vector3d RToLieAlgebra(const Eigen::Matrix3d &R);
 
 Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d &eps);
 
-Eigen::Matrix4d InvertTransform(const Eigen::Matrix4d &T);
+Eigen::Matrix4d InvertTransform(const Eigen::MatrixXd &T);
 
 cv::Mat
 DrawCoordinateFrame(cv::Mat &img_in, Eigen::MatrixXd &T_cam_frame,
@@ -147,6 +147,41 @@ GetTargetLocation(
         &target_params,
     const std::string &vicon_baselink_frame, const ros::Time &lookup_time,
     const std::shared_ptr<vicon_calibration::TfTree> &lookup_tree);
+
+/**
+ * @brief gets full name to file inside data subfolder
+ * @param file_name name of file to find
+ * @return full file path
+ */
+std::string GetFilePathData(const std::string &file_name);
+
+/**
+ * @brief gets full name to file inside config subfolder
+ * @param file_name name of file to find
+ * @return full file path
+ */
+std::string GetFilePathConfig(const std::string &file_name);
+
+/**
+ * @brief gets full name to file inside test data subfolder
+ * @param file_name name of file to find
+ * @return full file path
+ */
+std::string GetFilePathTestData(const std::string &file_name);
+
+/**
+ * @brief gets full name to file inside test clouds subfolder
+ * @param file_name name of file to find
+ * @return full file path
+ */
+std::string GetFilePathTestClouds(const std::string &file_name);
+
+/**
+ * @brief gets full name to file inside test bag subfolder
+ * @param file_name name of file to find
+ * @return full file path
+ */
+std::string GetFilePathTestBags(const std::string &file_name);
 
 } // namespace utils
 

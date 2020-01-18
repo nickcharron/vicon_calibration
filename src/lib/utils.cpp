@@ -116,7 +116,7 @@ Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d &eps) {
   return SkewTransform(eps).exp();
 }
 
-Eigen::Matrix4d InvertTransform(const Eigen::Matrix4d &T) {
+Eigen::Matrix4d InvertTransform(const Eigen::MatrixXd &T) {
   Eigen::Matrix4d T_inv;
   T_inv.setIdentity();
   T_inv.block(0, 0, 3, 3) = T.block(0, 0, 3, 3).transpose();
@@ -262,6 +262,51 @@ GetTargetLocation(
     T_viconbase_tgts.push_back(T_viconbase_tgt);
   }
   return T_viconbase_tgts;
+}
+
+std::string GetFilePathData(const std::string &file_name){
+  std::string file_location = __FILE__;
+  std::string current_file = "src/lib/utils.cpp";
+  file_location.erase(file_location.end() - current_file.size(), file_location.end());
+  file_location += "data/";
+  file_location += file_name;
+  return file_location;
+}
+
+std::string GetFilePathConfig(const std::string &file_name){
+  std::string file_location = __FILE__;
+  std::string current_file = "src/lib/utils.cpp";
+  file_location.erase(file_location.end() - current_file.size(), file_location.end());
+  file_location += "config/";
+  file_location += file_name;
+  return file_location;
+}
+
+std::string GetFilePathTestData(const std::string &file_name){
+  std::string file_location = __FILE__;
+  std::string current_file = "src/lib/utils.cpp";
+  file_location.erase(file_location.end() - current_file.size(), file_location.end());
+  file_location += "tests/data/";
+  file_location += file_name;
+  return file_location;
+}
+
+std::string GetFilePathTestClouds(const std::string &file_name){
+  std::string file_location = __FILE__;
+  std::string current_file = "src/lib/utils.cpp";
+  file_location.erase(file_location.end() - current_file.size(), file_location.end());
+  file_location += "tests/template_clouds/";
+  file_location += file_name;
+  return file_location;
+}
+
+std::string GetFilePathTestBags(const std::string &file_name){
+  std::string file_location = __FILE__;
+  std::string current_file = "src/lib/utils.cpp";
+  file_location.erase(file_location.end() - current_file.size(), file_location.end());
+  file_location += "tests/test_bags/";
+  file_location += file_name;
+  return file_location;
 }
 
 } // namespace utils

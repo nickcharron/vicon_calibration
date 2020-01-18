@@ -131,4 +131,21 @@ target_link_libraries(${PROJECT_NAME}_tests_diamond_camera_extractor
   beam::calibration
 )
 
+### TEST5 ###
+add_executable(${PROJECT_NAME}_tests_diamond_lidar_extractor
+  tests/diamond_lidar_extractor_test.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_tests_diamond_lidar_extractor
+  PUBLIC
+    include
+)
+
+target_link_libraries(${PROJECT_NAME}_tests_diamond_lidar_extractor
+  ${PROJECT_NAME}
+  Catch2::Catch2
+  beam::utils
+  beam::filtering
+)
+
 #############################

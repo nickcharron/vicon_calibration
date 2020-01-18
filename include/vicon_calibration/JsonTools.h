@@ -26,9 +26,6 @@ public:
   std::shared_ptr<CalibratorConfig> LoadViconCalibratorParams(const std::string &file_name);
 
 private:
-  std::string GetJSONFileNameConfig(const std::string &file_name);
-
-  std::string GetJSONFileNameData(const std::string &file_name);
 
 };
 

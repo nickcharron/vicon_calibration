@@ -5,7 +5,7 @@
 #include "vicon_calibration/measurement_extractors/CylinderCameraExtractor.h"
 #include "vicon_calibration/measurement_extractors/CylinderLidarExtractor.h"
 #include "vicon_calibration/measurement_extractors/DiamondCameraExtractor.h"
-// #include "vicon_calibration/measurement_extractors/DiamondLidarExtractor.h"
+#include "vicon_calibration/measurement_extractors/DiamondLidarExtractor.h"
 #include "vicon_calibration/params.h"
 #include <Eigen/Geometry>
 #include <opencv2/opencv.hpp>
@@ -36,24 +36,6 @@ public:
   void RunCalibration(std::string config_file = "ViconCalibrationConfig.json");
 
 private:
-  /**
-   * @brief gets full name to file inside data subfolder
-   * @param file_name name of file to find
-   */
-  std::string GetJSONFileNameData(const std::string &file_name);
-
-  /**
-   * @brief gets full name to file inside config subfolder
-   * @param file_name name of file to find
-   */
-  std::string GetJSONFileNameConfig(const std::string &file_name);
-
-  /**
-   * @brief load parameters from json config file
-   * @param file_name name of file to find
-   */
-  void LoadJSON(const std::string &file_name);
-
   /**
    * @brief loads extrinsic estimates and saves as tf tree object. These come
    * from either a JSON or from the tf messages in the bag

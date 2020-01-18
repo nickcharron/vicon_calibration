@@ -360,7 +360,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
         camera_extractor_->SetCameraParams(params_->camera_params[cam_iter]);
         camera_extractor_->SetTargetParams(params_->target_params[n]);
         camera_extractor_->SetShowMeasurements(params_->show_measurements);
-        camera_extractor_->ExtractKeypoints(T_cam_tgts_estimated[n].matrix(),
+        camera_extractor_->ProcessMeasurement(T_cam_tgts_estimated[n].matrix(),
                                             current_image);
 
         if (camera_extractor_->GetMeasurementValid()) {

@@ -44,16 +44,12 @@ void SetUp() {
   T_SENSOR_TARGET.block(0, 0, 3, 3) = R;
   TA_SENSOR_TARGET.matrix() = T_SENSOR_TARGET;
 
-  Eigen::Vector2d crop_image(20, 20);
   pcl::PointCloud<pcl::PointXYZ>::Ptr template_cloud =
       boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path, *template_cloud);
 
   JsonTools json_loader;
   target_params = json_loader.LoadTargetParams(target_config_path);
-  target_params->extractor_type = "DIAMOND";
-  target_params->target_config_path = target_config_path;
-  target_params->crop_image = crop_image;
   target_params->template_cloud = template_cloud;
 
   camera_params = std::make_shared<CameraParams>();
@@ -69,42 +65,25 @@ TEST_CASE("Test extracting diamond with invalid image") {
   SetUp();
   cv::Mat invalid_image;
   REQUIRE_THROWS(
-      diamond_extractor->ExtractKeypoints(T_SENSOR_TARGET, invalid_image));
+      diamond_extractor->ProcessMeasurement(T_SENSOR_TARGET, invalid_image));
 }
 
 TEST_CASE("Test extracting diamond with invalid transformation matrix") {
   Eigen::Affine3d TA_INVALID;
   REQUIRE_THROWS(
-      diamond_extractor->ExtractKeypoints(TA_INVALID.matrix(), image));
+      diamond_extractor->ProcessMeasurement(TA_INVALID.matrix(), image));
 }
 
 TEST_CASE("Test extracting from a black image") {
   cv::Mat black_image(image.rows, image.cols, image.type(),
                       cv::Scalar(0, 0, 0));
-  diamond_extractor->ExtractKeypoints(T_SENSOR_TARGET, black_image);
+  diamond_extractor->ProcessMeasurement(T_SENSOR_TARGET, black_image);
   REQUIRE(diamond_extractor->GetMeasurementValid() == false);
 }
 
 TEST_CASE("Test extracting diamond") {
   // SetUp();
   // diamond_extractor->SetShowMeasurements(true);
-  diamond_extractor->ExtractKeypoints(T_SENSOR_TARGET, image);
+  diamond_extractor->ProcessMeasurement(T_SENSOR_TARGET, image);
   REQUIRE(diamond_extractor->GetMeasurementValid() == true);
-  // auto errors = diamond_extractor->GetErrors();
-  // REQUIRE(errors.first <= 300);
-  // REQUIRE(errors.second <= 0.05);
-}
-
-TEST_CASE("Test extracting diamond with invalid cropping") {
-  // SetUp();
-  Eigen::Vector2d crop_image_invalid(400, 400);
-  target_params->crop_image = crop_image_invalid;
-  diamond_extractor->SetTargetParams(target_params);
-  // diamond_extractor->SetShowMeasurements(true);
-  diamond_extractor->ExtractKeypoints(T_SENSOR_TARGET, image);
-  bool measurement_valid = diamond_extractor->GetMeasurementValid();
-  Eigen::Vector2d crop_image_valid(20, 20);
-  target_params->crop_image = crop_image_valid;
-  diamond_extractor->SetTargetParams(target_params);
-  REQUIRE(measurement_valid == false);
 }

@@ -41,15 +41,12 @@ void SetUp() {
   T_SENSOR_TARGET.block(0, 0, 3, 3) = R;
   TA_SENSOR_TARGET.matrix() = T_SENSOR_TARGET;
 
-  Eigen::Vector2d crop_image(600, 400);
   pcl::PointCloud<pcl::PointXYZ>::Ptr template_cloud =
       boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path, *template_cloud);
 
-  target_params = std::make_shared<TargetParams>();
-  target_params->extractor_type = "CYLINDER";
-  target_params->target_config_path = target_config_path;
-  target_params->crop_image = crop_image;
+  JsonTools json_loader;
+  target_params = json_loader.LoadTargetParams(target_config_path);
   target_params->template_cloud = template_cloud;
 
   camera_params = std::make_shared<CameraParams>();
@@ -64,42 +61,37 @@ void SetUp() {
 TEST_CASE("Test extracting cylinder with invalid image") {
   SetUp();
   cv::Mat invalid_image;
-  REQUIRE_THROWS(cyl_extractor->ExtractKeypoints(TA_SENSOR_TARGET.matrix(),
+  REQUIRE_THROWS(cyl_extractor->ProcessMeasurement(TA_SENSOR_TARGET.matrix(),
                                                  invalid_image));
 }
 
 TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
   Eigen::Affine3d TA_INVALID;
-  REQUIRE_THROWS(cyl_extractor->ExtractKeypoints(TA_INVALID.matrix(), image));
+  REQUIRE_THROWS(cyl_extractor->ProcessMeasurement(TA_INVALID.matrix(), image));
 }
 
 TEST_CASE("Test extracting from a black image") {
   cv::Mat black_image(image.rows, image.cols, image.type(),
                       cv::Scalar(0, 0, 0));
-  cyl_extractor->ExtractKeypoints(TA_SENSOR_TARGET.matrix(), black_image);
+  cyl_extractor->ProcessMeasurement(TA_SENSOR_TARGET.matrix(), black_image);
   REQUIRE(cyl_extractor->GetMeasurementValid() == false);
 }
 
 TEST_CASE("Test extracting cylinder") {
   // SetUp();
-  // cyl_extractor->SetShowMeasurements(true);
-  cyl_extractor->ExtractKeypoints(TA_SENSOR_TARGET.matrix(), image);
+  cyl_extractor->SetShowMeasurements(true);
+  cyl_extractor->ProcessMeasurement(TA_SENSOR_TARGET.matrix(), image);
   REQUIRE(cyl_extractor->GetMeasurementValid() == true);
-  auto errors = cyl_extractor->GetErrors();
-  REQUIRE(errors.first <= 300);
-  REQUIRE(errors.second <= 0.05);
 }
 
-// TEST_CASE("Test extracting cylinder with invalid cropping") {
-//   // SetUp();
-//   Eigen::Vector2d crop_image_invalid(-100, -100);
-//   target_params->crop_image = crop_image_invalid;
-//   cyl_extractor->SetTargetParams(target_params);
-//   //cyl_extractor->SetShowMeasurements(true);
-//   cyl_extractor->ExtractKeypoints(TA_SENSOR_TARGET.matrix(), image);
-//   bool measurement_valid = cyl_extractor->GetMeasurementValid();
-//   Eigen::Vector2d crop_image_valid(600, 400);
-//   target_params->crop_image = crop_image_valid;
-//   cyl_extractor->SetTargetParams(target_params);
-//   REQUIRE(measurement_valid == false);
-// }
+TEST_CASE("Test extracting diamond with invalid cropping") {
+  // SetUp();
+  std::shared_ptr<TargetParams> invalid_target_params = std::make_shared<TargetParams>();
+  *invalid_target_params = *target_params;
+  invalid_target_params->crop_image = Eigen::Vector2d(0,0);
+  cyl_extractor->SetTargetParams(target_params);
+  // diamond_extractor->SetShowMeasurements(true);
+  cyl_extractor->ProcessMeasurement(T_SENSOR_TARGET, image);
+  bool measurement_valid = cyl_extractor->GetMeasurementValid();
+  REQUIRE(measurement_valid == false);
+}

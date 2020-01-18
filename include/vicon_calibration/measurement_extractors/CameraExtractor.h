@@ -1,8 +1,8 @@
 #pragma once
 
 #include "vicon_calibration/params.h"
-#include <beam_calibration/CameraModel.h>
 #include <Eigen/Geometry>
+#include <beam_calibration/CameraModel.h>
 #include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -33,34 +33,55 @@ public:
    */
   virtual CameraExtractorType GetType() const = 0;
 
-  void SetCameraParams(std::shared_ptr<vicon_calibration::CameraParams> &camera_params);
+  void SetCameraParams(
+      std::shared_ptr<vicon_calibration::CameraParams> &camera_params);
 
-  void SetTargetParams(std::shared_ptr<vicon_calibration::TargetParams> &target_params);
+  void SetTargetParams(
+      std::shared_ptr<vicon_calibration::TargetParams> &target_params);
 
-  void SetShowMeasurements(bool show_measurements);
+  void SetShowMeasurements(const bool &show_measurements);
 
-  virtual void ExtractKeypoints(Eigen::Matrix4d &T_CAMERA_TARGET_EST,
-                                cv::Mat &img_in) = 0;
+  void ProcessMeasurement(const Eigen::Matrix4d &T_CAMERA_TARGET_EST,
+                          const cv::Mat &img_in);
 
   bool GetMeasurementValid();
 
   pcl::PointCloud<pcl::PointXY>::Ptr GetMeasurement();
 
-  std::pair<double, double> GetErrors();
-
 protected:
-  std::shared_ptr<vicon_calibration::CameraParams> camera_params_;
-  std::shared_ptr<vicon_calibration::TargetParams> target_params_;
+  // this is what we will need to override in the derived class
+  virtual void GetKeypoints() = 0;
+
+  void CheckInputs();
+
+  Eigen::Vector2d TargetPointToPixel(const Eigen::Vector4d &point);
+
+  bool CropImage();
+
+  void UndistortImage();
+
+  void DisplayImage(const cv::Mat &img, const std::string &display_name,
+                    const std::string &output_text);
+
+  // params:
+  double axis_plot_scale_{0.3}; // scale for plotting projected axes on an img
   bool crop_image_{true};
-  pcl::PointCloud<pcl::PointXY>::Ptr keypoints_measured_;
   bool measurement_complete_{false};
   bool measurement_valid_{false};
   bool target_params_set_{false};
   bool camera_params_set_{false};
   bool show_measurements_{false};
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
-  double dist_err_;
-  double rot_err_;
+  std::shared_ptr<vicon_calibration::CameraParams> camera_params_;
+  std::shared_ptr<vicon_calibration::TargetParams> target_params_;
+
+  // member variables:
+  Eigen::MatrixXd T_CAMERA_TARGET_EST_ = Eigen::MatrixXd(4, 4);
+  pcl::PointCloud<pcl::PointXY>::Ptr keypoints_measured_;
+  std::shared_ptr<cv::Mat> image_in_;
+  std::shared_ptr<cv::Mat> image_undistorted_;
+  std::shared_ptr<cv::Mat> image_cropped_;
+  std::shared_ptr<cv::Mat> image_annotated_;
 };
 
 } // namespace vicon_calibration

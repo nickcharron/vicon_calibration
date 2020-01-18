@@ -167,15 +167,15 @@ TEST_CASE("Test cylinder extractor with empty template cloud && empty scan") {
   cyl_extractor->SetLidarParams(lidar_params);
   cyl_extractor->SetTargetParams(invalid_target_params);
   REQUIRE_THROWS(
-      cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_EST.matrix(), sim_cloud));
+      cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST.matrix(), sim_cloud));
   invalid_target_params->template_cloud = empty_cloud;
   cyl_extractor->SetTargetParams(invalid_target_params);
   REQUIRE_THROWS(
-      cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_EST.matrix(), sim_cloud));
+      cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST.matrix(), sim_cloud));
   cyl_extractor->SetTargetParams(target_params);
   REQUIRE_THROWS(
-      cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_EST.matrix(), null_cloud));
-  REQUIRE_THROWS(cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_EST.matrix(),
+      cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST.matrix(), null_cloud));
+  REQUIRE_THROWS(cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST.matrix(),
                                                  empty_cloud));
 }
 
@@ -190,9 +190,9 @@ TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
   cyl_extractor->SetLidarParams(lidar_params);
   cyl_extractor->SetTargetParams(target_params);
   REQUIRE_THROWS(
-      cyl_extractor->ExtractKeypoints(TA_INVALID1.matrix(), sim_cloud));
-  REQUIRE_THROWS(cyl_extractor->ExtractKeypoints(T_INVALID2, sim_cloud));
-  REQUIRE_THROWS(cyl_extractor->ExtractKeypoints(T_INVALID3, sim_cloud));
+      cyl_extractor->ProcessMeasurement(TA_INVALID1.matrix(), sim_cloud));
+  REQUIRE_THROWS(cyl_extractor->ProcessMeasurement(T_INVALID2, sim_cloud));
+  REQUIRE_THROWS(cyl_extractor->ProcessMeasurement(T_INVALID3, sim_cloud));
 }
 
 TEST_CASE("Test extracting cylinder target with and without diverged ICP "
@@ -214,15 +214,15 @@ TEST_CASE("Test extracting cylinder target with and without diverged ICP "
   cyl_extractor->SetLidarParams(lidar_params);
   cyl_extractor->SetTargetParams(div_target_params);
   REQUIRE_THROWS(cyl_extractor->GetMeasurementValid());
-  cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
+  cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
   REQUIRE(cyl_extractor->GetMeasurementValid() == false);
   div_target_params->crop_scan = div_crop2;
   cyl_extractor->SetTargetParams(div_target_params);
-  cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
+  cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
   REQUIRE(cyl_extractor->GetMeasurementValid() == false);
   div_target_params->crop_scan = good_crop;
   cyl_extractor->SetTargetParams(div_target_params);
-  cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
+  cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
   REQUIRE(cyl_extractor->GetMeasurementValid() == true);
 }
 
@@ -247,7 +247,7 @@ target_params; Eigen::Vector3d div_crop(0.5, 0.2, 0.2);
   boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> keypoints1, keypoints2;
 
   // view keypoints 1
-  cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
+  cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
   keypoints1 = cyl_extractor->GetMeasurement();
   //pcl_viewer = boost::make_shared<pcl::visualization::PCLVisualizer>();
   AddPointCloudToViewer(keypoints1, "keypoints1", T_identity);
@@ -265,7 +265,7 @@ target_params; Eigen::Vector3d div_crop(0.5, 0.2, 0.2);
   // Eigen::Vector3d div_crop2(0.7, 0.5, 0.5);
   // target_params2->crop_scan = div_crop2;
   // cyl_extractor->SetTargetParams(target_params2);
-  // cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_EST.matrix(), sim_cloud);
+  // cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST.matrix(), sim_cloud);
   // keypoints2 = cyl_extractor->GetMeasurement();
   // pcl_viewer = boost::make_shared<pcl::visualization::PCLVisualizer>();
   // AddPointCloudToViewer(keypoints2, "keypoints2", T_identity);

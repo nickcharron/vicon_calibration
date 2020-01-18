@@ -168,15 +168,15 @@ TEST_CASE("Test diamond extractor with empty template cloud && empty scan") {
   diamond_extractor->SetLidarParams(lidar_params);
   diamond_extractor->SetTargetParams(invalid_target_params);
   REQUIRE_THROWS(
-      diamond_extractor->ExtractKeypoints(T_SCAN_TARGET1_EST.matrix(), sim_cloud));
+      diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST.matrix(), sim_cloud));
   invalid_target_params->template_cloud = empty_cloud;
   diamond_extractor->SetTargetParams(invalid_target_params);
   REQUIRE_THROWS(
-      diamond_extractor->ExtractKeypoints(T_SCAN_TARGET1_EST.matrix(), sim_cloud));
+      diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST.matrix(), sim_cloud));
   diamond_extractor->SetTargetParams(target_params);
   REQUIRE_THROWS(
-      diamond_extractor->ExtractKeypoints(T_SCAN_TARGET1_EST.matrix(), null_cloud));
-  REQUIRE_THROWS(diamond_extractor->ExtractKeypoints(T_SCAN_TARGET1_EST.matrix(),
+      diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST.matrix(), null_cloud));
+  REQUIRE_THROWS(diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST.matrix(),
                                                  empty_cloud));
 }
 
@@ -191,9 +191,9 @@ TEST_CASE("Test extracting diamond with invalid transformation matrix") {
   diamond_extractor->SetLidarParams(lidar_params);
   diamond_extractor->SetTargetParams(target_params);
   REQUIRE_THROWS(
-      diamond_extractor->ExtractKeypoints(TA_INVALID1.matrix(), sim_cloud));
-  REQUIRE_THROWS(diamond_extractor->ExtractKeypoints(T_INVALID2, sim_cloud));
-  REQUIRE_THROWS(diamond_extractor->ExtractKeypoints(T_INVALID3, sim_cloud));
+      diamond_extractor->ProcessMeasurement(TA_INVALID1.matrix(), sim_cloud));
+  REQUIRE_THROWS(diamond_extractor->ProcessMeasurement(T_INVALID2, sim_cloud));
+  REQUIRE_THROWS(diamond_extractor->ProcessMeasurement(T_INVALID3, sim_cloud));
 }
 
 TEST_CASE("Test extracting diamond target with and without diverged ICP "
@@ -216,15 +216,15 @@ TEST_CASE("Test extracting diamond target with and without diverged ICP "
   diamond_extractor->SetLidarParams(lidar_params);
   diamond_extractor->SetTargetParams(div_target_params);
   REQUIRE_THROWS(diamond_extractor->GetMeasurementValid());
-  diamond_extractor->ExtractKeypoints(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
+  diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
   REQUIRE(diamond_extractor->GetMeasurementValid() == false);
   div_target_params->crop_scan = div_crop2;
   diamond_extractor->SetTargetParams(div_target_params);
-  diamond_extractor->ExtractKeypoints(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
+  diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
   REQUIRE(diamond_extractor->GetMeasurementValid() == false);
   div_target_params->crop_scan = good_crop;
   diamond_extractor->SetTargetParams(div_target_params);
-  diamond_extractor->ExtractKeypoints(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
+  diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
   REQUIRE(diamond_extractor->GetMeasurementValid() == true);
 }
 
@@ -249,7 +249,7 @@ TEST_CASE("Test best correspondence estimation") {
   boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> keypoints1, keypoints2;
 
   // view keypoints 1
-  diamond_extractor->ExtractKeypoints(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
+  diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);
   keypoints1 = diamond_extractor->GetMeasurement();
   //pcl_viewer = boost::make_shared<pcl::visualization::PCLVisualizer>();
   AddPointCloudToViewer(keypoints1, "keypoints1", T_identity);
@@ -267,7 +267,7 @@ TEST_CASE("Test best correspondence estimation") {
   // Eigen::Vector3d div_crop2(0.7, 0.5, 0.5);
   // target_params2->crop_scan = div_crop2;
   // diamond_extractor->SetTargetParams(target_params2);
-  // diamond_extractor->ExtractKeypoints(T_SCAN_TARGET1_EST.matrix(), sim_cloud);
+  // diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST.matrix(), sim_cloud);
   // keypoints2 = diamond_extractor->GetMeasurement();
   // pcl_viewer = boost::make_shared<pcl::visualization::PCLVisualizer>();
   // AddPointCloudToViewer(keypoints2, "keypoints2", T_identity);

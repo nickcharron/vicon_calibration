@@ -255,7 +255,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
         lidar_extractor_->SetLidarParams(params_->lidar_params[lidar_iter]);
         lidar_extractor_->SetTargetParams(params_->target_params[n]);
         lidar_extractor_->SetShowMeasurements(params_->show_measurements);
-        lidar_extractor_->ExtractKeypoints(T_lidar_tgts_estimated[n].matrix(),
+        lidar_extractor_->ProcessMeasurement(T_lidar_tgts_estimated[n].matrix(),
                                            cloud);
         if (lidar_extractor_->GetMeasurementValid()) {
           vicon_calibration::LidarMeasurement lidar_measurement;

@@ -1,11 +1,13 @@
 #pragma once
 
 #include "vicon_calibration/params.h"
+#include "vicon_calibration/utils.h"
 
 #include <Eigen/Geometry>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 namespace vicon_calibration {
 
@@ -50,32 +52,66 @@ public:
    */
   virtual LidarExtractorType GetType() const = 0;
 
-  void SetLidarParams(std::shared_ptr<vicon_calibration::LidarParams> &lidar_params);
+  void
+  SetLidarParams(std::shared_ptr<vicon_calibration::LidarParams> &lidar_params);
 
-  void SetTargetParams(std::shared_ptr<vicon_calibration::TargetParams> &target_params);
+  void SetTargetParams(
+      std::shared_ptr<vicon_calibration::TargetParams> &target_params);
 
   void SetShowMeasurements(bool show_measurements);
 
-  virtual void
-  ExtractKeypoints(Eigen::Matrix4d &T_LIDAR_TARGET_EST,
-                   pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in) = 0;
+  void ProcessMeasurement(const Eigen::Matrix4d &T_LIDAR_TARGET_EST,
+                          pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in);
 
   bool GetMeasurementValid();
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr GetMeasurement();
 
 protected:
-  std::shared_ptr<vicon_calibration::LidarParams> lidar_params_;
-  std::shared_ptr<vicon_calibration::TargetParams> target_params_;
-  bool crop_scan_{true};
-  std::string template_cloud_path_;
+  // this is what we will need to override in the derived class
+  virtual void GetKeypoints() = 0;
+
+  void CheckInputs();
+
+  void CropScan();
+
+  PointCloudColor::Ptr ColourPointCloud(PointCloud::Ptr &cloud, int r, int g,
+                                        int b);
+
+  void AddColouredPointCloudToViewer(PointCloudColor::Ptr &cloud,
+                                     const std::string &cloud_name,
+                                     boost::optional<Eigen::MatrixXd &> T);
+
+  void AddPointCloudToViewer(PointCloud::Ptr &cloud,
+                             const std::string &cloud_name,
+                             const Eigen::Matrix4d &T);
+
+  void ConfirmMeasurementKeyboardCallback(
+      const pcl::visualization::KeyboardEvent &event, void *viewer_void);
+
+  void ShowFailedMeasurement();
+
+  void ShowFinalTransformation();
+
+  // member variables
+  PointCloud::Ptr scan_in_;
+  PointCloud::Ptr scan_cropped_;
+  Eigen::MatrixXd T_LIDAR_TARGET_EST_ = Eigen::MatrixXd(4, 4);
+  pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_measured_;
+  std::string template_cloud_path_;
   bool measurement_valid_{false};
   bool measurement_complete_{false};
   bool target_params_set_{false};
   bool lidar_params_set_{false};
-  bool show_measurements_{false};
+  bool close_viewer_{false};
+  bool measurement_failed_{false}; // used for visualization only
 
+  // params:
+  std::shared_ptr<vicon_calibration::LidarParams> lidar_params_;
+  std::shared_ptr<vicon_calibration::TargetParams> target_params_;
+  bool crop_scan_{true};
+  bool show_measurements_{false};
 };
 
 } // namespace vicon_calibration

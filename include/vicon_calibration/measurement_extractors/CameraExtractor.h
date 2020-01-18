@@ -66,10 +66,6 @@ protected:
   // params:
   double axis_plot_scale_{0.3}; // scale for plotting projected axes on an img
   bool crop_image_{true};
-  bool measurement_complete_{false};
-  bool measurement_valid_{false};
-  bool target_params_set_{false};
-  bool camera_params_set_{false};
   bool show_measurements_{false};
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
   std::shared_ptr<vicon_calibration::CameraParams> camera_params_;
@@ -82,6 +78,11 @@ protected:
   std::shared_ptr<cv::Mat> image_undistorted_;
   std::shared_ptr<cv::Mat> image_cropped_;
   std::shared_ptr<cv::Mat> image_annotated_;
+  bool measurement_complete_{false};
+  bool measurement_valid_{false};
+  bool target_params_set_{false};
+  bool camera_params_set_{false};
+  
 };
 
 } // namespace vicon_calibration

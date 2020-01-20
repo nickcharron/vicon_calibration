@@ -35,7 +35,7 @@ void CylinderLidarExtractor::GetKeypoints() {
           scan_cropped_coloured;
       scan_cropped_coloured =
           boost::make_shared<pcl::PointCloud<pcl::PointXYZRGB>>();
-      Eigen::MatrixXd T_identity = Eigen::MatrixXd(4,4);
+      Eigen::MatrixXd T_identity = Eigen::MatrixXd(4, 4);
       T_identity.setIdentity();
       scan_cropped_coloured = this->ColourPointCloud(scan_cropped_, 255, 0, 0);
       this->AddColouredPointCloudToViewer(scan_cropped_coloured,
@@ -47,29 +47,82 @@ void CylinderLidarExtractor::GetKeypoints() {
     return;
   }
 
-  Eigen::MatrixXd T_LIDAR_TARGET_OPT =
-      icp.getFinalTransformation().inverse().cast<double>();
+  T_LIDAR_TARGET_OPT_ = icp.getFinalTransformation().inverse().cast<double>();
+  this->CalculateErrors();
+  this->CheckErrors();
+
+  // remove points with large correspondence distances
+  pcl::CorrespondencesPtr correspondences = icp.getCorrespondencesPtr();
+  for (uint32_t i = 0; i < correspondences->size(); i++) {
+    pcl::Correspondence corr_i = (*correspondences)[i];
+    int source_index_i = corr_i.index_query;
+    if (corr_i.distance < max_keypoint_distance_) {
+      pcl::PointXYZ point;
+      if (crop_scan_) {
+        point = scan_cropped_->points[source_index_i];
+      } else {
+        point = scan_in_->points[source_index_i];
+      }
+      scan_best_points_->points.push_back(point);
+    }
+  }
+
+  this->SaveMeasurement();
+}
+
+void CylinderLidarExtractor::CalculateErrors() {
   Eigen::Vector4d point_end_tgt(0.3, 0, 0, 1);
-  Eigen::Vector4d point_end_est = T_LIDAR_TARGET_EST_ * point_end_tgt;
-  Eigen::Vector4d point_end_opt = T_LIDAR_TARGET_OPT * point_end_tgt;
+  Eigen::Vector4d point_orig_tgt(0, 0, 0, 1);
+  Eigen::Vector4d point_orig_lid_est = T_LIDAR_TARGET_EST_ * point_orig_tgt;
+  Eigen::Vector4d point_orig_lid_opt = T_LIDAR_TARGET_OPT_ * point_orig_tgt;
+  Eigen::Vector4d point_end_lid_est = T_LIDAR_TARGET_EST_ * point_end_tgt;
+  Eigen::Vector4d point_end_lid_opt = T_LIDAR_TARGET_OPT_ * point_end_tgt;
 
-  Eigen::Vector4d error_end = point_end_opt - point_end_est;
-  error_end[0] = sqrt(error_end[0] * error_end[0] * 1000000) / 1000;
-  error_end[1] = sqrt(error_end[1] * error_end[1] * 1000000) / 1000;
-  error_end[2] = sqrt(error_end[2] * error_end[2] * 1000000) / 1000;
+  // Calculate two error quantities:
+  // (1) angles (azimuth and zenith),
+  // (2) origin location
+  Eigen::Vector4d dxdydz_est = point_end_lid_est - point_orig_lid_est;
+  Eigen::Vector4d dxdydz_opt = point_end_lid_opt - point_orig_lid_opt;
+  double azimuth_est = atan(dxdydz_est[1] / dxdydz_est[0]);
+  double zenith_est = atan(dxdydz_est[2] / sqrt(dxdydz_est[0] * dxdydz_est[0] +
+                                                dxdydz_est[1] * dxdydz_est[1]));
+  double azimuth_opt = atan(dxdydz_opt[1] / dxdydz_opt[0]);
+  double zenith_opt = atan(dxdydz_opt[2] / sqrt(dxdydz_opt[0] * dxdydz_opt[0] +
+                                                dxdydz_opt[1] * dxdydz_opt[1]));
 
-  Eigen::Vector3d error_origin = T_LIDAR_TARGET_OPT.block(0, 3, 3, 1) -
+  azimuth_est = utils::WrapToTwoPi(azimuth_est);
+  zenith_est = utils::WrapToTwoPi(zenith_est);
+  azimuth_opt = utils::WrapToTwoPi(azimuth_opt);
+  zenith_opt = utils::WrapToTwoPi(zenith_opt);
+
+  Eigen::Vector2d error_angle;
+  error_angle[0] = sqrt((azimuth_opt - azimuth_est) *
+                        (azimuth_opt - azimuth_est) * 1000000) /
+                   1000;
+  error_angle[1] =
+      sqrt((zenith_opt - zenith_est) * (zenith_opt - zenith_est) * 1000000) /
+      1000;
+
+  Eigen::Vector3d error_origin = T_LIDAR_TARGET_OPT_.block(0, 3, 3, 1) -
                                  T_LIDAR_TARGET_EST_.block(0, 3, 3, 1);
-  error_origin[0] = sqrt(error_origin[0] * error_origin[0] * 1000000) / 1000;
-  error_origin[1] = sqrt(error_origin[1] * error_origin[1] * 1000000) / 1000;
-  error_origin[2] = sqrt(error_origin[2] * error_origin[2] * 1000000) / 1000;
 
-  if (error_origin[0] > dist_acceptance_criteria_ ||
-      error_origin[1] > dist_acceptance_criteria_ ||
-      error_origin[2] > dist_acceptance_criteria_ ||
-      error_end[0] > dist_acceptance_criteria_ ||
-      error_end[1] > dist_acceptance_criteria_ ||
-      error_end[2] > dist_acceptance_criteria_) {
+  error_[0] = RAD_TO_DEG * error_angle[0];
+  error_[1] = RAD_TO_DEG * error_angle[1];
+  error_[2] = error_origin.norm() / point_orig_lid_est.block(0, 0, 3, 1).norm();
+
+  if(error_[0] > 180){
+    error_[0] = error_[0] - 180;
+  }
+  if(error_[1] > 180){
+    error_[1] = error_[1] - 180;
+  }
+
+}
+
+void CylinderLidarExtractor::CheckErrors() {
+  if (error_[0] > rot_acceptance_criteria_ ||
+      error_[1] > rot_acceptance_criteria_ ||
+      error_[2] > dist_acceptance_criteria_) {
     measurement_valid_ = false;
   } else {
     measurement_valid_ = true;
@@ -79,20 +132,22 @@ void CylinderLidarExtractor::GetKeypoints() {
     if (!measurement_valid_) {
       std::cout << "-----------------------------\n"
                 << "Measurement Invalid\n"
-                << "Target origin error: [" << error_origin[0] << ", "
-                << error_origin[2] << ", " << error_origin[2] << "]\n"
-                << "Target end error: [" << error_end[0] << ", "
-                << error_end[2] << ", " << error_end[2] << "]\n"
-                << "Distance acceptance criteria: " << dist_acceptance_criteria_
+                << "Target relative distance error: " << error_[2] << "\n"
+                << "Relative distance acceptance criteria: "
+                << dist_acceptance_criteria_ << "\n"
+                << "Target angle errors [azimuth, zenith]: [" << error_[0]
+                << ", " << error_[1] << "]\n"
+                << "Rotation acceptance criteria: " << rot_acceptance_criteria_
                 << "\n";
     } else {
       std::cout << "-----------------------------\n"
                 << "Measurement Valid\n"
-                << "Target origin error: [" << error_origin[0] << ", "
-                << error_origin[2] << ", " << error_origin[2] << "]\n"
-                << "Target end error: [" << error_end[0] << ", "
-                << error_end[2] << ", " << error_end[2] << "]\n"
-                << "Distance acceptance criteria: " << dist_acceptance_criteria_
+                << "Target relative distance error: " << error_[2] << "\n"
+                << "Relative distance acceptance criteria: "
+                << dist_acceptance_criteria_ << "\n"
+                << "Target angle errors [azimuth, zenith]: [" << error_[0]
+                << ", " << error_[1] << "]\n"
+                << "Rotation acceptance criteria: " << rot_acceptance_criteria_
                 << "\n";
     }
 
@@ -114,30 +169,15 @@ void CylinderLidarExtractor::GetKeypoints() {
     measured_template_cloud =
         this->ColourPointCloud(target_params_->template_cloud, 0, 255, 0);
     pcl::transformPointCloud(*measured_template_cloud, *measured_template_cloud,
-                             T_LIDAR_TARGET_OPT.cast<float>());
-    this->AddColouredPointCloudToViewer(
-        measured_template_cloud, "measured template cloud", T_LIDAR_TARGET_OPT);
+                             T_LIDAR_TARGET_OPT_.cast<float>());
+    this->AddColouredPointCloudToViewer(measured_template_cloud,
+                                        "measured template cloud",
+                                        T_LIDAR_TARGET_OPT_);
     Eigen::Matrix4d T_identity;
     T_identity.setIdentity();
     this->AddPointCloudToViewer(scan_cropped_, "cropped scan", T_identity);
     this->ShowFinalTransformation();
   }
-
-  pcl::CorrespondencesPtr correspondences = icp.getCorrespondencesPtr();
-  for (uint32_t i = 0; i < correspondences->size(); i++) {
-    pcl::Correspondence corr_i = (*correspondences)[i];
-    int source_index_i = corr_i.index_query;
-    if (corr_i.distance < max_keypoint_distance_) {
-      pcl::PointXYZ point;
-      if (crop_scan_) {
-        point = scan_cropped_->points[source_index_i];
-      } else {
-        point = scan_in_->points[source_index_i];
-      }
-      scan_best_points_->points.push_back(point);
-    }
-  }
-  this->SaveMeasurement();
 }
 
 void CylinderLidarExtractor::SaveMeasurement() {

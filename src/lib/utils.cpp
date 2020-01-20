@@ -11,12 +11,12 @@ double time_now(void) {
   return ((double)t.tv_sec + ((double)t.tv_usec) / 1000000.0);
 }
 
-double WrapToPi(double angle) {
+double WrapToPi(const double &angle) {
   double wrapped_angle = WrapToTwoPi(angle + M_PI) - M_PI;
   return wrapped_angle;
 }
 
-double WrapToTwoPi(double angle) {
+double WrapToTwoPi(const double &angle) {
   double wrapped_angle = fmod(angle, 2 * M_PI);
   if (wrapped_angle < 0) {
     wrapped_angle += 2 * M_PI;
@@ -24,7 +24,7 @@ double WrapToTwoPi(double angle) {
   return wrapped_angle;
 }
 
-Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd &M, int precision) {
+Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd &M, const int &precision) {
   Eigen::MatrixXd Mround(M.rows(), M.cols());
   for (int i = 0; i < M.rows(); i++) {
     for (int j = 0; j < M.cols(); j++) {
@@ -35,7 +35,7 @@ Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd &M, int precision) {
   return Mround;
 }
 
-bool IsRotationMatrix(const Eigen::Matrix3d R) {
+bool IsRotationMatrix(const Eigen::Matrix3d &R) {
   int precision = 3;
   Eigen::Matrix3d shouldBeIdentity = RoundMatrix(R * R.transpose(), precision);
   double detR = R.determinant();
@@ -44,10 +44,17 @@ bool IsRotationMatrix(const Eigen::Matrix3d R) {
     return 1;
   } else {
     return 0;
+    if (!shouldBeIdentity.isIdentity()) {
+      LOG_ERROR("Rotation matrix invalid. R x R^T != I");
+    } else {
+      LOG_ERROR(
+          "Rotation matrix invalid. Determinant not equal to 1. det = %.5f",
+          detR);
+    }
   }
 }
 
-bool IsTransformationMatrix(const Eigen::Matrix4d T) {
+bool IsTransformationMatrix(const Eigen::Matrix4d &T) {
   Eigen::Matrix3d R = T.block(0, 0, 3, 3);
   bool homoFormValid, tValid;
 
@@ -55,6 +62,8 @@ bool IsTransformationMatrix(const Eigen::Matrix4d T) {
   if (std::isinf(T(0, 3)) || std::isinf(T(1, 3)) || std::isinf(T(2, 3)) ||
       std::isnan(T(0, 3)) || std::isnan(T(1, 3)) || std::isnan(T(2, 3))) {
     tValid = 0;
+    LOG_ERROR("Translation invalid.t = [%.5f, %.5f, %.5f]", T(0, 3), T(1, 3),
+              T(2, 3));
   } else {
     tValid = 1;
   }
@@ -64,6 +73,9 @@ bool IsTransformationMatrix(const Eigen::Matrix4d T) {
     homoFormValid = 1;
   } else {
     homoFormValid = 0;
+    LOG_ERROR(
+        "Transform not homographic form. Last row: [%.5f, %.5f, %.5f, %.5f]",
+        T(3, 0), T(3, 1), T(3, 2), T(3, 3));
   }
 
   if (homoFormValid && tValid && IsRotationMatrix(R)) {
@@ -81,6 +93,7 @@ Eigen::Matrix4d PerturbTransform(const Eigen::Matrix4d &T_in,
   Eigen::Vector3d r_in = RToLieAlgebra(R_in);
   Eigen::Matrix3d R_out = LieAlgebraToR(r_in + r_perturb);
   Eigen::Matrix4d T_out;
+  T_out.setIdentity();
   T_out.block(0, 3, 3, 1) = T_in.block(0, 3, 3, 1) + t_perturb;
   T_out.block(0, 0, 3, 3) = R_out;
   return T_out;
@@ -125,10 +138,10 @@ Eigen::Matrix4d InvertTransform(const Eigen::MatrixXd &T) {
   return T_inv;
 }
 
-cv::Mat
-DrawCoordinateFrame(cv::Mat &img_in, Eigen::MatrixXd &T_cam_frame,
-                    std::shared_ptr<beam_calibration::CameraModel> camera_model,
-                    double &scale, bool images_distorted = true) {
+cv::Mat DrawCoordinateFrame(
+    const cv::Mat &img_in, const Eigen::MatrixXd &T_cam_frame,
+    const std::shared_ptr<beam_calibration::CameraModel> &camera_model,
+    const double &scale, const bool &images_distorted = true) {
   cv::Mat img_out;
   img_out = img_in.clone();
   Eigen::Vector4d origin(0, 0, 0, 1), x_end(scale, 0, 0, 1),
@@ -180,8 +193,9 @@ DrawCoordinateFrame(cv::Mat &img_in, Eigen::MatrixXd &T_cam_frame,
 }
 
 cv::Mat ProjectPointsToImage(
-    cv::Mat &img, boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
-    Eigen::MatrixXd &T_IMAGE_CLOUD,
+    const cv::Mat &img,
+    boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
+    const Eigen::MatrixXd &T_IMAGE_CLOUD,
     std::shared_ptr<beam_calibration::CameraModel> &camera_model) {
   cv::Mat img_out;
   img_out = img.clone();
@@ -199,6 +213,7 @@ cv::Mat ProjectPointsToImage(
   }
   return img_out;
 }
+
 void OutputTransformInformation(const Eigen::Affine3d &T,
                                 const std::string &transform_name) {
   OutputTransformInformation(T.matrix(), transform_name);
@@ -216,8 +231,8 @@ void OutputTransformInformation(const Eigen::Matrix4d &T,
 }
 
 void OutputCalibrations(
-    std::vector<vicon_calibration::CalibrationResult> &calib,
-    std::string output_string) {
+    const std::vector<vicon_calibration::CalibrationResult> &calib,
+    const std::string &output_string) {
   std::cout << "----------------------\n" << output_string << "\n";
   for (uint16_t i = 0; i < calib.size(); i++) {
     Eigen::Matrix4d T = calib[i].transform;
@@ -232,7 +247,8 @@ void OutputCalibrations(
   }
 }
 
-std::string ConvertTimeToDate(std::chrono::system_clock::time_point time_) {
+std::string
+ConvertTimeToDate(const std::chrono::system_clock::time_point &time_) {
   using namespace std;
   using namespace std::chrono;
   system_clock::duration tp = time_.time_since_epoch();
@@ -264,46 +280,51 @@ GetTargetLocation(
   return T_viconbase_tgts;
 }
 
-std::string GetFilePathData(const std::string &file_name){
+std::string GetFilePathData(const std::string &file_name) {
   std::string file_location = __FILE__;
   std::string current_file = "src/lib/utils.cpp";
-  file_location.erase(file_location.end() - current_file.size(), file_location.end());
+  file_location.erase(file_location.end() - current_file.size(),
+                      file_location.end());
   file_location += "data/";
   file_location += file_name;
   return file_location;
 }
 
-std::string GetFilePathConfig(const std::string &file_name){
+std::string GetFilePathConfig(const std::string &file_name) {
   std::string file_location = __FILE__;
   std::string current_file = "src/lib/utils.cpp";
-  file_location.erase(file_location.end() - current_file.size(), file_location.end());
+  file_location.erase(file_location.end() - current_file.size(),
+                      file_location.end());
   file_location += "config/";
   file_location += file_name;
   return file_location;
 }
 
-std::string GetFilePathTestData(const std::string &file_name){
+std::string GetFilePathTestData(const std::string &file_name) {
   std::string file_location = __FILE__;
   std::string current_file = "src/lib/utils.cpp";
-  file_location.erase(file_location.end() - current_file.size(), file_location.end());
+  file_location.erase(file_location.end() - current_file.size(),
+                      file_location.end());
   file_location += "tests/data/";
   file_location += file_name;
   return file_location;
 }
 
-std::string GetFilePathTestClouds(const std::string &file_name){
+std::string GetFilePathTestClouds(const std::string &file_name) {
   std::string file_location = __FILE__;
   std::string current_file = "src/lib/utils.cpp";
-  file_location.erase(file_location.end() - current_file.size(), file_location.end());
+  file_location.erase(file_location.end() - current_file.size(),
+                      file_location.end());
   file_location += "tests/template_clouds/";
   file_location += file_name;
   return file_location;
 }
 
-std::string GetFilePathTestBags(const std::string &file_name){
+std::string GetFilePathTestBags(const std::string &file_name) {
   std::string file_location = __FILE__;
   std::string current_file = "src/lib/utils.cpp";
-  file_location.erase(file_location.end() - current_file.size(), file_location.end());
+  file_location.erase(file_location.end() - current_file.size(),
+                      file_location.end());
   file_location += "tests/test_bags/";
   file_location += file_name;
   return file_location;

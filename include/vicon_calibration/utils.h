@@ -45,19 +45,19 @@ double time_now(void);
  * @param[in] angle the original angle.
  * @return the wrapped angle.
  */
-double WrapToPi(double angle);
+double WrapToPi(const double &angle);
 
 /** Wraps input angle to the interval [0, 2*PI).
  * @param[in] angle the original angle.
  * @return the wrapped angle.
  */
-double WrapToTwoPi(double angle);
+double WrapToTwoPi(const double &angle);
 
-Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd &M, int precision);
+Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd &M, const int &precision);
 
-bool IsRotationMatrix(const Eigen::Matrix3d R);
+bool IsRotationMatrix(const Eigen::Matrix3d &R);
 
-bool IsTransformationMatrix(const Eigen::Matrix4d T);
+bool IsTransformationMatrix(const Eigen::Matrix4d &T);
 
 Eigen::Matrix4d PerturbTransform(const Eigen::Matrix4d &T_in,
                                  const Eigen::VectorXd &perturbations);
@@ -72,14 +72,15 @@ Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d &eps);
 
 Eigen::Matrix4d InvertTransform(const Eigen::MatrixXd &T);
 
-cv::Mat
-DrawCoordinateFrame(cv::Mat &img_in, Eigen::MatrixXd &T_cam_frame,
-                    std::shared_ptr<beam_calibration::CameraModel> camera_model,
-                    double &scale, bool images_distorted);
+cv::Mat DrawCoordinateFrame(
+    const cv::Mat &img_in, const Eigen::MatrixXd &T_cam_frame,
+    const std::shared_ptr<beam_calibration::CameraModel> &camera_model,
+    const double &scale, const bool &images_distorted);
 
 cv::Mat ProjectPointsToImage(
-    cv::Mat &img, boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
-    Eigen::MatrixXd &T_IMAGE_CLOUD,
+    const cv::Mat &img,
+    boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
+    const Eigen::MatrixXd &T_IMAGE_CLOUD,
     std::shared_ptr<beam_calibration::CameraModel> &camera_model);
 
 void OutputTransformInformation(const Eigen::Affine3d &T,
@@ -89,8 +90,8 @@ void OutputTransformInformation(const Eigen::Matrix4d &T,
                                 const std::string &transform_name);
 
 void OutputCalibrations(
-    std::vector<vicon_calibration::CalibrationResult> &calib,
-    std::string output_string);
+    const std::vector<vicon_calibration::CalibrationResult> &calib,
+    const std::string &output_string);
 
 inline Eigen::Vector3d PCLPointToEigen(const pcl::PointXYZ &pt_in) {
   return Eigen::Vector3d(pt_in.x, pt_in.y, pt_in.z);
@@ -139,7 +140,8 @@ inline Eigen::Vector4d PointToHomoPoint(const Eigen::Vector3d &pt_in) {
   return Eigen::Vector4d(pt_in[0], pt_in[1], pt_in[2], 1);
 }
 
-std::string ConvertTimeToDate(std::chrono::system_clock::time_point time_);
+std::string
+ConvertTimeToDate(const std::chrono::system_clock::time_point &time_);
 
 std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
 GetTargetLocation(

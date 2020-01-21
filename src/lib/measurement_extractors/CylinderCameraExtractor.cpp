@@ -126,15 +126,6 @@ void CylinderCameraExtractor::GetEstimatedPose() {
 }
 
 void CylinderCameraExtractor::CheckError() {
-  std::cout << "Measured Pose: \n"
-            << "Center: [" << target_pose_measured_.first.x << ", "
-            << target_pose_measured_.first.y << " ]\n"
-            << "Angle: " << target_pose_measured_.second << "\n"
-            << "Estimated Pose: \n"
-            << "Center: [" << target_pose_estimated_.first.x << ", "
-            << target_pose_estimated_.first.y << " ]\n"
-            << "Angle: " << target_pose_estimated_.second << "\n";
-
   double x_m = target_pose_measured_.first.x;
   double x_e = target_pose_estimated_.first.x;
   double y_m = target_pose_measured_.first.y;
@@ -157,9 +148,6 @@ void CylinderCameraExtractor::CheckError() {
                "larger than the specified threshold. Distance error measured: "
                "%.3f, threshold: %.3f",
                dist_err_, dist_acceptance_criteria_);
-      this->DisplayImage(
-          *image_annotated_, "Invalid Measurement",
-          "Showing failed measurement (distance error greater than threshold)");
     }
     return;
   }
@@ -170,14 +158,9 @@ void CylinderCameraExtractor::CheckError() {
                "larger than the specified threshold. Rotation error measured: "
                "%.3f, threshold: %.3f",
                rot_err_, rot_acceptance_criteria_);
-      this->DisplayImage(
-          *image_annotated_, "Invalid Measurement",
-          "Showing failed measurement (rotation error greater than threshold)");
     }
     return;
   }
-  this->DisplayImage(*image_annotated_, "Valid Measurement",
-                     "Showing passed measurement");
   measurement_valid_ = true;
 }
 

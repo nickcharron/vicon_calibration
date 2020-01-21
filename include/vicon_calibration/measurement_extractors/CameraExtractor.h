@@ -56,7 +56,7 @@ protected:
 
   Eigen::Vector2d TargetPointToPixel(const Eigen::Vector4d &point);
 
-  bool CropImage();
+  void CropImage();
 
   void UndistortImage();
 
@@ -82,7 +82,7 @@ protected:
   bool measurement_valid_{false};
   bool target_params_set_{false};
   bool camera_params_set_{false};
-  
+
 };
 
 } // namespace vicon_calibration

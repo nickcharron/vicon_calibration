@@ -1,11 +1,11 @@
 {
-  "bag_file": "/home/nick/bag_files/vicon_calibration/ig_calibration_f1_diamond_2020-01-16-20-57-00.bag",
+  "bag_file": "/home/nick/bag_files/vicon_calibration/ig_calibration_static_robot_2020-01-20-08-55-23.bag",
   "initial_calibration": "initial_calibration_ig_current.json",
   "lookup_tf_calibrations": true,
   "initial_guess_perturb": [0.01, 0.0, 0.05, 0.0, 0.0, 0.0],
   "min_measurement_motion": 0.05,
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
-  "show_measurements": false,
+  "show_measurements": true,
   "run_verification": true,
   "targets":[
     {"frame_id": "vicon/target3/target3",

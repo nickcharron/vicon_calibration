@@ -1,6 +1,6 @@
 #include "vicon_calibration/measurement_extractors/CameraExtractor.h"
-#include <boost/make_shared.hpp>
 #include "vicon_calibration/utils.h"
+#include <boost/make_shared.hpp>
 
 namespace vicon_calibration {
 
@@ -49,19 +49,29 @@ void CameraExtractor::ProcessMeasurement(
   }
 
   this->UndistortImage();
-  if (!this->CropImage()) {
-    return;
-  }
-  *image_annotated_ = utils::DrawCoordinateFrame(
-      *image_cropped_, T_CAMERA_TARGET_EST_, camera_model_, axis_plot_scale_,
-      camera_params_->images_distorted);
-
-  this->GetKeypoints();
+  this->CropImage();
 
   if (!measurement_valid_) {
     measurement_complete_ = true;
     return;
   }
+
+  *image_annotated_ = utils::DrawCoordinateFrame(
+      *image_cropped_, T_CAMERA_TARGET_EST_, camera_model_, axis_plot_scale_,
+      camera_params_->images_distorted);
+
+  this->GetKeypoints();
+  if (show_measurements_) {
+  }
+
+  if (!measurement_valid_ && show_measurements_) {
+    this->DisplayImage(*image_annotated_, "Inalid Measurement",
+                       "Showing failed measurement");
+  } else if (measurement_valid_ && show_measurements_) {
+    this->DisplayImage(*image_annotated_, "Valid Measurement",
+                       "Showing successfull measurement");
+  }
+
   measurement_complete_ = true;
   return;
 }
@@ -119,30 +129,34 @@ CameraExtractor::TargetPointToPixel(const Eigen::Vector4d &point) {
   }
 }
 
-bool CameraExtractor::CropImage() {
-  // project taget points to image
+void CameraExtractor::CropImage() {
+  // project taget points to image and get bounding box
   Eigen::Vector4d point_target(0, 0, 0, 1);
-  std::vector<double> u, v;
   Eigen::Vector2d pixel;
   int iter = 0;
+  double maxu{0}, maxv{0}, minu{1000000}, minv{1000000};
   while (iter < target_params_->template_cloud->size()) {
     point_target[0] = target_params_->template_cloud->at(iter).x;
     point_target[1] = target_params_->template_cloud->at(iter).y;
     point_target[2] = target_params_->template_cloud->at(iter).z;
     pixel = this->TargetPointToPixel(point_target);
-    u.push_back(pixel[0]);
-    v.push_back(pixel[1]);
+    if (pixel[0] > maxu) {
+      maxu = pixel[0];
+    }
+    if (pixel[0] < minu) {
+      minu = pixel[0];
+    }
+    if (pixel[1] > maxv) {
+      maxv = pixel[1];
+    }
+    if (pixel[1] < minv) {
+      minv = pixel[1];
+    }
     iter = iter + 5;
     // iter++;
   }
 
-  // Get Cropbox corners
-  bool cropbox_in_image = true;
-  bool target_in_image = true;
-  double minu = *std::min_element(u.begin(), u.end());
-  double maxu = *std::max_element(u.begin(), u.end());
-  double minv = *std::min_element(v.begin(), v.end());
-  double maxv = *std::max_element(v.begin(), v.end());
+  // Get cropbox corners
   Eigen::Vector2d min_vec(minu, minv);
   Eigen::Vector2d max_vec(maxu, maxv);
   double buffer_u = (maxu - minu) * target_params_->crop_image(0, 0) / 100 / 2;
@@ -150,6 +164,9 @@ bool CameraExtractor::CropImage() {
   Eigen::Vector2d min_vec_buffer(minu - buffer_u, minv - buffer_v);
   Eigen::Vector2d max_vec_buffer(maxu + buffer_u, maxv + buffer_v);
 
+  // determine if target and/or cropbox is in the image
+  bool cropbox_in_image = true;
+  bool target_in_image = true;
   if (!camera_model_->PixelInImage(min_vec) ||
       !camera_model_->PixelInImage(max_vec)) {
     target_in_image = false;
@@ -159,24 +176,17 @@ bool CameraExtractor::CropImage() {
     cropbox_in_image = false;
   }
 
-  if (!target_in_image) {
-    if (show_measurements_) {
-      LOG_WARN("Target not in image, skipping measurement.");
-      LOG_INFO("Target corners: [minu, minv, maxu, maxv]: [%d, %d, %d, %d]",
-               minu, minv, maxu, maxv);
-      LOG_INFO("Image Dimensions: [%d x %d]", camera_model_->GetWidth(),
-               camera_model_->GetHeight());
-      cv::Mat current_image_w_axes = utils::DrawCoordinateFrame(
-          *image_undistorted_, T_CAMERA_TARGET_EST_, camera_model_,
-          axis_plot_scale_, camera_params_->images_distorted);
-      this->DisplayImage(current_image_w_axes, "Invalid Measurement",
-                         "Showing failed measurement (target not in image)");
-    }
+  // output results and allow the user to accept/decline
+  if (!cropbox_in_image) {
     measurement_valid_ = false;
     measurement_complete_ = true;
-  } else if (!cropbox_in_image) {
-    LOG_WARN("Target in image, but cropbox is not, you may want to relax your "
-             "crop threshold. Skipping measurement.");
+    if (target_in_image && show_measurements_) {
+      LOG_WARN(
+          "Target in image, but cropbox is not, you may want to relax your "
+          "crop threshold. Skipping measurement.");
+    } else if (!target_in_image && show_measurements_) {
+      LOG_WARN("Target and cropbox not in image, skipping measurement.");
+    }
     if (show_measurements_) {
       LOG_INFO("Target corners: [minu, minv, maxu, maxv]: [%d, %d, %d, %d]",
                min_vec[0], min_vec[1], max_vec[0], max_vec[1]);
@@ -185,18 +195,19 @@ bool CameraExtractor::CropImage() {
                max_vec_buffer[1]);
       LOG_INFO("Image Dimensions: [%d x %d]", camera_model_->GetWidth(),
                camera_model_->GetHeight());
-      cv::Mat current_image_w_axes = utils::DrawCoordinateFrame(
-          *image_undistorted_, T_CAMERA_TARGET_EST_, camera_model_,
-          axis_plot_scale_, camera_params_->images_distorted);
-      this->DisplayImage(current_image_w_axes, "Invalid Measurement",
+      this->DisplayImage(*image_undistorted_, "Invalid Measurement",
                          "Showing failed measurement (cropbox not in image)");
     }
-    measurement_valid_ = false;
-    measurement_complete_ = true;
   } else {
+    measurement_valid_ = true;
+    measurement_complete_ = true;
     if (show_measurements_) {
-      LOG_INFO("Estimated target + cropbox in image.");
+      LOG_INFO("Estimated target cropbox in image.");
     }
+  }
+
+  // create cropped image
+  if (measurement_valid_ && cropbox_in_image) {
     cv::Mat bounded_img(image_undistorted_->rows, image_undistorted_->cols,
                         image_undistorted_->depth());
     double width = max_vec_buffer(0) - min_vec_buffer(0);
@@ -207,9 +218,10 @@ bool CameraExtractor::CropImage() {
     mask(cv::Rect(min_vec_buffer(0), min_vec_buffer(1), width, height)) = 1;
     image_undistorted_->copyTo(bounded_img, mask);
     *image_cropped_ = bounded_img;
+  } else if(measurement_valid_){
+    image_cropped_ = image_undistorted_;
   }
-
-  return cropbox_in_image;
+  return;
 }
 
 void CameraExtractor::UndistortImage() {
@@ -224,19 +236,27 @@ void CameraExtractor::DisplayImage(const cv::Mat &img,
                                    const std::string &display_name,
                                    const std::string &output_text) {
   if (show_measurements_) {
+    cv::Mat current_image_w_axes = utils::DrawCoordinateFrame(
+        img, T_CAMERA_TARGET_EST_, camera_model_, axis_plot_scale_,
+        camera_params_->images_distorted);
     std::cout << output_text << std::endl
-              << "Press [c] to continue with other measurements\n";
+              << "Press [c] to continue with default\n"
+              << "Press [y] to accept measurement\n"
+              << "Press [n] to reject measurement\n";
     cv::namedWindow(display_name, cv::WINDOW_NORMAL);
     cv::resizeWindow(display_name, img.cols / 2, img.rows / 2);
-    cv::imshow(display_name, img);
+    cv::imshow(display_name, current_image_w_axes);
     auto key = cv::waitKey();
-    while (key != 67 && key != 99) {
+    while (key != 67 && key != 99 && key != 121 && key != 110) {
       key = cv::waitKey();
-    }
-    cv::destroyAllWindows();
-    cv::imshow(display_name, img);
-    while (key != 67 && key != 99) {
-      key = cv::waitKey();
+      if (key == 121) {
+        measurement_valid_ = true;
+        std::cout << "Accepted measurement.\n";
+      }
+      if (key == 110) {
+        measurement_valid_ = false;
+        std::cout << "Rejected measurement.\n";
+      }
     }
     cv::destroyAllWindows();
   }

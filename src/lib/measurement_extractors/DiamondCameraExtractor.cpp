@@ -4,7 +4,6 @@
 namespace vicon_calibration {
 
 void DiamondCameraExtractor::GetKeypoints() {
-
   // find dimensions of checkerboard with [n_dim x m_dim] interior corners
   int n_dim = 0, m_dim = 0;
   double xmax = 0, ymax = 0;
@@ -29,9 +28,6 @@ void DiamondCameraExtractor::GetKeypoints() {
     LOG_INFO("OpenCV could not detect a checkerboard of size: n = %d, m = %d",
              n_dim, m_dim);
     measurement_valid_ = false;
-    this->DisplayImage(
-        *image_annotated_, "Invalid Measurement",
-        "Showing failed measurement (OpenCV could not find checkerboard)");
     return;
   }
 
@@ -45,8 +41,6 @@ void DiamondCameraExtractor::GetKeypoints() {
   }
   drawChessboardCorners(*image_annotated_, cv::Size(n_dim, m_dim), corners,
                         checkerboard_found);
-  this->DisplayImage(*image_annotated_, "Valid Measurement",
-                     "Showing passed measurement");
 }
 
 } // namespace vicon_calibration

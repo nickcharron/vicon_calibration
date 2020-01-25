@@ -18,7 +18,7 @@ cv::Mat image;
 std::shared_ptr<CameraExtractor> diamond_extractor;
 std::shared_ptr<TargetParams> target_params;
 std::shared_ptr<CameraParams> camera_params;
-bool show_measurements{true};
+bool show_measurements{false};
 
 Eigen::Matrix4d T_SENSOR_TARGET, T_SENSOR_TARGET_PERT1, T_SENSOR_TARGET_PERT2;
 
@@ -75,7 +75,6 @@ TEST_CASE("Test extracting diamond with invalid image") {
       diamond_extractor->ProcessMeasurement(T_SENSOR_TARGET, invalid_image));
 }
 
-/*
 TEST_CASE("Test extracting diamond with invalid transformation matrix") {
   Eigen::Affine3d TA_INVALID;
   REQUIRE_THROWS(
@@ -100,7 +99,6 @@ TEST_CASE("Test extracting diamond") {
   diamond_extractor->ProcessMeasurement(T_SENSOR_TARGET_PERT2, image);
   REQUIRE(diamond_extractor->GetMeasurementValid() == true);
 }
-*/
 
 TEST_CASE("Test extracting diamond with invalid cropping") {
   // SetUp();

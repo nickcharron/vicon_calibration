@@ -110,6 +110,7 @@ JsonTools::LoadViconCalibratorParams(const std::string &file_name) {
   params->show_measurements = J["show_measurements"];
   params->run_verification = J["run_verification"];
 
+  int counter = 0;
   for (const auto &target : J["targets"]) {
     std::shared_ptr<TargetParams> target_info = LoadTargetParams(target);
     params->target_params.push_back(target_info);

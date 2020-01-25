@@ -52,6 +52,12 @@ private:
 
   void LoadLookupTree();
 
+  // params:
+  std::vector<double> template_downsample_size_{0.005, 0.005, 0.005};
+  double concave_hull_alpha_{5};
+
+  // member variables:
+  int num_tgts_in_img_;
   std::shared_ptr<CalibratorConfig> params_;
   std::string output_directory_;
   std::string calibration_config_;
@@ -59,8 +65,6 @@ private:
   std::string results_directory_;
   rosbag::Bag bag_;
   ros::Duration time_increment_ = ros::Duration(10);
-  std::vector<double> template_downsample_size_{0.005, 0.005, 0.005};
-  double concave_hull_alpha_{5};
   ros::Time lookup_time_;
   std::shared_ptr<vicon_calibration::TfTree> lookup_tree_ =
       std::make_shared<vicon_calibration::TfTree>();

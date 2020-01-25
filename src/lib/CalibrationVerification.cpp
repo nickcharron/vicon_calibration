@@ -38,14 +38,7 @@ void CalibrationVerification::LoadJSON(const std::string &file_name) {
 
 void CalibrationVerification::ProcessResults() {
   LOG_INFO("Processing calibration results.");
-
-  // Load CalibrationVerification config json
-  std::string file_location = __FILE__;
-  std::string path_to_current = "src/lib/CalibrationVerification.cpp";
-  file_location.erase(file_location.end() - path_to_current.size(),
-                      file_location.end());
-  file_location += "config/CalibrationVerification.json";
-  this->LoadJSON(file_location);
+  this->LoadJSON(utils::GetFilePathConfig("CalibrationVerification.json"));
 
   // load bag file
   try {
@@ -98,9 +91,9 @@ void CalibrationVerification::SetParams(
   pcl::VoxelGrid<pcl::PointXYZ> vox;
   vox.setLeafSize(template_downsample_size_[0], template_downsample_size_[1],
                   template_downsample_size_[2]);
-  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> downsampled_cloud =
-      boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   for (int i = 0; i < params_->target_params.size(); i++) {
+    boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> downsampled_cloud =
+        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
     vox.setInputCloud(params_->target_params[i]->template_cloud);
     vox.filter(*downsampled_cloud);
     params_->target_params[i]->template_cloud = downsampled_cloud;
@@ -145,6 +138,9 @@ void CalibrationVerification::SaveLidarResults() {
   // Iterate over each lidar
   for (uint8_t lidar_iter = 0; lidar_iter < params_->lidar_params.size();
        lidar_iter++) {
+    std::string current_save_path = results_directory_ + "LIDARS/LIDAR" +
+                                    std::to_string(lidar_iter + 1) + "/";
+    boost::filesystem::create_directory(current_save_path);
     // get lidar info
     std::string topic = params_->lidar_params[lidar_iter]->topic;
     std::string sensor_frame = params_->lidar_params[lidar_iter]->frame;
@@ -215,15 +211,12 @@ void CalibrationVerification::SaveLidarResults() {
 
         // save all the scans that are viewed
         std::string save_path1, save_path2, save_path3;
-        save_path1 = results_directory_ + "LIDARS/" + "L" +
-                     std::to_string(lidar_iter) + "_scan_" +
-                     std::to_string(counter) + "_est.pcd";
-        save_path2 = results_directory_ + "LIDARS/" + "L" +
-                     std::to_string(lidar_iter) + "_scan_" +
-                     std::to_string(counter) + "_opt.pcd";
-        save_path3 = results_directory_ + "LIDARS/" + "L" +
-                     std::to_string(lidar_iter) + "_scan_" +
-                     std::to_string(counter) + "_targets.pcd";
+        save_path1 =
+            current_save_path + "scan_" + std::to_string(counter) + "_est.pcd";
+        save_path2 =
+            current_save_path + "scan_" + std::to_string(counter) + "_opt.pcd";
+        save_path3 = current_save_path + "scan_" + std::to_string(counter) +
+                     "_targets.pcd";
 
         pcl::io::savePCDFileBinary(save_path1, *scan_trans_est);
         pcl::io::savePCDFileBinary(save_path2, *scan_trans_opt);
@@ -237,6 +230,9 @@ void CalibrationVerification::SaveCameraResults() {
   // Iterate over each camera
   for (uint8_t cam_iter = 0; cam_iter < params_->camera_params.size();
        cam_iter++) {
+    std::string current_save_path = results_directory_ + "CAMERAS/CAMERA" +
+                                    std::to_string(cam_iter + 1) + "/";
+    boost::filesystem::create_directory(current_save_path);
     int counter = 0;
     std::string topic = params_->camera_params[cam_iter]->topic;
     std::string sensor_frame = params_->camera_params[cam_iter]->frame;
@@ -287,13 +283,14 @@ void CalibrationVerification::SaveCameraResults() {
         final_image = this->ProjectTargetToImage(
             current_image, T_viconbase_tgts, TA_VICONBASE_SENSOR_est.matrix(),
             cam_iter, cv::Scalar(0, 0, 255));
-        final_image = this->ProjectTargetToImage(
-            final_image, T_viconbase_tgts, TA_VICONBASE_SENSOR_opt.matrix(),
-            cam_iter, cv::Scalar(255, 0, 0));
-        std::string save_path = results_directory_ + "CAMERAS/" + "C" +
-                                    std::to_string(cam_iter) + "_image_" +
-                                    std::to_string(counter) + ".jpg";
-        cv::imwrite(save_path, *final_image);
+        if (num_tgts_in_img_ > 0) {
+          final_image = this->ProjectTargetToImage(
+              final_image, T_viconbase_tgts, TA_VICONBASE_SENSOR_opt.matrix(),
+              cam_iter, cv::Scalar(255, 0, 0));
+          std::string save_path =
+              current_save_path + "image_" + std::to_string(counter) + ".jpg";
+          cv::imwrite(save_path, *final_image);
+        }
       }
     } // end bag iter
   }   // end cam iter
@@ -317,6 +314,7 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
 
   // iterate through all targets
   Eigen::Affine3d T_VICONBASE_TARGET;
+  num_tgts_in_img_ = 0;
   for (int target_iter = 0; target_iter < T_viconbase_tgts.size();
        target_iter++) {
     T_VICONBASE_TARGET = T_viconbase_tgts[target_iter];
@@ -334,6 +332,8 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     if (!camera_models_[cam_iter]->PixelInImage(point_projected)) {
       continue;
     }
+
+    num_tgts_in_img_++;
 
     // iterate through all target points
     pcl::PointCloud<pcl::PointXYZ>::Ptr target =

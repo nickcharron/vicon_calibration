@@ -252,9 +252,15 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
           throw std::invalid_argument{
               "Invalid extractor type. Options: CYLINDER, DIAMOND"};
         }
+        if(params_->show_measurements){
+          std::cout << "Processing measurement for: L"
+                    << std::to_string(lidar_iter+1) << ", T"
+                    << std::to_string(n+1) << "\n";
+        }
         lidar_extractor_->SetLidarParams(params_->lidar_params[lidar_iter]);
         lidar_extractor_->SetTargetParams(params_->target_params[n]);
         lidar_extractor_->SetShowMeasurements(params_->show_measurements);
+
         lidar_extractor_->ProcessMeasurement(T_lidar_tgts_estimated[n].matrix(),
                                            cloud);
         if (lidar_extractor_->GetMeasurementValid()) {
@@ -357,6 +363,11 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
               "Invalid extractor type. Options: CYLINDER, DIAMOND"};
         }
 
+        if(params_->show_measurements){
+          std::cout << "Processing measurement for: C"
+                    << std::to_string(cam_iter+1) << ", T"
+                    << std::to_string(n+1) << "\n";
+        }
         camera_extractor_->SetCameraParams(params_->camera_params[cam_iter]);
         camera_extractor_->SetTargetParams(params_->target_params[n]);
         camera_extractor_->SetShowMeasurements(params_->show_measurements);

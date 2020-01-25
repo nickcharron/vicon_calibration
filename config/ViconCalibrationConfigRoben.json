@@ -1,5 +1,5 @@
 {
-  "bag_file": "/home/nick/bag_files/vicon_calibration/2019-12-16-15-38-42_ROBEN_CALIB_2.bag",
+  "bag_file": "/home/nick/bag_files/vicon_calibration/roben_calibration_static_tgts_2020-01-20-10-33-12-GOOD.bag",
   "initial_calibration": "initial_calibration_roben.json",
   "lookup_tf_calibrations": true,
   "initial_guess_perturb": [0.007, 0.015, 0, 0.0, 0.0, 0.0],
@@ -9,33 +9,53 @@
   "run_verification": true,
   "output_directory": "/home/nick/vicon_calibration_results/",
   "targets":[
-    {"frame_id": "vicon/cylinder_target1/cylinder_target1",
+    {"frame_id": "vicon/target1/target1",
      "extractor_type": "CYLINDER",
      "target_config": "CylinderTarget.json"
     },
-    {"frame_id": "vicon/cylinder_target2/cylinder_target2",
+    {"frame_id": "vicon/target2/target2",
      "extractor_type": "CYLINDER",
      "target_config": "CylinderTarget.json"
     },
-    {"frame_id": "vicon/cylinder_target5/cylinder_target5",
+    {"frame_id": "vicon/target3/target3",
      "extractor_type": "CYLINDER",
      "target_config": "CylinderTarget.json"
     },
-    {"frame_id": "vicon/cylinder_target6/cylinder_target6",
+    {"frame_id": "vicon/target4/target4",
      "extractor_type": "CYLINDER",
      "target_config": "CylinderTarget.json"
     },
-    {"frame_id": "vicon/cylinder_target7/cylinder_target7",
+    {"frame_id": "vicon/target5/target5",
      "extractor_type": "CYLINDER",
      "target_config": "CylinderTarget.json"
     },
-    {"frame_id": "vicon/cylinder_target8/cylinder_target8",
+    {"frame_id": "vicon/target6/target6",
      "extractor_type": "CYLINDER",
      "target_config": "CylinderTarget.json"
     },
-    {"frame_id": "vicon/cylinder_target9/cylinder_target9",
+    {"frame_id": "vicon/target7/target7",
      "extractor_type": "CYLINDER",
      "target_config": "CylinderTarget.json"
+    },
+    {"frame_id": "vicon/target8/target8",
+     "extractor_type": "DIAMOND",
+     "target_config": "DiamondTarget.json"
+    },
+    {"frame_id": "vicon/target9/target9",
+     "extractor_type": "DIAMOND",
+     "target_config": "DiamondTarget.json"
+    },
+    {"frame_id": "vicon/target10/target10",
+     "extractor_type": "DIAMOND",
+     "target_config": "DiamondTarget.json"
+    },
+    {"frame_id": "vicon/target11/target11",
+     "extractor_type": "DIAMOND",
+     "target_config": "DiamondTarget.json"
+    },
+    {"frame_id": "vicon/target12/target12",
+     "extractor_type": "DIAMOND",
+     "target_config": "DiamondTarget.json"
     }
   ],
   "camera_params": [
@@ -43,6 +63,6 @@
   "lidar_params":[
     {"topic": "/m3d/aggregator/cloud",
      "frame": "m3d_link",
-     "time_steps": 10}
+     "time_steps": 1}
   ]
 }

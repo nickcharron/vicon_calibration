@@ -25,9 +25,9 @@ void Graph::SetTargetParams(
   pcl::VoxelGrid<pcl::PointXYZ> vox;
   vox.setLeafSize(template_downsample_size_[0], template_downsample_size_[1],
                   template_downsample_size_[2]);
-  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> downsampled_cloud =
-      boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   for (int i = 0; i < target_params_.size(); i++) {
+    boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> downsampled_cloud =
+        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
     vox.setInputCloud(target_params_[i]->template_cloud);
     vox.filter(*downsampled_cloud);
     target_params_[i]->template_cloud = downsampled_cloud;
@@ -353,8 +353,9 @@ void Graph::SetLidarCorrespondences() {
     corr_est.setInputTarget(transformed_keypoints);
     corr_est.determineCorrespondences(*correspondences, max_point_cor_dist_);
     if (show_lidar_measurements_) {
-      ViewLidarMeasurements(measurement.keypoints, transformed_keypoints,
-                            correspondences);
+      this->ViewLidarMeasurements(measurement.keypoints, transformed_keypoints,
+                                  correspondences, "measured keypoints",
+                                  "estimated keypoints");
     }
     for (uint32_t i = 0; i < correspondences->size(); i++) {
       counter++;
@@ -603,7 +604,8 @@ void Graph::ViewCameraMeasurements(
 void Graph::ViewLidarMeasurements(
     const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,
     const pcl::PointCloud<pcl::PointXYZ>::Ptr &c2,
-    const boost::shared_ptr<pcl::Correspondences> &correspondences) {
+    const boost::shared_ptr<pcl::Correspondences> &correspondences,
+    const std::string &c1_name, const std::string &c2_name) {
   PointCloudColor::Ptr c1_col = boost::make_shared<PointCloudColor>();
   PointCloudColor::Ptr c2_col = boost::make_shared<PointCloudColor>();
 
@@ -632,13 +634,13 @@ void Graph::ViewLidarMeasurements(
       c1_col);
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb2_(
       c2_col);
-  pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, "Cloud1");
-  pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, "Cloud2");
+  pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, c1_name);
+  pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, c2_name);
   pcl_viewer->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
                                                    *correspondences);
   std::cout << "\nViewer Legend:\n"
-            << "  Red   -> cloud 1\n"
-            << "  Green -> cloud 2\n";
+            << "  Red   -> " << c1_name << "\n"
+            << "  Green -> " << c2_name << "\n";
   while (!pcl_viewer->wasStopped()) {
     pcl_viewer->spinOnce(10);
   }

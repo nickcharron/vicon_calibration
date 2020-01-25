@@ -63,7 +63,8 @@ private:
   void ViewLidarMeasurements(
       const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,
       const pcl::PointCloud<pcl::PointXYZ>::Ptr &c2,
-      const boost::shared_ptr<pcl::Correspondences> &correspondences);
+      const boost::shared_ptr<pcl::Correspondences> &correspondences,
+      const std::string &c1_name, const std::string &c2_name);
 
   void ViewCameraMeasurements(
       const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,

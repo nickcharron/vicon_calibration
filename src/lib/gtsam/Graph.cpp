@@ -64,6 +64,7 @@ void Graph::SetCameraParams(
 }
 
 void Graph::SolveGraph() {
+  this->LoadConfig();
   initials_.clear();
   initials_updated_.clear();
   calibration_results_.clear();
@@ -91,6 +92,58 @@ void Graph::SolveGraph() {
   } else {
     LOG_INFO("Converged after %d iterations.", iteration);
   }
+}
+
+void Graph::LoadConfig() {
+  std::string config_path = utils::GetFilePathConfig("GraphCong.json");
+  nlohmann::json J;
+  std::ifstream file(config_path);
+  file >> J;
+  max_iterations_ = J.at("max_iterations");
+  show_camera_measurements_ = J.at("show_camera_measurements");
+  show_lidar_measurements_ = J.at("show_lidar_measurements");
+  extract_image_target_perimeter_ = J.at("extract_image_target_perimeter");
+  concave_hull_alpha_ = J.at("concave_hull_alpha");
+  max_pixel_cor_dist_ = J.at("max_pixel_cor_dist");
+  abs_error_tol_ = J.at("abs_error_tol");
+  rel_error_tol_ = J.at("rel_error_tol");
+  lambda_upper_bound_ = J.at("lambda_upper_bound");
+  std::vector<double> tmp;
+  for (const auto &val : J["error_tol"]) {
+    tmp.push_back(val);
+  }
+  if (tmp.size() != 6) {
+    throw std::invalid_argument{
+        "Invalid number of inputs to error_tol. Expecting 6."};
+  }
+  error_tol_ = tmp;
+  tmp.clear();
+  for (const auto &val : J["image_noise"]) {
+    tmp.push_back(val);
+  }
+  if (tmp.size() != 2) {
+    throw std::invalid_argument{
+        "Invalid number of inputs to image_noise. Expecting 2."};
+  }
+  image_noise_ = tmp;
+  tmp.clear();
+  for (const auto &val : J["lidar_noise"]) {
+    tmp.push_back(val);
+  }
+  if (tmp.size() != 3) {
+    throw std::invalid_argument{
+        "Invalid number of inputs to lidar_noise. Expecting 3."};
+  }
+  lidar_noise_ = tmp;
+  tmp.clear();
+  for (const auto &val : J["template_downsample_size"]) {
+    tmp.push_back(val);
+  }
+  if (tmp.size() != 3) {
+    throw std::invalid_argument{
+        "Invalid number of inputs to template_downsample_size. Expecting 3."};
+  }
+  template_downsample_size_ = tmp;
 }
 
 std::vector<vicon_calibration::CalibrationResult> Graph::GetResults() {

@@ -43,9 +43,25 @@ bool LidarExtractor::GetMeasurementValid() {
   return measurement_valid_;
 }
 
+void LidarExtractor::LoadConfig(){
+  std::string config_path = utils::GetFilePathConfig("LidarExtractorConfig.json");
+  nlohmann::json J;
+  std::ifstream file(config_path);
+  file >> J;
+  crop_scan_ = J.at("crop_scan");
+  show_measurements_ = J.at("show_measurements");
+  max_keypoint_distance_ = J.at("max_keypoint_distance");
+  dist_acceptance_criteria_ = J.at("dist_acceptance_criteria");
+  icp_transform_epsilon_ = J.at("icp_transform_epsilon");
+  icp_euclidean_epsilon_ = J.at("icp_euclidean_epsilon");
+  icp_max_iterations_ = J.at("icp_max_iterations");
+  icp_max_correspondence_dist_ = J.at("icp_max_correspondence_dist");
+}
+
 void LidarExtractor::ProcessMeasurement(
     const Eigen::Matrix4d &T_LIDAR_TARGET_EST, PointCloud::Ptr &cloud_in) {
   // initialize member variables
+  this->LoadConfig();
   scan_in_ = boost::make_shared<PointCloud>();
   scan_cropped_ = boost::make_shared<PointCloud>();
   if (show_measurements_) {

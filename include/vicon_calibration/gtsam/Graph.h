@@ -60,6 +60,8 @@ private:
 
   void Optimize();
 
+  void LoadConfig();
+
   void ViewLidarMeasurements(
       const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,
       const pcl::PointCloud<pcl::PointXYZ>::Ptr &c2,

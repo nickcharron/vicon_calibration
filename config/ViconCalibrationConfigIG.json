@@ -1,5 +1,5 @@
 {
-  "bag_file": "/home/nick/bag_files/vicon_calibration/ig_calibration_static_robot_2020-01-20-08-55-23.bag",
+  "bag_file": "/home/nick/bag_files/vicon_calibration/ig_calibration_static_tgts_2020-01-20-10-16-04.bag",
   "initial_calibration": "initial_calibration_ig_current.json",
   "lookup_tf_calibrations": true,
   "initial_guess_perturb": [0.01, 0.0, 0.05, 0.0, 0.0, 0.0],
@@ -8,11 +8,51 @@
   "show_measurements": true,
   "run_verification": true,
   "targets":[
+    {"frame_id": "vicon/target1/target1",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    },
+    {"frame_id": "vicon/target2/target2",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    },
     {"frame_id": "vicon/target3/target3",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    },
+    {"frame_id": "vicon/target4/target4",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    },
+    {"frame_id": "vicon/target5/target5",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    },
+    {"frame_id": "vicon/target6/target6",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    },
+    {"frame_id": "vicon/target7/target7",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget.json"
+    },
+    {"frame_id": "vicon/target8/target8",
      "extractor_type": "DIAMOND",
      "target_config": "DiamondTarget.json"
     },
-    {"frame_id": "vicon/target4/target4",
+    {"frame_id": "vicon/target9/target9",
+     "extractor_type": "DIAMOND",
+     "target_config": "DiamondTarget.json"
+    },
+    {"frame_id": "vicon/target10/target10",
+     "extractor_type": "DIAMOND",
+     "target_config": "DiamondTarget.json"
+    },
+    {"frame_id": "vicon/target11/target11",
+     "extractor_type": "DIAMOND",
+     "target_config": "DiamondTarget.json"
+    },
+    {"frame_id": "vicon/target12/target12",
      "extractor_type": "DIAMOND",
      "target_config": "DiamondTarget.json"
     }
@@ -22,7 +62,7 @@
      "frame": "F1_link",
      "intrinsics": "F1_sim.json",
      "images_distorted": true,
-     "time_steps": 1}
+     "time_steps": 2}
   ],
   "lidar_params":[
   ]

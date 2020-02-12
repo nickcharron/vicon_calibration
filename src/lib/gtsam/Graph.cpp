@@ -456,7 +456,8 @@ void Graph::SetImageFactors() {
     gtsam::Key key = gtsam::Symbol('C', camera_index);
     graph_.emplace_shared<CameraFactor>(
         key, pixel, point, camera_models_[camera_index],
-        measurement.T_VICONBASE_TARGET, ImageNoise);
+        measurement.T_VICONBASE_TARGET, ImageNoise,
+        camera_params_[camera_index]->images_distorted);
   }
   LOG_INFO("Added %d image factors.", counter);
 }
@@ -524,7 +525,8 @@ void Graph::SetLidarCameraFactors() {
       // point_detected -> P_T_li). Use same approach as other correspondences?
       graph_.emplace_shared<CameraLidarFactor>(
           lidar_key, camera_key, pixel_detected, point_detected, P_T_ci, P_T_li,
-          camera_models_[measurement.camera_id], noiseModel);
+          camera_models_[measurement.camera_id], noiseModel,
+          camera_params_[measurement.camera_id]->images_distorted);
     }
   }
 }

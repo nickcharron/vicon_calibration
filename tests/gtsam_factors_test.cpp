@@ -458,7 +458,7 @@ TEST_CASE("Test camera factor in Optimization") {
     if (pixels_valid[i]) {
       pti = vicon_calibration::utils::HomoPointToPoint(points[i]);
       graph.emplace_shared<vicon_calibration::CameraFactor>(
-          key, pixels[i], pti, camera_model, T_VT, ImageNoise);
+          key, pixels[i], pti, camera_model, T_VT, ImageNoise, true);
     }
   }
   gtsam::LevenbergMarquardtParams params;
@@ -682,7 +682,7 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
       ptmi = vicon_calibration::utils::HomoPointToPoint(points_measured[i]);
       graph.emplace_shared<vicon_calibration::CameraLidarFactor>(
           lidar_key, camera_key, pixels_measured[i], ptmi, pti, pti,
-          camera_model, ImageNoise);
+          camera_model, ImageNoise, true);
     }
   }
 

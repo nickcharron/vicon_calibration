@@ -15,19 +15,21 @@ class CameraFactor : public gtsam::NoiseModelFactor1<gtsam::Pose3> {
   Eigen::Vector2d measured_pixel_;
   Eigen::Vector3d corresponding_point_;
   double Fx_, Fy_, Cx_, Cy_;
+  bool images_distorted_;
 
 public:
-  CameraFactor(const gtsam::Key i, const Eigen::Vector2d measured_pixel,
-               const Eigen::Vector3d corresponding_point,
-               const std::shared_ptr<beam_calibration::CameraModel> &camera_model,
-               const Eigen::Matrix4d &T_VICONBASE_TARGET,
-               const gtsam::SharedNoiseModel &model)
+  CameraFactor(
+      const gtsam::Key i, const Eigen::Vector2d measured_pixel,
+      const Eigen::Vector3d corresponding_point,
+      const std::shared_ptr<beam_calibration::CameraModel> &camera_model,
+      const Eigen::Matrix4d &T_VICONBASE_TARGET,
+      const gtsam::SharedNoiseModel &model, const bool &images_distorted)
       : gtsam::NoiseModelFactor1<gtsam::Pose3>(model, i),
         measured_pixel_(measured_pixel),
         corresponding_point_(corresponding_point), camera_model_(camera_model),
         T_VICONBASE_TARGET_(T_VICONBASE_TARGET), Fx_(camera_model->GetFx()),
         Fy_(camera_model->GetFy()), Cx_(camera_model->GetCx()),
-        Cy_(camera_model->GetCy()) {}
+        Cy_(camera_model->GetCy()), images_distorted_(images_distorted) {}
 
   /** destructor */
   ~CameraFactor() {}
@@ -46,26 +48,21 @@ public:
     Eigen::Vector3d point_transformed =
         R_op.transpose() * (R_VT * corresponding_point_ + t_VT - t_op);
     Eigen::Vector2d projected_point;
-    projected_point[0] =
-        Cx_ + point_transformed[0] * Fx_ / point_transformed[2];
-    projected_point[1] =
-        Cy_ + point_transformed[1] * Fy_ / point_transformed[2];
-    // Eigen::Vector2d projected_point =
-    //     camera_model_->ProjectUndistortedPoint(point_transformed);
+    Eigen::MatrixXd dfdg(2, 3);
+
+    if (images_distorted_) {
+      projected_point = camera_model_->ProjectPoint(point_transformed, dfdg);
+    } else {
+      projected_point =
+          camera_model_->ProjectUndistortedPoint(point_transformed, dfdg);
+    }
+
     gtsam::Vector error = measured_pixel_ - projected_point;
 
     if (H) {
       // Assume e(R,t) = measured_pixel - f(g(R,t))
       // -> de/d(R,t) = - [df/dg * dg/dR , df/dg * dg/dt]
-      Eigen::MatrixXd H_(2, 6), dfdg(2, 3), dgdR(3, 3), dgdt(3, 3);
-      dfdg(0, 0) = Fx_ / point_transformed[2];
-      dfdg(1, 0) = 0;
-      dfdg(0, 1) = 0;
-      dfdg(1, 1) = Fy_ / point_transformed[2];
-      dfdg(0, 2) = -point_transformed[0] * Fx_ /
-                   ((point_transformed[2]) * (point_transformed[2]));
-      dfdg(1, 2) = -point_transformed[1] * Fy_ /
-                   ((point_transformed[2]) * (point_transformed[2]));
+      Eigen::MatrixXd H_(2, 6), dgdR(3, 3), dgdt(3, 3);
       dgdR = utils::SkewTransform(R_op.transpose() *
                                   (R_VT * corresponding_point_ + t_VT - t_op));
       dgdt = -R_op.transpose();

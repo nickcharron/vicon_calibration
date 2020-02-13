@@ -5,7 +5,8 @@
   "initial_guess_perturb": [0.01, 0.0, 0.05, 0.0, 0.0, 0.0],
   "min_measurement_motion": 0.05,
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
-  "show_measurements": true,
+  "show_camera_measurements": true,
+  "show_lidar_measurements": true,
   "run_verification": true,
   "targets":[
     {"frame_id": "vicon/target1/target1",

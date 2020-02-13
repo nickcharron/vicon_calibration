@@ -30,8 +30,12 @@ void LidarExtractor::SetTargetParams(
   }
 }
 
-void LidarExtractor::SetShowMeasurements(bool show_measurements) {
+void LidarExtractor::SetShowMeasurements(const bool &show_measurements) {
   show_measurements_ = show_measurements;
+}
+
+bool LidarExtractor::GetShowMeasurements() {
+  return show_measurements_;
 }
 
 bool LidarExtractor::GetMeasurementValid() {
@@ -43,13 +47,13 @@ bool LidarExtractor::GetMeasurementValid() {
   return measurement_valid_;
 }
 
+// TODO: move this to json tools object
 void LidarExtractor::LoadConfig(){
   std::string config_path = utils::GetFilePathConfig("LidarExtractorConfig.json");
   nlohmann::json J;
   std::ifstream file(config_path);
   file >> J;
   crop_scan_ = J.at("crop_scan");
-  show_measurements_ = J.at("show_measurements");
   max_keypoint_distance_ = J.at("max_keypoint_distance");
   dist_acceptance_criteria_ = J.at("dist_acceptance_criteria");
   icp_transform_epsilon_ = J.at("icp_transform_epsilon");
@@ -175,7 +179,6 @@ void LidarExtractor::AddPointCloudToViewer(
 
 void LidarExtractor::ConfirmMeasurementKeyboardCallback(
     const pcl::visualization::KeyboardEvent &event, void *viewer_void) {
-
   if (measurement_failed_) {
     if (event.getKeySym() == "c" && event.keyDown()) {
       measurement_failed_ = false;
@@ -188,6 +191,11 @@ void LidarExtractor::ConfirmMeasurementKeyboardCallback(
     } else if (event.getKeySym() == "n" && event.keyDown()) {
       measurement_valid_ = false;
       close_viewer_ = true;
+    } else if (event.getKeySym() == "c" && event.keyDown()) {
+      close_viewer_ = true;
+    } else if (event.getKeySym() == "s" && event.keyDown()) {
+      this->SetShowMeasurements(false);
+      close_viewer_ = true;
     }
   }
 }
@@ -196,7 +204,8 @@ void LidarExtractor::ShowFailedMeasurement() {
   std::cout << "\nViewer Legend:\n"
             << "  Red   -> cropped scan\n"
             << "  White -> original scan\n"
-            << "Press [c] to continue with other measurements\n";
+            << "Press [c] to continue with other measurements\n"
+            << "Press [s] to stop showing future measurements\n";
   while (!pcl_viewer_->wasStopped() && !close_viewer_) {
     pcl_viewer_->spinOnce(10);
     pcl_viewer_->registerKeyboardCallback(
@@ -221,7 +230,9 @@ void LidarExtractor::ShowFinalTransformation() {
             << "  White -> scan\n"
             << "  Blue  -> target initial guess\n"
             << "  Green -> target aligned\n"
-            << "Accept measurement? [y/n]\n";
+            << "Accept measurement? [y/n]\n"
+            << "Press [c] to accept default\n"
+            << "Press [s] to stop showing future measurements\n";
   while (!pcl_viewer_->wasStopped() && !close_viewer_) {
     pcl_viewer_->spinOnce(10);
     pcl_viewer_->registerKeyboardCallback(

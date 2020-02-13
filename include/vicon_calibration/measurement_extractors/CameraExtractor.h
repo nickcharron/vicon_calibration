@@ -41,6 +41,8 @@ public:
 
   void SetShowMeasurements(const bool &show_measurements);
 
+  bool GetShowMeasurements();
+
   void ProcessMeasurement(const Eigen::Matrix4d &T_CAMERA_TARGET_EST,
                           const cv::Mat &img_in);
 

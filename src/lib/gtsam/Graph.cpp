@@ -94,8 +94,10 @@ void Graph::SolveGraph() {
   }
 }
 
+// TODO: move this to json tools object
 void Graph::LoadConfig() {
-  std::string config_path = utils::GetFilePathConfig("GraphCong.json");
+  std::string config_path = utils::GetFilePathConfig("GraphConfig.json");
+  LOG_INFO("Loading GTSAM Graph Config file: %s", config_path.c_str());
   nlohmann::json J;
   std::ifstream file(config_path);
   file >> J;

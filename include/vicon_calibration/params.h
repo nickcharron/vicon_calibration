@@ -112,7 +112,8 @@ struct CalibratorConfig {
   std::string initial_calibration_file;
   bool lookup_tf_calibrations{false};
   std::string vicon_baselink_frame;
-  bool show_measurements{false};
+  bool show_camera_measurements{false};
+  bool show_lidar_measurements{false};
   bool run_verification{true};
   Eigen::VectorXd initial_guess_perturbation; // for testing sim
   double min_measurement_motion{0.01};

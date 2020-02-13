@@ -107,7 +107,8 @@ JsonTools::LoadViconCalibratorParams(const std::string &file_name) {
   params->initial_guess_perturbation = tmp;
   params->min_measurement_motion = J["min_measurement_motion"];
   params->vicon_baselink_frame = J["vicon_baselink_frame"];
-  params->show_measurements = J["show_measurements"];
+  params->show_camera_measurements = J["show_camera_measurements"];
+  params->show_lidar_measurements = J["show_lidar_measurements"];
   params->run_verification = J["run_verification"];
 
   int counter = 0;

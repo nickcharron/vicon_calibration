@@ -58,7 +58,9 @@ public:
   void SetTargetParams(
       std::shared_ptr<vicon_calibration::TargetParams> &target_params);
 
-  void SetShowMeasurements(bool show_measurements);
+  void SetShowMeasurements(const bool &show_measurements);
+
+  bool GetShowMeasurements();
 
   void ProcessMeasurement(const Eigen::Matrix4d &T_LIDAR_TARGET_EST,
                           pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in);

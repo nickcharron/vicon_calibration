@@ -26,6 +26,10 @@ void CameraExtractor::SetShowMeasurements(const bool &show_measurements) {
   show_measurements_ = show_measurements;
 }
 
+bool CameraExtractor::GetShowMeasurements() {
+  return show_measurements_;
+}
+
 void CameraExtractor::ProcessMeasurement(
     const Eigen::Matrix4d &T_CAMERA_TARGET_EST, const cv::Mat &img_in) {
   // initialize member variables
@@ -187,6 +191,7 @@ void CameraExtractor::CropImage() {
     } else if (!target_in_image && show_measurements_) {
       LOG_WARN("Target and cropbox not in image, skipping measurement.");
     }
+
     if (show_measurements_) {
       LOG_INFO("Target corners: [minu, minv, maxu, maxv]: [%d, %d, %d, %d]",
                min_vec[0], min_vec[1], max_vec[0], max_vec[1]);
@@ -242,12 +247,13 @@ void CameraExtractor::DisplayImage(const cv::Mat &img,
     std::cout << output_text << std::endl
               << "Press [c] to continue with default\n"
               << "Press [y] to accept measurement\n"
-              << "Press [n] to reject measurement\n";
+              << "Press [n] to reject measurement\n"
+              << "Press [s] to stop showing future measurements\n";
     cv::namedWindow(display_name, cv::WINDOW_NORMAL);
     cv::resizeWindow(display_name, img.cols / 2, img.rows / 2);
     cv::imshow(display_name, current_image_w_axes);
-    auto key = cv::waitKey();
-    while (key != 67 && key != 99 && key != 121 && key != 110) {
+    auto key = 0;
+    while (key != 67 && key != 99 && key != 121 && key != 110 && key != 115) {
       key = cv::waitKey();
       if (key == 121) {
         measurement_valid_ = true;
@@ -256,6 +262,10 @@ void CameraExtractor::DisplayImage(const cv::Mat &img,
       if (key == 110) {
         measurement_valid_ = false;
         std::cout << "Rejected measurement.\n";
+      }
+      if (key == 115) {
+        std::cout << "setting show measurements to false.\n";
+        this->SetShowMeasurements(false);
       }
     }
     cv::destroyAllWindows();

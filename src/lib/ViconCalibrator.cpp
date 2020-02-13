@@ -1,7 +1,7 @@
 #include "vicon_calibration/ViconCalibrator.h"
 #include "vicon_calibration/CalibrationVerification.h"
-#include "vicon_calibration/utils.h"
 #include "vicon_calibration/JsonTools.h"
+#include "vicon_calibration/utils.h"
 #include <Eigen/StdVector>
 #include <beam_utils/math.hpp>
 #include <cv_bridge/cv_bridge.h>
@@ -104,7 +104,8 @@ void ViconCalibrator::LoadLookupTree() {
     start_time = time_zero;
   }
   ros::Time end_time = lookup_time_ + time_window_half;
-  rosbag::View view(bag_, rosbag::TopicQuery("/tf"), start_time, end_time,true);
+  rosbag::View view(bag_, rosbag::TopicQuery("/tf"), start_time, end_time,
+                    true);
   bool first_msg = true;
   for (const auto &msg_instance : view) {
     auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
@@ -120,7 +121,8 @@ void ViconCalibrator::GetInitialCalibration(std::string &sensor_frame,
                                             SensorType type,
                                             uint8_t &sensor_id) {
   T_VICONBASE_SENSOR_ =
-      estimate_extrinsics_->GetTransformEigen(params_->vicon_baselink_frame, sensor_frame)
+      estimate_extrinsics_
+          ->GetTransformEigen(params_->vicon_baselink_frame, sensor_frame)
           .matrix();
   vicon_calibration::CalibrationResult calib_initial;
   calib_initial.transform = T_VICONBASE_SENSOR_;
@@ -165,12 +167,12 @@ ViconCalibrator::GetInitialGuess(std::string &sensor_frame) {
 }
 
 /** TODO: create aggregator which does the following:
-  * 1) checks if "aggregate_scans" param is set to true
-  * 2) checks to see if target has remained stationary over specified time wind.
-  * 3) transforms scans over time window to pose associated with inital time
-  * 4) aggregates scans together for that time window to create one point cloud
-  *    measurement which should be denser and result in better accuracy
-  */
+ * 1) checks if "aggregate_scans" param is set to true
+ * 2) checks to see if target has remained stationary over specified time wind.
+ * 3) transforms scans over time window to pose associated with inital time
+ * 4) aggregates scans together for that time window to create one point cloud
+ *    measurement which should be denser and result in better accuracy
+ */
 void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
   std::string topic = params_->lidar_params[lidar_iter]->topic;
   std::string sensor_frame = params_->lidar_params[lidar_iter]->frame;
@@ -209,8 +211,8 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
       try {
         T_lidar_tgts_estimated = GetInitialGuess(sensor_frame);
         T_viconbase_tgts = utils::GetTargetLocation(
-            params_->target_params, params_->vicon_baselink_frame,
-            lookup_time_, lookup_tree_);
+            params_->target_params, params_->vicon_baselink_frame, lookup_time_,
+            lookup_tree_);
       } catch (const std::exception err) {
         LOG_ERROR("%s", err.what());
         std::cout
@@ -237,8 +239,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
             continue;
           }
         }
-        std::string extractor_type =
-            params_->target_params[n]->extractor_type;
+        std::string extractor_type = params_->target_params[n]->extractor_type;
         // TODO: add factory method [create(...)] to initialize these
         //       automatically without having to do these if statements.
         //       This increases extensibility
@@ -247,22 +248,24 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
               std::make_shared<vicon_calibration::CylinderLidarExtractor>();
         } else if (extractor_type == "DIAMOND") {
           lidar_extractor_ =
-             std::make_shared<vicon_calibration::DiamondLidarExtractor>();
+              std::make_shared<vicon_calibration::DiamondLidarExtractor>();
         } else {
           throw std::invalid_argument{
               "Invalid extractor type. Options: CYLINDER, DIAMOND"};
         }
-        if(params_->show_measurements){
+        if (params_->show_lidar_measurements) {
           std::cout << "Processing measurement for: L"
-                    << std::to_string(lidar_iter+1) << ", T"
-                    << std::to_string(n+1) << "\n";
+                    << std::to_string(lidar_iter + 1) << ", T"
+                    << std::to_string(n + 1) << "\n";
         }
         lidar_extractor_->SetLidarParams(params_->lidar_params[lidar_iter]);
         lidar_extractor_->SetTargetParams(params_->target_params[n]);
-        lidar_extractor_->SetShowMeasurements(params_->show_measurements);
+        lidar_extractor_->SetShowMeasurements(params_->show_lidar_measurements);
 
         lidar_extractor_->ProcessMeasurement(T_lidar_tgts_estimated[n].matrix(),
-                                           cloud);
+                                             cloud);
+        params_->show_lidar_measurements =
+            lidar_extractor_->GetShowMeasurements();
         if (lidar_extractor_->GetMeasurementValid()) {
           vicon_calibration::LidarMeasurement lidar_measurement;
           lidar_measurement.keypoints = lidar_extractor_->GetMeasurement();
@@ -271,8 +274,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
           lidar_measurement.target_id = n;
           lidar_measurement.lidar_frame =
               params_->lidar_params[lidar_iter]->frame;
-          lidar_measurement.target_frame =
-              params_->target_params[n]->frame_id;
+          lidar_measurement.target_frame = params_->target_params[n]->frame_id;
           lidar_measurements_.push_back(lidar_measurement);
         }
       }
@@ -322,8 +324,8 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
       try {
         T_cam_tgts_estimated = GetInitialGuess(sensor_frame);
         T_viconbase_tgts = utils::GetTargetLocation(
-            params_->target_params, params_->vicon_baselink_frame,
-            lookup_time_, lookup_tree_);
+            params_->target_params, params_->vicon_baselink_frame, lookup_time_,
+            lookup_tree_);
       } catch (const std::exception err) {
         LOG_ERROR("%s", err.what());
         std::cout
@@ -350,8 +352,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
             continue;
           }
         }
-        std::string extractor_type =
-            params_->target_params[n]->extractor_type;
+        std::string extractor_type = params_->target_params[n]->extractor_type;
         if (extractor_type == "CYLINDER") {
           camera_extractor_ =
               std::make_shared<vicon_calibration::CylinderCameraExtractor>();
@@ -363,17 +364,19 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
               "Invalid extractor type. Options: CYLINDER, DIAMOND"};
         }
 
-        if(params_->show_measurements){
+        if (params_->show_camera_measurements) {
           std::cout << "Processing measurement for: C"
-                    << std::to_string(cam_iter+1) << ", T"
-                    << std::to_string(n+1) << "\n";
+                    << std::to_string(cam_iter + 1) << ", T"
+                    << std::to_string(n + 1) << "\n";
         }
         camera_extractor_->SetCameraParams(params_->camera_params[cam_iter]);
         camera_extractor_->SetTargetParams(params_->target_params[n]);
-        camera_extractor_->SetShowMeasurements(params_->show_measurements);
+        camera_extractor_->SetShowMeasurements(
+            params_->show_camera_measurements);
         camera_extractor_->ProcessMeasurement(T_cam_tgts_estimated[n].matrix(),
-                                            current_image);
-
+                                              current_image);
+        params_->show_camera_measurements =
+            camera_extractor_->GetShowMeasurements();
         if (camera_extractor_->GetMeasurementValid()) {
           counter++;
           vicon_calibration::CameraMeasurement camera_measurement;
@@ -383,8 +386,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
           camera_measurement.target_id = n;
           camera_measurement.camera_frame =
               params_->camera_params[cam_iter]->frame;
-          camera_measurement.target_frame =
-              params_->target_params[n]->frame_id;
+          camera_measurement.target_frame = params_->target_params[n]->frame_id;
           camera_measurements_.push_back(camera_measurement);
         }
       }

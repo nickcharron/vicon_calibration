@@ -5,7 +5,8 @@
   "initial_guess_perturb": [0.007, 0.015, 0, 0.0, 0.0, 0.0],
   "min_measurement_motion": 0.05,
   "vicon_baselink_frame": "vicon/roben/roben",
-  "show_measurements": false,
+  "show_camera_measurements": true,
+  "show_lidar_measurements": true,
   "run_verification": true,
   "output_directory": "/home/nick/vicon_calibration_results/",
   "targets":[

@@ -10,6 +10,7 @@ using namespace std::literals::chrono_literals;
 
 LidarExtractor::LidarExtractor() {
   keypoints_measured_ = boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS);
 }
 
 void LidarExtractor::SetLidarParams(

@@ -14,7 +14,7 @@ namespace vicon_calibration {
 class Graph {
 public:
   Graph() = default;
-  
+
   ~Graph() = default;
 
   void
@@ -80,7 +80,8 @@ private:
   void ViewCameraMeasurements(
       const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,
       const pcl::PointCloud<pcl::PointXYZ>::Ptr &c2,
-      const boost::shared_ptr<pcl::Correspondences> &correspondences);
+      const boost::shared_ptr<pcl::Correspondences> &correspondences,
+      const std::string &c1_name, const std::string &c2_name);
 
   void ConfirmMeasurementKeyboardCallback(
       const pcl::visualization::KeyboardEvent &event, void *viewer_void);
@@ -102,6 +103,8 @@ private:
   std::vector<LoopCorrespondence> lidar_camera_correspondences_;
   pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
   bool close_viewer_{false};
+  bool skip_to_next_iteration_{false};
+  bool stop_all_vis_{false};
 
   // params
   uint16_t max_iterations_{40};
@@ -122,6 +125,7 @@ private:
   std::vector<double> image_noise_{20, 20};
   std::vector<double> lidar_noise_{0.02, 0.02, 0.02};
   std::vector<double> template_downsample_size_{0.003, 0.003, 0.003};
+  bool print_results_to_terminal_{false};
   // double concave_hull_alpha_{1};
 };
 

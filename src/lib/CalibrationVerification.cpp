@@ -34,6 +34,8 @@ void CalibrationVerification::LoadJSON(const std::string &file_name) {
   output_directory_ = J["output_directory"];
   double t = J["time_increment"];
   time_increment_ = ros::Duration(t);
+  max_image_results_ = J["max_image_results"];
+  max_lidar_results_ = J["max_lidar_results"];
 }
 
 void CalibrationVerification::ProcessResults() {
@@ -132,8 +134,9 @@ void CalibrationVerification::SaveLidarResults() {
       T_viconbase_tgts;
   for (uint8_t lidar_iter = 0; lidar_iter < params_->lidar_params.size();
        lidar_iter++) {
-    std::string current_save_path = results_directory_ + "LIDARS/LIDAR" +
-                                    std::to_string(lidar_iter + 1) + "/";
+    std::string current_save_path = results_directory_ + "LIDARS/" +
+                                    params_->lidar_params[lidar_iter]->frame +
+                                    "/";
     boost::filesystem::create_directory(current_save_path);
     // get lidar info
     std::string topic = params_->lidar_params[lidar_iter]->topic;
@@ -177,7 +180,6 @@ void CalibrationVerification::SaveLidarResults() {
       // check if we want to use this scan
       if (time_current > time_last + time_increment_) {
         // set time and transforms
-        counter++;
         lookup_time_ = time_current;
         this->LoadLookupTree();
         time_last = time_current;
@@ -191,11 +193,11 @@ void CalibrationVerification::SaveLidarResults() {
                                  TA_VICONBASE_SENSOR_opt);
 
         // load targets and transform to viconbase frame
-        try{
+        try {
           T_viconbase_tgts = utils::GetTargetLocation(
-              params_->target_params, params_->vicon_baselink_frame, lookup_time_,
-              lookup_tree_);
-        } catch(const std::runtime_error err){
+              params_->target_params, params_->vicon_baselink_frame,
+              lookup_time_, lookup_tree_);
+        } catch (const std::runtime_error err) {
           LOG_ERROR("%s", err.what());
           continue;
         }
@@ -208,6 +210,7 @@ void CalibrationVerification::SaveLidarResults() {
         }
 
         // save all the scans that are viewed
+        counter++;
         std::string save_path1, save_path2, save_path3;
         save_path1 =
             current_save_path + "scan_" + std::to_string(counter) + "_est.pcd";
@@ -219,6 +222,9 @@ void CalibrationVerification::SaveLidarResults() {
         pcl::io::savePCDFileBinary(save_path1, *scan_trans_est);
         pcl::io::savePCDFileBinary(save_path2, *scan_trans_opt);
         pcl::io::savePCDFileBinary(save_path3, *targets_combined);
+        if(counter == max_lidar_results_){
+          return;
+        }
       }
     }
   }
@@ -228,8 +234,9 @@ void CalibrationVerification::SaveCameraResults() {
   // Iterate over each camera
   for (uint8_t cam_iter = 0; cam_iter < params_->camera_params.size();
        cam_iter++) {
-    std::string current_save_path = results_directory_ + "CAMERAS/CAMERA" +
-                                    std::to_string(cam_iter + 1) + "/";
+    std::string current_save_path = results_directory_ + "CAMERAS/" +
+                                    params_->camera_params[cam_iter]->frame +
+                                    "/";
     boost::filesystem::create_directory(current_save_path);
     int counter = 0;
     std::string topic = params_->camera_params[cam_iter]->topic;
@@ -277,11 +284,11 @@ void CalibrationVerification::SaveCameraResults() {
                 utils::GetTargetLocation(params_->target_params,
                                          params_->vicon_baselink_frame,
                                          lookup_time_, lookup_tree_);
-        counter++;
         final_image = this->ProjectTargetToImage(
             current_image, T_viconbase_tgts, TA_VICONBASE_SENSOR_est.matrix(),
             cam_iter, cv::Scalar(0, 0, 255));
         if (num_tgts_in_img_ > 0) {
+          counter++;
           final_image = this->ProjectTargetToImage(
               final_image, T_viconbase_tgts, TA_VICONBASE_SENSOR_opt.matrix(),
               cam_iter, cv::Scalar(255, 0, 0));
@@ -289,6 +296,9 @@ void CalibrationVerification::SaveCameraResults() {
               current_save_path + "image_" + std::to_string(counter) + ".jpg";
           cv::imwrite(save_path, *final_image);
         }
+      }
+      if(counter == max_image_results_){
+        break;
       }
     } // end bag iter
   }   // end cam iter

@@ -64,6 +64,8 @@ private:
   std::string results_directory_;
   rosbag::Bag bag_;
   ros::Duration time_increment_ = ros::Duration(10);
+  int max_image_results_{20};
+  int max_lidar_results_{3};
   ros::Time lookup_time_;
   std::shared_ptr<vicon_calibration::TfTree> lookup_tree_ =
       std::make_shared<vicon_calibration::TfTree>();

@@ -1,7 +1,8 @@
 {
   "max_iterations": 40,
   "show_camera_measurements": false,
-  "show_lidar_measurements": false,
+  "show_lidar_measurements": true,
+  "show_loop_closure_correspondences": false,
   "extract_image_target_perimeter": true,
   "concave_hull_alpha": 10,
   "max_pixel_cor_dist": 500,

@@ -191,14 +191,17 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
   pcl::PCLPointCloud2::Ptr cloud_pc2 =
       boost::make_shared<pcl::PCLPointCloud2>();
   PointCloud::Ptr cloud = boost::make_shared<PointCloud>();
-  ros::Duration time_step(params_->lidar_params.at(lidar_iter)->time_steps);
-  ros::Time time_last(0, 0);
+
+  int valid_measurements = 0;
+  int current_measurement = 0;
+  ros::Duration time_step(params_->time_steps);
+  ros::Time time_last(0,0);
   this->GetInitialCalibration(sensor_frame, SensorType::LIDAR, lidar_iter);
   this->GetInitialCalibrationPerturbed(sensor_frame, SensorType::LIDAR,
                                        lidar_iter);
+  boost::shared_ptr<sensor_msgs::PointCloud2> lidar_msg;
   for (auto iter = view.begin(); iter != view.end(); iter++) {
-    boost::shared_ptr<sensor_msgs::PointCloud2> lidar_msg =
-        iter->instantiate<sensor_msgs::PointCloud2>();
+    lidar_msg = iter->instantiate<sensor_msgs::PointCloud2>();
     ros::Time time_current = lidar_msg->header.stamp;
     if (time_current > time_last + time_step) {
       lookup_time_ = time_current;
@@ -223,6 +226,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
                "json has missing/invalid transforms\n";
         continue;
       }
+
       for (uint8_t n = 0; n < T_lidar_tgts_estimated.size(); n++) {
         // check minimal translation
         if (T_lidar_tgts_estimated_prev.size() > 0) {
@@ -267,20 +271,26 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
         params_->show_lidar_measurements =
             lidar_extractor_->GetShowMeasurements();
         if (lidar_extractor_->GetMeasurementValid()) {
-          vicon_calibration::LidarMeasurement lidar_measurement;
-          lidar_measurement.keypoints = lidar_extractor_->GetMeasurement();
-          lidar_measurement.T_VICONBASE_TARGET = T_viconbase_tgts[n].matrix();
-          lidar_measurement.lidar_id = lidar_iter;
-          lidar_measurement.target_id = n;
-          lidar_measurement.lidar_frame =
+          valid_measurements++;
+          std::shared_ptr<LidarMeasurement> lidar_measurement =
+              std::make_shared<LidarMeasurement>();
+          lidar_measurement->keypoints = lidar_extractor_->GetMeasurement();
+          lidar_measurement->T_VICONBASE_TARGET = T_viconbase_tgts[n].matrix();
+          lidar_measurement->lidar_id = lidar_iter;
+          lidar_measurement->target_id = n;
+          lidar_measurement->lidar_frame =
               params_->lidar_params[lidar_iter]->frame;
-          lidar_measurement.target_frame = params_->target_params[n]->frame_id;
-          lidar_measurements_.push_back(lidar_measurement);
+          lidar_measurement->target_frame = params_->target_params[n]->frame_id;
+          lidar_measurements_[lidar_iter][current_measurement] =
+              lidar_measurement;
         }
+        current_measurement++;
       }
       T_lidar_tgts_estimated_prev = T_lidar_tgts_estimated;
     }
   }
+  LOG_INFO("Stored %d measurements for lidar with frame id: %s",
+           valid_measurements, sensor_frame.c_str());
 }
 
 void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
@@ -297,25 +307,23 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
         "No image messages read. Check your topics in config file."};
   }
 
-  int counter = 0;
-  ros::Duration time_step(params_->camera_params[cam_iter]->time_steps);
-  ros::Time time_last(0, 0);
-  ros::Time time_zero(0, 0);
+  int valid_measurements = 0;
+  int current_measurement = 0;
+  ros::Duration time_step(params_->time_steps);
+  ros::Time time_last = view.getBeginTime();
+
   this->GetInitialCalibration(sensor_frame, SensorType::CAMERA, cam_iter);
   this->GetInitialCalibrationPerturbed(sensor_frame, SensorType::CAMERA,
                                        cam_iter);
-
+  sensor_msgs::ImageConstPtr img_msg;
+  cv::Mat current_image;
   for (auto iter = view.begin(); iter != view.end(); iter++) {
-    sensor_msgs::ImageConstPtr img_msg =
-        iter->instantiate<sensor_msgs::Image>();
+    img_msg = iter->instantiate<sensor_msgs::Image>();
     ros::Time time_current = img_msg->header.stamp;
-    // skip first instance to avoid errors at beginning of bag
-    if (time_last == time_zero) {
-      time_last = time_current;
-    }
-    cv::Mat current_image =
-        cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::BGR8)->image;
+
     if (time_current > time_last + time_step) {
+      current_image =
+          cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::BGR8)->image;
       lookup_time_ = time_current;
       this->LoadLookupTree();
       time_last = time_current;
@@ -378,27 +386,72 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
         params_->show_camera_measurements =
             camera_extractor_->GetShowMeasurements();
         if (camera_extractor_->GetMeasurementValid()) {
-          counter++;
-          vicon_calibration::CameraMeasurement camera_measurement;
-          camera_measurement.keypoints = camera_extractor_->GetMeasurement();
-          camera_measurement.T_VICONBASE_TARGET = T_viconbase_tgts[n].matrix();
-          camera_measurement.camera_id = cam_iter;
-          camera_measurement.target_id = n;
-          camera_measurement.camera_frame =
+          valid_measurements++;
+          std::shared_ptr<CameraMeasurement> camera_measurement =
+              std::make_shared<CameraMeasurement>();
+          camera_measurement->keypoints = camera_extractor_->GetMeasurement();
+          camera_measurement->T_VICONBASE_TARGET = T_viconbase_tgts[n].matrix();
+          camera_measurement->camera_id = cam_iter;
+          camera_measurement->target_id = n;
+          camera_measurement->camera_frame =
               params_->camera_params[cam_iter]->frame;
-          camera_measurement.target_frame = params_->target_params[n]->frame_id;
-          camera_measurements_.push_back(camera_measurement);
+          camera_measurement->target_frame =
+              params_->target_params[n]->frame_id;
+          camera_measurements_[cam_iter][current_measurement] =
+              camera_measurement;
         }
+        current_measurement++;
       }
       T_cam_tgts_estimated_prev = T_cam_tgts_estimated;
     }
   }
-  LOG_INFO("Stored %d measurements for camera with frame id: %s", counter,
-           sensor_frame.c_str());
+  LOG_INFO("Stored %d measurements for camera with frame id: %s",
+           valid_measurements, sensor_frame.c_str());
 }
 
+// TODO: add loop closure measurements for cam to cam and lidar to lidar
 void ViconCalibrator::GetLoopClosureMeasurements() {
-  // TODO: complete this
+  for (uint8_t cam_iter = 0; cam_iter < camera_measurements_.size();
+       cam_iter++) {
+    for (uint8_t lid_iter = 0; lid_iter < lidar_measurements_.size();
+         lid_iter++) {
+      for (uint32_t meas_iter = 0;
+           meas_iter < camera_measurements_[cam_iter].size(); meas_iter++) {
+        // save loop closure measurement only if that measurement was successful
+        // for the camera and lidar at that timepoint, and that the target has
+        // distinct features (e.g., diamond target)
+        // TODO: add ^this criteria to the DOCS
+        int tgt_id = camera_measurements_[cam_iter][meas_iter]->target_id;
+        if (camera_measurements_[cam_iter][meas_iter] != nullptr &&
+            lidar_measurements_[lid_iter][meas_iter] != nullptr &&
+            params_->target_params[tgt_id]->keypoints_lidar.size() > 0 &&
+            params_->target_params[tgt_id]->keypoints_camera.size() > 0) {
+          std::shared_ptr<LoopClosureMeasurement> measurement;
+          measurement->keypoints_camera =
+              camera_measurements_[cam_iter][meas_iter]->keypoints;
+          measurement->keypoints_lidar =
+              lidar_measurements_[lid_iter][meas_iter]->keypoints;
+          measurement->T_VICONBASE_TARGET =
+              camera_measurements_[cam_iter][meas_iter]->T_VICONBASE_TARGET;
+          measurement->camera_id =
+              camera_measurements_[cam_iter][meas_iter]->camera_id;
+          measurement->lidar_id =
+              lidar_measurements_[cam_iter][meas_iter]->lidar_id;
+          measurement->target_id =
+              camera_measurements_[cam_iter][meas_iter]->target_id;
+          measurement->camera_frame =
+              camera_measurements_[cam_iter][meas_iter]->camera_frame;
+          measurement->lidar_frame =
+              lidar_measurements_[lid_iter][meas_iter]->lidar_frame;
+          measurement->target_frame =
+              camera_measurements_[cam_iter][meas_iter]->target_frame;
+          loop_closure_measurements_.push_back(measurement);
+        }
+      }
+    }
+  }
+  LOG_INFO("Saved %d lidar-camera loop closure measurements.",
+           loop_closure_measurements_);
 }
 
 void ViconCalibrator::RunCalibration(std::string config_file) {
@@ -421,6 +474,28 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
   } catch (rosbag::BagException &ex) {
     LOG_ERROR("Bag exception : %s", ex.what());
   }
+  // get length of bag to calculate the amount of measurements
+  rosbag::View view_tmp(bag_, ros::TIME_MIN, ros::TIME_MAX, true);
+  ros::Time time_start = view_tmp.getBeginTime();
+  ros::Time end_start = view_tmp.getEndTime();
+  ros::Duration bag_length = end_start - time_start;
+  int num_measurements = std::floor(bag_length.toSec() / params_->time_steps);
+
+  // initialize size of lidar measurement and camera measurement containers
+  int num_lidars = params_->lidar_params.size();
+  int num_cameras = params_->camera_params.size();
+  int num_tgts = params_->target_params.size();
+  int m = num_measurements * num_tgts;
+  std::vector<std::shared_ptr<LidarMeasurement>> lidar_init =
+      std::vector<std::shared_ptr<LidarMeasurement>>(m, nullptr);
+  std::vector<std::shared_ptr<CameraMeasurement>> camera_init =
+      std::vector<std::shared_ptr<CameraMeasurement>>(m, nullptr);
+  lidar_measurements_ =
+      std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>(num_lidars,
+                                                                  lidar_init);
+  camera_measurements_ =
+      std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>(num_cameras,
+                                                                   camera_init);
 
   // Load extrinsics
   this->LoadEstimatedExtrinsics();
@@ -439,6 +514,10 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
     this->GetCameraMeasurements(cam_iter);
   }
 
+  if (params_->use_loop_closure_measurements) {
+    this->GetLoopClosureMeasurements();
+  }
+
   bag_.close();
 
   // Build and solve graph
@@ -446,6 +525,7 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
   graph_.SetTargetParams(params_->target_params);
   graph_.SetCameraParams(params_->camera_params);
   graph_.SetCameraMeasurements(camera_measurements_);
+  graph_.SetLoopClosureMeasurements(loop_closure_measurements_);
   // TODO: Change this to calibrations_initial_
   // graph_.SetInitialGuess(calibrations_initial_);
   graph_.SetInitialGuess(calibrations_perturbed_);

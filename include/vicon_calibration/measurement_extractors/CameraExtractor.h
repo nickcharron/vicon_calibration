@@ -69,7 +69,6 @@ protected:
   double axis_plot_scale_{0.3}; // scale for plotting projected axes on an img
   bool crop_image_{true};
   bool show_measurements_{false};
-  std::shared_ptr<beam_calibration::CameraModel> camera_model_;
   std::shared_ptr<vicon_calibration::CameraParams> camera_params_;
   std::shared_ptr<vicon_calibration::TargetParams> target_params_;
 

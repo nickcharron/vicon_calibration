@@ -11,8 +11,6 @@ CameraExtractor::CameraExtractor() {
 void CameraExtractor::SetCameraParams(
     std::shared_ptr<vicon_calibration::CameraParams> &camera_params) {
   camera_params_ = camera_params;
-  camera_model_ =
-      beam_calibration::CameraModel::LoadJSON(camera_params->intrinsics);
   camera_params_set_ = true;
 }
 
@@ -46,7 +44,7 @@ void CameraExtractor::ProcessMeasurement(
   // first check if target is in FOV of camera:
   Eigen::Vector4d point_origin{0, 0, 0, 1};
   Eigen::Vector2d pixel_projected = this->TargetPointToPixel(point_origin);
-  if (!camera_model_->PixelInImage(pixel_projected)) {
+  if (!camera_params_->camera_model->PixelInImage(pixel_projected)) {
     measurement_complete_ = true;
     measurement_valid_ = false;
     return;
@@ -61,7 +59,7 @@ void CameraExtractor::ProcessMeasurement(
   }
 
   *image_annotated_ = utils::DrawCoordinateFrame(
-      *image_cropped_, T_CAMERA_TARGET_EST_, camera_model_, axis_plot_scale_,
+      *image_cropped_, T_CAMERA_TARGET_EST_, camera_params_->camera_model, axis_plot_scale_,
       camera_params_->images_distorted);
 
   this->GetKeypoints();
@@ -127,9 +125,9 @@ CameraExtractor::TargetPointToPixel(const Eigen::Vector4d &point) {
       homogeneous_point[2];
 
   if (camera_params_->images_distorted) {
-    return camera_model_->ProjectPoint(transformed_point);
+    return camera_params_->camera_model->ProjectPoint(transformed_point);
   } else {
-    return camera_model_->ProjectUndistortedPoint(transformed_point);
+    return camera_params_->camera_model->ProjectUndistortedPoint(transformed_point);
   }
 }
 
@@ -171,12 +169,12 @@ void CameraExtractor::CropImage() {
   // determine if target and/or cropbox is in the image
   bool cropbox_in_image = true;
   bool target_in_image = true;
-  if (!camera_model_->PixelInImage(min_vec) ||
-      !camera_model_->PixelInImage(max_vec)) {
+  if (!camera_params_->camera_model->PixelInImage(min_vec) ||
+      !camera_params_->camera_model->PixelInImage(max_vec)) {
     target_in_image = false;
   }
-  if (!camera_model_->PixelInImage(min_vec_buffer) ||
-      !camera_model_->PixelInImage(max_vec_buffer)) {
+  if (!camera_params_->camera_model->PixelInImage(min_vec_buffer) ||
+      !camera_params_->camera_model->PixelInImage(max_vec_buffer)) {
     cropbox_in_image = false;
   }
 
@@ -198,8 +196,8 @@ void CameraExtractor::CropImage() {
       LOG_INFO("Cropbox corners: [minu, minv, maxu, maxv]: [%d, %d, %d, %d]",
                min_vec_buffer[0], min_vec_buffer[1], max_vec_buffer[0],
                max_vec_buffer[1]);
-      LOG_INFO("Image Dimensions: [%d x %d]", camera_model_->GetWidth(),
-               camera_model_->GetHeight());
+      LOG_INFO("Image Dimensions: [%d x %d]", camera_params_->camera_model->GetWidth(),
+               camera_params_->camera_model->GetHeight());
       this->DisplayImage(*image_undistorted_, "Invalid Measurement",
                          "Showing failed measurement (cropbox not in image)");
     }
@@ -231,7 +229,7 @@ void CameraExtractor::CropImage() {
 
 void CameraExtractor::UndistortImage() {
   if (camera_params_->images_distorted) {
-    *image_undistorted_ = camera_model_->UndistortImage(*image_in_);
+    *image_undistorted_ = camera_params_->camera_model->UndistortImage(*image_in_);
   } else {
     image_undistorted_ = image_in_;
   }
@@ -242,7 +240,7 @@ void CameraExtractor::DisplayImage(const cv::Mat &img,
                                    const std::string &output_text) {
   if (show_measurements_) {
     cv::Mat current_image_w_axes = utils::DrawCoordinateFrame(
-        img, T_CAMERA_TARGET_EST_, camera_model_, axis_plot_scale_,
+        img, T_CAMERA_TARGET_EST_, camera_params_->camera_model, axis_plot_scale_,
         camera_params_->images_distorted);
     std::cout << output_text << std::endl
               << "Press [c] to continue with default\n"

@@ -201,6 +201,16 @@ void LidarExtractor::ConfirmMeasurementKeyboardCallback(
 }
 
 void LidarExtractor::ShowFailedMeasurement() {
+  // calculate cropbox cube
+  Eigen::Affine3f T;
+  T.matrix() = T_LIDAR_TARGET_EST_.cast<float>();
+  Eigen::Vector3f translation = T.translation();
+  Eigen::Quaternionf rotation(T.rotation());
+  double width = target_params_->crop_scan[0];
+  double height = target_params_->crop_scan[1];
+  double depth = target_params_->crop_scan[2];
+  pcl_viewer_->addCube(translation, rotation, width, height, depth);
+  pcl_viewer_->setRepresentationToWireframeForAllActors();
   std::cout << "\nViewer Legend:\n"
             << "  Red   -> cropped scan\n"
             << "  White -> original scan\n"

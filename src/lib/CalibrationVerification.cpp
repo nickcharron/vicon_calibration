@@ -79,14 +79,6 @@ void CalibrationVerification::SetParams(
     std::shared_ptr<CalibratorConfig> &params) {
   params_ = params;
 
-  // set camera models
-  for (uint16_t i = 0; i < params_->camera_params.size(); i++) {
-    std::shared_ptr<beam_calibration::CameraModel> cam_pointer;
-    cam_pointer = beam_calibration::CameraModel::LoadJSON(
-        params_->camera_params[i]->intrinsics);
-    camera_models_.push_back(cam_pointer);
-  }
-
   // Downsample template cloud
   pcl::VoxelGrid<pcl::PointXYZ> vox;
   vox.setLeafSize(template_downsample_size_[0], template_downsample_size_[1],
@@ -136,6 +128,8 @@ void CalibrationVerification::PrintConfig() {
 
 void CalibrationVerification::SaveLidarResults() {
   // Iterate over each lidar
+  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+      T_viconbase_tgts;
   for (uint8_t lidar_iter = 0; lidar_iter < params_->lidar_params.size();
        lidar_iter++) {
     std::string current_save_path = results_directory_ + "LIDARS/LIDAR" +
@@ -197,11 +191,15 @@ void CalibrationVerification::SaveLidarResults() {
                                  TA_VICONBASE_SENSOR_opt);
 
         // load targets and transform to viconbase frame
-        std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
-            T_viconbase_tgts =
-                utils::GetTargetLocation(params_->target_params,
-                                         params_->vicon_baselink_frame,
-                                         lookup_time_, lookup_tree_);
+        try{
+          T_viconbase_tgts = utils::GetTargetLocation(
+              params_->target_params, params_->vicon_baselink_frame, lookup_time_,
+              lookup_tree_);
+        } catch(const std::runtime_error err){
+          LOG_ERROR("%s", err.what());
+          continue;
+        }
+
         for (uint8_t n = 0; n < T_viconbase_tgts.size(); n++) {
           target = params_->target_params[n]->template_cloud;
           pcl::transformPointCloud(*target, *target_transformed,
@@ -323,13 +321,16 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                         T_VICONBASE_TARGET * point_target;
     if (params_->camera_params[cam_iter]->images_distorted) {
-      point_projected = camera_models_[cam_iter]->ProjectPoint(
-          utils::HomoPointToPoint(point_transformed));
+      point_projected =
+          params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+              utils::HomoPointToPoint(point_transformed));
     } else {
-      point_projected = camera_models_[cam_iter]->ProjectUndistortedPoint(
-          utils::HomoPointToPoint(point_transformed));
+      point_projected = params_->camera_params[cam_iter]
+                            ->camera_model->ProjectUndistortedPoint(
+                                utils::HomoPointToPoint(point_transformed));
     }
-    if (!camera_models_[cam_iter]->PixelInImage(point_projected)) {
+    if (!params_->camera_params[cam_iter]->camera_model->PixelInImage(
+            point_projected)) {
       continue;
     }
 
@@ -344,13 +345,16 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
       point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                           T_VICONBASE_TARGET * point_target;
       if (params_->camera_params[cam_iter]->images_distorted) {
-        point_projected = camera_models_[cam_iter]->ProjectPoint(
-            utils::HomoPointToPoint(point_transformed));
+        point_projected =
+            params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+                utils::HomoPointToPoint(point_transformed));
       } else {
-        point_projected = camera_models_[cam_iter]->ProjectUndistortedPoint(
-            utils::HomoPointToPoint(point_transformed));
+        point_projected = params_->camera_params[cam_iter]
+                              ->camera_model->ProjectUndistortedPoint(
+                                  utils::HomoPointToPoint(point_transformed));
       }
-      if (camera_models_[cam_iter]->PixelInImage(point_projected)) {
+      if (params_->camera_params[cam_iter]->camera_model->PixelInImage(
+              point_projected)) {
         point_pcl_projected.x = point_projected[0];
         point_pcl_projected.y = point_projected[1];
         point_pcl_projected.z = 0;

@@ -8,6 +8,7 @@
 #include <pcl/point_types.h>
 #include <ros/time.h>
 #include <string>
+#include <beam_calibration/CameraModel.h>
 
 namespace vicon_calibration {
 
@@ -19,15 +20,14 @@ enum class SensorType { CAMERA = 0, LIDAR };
 struct LidarParams {
   std::string topic;
   std::string frame;
-  double time_steps;
 };
 
 struct CameraParams {
   std::string topic;
   std::string frame;
   std::string intrinsics;
+  std::shared_ptr<beam_calibration::CameraModel> camera_model;
   bool images_distorted;
-  double time_steps;
 };
 
 struct TargetParams {
@@ -38,9 +38,11 @@ struct TargetParams {
   Eigen::VectorXd crop_scan;
   Eigen::VectorXd crop_image;
   pcl::PointCloud<pcl::PointXYZ>::Ptr template_cloud;
-  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>> keypoints_lidar;
-  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>> keypoints_camera;
-  TargetParams(){
+  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>
+      keypoints_lidar;
+  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>
+      keypoints_camera;
+  TargetParams() {
     crop_scan = Eigen::VectorXd(3);
     crop_image = Eigen::VectorXd(2);
   }
@@ -54,9 +56,7 @@ struct LidarMeasurement {
   int target_id;
   std::string lidar_frame;
   std::string target_frame;
-  LidarMeasurement(){
-    T_VICONBASE_TARGET = Eigen::MatrixXd(4,4);
-  }
+  LidarMeasurement() { T_VICONBASE_TARGET = Eigen::MatrixXd(4, 4); }
 };
 
 struct CameraMeasurement {
@@ -67,9 +67,7 @@ struct CameraMeasurement {
   int target_id;
   std::string camera_frame;
   std::string target_frame;
-  CameraMeasurement(){
-    T_VICONBASE_TARGET = Eigen::MatrixXd(4,4);
-  }
+  CameraMeasurement() { T_VICONBASE_TARGET = Eigen::MatrixXd(4, 4); }
 };
 
 struct LoopClosureMeasurement {
@@ -83,14 +81,24 @@ struct LoopClosureMeasurement {
   std::string camera_frame;
   std::string lidar_frame;
   std::string target_frame;
-  LoopClosureMeasurement(){
-    T_VICONBASE_TARGET = Eigen::MatrixXd(4,4);
-  }
+  LoopClosureMeasurement() { T_VICONBASE_TARGET = Eigen::MatrixXd(4, 4); }
 };
 
 struct Correspondence {
   int target_point_index;
   int measured_point_index;
+  int measurement_index;
+  int sensor_index;
+};
+
+struct LoopCorrespondence {
+  int camera_target_point_index;
+  int camera_measurement_point_index;
+  int lidar_target_point_index;
+  int lidar_measurement_point_index;
+  int camera_id;
+  int lidar_id;
+  int target_id;
   int measurement_index;
 };
 
@@ -101,9 +109,7 @@ struct CalibrationResult {
   int sensor_id;
   std::string to_frame;   // this is usually the vicon baselink on the robot
   std::string from_frame; // this is the sensor frame
-  CalibrationResult(){
-    transform = Eigen::MatrixXd(4,4);
-  }
+  CalibrationResult() { transform = Eigen::MatrixXd(4, 4); }
 };
 
 struct CalibratorConfig {
@@ -112,9 +118,11 @@ struct CalibratorConfig {
   std::string initial_calibration_file;
   bool lookup_tf_calibrations{false};
   std::string vicon_baselink_frame;
+  double time_steps;
   bool show_camera_measurements{false};
   bool show_lidar_measurements{false};
   bool run_verification{true};
+  bool use_loop_closure_measurements{true};
   Eigen::VectorXd initial_guess_perturbation; // for testing sim
   double min_measurement_motion{0.01};
   std::vector<std::shared_ptr<vicon_calibration::TargetParams>> target_params;

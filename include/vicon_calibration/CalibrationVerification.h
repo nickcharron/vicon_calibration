@@ -3,7 +3,6 @@
 #include "vicon_calibration/TfTree.h"
 #include "vicon_calibration/params.h"
 #include <Eigen/Geometry>
-#include <beam_calibration/CameraModel.h>
 #include <ros/time.h>
 #include <rosbag/bag.h>
 
@@ -70,7 +69,6 @@ private:
       std::make_shared<vicon_calibration::TfTree>();
   std::vector<vicon_calibration::CalibrationResult> calibrations_result_,
       calibrations_initial_, calibrations_perturbed_;
-  std::vector<std::shared_ptr<beam_calibration::CameraModel>> camera_models_;
 };
 
 } // end namespace vicon_calibration

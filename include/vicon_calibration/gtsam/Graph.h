@@ -1,9 +1,9 @@
 #pragma once
 
 #include "vicon_calibration/params.h"
-#include <beam_calibration/CameraModel.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <pcl/registration/correspondence_estimation.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 namespace vicon_calibration {
 
@@ -14,6 +14,7 @@ namespace vicon_calibration {
 class Graph {
 public:
   Graph() = default;
+  
   ~Graph() = default;
 
   void
@@ -21,10 +22,16 @@ public:
                       &target_params);
 
   void SetLidarMeasurements(
-      std::vector<vicon_calibration::LidarMeasurement> &lidar_measurements);
+      std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>
+          &lidar_measurements);
 
   void SetCameraMeasurements(
-      std::vector<vicon_calibration::CameraMeasurement> &camera_measurements);
+      std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>
+          &camera_measurements);
+
+  void SetLoopClosureMeasurements(
+      std::vector<std::shared_ptr<LoopClosureMeasurement>>
+          &loop_closure_measurements_);
 
   void SetInitialGuess(
       std::vector<vicon_calibration::CalibrationResult> &initial_guess);
@@ -52,6 +59,8 @@ private:
 
   void SetLidarCorrespondences();
 
+  void SetLoopClosureCorrespondences();
+
   void SetImageFactors();
 
   void SetLidarFactors();
@@ -73,24 +82,32 @@ private:
       const pcl::PointCloud<pcl::PointXYZ>::Ptr &c2,
       const boost::shared_ptr<pcl::Correspondences> &correspondences);
 
-  std::vector<vicon_calibration::LidarMeasurement> lidar_measurements_;
-  std::vector<vicon_calibration::CameraMeasurement> camera_measurements_;
-  std::vector<vicon_calibration::LoopClosureMeasurement>
+  void ConfirmMeasurementKeyboardCallback(
+      const pcl::visualization::KeyboardEvent &event, void *viewer_void);
+
+  std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>
+      lidar_measurements_;
+  std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>
+      camera_measurements_;
+  std::vector<std::shared_ptr<LoopClosureMeasurement>>
       loop_closure_measurements_;
-  std::vector<vicon_calibration::CalibrationResult> calibration_results_;
-  std::vector<vicon_calibration::CalibrationResult> calibration_initials_;
-  std::vector<std::shared_ptr<vicon_calibration::CameraParams>> camera_params_;
-  std::vector<std::shared_ptr<vicon_calibration::TargetParams>> target_params_;
+  std::vector<CalibrationResult> calibration_results_;
+  std::vector<CalibrationResult> calibration_initials_;
+  std::vector<std::shared_ptr<CameraParams>> camera_params_;
+  std::vector<std::shared_ptr<TargetParams>> target_params_;
   gtsam::NonlinearFactorGraph graph_;
   gtsam::Values initials_, initials_updated_, results_;
-  std::vector<std::shared_ptr<beam_calibration::CameraModel>> camera_models_;
-  std::vector<vicon_calibration::Correspondence> camera_correspondences_;
-  std::vector<vicon_calibration::Correspondence> lidar_correspondences_;
+  std::vector<Correspondence> camera_correspondences_;
+  std::vector<Correspondence> lidar_correspondences_;
+  std::vector<LoopCorrespondence> lidar_camera_correspondences_;
+  pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
+  bool close_viewer_{false};
 
   // params
   uint16_t max_iterations_{40};
   bool show_camera_measurements_{false};
   bool show_lidar_measurements_{false};
+  bool show_loop_closure_correspondences_{false};
   bool extract_image_target_perimeter_{true};
   double concave_hull_alpha_{10};
   double max_pixel_cor_dist_{500}; // in pixels

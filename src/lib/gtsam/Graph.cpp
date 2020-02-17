@@ -12,9 +12,10 @@
 #include <gtsam/slam/PriorFactor.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/surface/concave_hull.h>
-#include <pcl/visualization/pcl_visualizer.h>
 
 namespace vicon_calibration {
+
+using namespace std::literals::chrono_literals;
 
 void Graph::SetTargetParams(
     std::vector<std::shared_ptr<vicon_calibration::TargetParams>>
@@ -35,15 +36,25 @@ void Graph::SetTargetParams(
 }
 
 void Graph::SetLidarMeasurements(
-    std::vector<vicon_calibration::LidarMeasurement> &lidar_measurements) {
+    std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>
+        &lidar_measurements) {
   lidar_measurements_ = lidar_measurements;
-  LOG_INFO("Added %d lidar measurements", lidar_measurements.size());
+  LOG_INFO("Added measurements for %d lidar(s)", lidar_measurements.size());
 }
 
 void Graph::SetCameraMeasurements(
-    std::vector<vicon_calibration::CameraMeasurement> &camera_measurements) {
+    std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>
+        &camera_measurements) {
   camera_measurements_ = camera_measurements;
-  LOG_INFO("Added %d camera measurements", camera_measurements.size());
+  LOG_INFO("Added measurements for %d camera(s)", camera_measurements.size());
+}
+
+void Graph::SetLoopClosureMeasurements(
+    std::vector<std::shared_ptr<LoopClosureMeasurement>>
+        &loop_closure_measurements_) {
+  loop_closure_measurements_ = loop_closure_measurements_;
+  LOG_INFO("Added %d loop closure measurements",
+           loop_closure_measurements_.size());
 }
 
 void Graph::SetInitialGuess(
@@ -55,16 +66,14 @@ void Graph::SetCameraParams(
     std::vector<std::shared_ptr<vicon_calibration::CameraParams>>
         &camera_params) {
   camera_params_ = camera_params;
-  for (uint16_t i = 0; i < camera_params_.size(); i++) {
-    std::shared_ptr<beam_calibration::CameraModel> cam_pointer;
-    cam_pointer =
-        beam_calibration::CameraModel::LoadJSON(camera_params_[i]->intrinsics);
-    camera_models_.push_back(cam_pointer);
-  }
 }
 
 void Graph::SolveGraph() {
   this->LoadConfig();
+  if (show_camera_measurements_ || show_lidar_measurements_ ||
+      show_loop_closure_correspondences_) {
+    pcl_viewer_ = boost::make_shared<pcl::visualization::PCLVisualizer>();
+  }
   initials_.clear();
   initials_updated_.clear();
   calibration_results_.clear();
@@ -104,6 +113,8 @@ void Graph::LoadConfig() {
   max_iterations_ = J.at("max_iterations");
   show_camera_measurements_ = J.at("show_camera_measurements");
   show_lidar_measurements_ = J.at("show_lidar_measurements");
+  show_loop_closure_correspondences_ =
+      J.at("show_loop_closure_correspondences");
   extract_image_target_perimeter_ = J.at("extract_image_target_perimeter");
   concave_hull_alpha_ = J.at("concave_hull_alpha");
   max_pixel_cor_dist_ = J.at("max_pixel_cor_dist");
@@ -207,6 +218,7 @@ void Graph::Clear() {
   results_.clear();
   camera_correspondences_.clear();
   lidar_correspondences_.clear();
+  lidar_camera_correspondences_.clear();
 }
 
 void Graph::AddInitials() {
@@ -230,131 +242,142 @@ void Graph::SetImageCorrespondences() {
   LOG_INFO("Setting image correspondances");
   int counter = 0;
   Eigen::Matrix4d T_VICONBASE_CAM, T_CAM_TARGET;
-  for (uint32_t meas_iter = 0; meas_iter < camera_measurements_.size();
-       meas_iter++) {
-    vicon_calibration::CameraMeasurement measurement =
-        camera_measurements_[meas_iter];
-    gtsam::Pose3 pose;
-    pose = initials_updated_.at<gtsam::Pose3>(
-        gtsam::Symbol('C', measurement.camera_id));
-    T_VICONBASE_CAM = pose.matrix();
-    T_CAM_TARGET = utils::InvertTransform(T_VICONBASE_CAM) *
-                   measurement.T_VICONBASE_TARGET;
-
-    // convert measurement to 3D (set z to 0)
-    pcl::PointCloud<pcl::PointXYZ>::Ptr measurement_3d =
-        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-    pcl::PointXYZ point;
-    for (pcl::PointCloud<pcl::PointXY>::iterator it =
-             measurement.keypoints->begin();
-         it != measurement.keypoints->end(); ++it) {
-      point.x = it->x;
-      point.y = it->y;
-      point.z = 0;
-      measurement_3d->push_back(point);
-    }
-
-    // Check keypoints to see if we want to find correspondances between
-    // keypoints or between all target points
-    bool use_target_keypoints{false};
-    if (target_params_[measurement.target_id]->keypoints_camera.size() > 0) {
-      use_target_keypoints = true;
-    }
-
-    // get point cloud of projected keypoints
-    pcl::PointCloud<pcl::PointXYZ>::Ptr projected_keypoints =
-        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints =
-        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-    if (use_target_keypoints) {
-      // use keypoints specified in json
-      Eigen::Vector4d keypoint_homo;
-      Eigen::Vector3d keypoint_transformed;
-      pcl::PointXYZ keypoint_transformed_pcl;
-      for (Eigen::Vector3d keypoint :
-           target_params_[measurement.target_id]->keypoints_camera) {
-        keypoint_homo = utils::PointToHomoPoint(keypoint);
-        keypoint_transformed =
-            utils::HomoPointToPoint(T_CAM_TARGET * keypoint_homo);
-        keypoint_transformed_pcl = utils::EigenPointToPCL(keypoint_transformed);
-        transformed_keypoints->push_back(keypoint_transformed_pcl);
+  std::shared_ptr<CameraMeasurement> measurement;
+  for (uint8_t cam_iter = 0; cam_iter < camera_measurements_.size();
+       cam_iter++) {
+    for (uint32_t meas_iter = 0;
+         meas_iter < camera_measurements_[cam_iter].size(); meas_iter++) {
+      if (camera_measurements_[cam_iter][meas_iter] == nullptr) {
+        continue;
       }
-    } else {
-      // use all points from template cloud
-      pcl::transformPointCloud(
-          *(target_params_[measurement.target_id]->template_cloud),
-          *transformed_keypoints, T_CAM_TARGET);
-    }
+      measurement = camera_measurements_[cam_iter][meas_iter];
+      gtsam::Pose3 pose;
+      pose = initials_updated_.at<gtsam::Pose3>(
+          gtsam::Symbol('C', measurement->camera_id));
+      T_VICONBASE_CAM = pose.matrix();
+      T_CAM_TARGET = utils::InvertTransform(T_VICONBASE_CAM) *
+                     measurement->T_VICONBASE_TARGET;
 
-    for (uint32_t i = 0; i < transformed_keypoints->size(); i++) {
-      pcl::PointXYZ point_pcl = transformed_keypoints->at(i);
-      Eigen::Vector2d point_projected;
-      if (camera_params_[measurement.camera_id]->images_distorted) {
-        point_projected = camera_models_[measurement.camera_id]->ProjectPoint(
-            utils::PCLPointToEigen(point_pcl));
-      } else {
-        point_projected =
-            camera_models_[measurement.camera_id]->ProjectUndistortedPoint(
-                utils::PCLPointToEigen(point_pcl));
-      }
-      projected_keypoints->push_back(
-          pcl::PointXYZ(point_projected[0], point_projected[1], 0));
-    }
-
-    boost::shared_ptr<pcl::Correspondences> correspondences =
-        boost::make_shared<pcl::Correspondences>();
-    pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
-        corr_est;
-
-    if (extract_image_target_perimeter_ && !use_target_keypoints) {
-      // keep only perimeter points
-      pcl::PointCloud<pcl::PointXYZ>::Ptr hull_cloud =
+      // convert measurement to 3D (set z to 0)
+      pcl::PointCloud<pcl::PointXYZ>::Ptr measurement_3d =
           boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-      pcl::PointIndices::Ptr hull_point_correspondances =
-          boost::make_shared<pcl::PointIndices>();
-      pcl::ConcaveHull<pcl::PointXYZ> concave_hull;
-      concave_hull.setInputCloud(projected_keypoints);
-      concave_hull.setAlpha(concave_hull_alpha_);
-      concave_hull.setKeepInformation(true);
-      concave_hull.reconstruct(*hull_cloud);
-      concave_hull.getHullPointIndices(*hull_point_correspondances);
+      pcl::PointXYZ point;
+      for (pcl::PointCloud<pcl::PointXY>::iterator it =
+               measurement->keypoints->begin();
+           it != measurement->keypoints->end(); ++it) {
+        point.x = it->x;
+        point.y = it->y;
+        point.z = 0;
+        measurement_3d->push_back(point);
+      }
 
-      // get correspondences
-      boost::shared_ptr<pcl::Correspondences> correspondences_tmp =
+      // Check keypoints to see if we want to find correspondances between
+      // keypoints or between all target points
+      bool use_target_keypoints{false};
+      if (target_params_[measurement->target_id]->keypoints_camera.size() > 0) {
+        use_target_keypoints = true;
+      }
+
+      // get point cloud of projected keypoints
+      pcl::PointCloud<pcl::PointXYZ>::Ptr projected_keypoints =
+          boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+      pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints =
+          boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+      if (use_target_keypoints) {
+        // use keypoints specified in json
+        Eigen::Vector4d keypoint_homo;
+        Eigen::Vector3d keypoint_transformed;
+        pcl::PointXYZ keypoint_transformed_pcl;
+        for (Eigen::Vector3d keypoint :
+             target_params_[measurement->target_id]->keypoints_camera) {
+          keypoint_homo = utils::PointToHomoPoint(keypoint);
+          keypoint_transformed =
+              utils::HomoPointToPoint(T_CAM_TARGET * keypoint_homo);
+          keypoint_transformed_pcl =
+              utils::EigenPointToPCL(keypoint_transformed);
+          transformed_keypoints->push_back(keypoint_transformed_pcl);
+        }
+      } else {
+        // use all points from template cloud
+        pcl::transformPointCloud(
+            *(target_params_[measurement->target_id]->template_cloud),
+            *transformed_keypoints, T_CAM_TARGET);
+      }
+
+      for (uint32_t i = 0; i < transformed_keypoints->size(); i++) {
+        pcl::PointXYZ point_pcl = transformed_keypoints->at(i);
+        Eigen::Vector2d point_projected;
+        if (camera_params_[measurement->camera_id]->images_distorted) {
+          point_projected = camera_params_[measurement->camera_id]
+                                ->camera_model->ProjectPoint(
+                                    utils::PCLPointToEigen(point_pcl));
+        } else {
+          point_projected = camera_params_[measurement->camera_id]
+                                ->camera_model->ProjectUndistortedPoint(
+                                    utils::PCLPointToEigen(point_pcl));
+        }
+        projected_keypoints->push_back(
+            pcl::PointXYZ(point_projected[0], point_projected[1], 0));
+      }
+
+      boost::shared_ptr<pcl::Correspondences> correspondences =
           boost::make_shared<pcl::Correspondences>();
-      corr_est.setInputSource(measurement_3d);
-      corr_est.setInputTarget(hull_cloud);
-      corr_est.determineCorrespondences(*correspondences_tmp,
-                                        max_pixel_cor_dist_);
-      for (int i = 0; i < correspondences_tmp->size(); i++) {
-        int measurement_index = correspondences_tmp->at(i).index_query;
-        int hull_index = correspondences_tmp->at(i).index_match;
-        int target_index = hull_point_correspondances->indices.at(hull_index);
-        correspondences->push_back(
-            pcl::Correspondence(measurement_index, target_index, 0));
-      }
-      if (show_camera_measurements_) {
-        this->ViewCameraMeasurements(measurement_3d, hull_cloud,
-                                     correspondences_tmp);
-      }
-    } else {
-      // get correspondences
-      corr_est.setInputSource(measurement_3d);
-      corr_est.setInputTarget(projected_keypoints);
-      corr_est.determineCorrespondences(*correspondences, max_pixel_cor_dist_);
-      if (show_camera_measurements_) {
-        ViewCameraMeasurements(measurement_3d, projected_keypoints,
-                               correspondences);
-      }
-    }
+      pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
+          corr_est;
 
-    for (uint32_t i = 0; i < correspondences->size(); i++) {
-      counter++;
-      vicon_calibration::Correspondence correspondence;
-      correspondence.measured_point_index = correspondences->at(i).index_query;
-      correspondence.target_point_index = correspondences->at(i).index_match;
-      correspondence.measurement_index = meas_iter;
-      camera_correspondences_.push_back(correspondence);
+      if (extract_image_target_perimeter_ && !use_target_keypoints) {
+        // keep only perimeter points
+        pcl::PointCloud<pcl::PointXYZ>::Ptr hull_cloud =
+            boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+        pcl::PointIndices::Ptr hull_point_correspondances =
+            boost::make_shared<pcl::PointIndices>();
+        pcl::ConcaveHull<pcl::PointXYZ> concave_hull;
+        concave_hull.setInputCloud(projected_keypoints);
+        concave_hull.setAlpha(concave_hull_alpha_);
+        concave_hull.setKeepInformation(true);
+        concave_hull.reconstruct(*hull_cloud);
+        concave_hull.getHullPointIndices(*hull_point_correspondances);
+
+        // get correspondences
+        boost::shared_ptr<pcl::Correspondences> correspondences_tmp =
+            boost::make_shared<pcl::Correspondences>();
+        corr_est.setInputSource(measurement_3d);
+        corr_est.setInputTarget(hull_cloud);
+        corr_est.determineCorrespondences(*correspondences_tmp,
+                                          max_pixel_cor_dist_);
+        for (int i = 0; i < correspondences_tmp->size(); i++) {
+          int measurement_index = correspondences_tmp->at(i).index_query;
+          int hull_index = correspondences_tmp->at(i).index_match;
+          int target_index = hull_point_correspondances->indices.at(hull_index);
+          correspondences->push_back(
+              pcl::Correspondence(measurement_index, target_index, 0));
+        }
+        if (show_camera_measurements_) {
+          this->ViewCameraMeasurements(measurement_3d, hull_cloud,
+                                       correspondences_tmp);
+        }
+      } else {
+        // get correspondences
+        corr_est.setInputSource(measurement_3d);
+        corr_est.setInputTarget(projected_keypoints);
+        corr_est.determineCorrespondences(*correspondences,
+                                          max_pixel_cor_dist_);
+        if (show_camera_measurements_) {
+          ViewCameraMeasurements(measurement_3d, projected_keypoints,
+                                 correspondences);
+        }
+      }
+
+      for (uint32_t i = 0; i < correspondences->size(); i++) {
+        counter++;
+        vicon_calibration::Correspondence correspondence;
+        correspondence.measured_point_index =
+            correspondences->at(i).index_query;
+        correspondence.target_point_index = correspondences->at(i).index_match;
+        correspondence.measurement_index = meas_iter;
+        correspondence.sensor_index = cam_iter;
+        camera_correspondences_.push_back(correspondence);
+      }
     }
   }
   LOG_INFO("Added %d image correspondances.", counter);
@@ -364,64 +387,183 @@ void Graph::SetLidarCorrespondences() {
   LOG_INFO("Setting lidar correspondances");
   int counter = 0;
   Eigen::Matrix4d T_VICONBASE_LIDAR, T_LIDAR_TARGET;
-  for (uint32_t meas_iter = 0; meas_iter < lidar_measurements_.size();
-       meas_iter++) {
-    vicon_calibration::LidarMeasurement measurement =
-        lidar_measurements_[meas_iter];
-    gtsam::Pose3 pose;
-    pose = initials_updated_.at<gtsam::Pose3>(
-        gtsam::Symbol('L', measurement.lidar_id));
-    T_VICONBASE_LIDAR = pose.matrix();
-    T_LIDAR_TARGET = utils::InvertTransform(T_VICONBASE_LIDAR) *
-                     measurement.T_VICONBASE_TARGET;
-
-    // Check keypoints to see if we want to find correspondances between
-    // keypoints or between all target points
-    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints =
-        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-    if (target_params_[measurement.target_id]->keypoints_lidar.size() > 0) {
-      // use keypoints specified in json
-      Eigen::Vector4d keypoint_homo;
-      Eigen::Vector3d keypoint_transformed;
-      pcl::PointXYZ keypoint_transformed_pcl;
-      for (Eigen::Vector3d keypoint :
-           target_params_[measurement.target_id]->keypoints_lidar) {
-        keypoint_homo = utils::PointToHomoPoint(keypoint);
-        keypoint_transformed =
-            utils::HomoPointToPoint(T_LIDAR_TARGET * keypoint_homo);
-        keypoint_transformed_pcl = utils::EigenPointToPCL(keypoint_transformed);
-        transformed_keypoints->push_back(keypoint_transformed_pcl);
+  std::shared_ptr<LidarMeasurement> measurement;
+  for (uint8_t lidar_iter = 0; lidar_iter < lidar_measurements_.size();
+       lidar_iter++) {
+    for (uint32_t meas_iter = 0;
+         meas_iter < lidar_measurements_[lidar_iter].size(); meas_iter++) {
+      if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) {
+        continue;
       }
-    } else {
-      // use all points from template cloud
-      pcl::transformPointCloud(
-          *(target_params_[measurement.target_id]->template_cloud),
-          *transformed_keypoints, T_LIDAR_TARGET);
-    }
+      measurement = lidar_measurements_[lidar_iter][meas_iter];
+      gtsam::Pose3 pose;
+      pose = initials_updated_.at<gtsam::Pose3>(
+          gtsam::Symbol('L', measurement->lidar_id));
+      T_VICONBASE_LIDAR = pose.matrix();
+      T_LIDAR_TARGET = utils::InvertTransform(T_VICONBASE_LIDAR) *
+                       measurement->T_VICONBASE_TARGET;
 
-    // get correspondences
-    pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
-        corr_est;
-    boost::shared_ptr<pcl::Correspondences> correspondences =
-        boost::make_shared<pcl::Correspondences>();
-    corr_est.setInputSource(measurement.keypoints);
-    corr_est.setInputTarget(transformed_keypoints);
-    corr_est.determineCorrespondences(*correspondences, max_point_cor_dist_);
-    if (show_lidar_measurements_) {
-      this->ViewLidarMeasurements(measurement.keypoints, transformed_keypoints,
-                                  correspondences, "measured keypoints",
-                                  "estimated keypoints");
-    }
-    for (uint32_t i = 0; i < correspondences->size(); i++) {
-      counter++;
-      vicon_calibration::Correspondence correspondence;
-      correspondence.target_point_index = correspondences->at(i).index_match;
-      correspondence.measured_point_index = correspondences->at(i).index_query;
-      correspondence.measurement_index = meas_iter;
-      lidar_correspondences_.push_back(correspondence);
+      // Check keypoints to see if we want to find correspondances between
+      // keypoints or between all target points
+      pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints =
+          boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+      if (target_params_[measurement->target_id]->keypoints_lidar.size() > 0) {
+        // use keypoints specified in json
+        Eigen::Vector4d keypoint_homo;
+        Eigen::Vector3d keypoint_transformed;
+        pcl::PointXYZ keypoint_transformed_pcl;
+        for (Eigen::Vector3d keypoint :
+             target_params_[measurement->target_id]->keypoints_lidar) {
+          keypoint_homo = utils::PointToHomoPoint(keypoint);
+          keypoint_transformed =
+              utils::HomoPointToPoint(T_LIDAR_TARGET * keypoint_homo);
+          keypoint_transformed_pcl =
+              utils::EigenPointToPCL(keypoint_transformed);
+          transformed_keypoints->push_back(keypoint_transformed_pcl);
+        }
+      } else {
+        // use all points from template cloud
+        pcl::transformPointCloud(
+            *(target_params_[measurement->target_id]->template_cloud),
+            *transformed_keypoints, T_LIDAR_TARGET);
+      }
+
+      // get correspondences
+      pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
+          corr_est;
+      boost::shared_ptr<pcl::Correspondences> correspondences =
+          boost::make_shared<pcl::Correspondences>();
+      corr_est.setInputSource(measurement->keypoints);
+      corr_est.setInputTarget(transformed_keypoints);
+      corr_est.determineCorrespondences(*correspondences, max_point_cor_dist_);
+      if (show_lidar_measurements_) {
+        this->ViewLidarMeasurements(
+            measurement->keypoints, transformed_keypoints, correspondences,
+            "measured keypoints", "estimated keypoints");
+      }
+      for (uint32_t i = 0; i < correspondences->size(); i++) {
+        counter++;
+        vicon_calibration::Correspondence correspondence;
+        correspondence.target_point_index = correspondences->at(i).index_match;
+        correspondence.measured_point_index =
+            correspondences->at(i).index_query;
+        correspondence.measurement_index = meas_iter;
+        correspondence.sensor_index = lidar_iter;
+        lidar_correspondences_.push_back(correspondence);
+      }
     }
   }
   LOG_INFO("Added %d lidar correspondances.", counter);
+}
+
+void Graph::SetLoopClosureCorrespondences() {
+  Eigen::Matrix4d T_SENSOR_TARGET, T_VICONBASE_SENSOR;
+  Eigen::Vector4d keypoint_transformed;
+  gtsam::Key key;
+  std::shared_ptr<LoopClosureMeasurement> measurement;
+
+  if (show_loop_closure_correspondences_) {
+    LOG_INFO("Showing lidar-camera loop closure measurement correspondences");
+  }
+
+  for (uint32_t meas_iter = 0; meas_iter < loop_closure_measurements_.size();
+       meas_iter++) {
+    measurement = loop_closure_measurements_[meas_iter];
+
+    // Transform lidar target keypoints to lidar frame
+    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_lidar_keypoints =
+        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    for (Eigen::Vector3d keypoint :
+         target_params_[measurement->target_id]->keypoints_lidar) {
+      // get transform from target to lidar
+      key = gtsam::symbol('L', measurement->lidar_id);
+      T_VICONBASE_SENSOR = initials_updated_.at<gtsam::Pose3>(key).matrix();
+      T_SENSOR_TARGET = utils::InvertTransform(T_VICONBASE_SENSOR) *
+                        measurement->T_VICONBASE_TARGET;
+      keypoint_transformed =
+          T_SENSOR_TARGET * utils::PointToHomoPoint(keypoint);
+      transformed_lidar_keypoints->push_back(utils::EigenPointToPCL(
+          utils::HomoPointToPoint(keypoint_transformed)));
+    }
+
+    // Get lidar correspondences
+    pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
+        lidar_corr_est;
+    boost::shared_ptr<pcl::Correspondences> lidar_correspondences =
+        boost::make_shared<pcl::Correspondences>();
+    lidar_corr_est.setInputSource(measurement->keypoints_lidar);
+    lidar_corr_est.setInputTarget(transformed_lidar_keypoints);
+    lidar_corr_est.determineCorrespondences(*lidar_correspondences,
+                                            max_point_cor_dist_);
+
+    // Transform camera target keypoints to camera frame
+    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_camera_keypoints =
+        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    for (Eigen::Vector3d keypoint :
+         target_params_[measurement->target_id]->keypoints_camera) {
+      // get transform from target to camera
+      key = gtsam::symbol('C', measurement->camera_id);
+      T_VICONBASE_SENSOR = initials_updated_.at<gtsam::Pose3>(key).matrix();
+      T_SENSOR_TARGET = utils::InvertTransform(T_VICONBASE_SENSOR) *
+                        measurement->T_VICONBASE_TARGET;
+      keypoint_transformed =
+          T_SENSOR_TARGET * utils::PointToHomoPoint(keypoint);
+      transformed_camera_keypoints->push_back(utils::EigenPointToPCL(
+          utils::HomoPointToPoint(keypoint_transformed)));
+    }
+
+    // convert measurement to 3D (set z to 0)
+    pcl::PointCloud<pcl::PointXYZ>::Ptr camera_measurement_3d =
+        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    pcl::PointXYZ point;
+    for (pcl::PointCloud<pcl::PointXY>::iterator it =
+             measurement->keypoints_camera->begin();
+         it != measurement->keypoints_camera->end(); ++it) {
+      point.x = it->x;
+      point.y = it->y;
+      point.z = 0;
+      camera_measurement_3d->push_back(point);
+    }
+
+    // Get camera correspondences
+    pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
+        camera_corr_est;
+    boost::shared_ptr<pcl::Correspondences> camera_correspondences =
+        boost::make_shared<pcl::Correspondences>();
+    camera_corr_est.setInputSource(camera_measurement_3d);
+    camera_corr_est.setInputTarget(transformed_camera_keypoints);
+    camera_corr_est.determineCorrespondences(*camera_correspondences,
+                                             max_point_cor_dist_);
+
+    // create correspondance and add to list
+    uint32_t num_corr = std::min<uint16_t>(camera_correspondences->size(),
+                                           lidar_correspondences->size());
+    LoopCorrespondence corr;
+    for (uint32_t i = 0; i < num_corr; i++) {
+      corr.camera_target_point_index =
+          camera_correspondences->at(i).index_match;
+      corr.camera_measurement_point_index =
+          camera_correspondences->at(i).index_query;
+      corr.lidar_target_point_index = lidar_correspondences->at(i).index_match;
+      corr.lidar_measurement_point_index =
+          lidar_correspondences->at(i).index_query;
+      corr.camera_id = measurement->camera_id;
+      corr.lidar_id = measurement->lidar_id;
+      corr.measurement_index = meas_iter;
+      corr.target_id = measurement->target_id;
+      lidar_camera_correspondences_.push_back(corr);
+    }
+
+    if (show_loop_closure_correspondences_) {
+      this->ViewLidarMeasurements(
+          measurement->keypoints_lidar, transformed_lidar_keypoints,
+          lidar_correspondences, "measured lidar keypoints",
+          "estimated lidar keypoints");
+      this->ViewCameraMeasurements(camera_measurement_3d,
+                                   transformed_camera_keypoints,
+                                   camera_correspondences);
+    }
+  }
 }
 
 void Graph::SetImageFactors() {
@@ -439,10 +581,10 @@ void Graph::SetImageFactors() {
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   for (vicon_calibration::Correspondence corr : camera_correspondences_) {
     counter++;
-    CameraMeasurement measurement =
-        camera_measurements_[corr.measurement_index];
-    target_index = measurement.target_id;
-    camera_index = measurement.camera_id;
+    std::shared_ptr<CameraMeasurement> measurement =
+        camera_measurements_[corr.sensor_index][corr.measurement_index];
+    target_index = measurement->target_id;
+    camera_index = measurement->camera_id;
 
     if (target_params_[target_index]->keypoints_camera.size() > 0) {
       point = target_params_[target_index]
@@ -454,11 +596,11 @@ void Graph::SetImageFactors() {
     }
 
     pixel = utils::PCLPixelToEigen(
-        measurement.keypoints->at(corr.measured_point_index));
+        measurement->keypoints->at(corr.measured_point_index));
     gtsam::Key key = gtsam::Symbol('C', camera_index);
     graph_.emplace_shared<CameraFactor>(
-        key, pixel, point, camera_models_[camera_index],
-        measurement.T_VICONBASE_TARGET, ImageNoise,
+        key, pixel, point, camera_params_[camera_index]->camera_model,
+        measurement->T_VICONBASE_TARGET, ImageNoise,
         camera_params_[camera_index]->images_distorted);
   }
   LOG_INFO("Added %d image factors.", counter);
@@ -477,9 +619,10 @@ void Graph::SetLidarFactors() {
   int counter = 0;
   for (vicon_calibration::Correspondence corr : lidar_correspondences_) {
     counter++;
-    LidarMeasurement measurement = lidar_measurements_[corr.measurement_index];
-    target_index = measurement.target_id;
-    lidar_index = measurement.lidar_id;
+    std::shared_ptr<LidarMeasurement> measurement =
+        lidar_measurements_[corr.sensor_index][corr.measurement_index];
+    target_index = measurement->target_id;
+    lidar_index = measurement->lidar_id;
 
     if (target_params_[target_index]->keypoints_lidar.size() > 0) {
       point_predicted = target_params_[target_index]
@@ -491,10 +634,10 @@ void Graph::SetLidarFactors() {
     }
 
     point_measured = utils::PCLPointToEigen(
-        measurement.keypoints->at(corr.measured_point_index));
+        measurement->keypoints->at(corr.measured_point_index));
     gtsam::Key key = gtsam::Symbol('L', lidar_index);
     graph_.emplace_shared<LidarFactor>(key, point_measured, point_predicted,
-                                       measurement.T_VICONBASE_TARGET,
+                                       measurement->T_VICONBASE_TARGET,
                                        LidarNoise);
   }
   LOG_INFO("Added %d lidar factors.", counter);
@@ -509,27 +652,30 @@ void Graph::SetLidarCameraFactors() {
   gtsam::Key lidar_key, camera_key;
   Eigen::Vector2d pixel_detected;
   Eigen::Vector3d point_detected, P_T_li, P_T_ci;
-  for (uint32_t i = 0; i < loop_closure_measurements_.size(); i++) {
-    vicon_calibration::LoopClosureMeasurement measurement =
-        loop_closure_measurements_[i];
-    uint16_t num_factors =
-        std::max<uint16_t>(measurement.keypoints_camera->size(),
-                           measurement.keypoints_lidar->size());
-    for (uint16_t j = 0; j < num_factors; j++) {
-      lidar_key = gtsam::Symbol('L', measurement.lidar_id);
-      camera_key = gtsam::Symbol('C', measurement.camera_id);
-      pixel_detected =
-          utils::PCLPixelToEigen(measurement.keypoints_camera->at(j));
-      point_detected =
-          utils::PCLPointToEigen(measurement.keypoints_lidar->at(j));
+  int counter = 0;
+  for (LoopCorrespondence corr : lidar_camera_correspondences_) {
+    counter++;
+    lidar_key = gtsam::Symbol('L', corr.lidar_id);
+    camera_key = gtsam::Symbol('C', corr.camera_id);
 
-      // TODO: Need to calculate the correspondences (pixel_detected -> P_T_ci,
-      // point_detected -> P_T_li). Use same approach as other correspondences?
-      graph_.emplace_shared<CameraLidarFactor>(
-          lidar_key, camera_key, pixel_detected, point_detected, P_T_ci, P_T_li,
-          camera_models_[measurement.camera_id], noiseModel,
-          camera_params_[measurement.camera_id]->images_distorted);
-    }
+    // get measured point/pixel expressed in sensor frame
+    pixel_detected = utils::PCLPixelToEigen(
+        loop_closure_measurements_[corr.measurement_index]
+            ->keypoints_camera->at(corr.camera_measurement_point_index));
+    point_detected = utils::PCLPointToEigen(
+        loop_closure_measurements_[corr.measurement_index]->keypoints_lidar->at(
+            corr.lidar_measurement_point_index));
+
+    // get corresponding target points expressed in target frames
+    P_T_ci = target_params_[corr.target_id]
+                 ->keypoints_camera[corr.camera_target_point_index];
+    P_T_li = target_params_[corr.target_id]
+                 ->keypoints_lidar[corr.lidar_target_point_index];
+
+    graph_.emplace_shared<CameraLidarFactor>(
+        lidar_key, camera_key, pixel_detected, point_detected, P_T_ci, P_T_li,
+        camera_params_[corr.camera_id]->camera_model, noiseModel,
+        camera_params_[corr.camera_id]->images_distorted);
   }
 }
 
@@ -637,25 +783,29 @@ void Graph::ViewCameraMeasurements(
     point.rgb = *reinterpret_cast<float *>(&rgb2);
     c2_col->push_back(point);
   }
-  pcl::visualization::PCLVisualizer::Ptr pcl_viewer =
-      boost::make_shared<pcl::visualization::PCLVisualizer>();
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1_(
       c1_col);
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb2_(
       c2_col);
-  pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, "Cloud1");
-  pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, "Cloud2");
-  pcl_viewer->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
-                                                   *correspondences);
+  pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, "Cloud1");
+  pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, "Cloud2");
+  pcl_viewer_->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
+                                                    *correspondences);
   std::cout << "\nViewer Legend:\n"
             << "  Red   -> detected points\n"
-            << "  Green -> projected points\n";
-  while (!pcl_viewer->wasStopped()) {
-    pcl_viewer->spinOnce(10);
+            << "  Green -> projected points\n"
+            << "Press [c] to continue\n"
+            << "Press [s] to stop showing these measurements.\n";
+  while (!pcl_viewer_->wasStopped() && !close_viewer_) {
+    pcl_viewer_->spinOnce(10);
+    pcl_viewer_->registerKeyboardCallback(
+        &Graph::ConfirmMeasurementKeyboardCallback, *this);
+    std::this_thread::sleep_for(10ms);
   }
-  pcl_viewer->removeAllPointClouds();
-  pcl_viewer->close();
-  pcl_viewer->resetStoppedFlag();
+  close_viewer_ = false;
+  pcl_viewer_->removeAllPointClouds();
+  pcl_viewer_->close();
+  pcl_viewer_->resetStoppedFlag();
 }
 
 void Graph::ViewLidarMeasurements(
@@ -685,25 +835,43 @@ void Graph::ViewLidarMeasurements(
     point.rgb = *reinterpret_cast<float *>(&rgb2);
     c2_col->push_back(point);
   }
-  pcl::visualization::PCLVisualizer::Ptr pcl_viewer =
-      boost::make_shared<pcl::visualization::PCLVisualizer>();
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1_(
       c1_col);
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb2_(
       c2_col);
-  pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, c1_name);
-  pcl_viewer->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, c2_name);
-  pcl_viewer->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
-                                                   *correspondences);
+  pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, c1_name);
+  pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, c2_name);
+  pcl_viewer_->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
+                                                    *correspondences);
   std::cout << "\nViewer Legend:\n"
             << "  Red   -> " << c1_name << "\n"
-            << "  Green -> " << c2_name << "\n";
-  while (!pcl_viewer->wasStopped()) {
-    pcl_viewer->spinOnce(10);
+            << "  Green -> " << c2_name << "\n"
+            << "Press [c] to continue\n"
+            << "Press [s] to stop showing these measurements\n";
+  while (!pcl_viewer_->wasStopped() && !close_viewer_) {
+    pcl_viewer_->spinOnce(10);
+    pcl_viewer_->registerKeyboardCallback(
+        &Graph::ConfirmMeasurementKeyboardCallback, *this);
+    std::this_thread::sleep_for(10ms);
   }
-  pcl_viewer->removeAllPointClouds();
-  pcl_viewer->close();
-  pcl_viewer->resetStoppedFlag();
+  close_viewer_ = false;
+  pcl_viewer_->removeAllPointClouds();
+  pcl_viewer_->removeAllShapes();
+  pcl_viewer_->close();
+  pcl_viewer_->resetStoppedFlag();
+}
+
+void Graph::ConfirmMeasurementKeyboardCallback(
+    const pcl::visualization::KeyboardEvent &event, void *viewer_void) {
+  if (event.getKeySym() == "s" && event.keyDown()) {
+    show_lidar_measurements_ = false;
+    show_camera_measurements_ = false;
+    show_loop_closure_correspondences_ = false;
+    close_viewer_ = true;
+  } else if (event.getKeySym() == "c" && event.keyDown()) {
+    close_viewer_ = true;
+  }
+
 }
 
 } // end namespace vicon_calibration

@@ -72,7 +72,8 @@ JsonTools::LoadCameraParams(const nlohmann::json &J_in) {
   params->frame = J_in.at("frame");
   std::string intrinsics_filename = J_in.at("intrinsics");
   params->intrinsics = utils::GetFilePathData(intrinsics_filename);
-  params->time_steps = J_in.at("time_steps");
+  params->camera_model =
+      beam_calibration::CameraModel::LoadJSON(params->intrinsics);
   params->images_distorted = J_in.at("images_distorted");
   return params;
 }
@@ -82,7 +83,6 @@ JsonTools::LoadLidarParams(const nlohmann::json &J_in) {
   std::shared_ptr<LidarParams> params = std::make_shared<LidarParams>();
   params->topic = J_in.at("topic");
   params->frame = J_in.at("frame");
-  params->time_steps = J_in.at("time_steps");
   return params;
 }
 
@@ -107,9 +107,11 @@ JsonTools::LoadViconCalibratorParams(const std::string &file_name) {
   params->initial_guess_perturbation = tmp;
   params->min_measurement_motion = J["min_measurement_motion"];
   params->vicon_baselink_frame = J["vicon_baselink_frame"];
+  params->time_steps = J["time_steps"];
   params->show_camera_measurements = J["show_camera_measurements"];
   params->show_lidar_measurements = J["show_lidar_measurements"];
   params->run_verification = J["run_verification"];
+  params->use_loop_closure_measurements = J["use_loop_closure_measurements"];
 
   int counter = 0;
   for (const auto &target : J["targets"]) {

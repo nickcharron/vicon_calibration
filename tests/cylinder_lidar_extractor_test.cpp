@@ -123,7 +123,6 @@ void LoadLidarParams() {
   lidar_params = std::make_shared<LidarParams>();
   lidar_params->topic = "null_topic";
   lidar_params->frame = "lidar";
-  lidar_params->time_steps = 0;
 }
 
 void LoadTargetParamsRotated() {

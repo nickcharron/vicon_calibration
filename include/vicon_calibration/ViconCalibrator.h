@@ -86,8 +86,12 @@ private:
       std::make_shared<vicon_calibration::TfTree>();
   std::shared_ptr<vicon_calibration::TfTree> lookup_tree_ =
       std::make_shared<vicon_calibration::TfTree>();
-  std::vector<vicon_calibration::LidarMeasurement> lidar_measurements_;
-  std::vector<vicon_calibration::CameraMeasurement> camera_measurements_;
+  std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>
+      lidar_measurements_;
+  std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>
+      camera_measurements_;
+  std::vector<std::shared_ptr<LoopClosureMeasurement>>
+      loop_closure_measurements_;
   std::vector<vicon_calibration::CalibrationResult> calibrations_result_,
       calibrations_initial_,
       calibrations_perturbed_; // pertubed use for testing with simulation ONLY

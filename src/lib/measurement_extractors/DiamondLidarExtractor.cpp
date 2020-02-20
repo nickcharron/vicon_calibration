@@ -91,7 +91,7 @@ void DiamondLidarExtractor::GetKeypoints() {
     PointCloudColor::Ptr measured_keypoints =
         this->ColourPointCloud(keypoints_measured_, 255, 255, 0);
     this->AddColouredPointCloudToViewer(
-        measured_keypoints, "measured keypoints", T_LIDAR_TARGET_OPT);
+        measured_keypoints, "measured keypoints", T_LIDAR_TARGET_OPT, 5);
 
     Eigen::Matrix4d T_identity;
     T_identity.setIdentity();

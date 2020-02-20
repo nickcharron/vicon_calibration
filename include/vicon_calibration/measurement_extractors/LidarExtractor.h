@@ -80,13 +80,15 @@ protected:
   PointCloudColor::Ptr ColourPointCloud(PointCloud::Ptr &cloud, int r, int g,
                                         int b);
 
-  void AddColouredPointCloudToViewer(PointCloudColor::Ptr &cloud,
+  void AddColouredPointCloudToViewer(const PointCloudColor::Ptr &cloud,
                                      const std::string &cloud_name,
-                                     boost::optional<Eigen::MatrixXd &> T);
+                                     boost::optional<Eigen::MatrixXd &> T,
+                                     int point_size = 1);
 
-  void AddPointCloudToViewer(PointCloud::Ptr &cloud,
+  void AddPointCloudToViewer(const PointCloud::Ptr &cloud,
                              const std::string &cloud_name,
-                             const Eigen::Matrix4d &T);
+                             const Eigen::Matrix4d &T,
+                             int point_size = 1);
 
   void ConfirmMeasurementKeyboardCallback(
       const pcl::visualization::KeyboardEvent &event, void *viewer_void);

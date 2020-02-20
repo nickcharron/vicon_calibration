@@ -71,6 +71,8 @@ private:
 
   void LoadConfig();
 
+  void ResetViewer();
+
   void ViewLidarMeasurements(
       const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,
       const pcl::PointCloud<pcl::PointXYZ>::Ptr &c2,

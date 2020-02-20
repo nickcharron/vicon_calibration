@@ -1,6 +1,6 @@
 #include "vicon_calibration/measurement_extractors/LidarExtractor.h"
-#include <boost/make_shared.hpp>
 #include <beam_filtering/CropBox.h>
+#include <boost/make_shared.hpp>
 #include <chrono>
 #include <thread>
 
@@ -35,9 +35,7 @@ void LidarExtractor::SetShowMeasurements(const bool &show_measurements) {
   show_measurements_ = show_measurements;
 }
 
-bool LidarExtractor::GetShowMeasurements() {
-  return show_measurements_;
-}
+bool LidarExtractor::GetShowMeasurements() { return show_measurements_; }
 
 bool LidarExtractor::GetMeasurementValid() {
   if (!measurement_complete_) {
@@ -49,8 +47,9 @@ bool LidarExtractor::GetMeasurementValid() {
 }
 
 // TODO: move this to json tools object
-void LidarExtractor::LoadConfig(){
-  std::string config_path = utils::GetFilePathConfig("LidarExtractorConfig.json");
+void LidarExtractor::LoadConfig() {
+  std::string config_path =
+      utils::GetFilePathConfig("LidarExtractorConfig.json");
   nlohmann::json J;
   std::ifstream file(config_path);
   file >> J;
@@ -123,9 +122,8 @@ void LidarExtractor::CropScan() {
   cropper.Filter(*scan_in_, *scan_cropped_);
 }
 
-PointCloudColor::Ptr
-LidarExtractor::ColourPointCloud(PointCloud::Ptr &cloud, int r, int g,
-                                         int b) {
+PointCloudColor::Ptr LidarExtractor::ColourPointCloud(PointCloud::Ptr &cloud,
+                                                      int r, int g, int b) {
   PointCloudColor::Ptr coloured_cloud;
   coloured_cloud = boost::make_shared<PointCloudColor>();
   uint32_t rgb = (static_cast<uint32_t>(r) << 16 |
@@ -142,9 +140,10 @@ LidarExtractor::ColourPointCloud(PointCloud::Ptr &cloud, int r, int g,
 }
 
 void LidarExtractor::AddColouredPointCloudToViewer(
-    PointCloudColor::Ptr &cloud, const std::string &cloud_name,
-    boost::optional<Eigen::MatrixXd &> T = boost::none) {
-  if(T){
+    const PointCloudColor::Ptr &cloud, const std::string &cloud_name,
+    boost::optional<Eigen::MatrixXd &> T = boost::none,
+    int point_size) {
+  if (T) {
     Eigen::Affine3f TA;
     TA.matrix() = (*T).cast<float>();
     pcl_viewer_->addCoordinateSystem(1, TA, cloud_name + "frame");
@@ -159,23 +158,24 @@ void LidarExtractor::AddColouredPointCloudToViewer(
       cloud);
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(cloud, rgb, cloud_name);
   pcl_viewer_->setPointCloudRenderingProperties(
-      pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, cloud_name);
+      pcl::visualization::PCL_VISUALIZER_POINT_SIZE, point_size, cloud_name);
 }
 
-void LidarExtractor::AddPointCloudToViewer(
-    PointCloud::Ptr &cloud, const std::string &cloud_name,
-    const Eigen::Matrix4d &T) {
+void LidarExtractor::AddPointCloudToViewer(const PointCloud::Ptr &cloud,
+                                           const std::string &cloud_name,
+                                           const Eigen::Matrix4d &T,
+                                           int point_size) {
   Eigen::Affine3f TA;
   TA.matrix() = T.cast<float>();
   pcl_viewer_->addPointCloud<pcl::PointXYZ>(cloud, cloud_name);
+  pcl_viewer_->setPointCloudRenderingProperties(
+      pcl::visualization::PCL_VISUALIZER_POINT_SIZE, point_size, cloud_name);
   pcl_viewer_->addCoordinateSystem(1, TA, cloud_name + "frame");
   pcl::PointXYZ point;
   point.x = T(0, 3);
   point.y = T(1, 3);
   point.z = T(2, 3);
   pcl_viewer_->addText3D(cloud_name + " ", point, 0.05, 0.05, 0.05);
-  pcl_viewer_->setPointCloudRenderingProperties(
-      pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, cloud_name);
 }
 
 void LidarExtractor::ConfirmMeasurementKeyboardCallback(

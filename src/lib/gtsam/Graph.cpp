@@ -72,7 +72,7 @@ void Graph::SolveGraph() {
   this->LoadConfig();
   if (show_camera_measurements_ || show_lidar_measurements_ ||
       show_loop_closure_correspondences_) {
-    pcl_viewer_ = boost::make_shared<pcl::visualization::PCLVisualizer>();
+    this->ResetViewer();
   }
   initials_.clear();
   initials_updated_.clear();
@@ -816,11 +816,12 @@ void Graph::ViewCameraMeasurements(
       c1_col);
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb2_(
       c2_col);
-  pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, "Cloud1");
-  pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, "Cloud2");
+  this->ResetViewer();
+  pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, c1_name);
+  pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, c2_name);
   pcl_viewer_->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
                                                     *correspondences);
-  pcl_viewer_->resetCameraViewpoint();
+  // pcl_viewer_->resetCameraViewpoint(c1_name);
   std::cout << "\nViewer Legend:\n"
             << "  Red   -> " << c1_name << "\n"
             << "  Green -> " << c2_name << "\n"
@@ -836,8 +837,12 @@ void Graph::ViewCameraMeasurements(
   close_viewer_ = false;
   pcl_viewer_->removeAllPointClouds();
   pcl_viewer_->removeAllShapes();
-  pcl_viewer_->close();
   pcl_viewer_->resetStoppedFlag();
+  pcl_viewer_->close();
+}
+
+void Graph::ResetViewer(){
+  pcl_viewer_ = boost::make_shared<pcl::visualization::PCLVisualizer>();
 }
 
 void Graph::ViewLidarMeasurements(
@@ -871,11 +876,12 @@ void Graph::ViewLidarMeasurements(
       c1_col);
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb2_(
       c2_col);
+  this->ResetViewer();
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, c1_name);
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, c2_name);
   pcl_viewer_->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
                                                     *correspondences);
-  pcl_viewer_->resetCameraViewpoint();
+  // pcl_viewer_->resetCameraViewpoint(c1_name);
   std::cout << "\nViewer Legend:\n"
             << "  Red   -> " << c1_name << "\n"
             << "  Green -> " << c2_name << "\n"

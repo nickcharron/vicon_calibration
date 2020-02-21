@@ -112,6 +112,12 @@ protected:
   bool lidar_params_set_{false};
   bool close_viewer_{false};
   bool measurement_failed_{false}; // used for visualization only
+  bool white_cloud_on_ = true;
+  bool blue_cloud_on_ = true;
+  bool green_cloud_on_ = true;
+  bool viewer_key_down_ = false;
+  PointCloudColor::Ptr blue_cloud_, green_cloud_;
+  PointCloud::Ptr white_cloud_;
 
   // params:
   std::shared_ptr<vicon_calibration::LidarParams> lidar_params_;

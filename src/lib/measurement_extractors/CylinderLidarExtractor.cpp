@@ -39,8 +39,8 @@ void CylinderLidarExtractor::GetKeypoints() {
       T_identity.setIdentity();
       scan_cropped_coloured = this->ColourPointCloud(scan_cropped_, 255, 0, 0);
       this->AddColouredPointCloudToViewer(scan_cropped_coloured,
-                                          "Coloured Cropped Scan ", T_identity);
-      this->AddPointCloudToViewer(scan_in_, "Input Scan", T_identity);
+                                          "red_cloud", T_identity);
+      this->AddPointCloudToViewer(scan_in_, "white_cloud", T_identity);
       this->ShowFailedMeasurement();
       pcl_viewer_->resetStoppedFlag();
     }
@@ -161,7 +161,7 @@ void CylinderLidarExtractor::CheckErrors() {
                              *estimated_template_cloud,
                              T_LIDAR_TARGET_EST_.cast<float>());
     this->AddColouredPointCloudToViewer(estimated_template_cloud,
-                                        "estimated template cloud ",
+                                        "blue_cloud",
                                         T_LIDAR_TARGET_EST_);
 
     PointCloudColor::Ptr measured_template_cloud =
@@ -171,11 +171,11 @@ void CylinderLidarExtractor::CheckErrors() {
     pcl::transformPointCloud(*measured_template_cloud, *measured_template_cloud,
                              T_LIDAR_TARGET_OPT_.cast<float>());
     this->AddColouredPointCloudToViewer(measured_template_cloud,
-                                        "measured template cloud",
+                                        "green_cloud",
                                         T_LIDAR_TARGET_OPT_);
     Eigen::Matrix4d T_identity;
     T_identity.setIdentity();
-    this->AddPointCloudToViewer(scan_cropped_, "cropped scan", T_identity);
+    this->AddPointCloudToViewer(scan_cropped_, "white_cloud", T_identity);
     this->ShowFinalTransformation();
   }
 }

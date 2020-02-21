@@ -71,5 +71,9 @@
      "images_distorted": true}
   ],
   "lidar_params":[
+    {"topic": "/hvlp/velodyne_points",
+     "frame": "hvlp_link"},
+    {"topic": "/vvlp/velodyne_points",
+     "frame": "vvlp_link"}
   ]
 }

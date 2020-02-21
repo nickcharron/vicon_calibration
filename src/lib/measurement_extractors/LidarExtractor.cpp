@@ -141,8 +141,14 @@ PointCloudColor::Ptr LidarExtractor::ColourPointCloud(PointCloud::Ptr &cloud,
 
 void LidarExtractor::AddColouredPointCloudToViewer(
     const PointCloudColor::Ptr &cloud, const std::string &cloud_name,
-    boost::optional<Eigen::MatrixXd &> T = boost::none,
-    int point_size) {
+    boost::optional<Eigen::MatrixXd &> T = boost::none, int point_size) {
+  if (cloud_name == "blue_cloud") {
+    blue_cloud_ = cloud;
+    blue_cloud_on_ = true;
+  } else if (cloud_name == "green_cloud") {
+    green_cloud_ = cloud;
+    green_cloud_on_ = true;
+  }
   if (T) {
     Eigen::Affine3f TA;
     TA.matrix() = (*T).cast<float>();
@@ -165,6 +171,10 @@ void LidarExtractor::AddPointCloudToViewer(const PointCloud::Ptr &cloud,
                                            const std::string &cloud_name,
                                            const Eigen::Matrix4d &T,
                                            int point_size) {
+  if (cloud_name == "white_cloud") {
+    white_cloud_ = cloud;
+    white_cloud_on_ = true;
+  }
   Eigen::Affine3f TA;
   TA.matrix() = T.cast<float>();
   pcl_viewer_->addPointCloud<pcl::PointXYZ>(cloud, cloud_name);
@@ -180,23 +190,61 @@ void LidarExtractor::AddPointCloudToViewer(const PointCloud::Ptr &cloud,
 
 void LidarExtractor::ConfirmMeasurementKeyboardCallback(
     const pcl::visualization::KeyboardEvent &event, void *viewer_void) {
+  // check if key has been down for two consecutive spins
+  if(viewer_key_down_ && event.keyDown()) {
+    return;
+  } else if (viewer_key_down_ && !event.keyDown()){
+    viewer_key_down_ = false;
+    return;
+  } else if (!viewer_key_down_ && event.keyDown()){
+    viewer_key_down_ = true;
+  } else if (!viewer_key_down_ && !event.keyDown()) {
+    return;
+  }
   if (measurement_failed_) {
-    if (event.getKeySym() == "c" && event.keyDown()) {
+    if (event.getKeySym() == "c") {
       measurement_failed_ = false;
       close_viewer_ = true;
     }
   } else {
-    if (event.getKeySym() == "y" && event.keyDown()) {
+    if (event.getKeySym() == "y") {
       measurement_valid_ = true;
       close_viewer_ = true;
-    } else if (event.getKeySym() == "n" && event.keyDown()) {
+    } else if (event.getKeySym() == "n") {
       measurement_valid_ = false;
       close_viewer_ = true;
-    } else if (event.getKeySym() == "c" && event.keyDown()) {
+    } else if (event.getKeySym() == "c") {
       close_viewer_ = true;
-    } else if (event.getKeySym() == "s" && event.keyDown()) {
+    } else if (event.getKeySym() == "s") {
       this->SetShowMeasurements(false);
       close_viewer_ = true;
+    } else if (event.getKeySym() == "KP_1") {
+      std::string cloud_id = "white_cloud";
+      if (white_cloud_on_) {
+        white_cloud_on_ = false;
+        pcl_viewer_->removePointCloud(cloud_id);
+      } else {
+        white_cloud_on_ = true;
+        pcl_viewer_->addPointCloud(white_cloud_, cloud_id);
+      }
+    } else if (event.getKeySym() == "KP_2") {
+      std::string cloud_id = "blue_cloud";
+      if (blue_cloud_on_) {
+        blue_cloud_on_ = false;
+        pcl_viewer_->removePointCloud(cloud_id);
+      } else {
+        blue_cloud_on_ = true;
+        pcl_viewer_->addPointCloud(blue_cloud_, cloud_id);
+      }
+    } else if (event.getKeySym() == "KP_3") {
+      std::string cloud_id = "green_cloud";
+      if (green_cloud_on_) {
+        green_cloud_on_ = false;
+        pcl_viewer_->removePointCloud(cloud_id);
+      } else {
+        green_cloud_on_ = true;
+        pcl_viewer_->addPointCloud(green_cloud_, cloud_id);
+      }
     }
   }
 }
@@ -238,9 +286,9 @@ void LidarExtractor::ShowFailedMeasurement() {
 
 void LidarExtractor::ShowFinalTransformation() {
   std::cout << "\nViewer Legend:\n"
-            << "  White -> scan\n"
-            << "  Blue  -> target initial guess\n"
-            << "  Green -> target aligned\n"
+            << "  White -> scan (press 1 to toggle on/off)\n"
+            << "  Blue  -> target initial guess (press 2 to toggle on/off)\n"
+            << "  Green -> target aligned (press 3 to toggle on/off)\n"
             << "Accept measurement? [y/n]\n"
             << "Press [c] to accept default\n"
             << "Press [s] to stop showing future measurements\n";

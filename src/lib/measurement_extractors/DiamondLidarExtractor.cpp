@@ -33,8 +33,8 @@ void DiamondLidarExtractor::GetKeypoints() {
       T_identity.setIdentity();
       scan_cropped_coloured = this->ColourPointCloud(scan_cropped_, 255, 0, 0);
       this->AddColouredPointCloudToViewer(scan_cropped_coloured,
-                                          "Coloured Cropped Scan ", T_identity);
-      this->AddPointCloudToViewer(scan_in_, "Input Scan", T_identity);
+                                          "red_cloud", T_identity);
+      this->AddPointCloudToViewer(scan_in_, "white_cloud", T_identity);
       this->ShowFailedMeasurement();
       pcl_viewer_->resetStoppedFlag();
     }
@@ -76,7 +76,7 @@ void DiamondLidarExtractor::GetKeypoints() {
                              *estimated_template_cloud,
                              T_LIDAR_TARGET_EST_.cast<float>());
     this->AddColouredPointCloudToViewer(estimated_template_cloud,
-                                        "estimated template cloud ",
+                                        "blue_cloud",
                                         T_LIDAR_TARGET_EST_);
 
     // add measured template cloud
@@ -85,17 +85,17 @@ void DiamondLidarExtractor::GetKeypoints() {
     pcl::transformPointCloud(*measured_template_cloud, *measured_template_cloud,
                              T_LIDAR_TARGET_OPT.cast<float>());
     this->AddColouredPointCloudToViewer(
-        measured_template_cloud, "measured template cloud", T_LIDAR_TARGET_OPT);
+        measured_template_cloud, "green_cloud", T_LIDAR_TARGET_OPT);
 
     // add keypoints
     PointCloudColor::Ptr measured_keypoints =
         this->ColourPointCloud(keypoints_measured_, 255, 255, 0);
     this->AddColouredPointCloudToViewer(
-        measured_keypoints, "measured keypoints", T_LIDAR_TARGET_OPT, 5);
+        measured_keypoints, "keypoints", T_LIDAR_TARGET_OPT, 5);
 
     Eigen::Matrix4d T_identity;
     T_identity.setIdentity();
-    this->AddPointCloudToViewer(scan_cropped_, "cropped scan", T_identity);
+    this->AddPointCloudToViewer(scan_cropped_, "white_cloud", T_identity);
     this->ShowFinalTransformation();
   }
 }

@@ -216,7 +216,7 @@ void Graph::CheckInputs() {
 }
 
 void Graph::Clear() {
-  if(skip_to_next_iteration_){
+  if (skip_to_next_iteration_) {
     stop_all_vis_ = false;
     skip_to_next_iteration_ = false;
   }
@@ -580,7 +580,7 @@ void Graph::SetLoopClosureCorrespondences() {
           lidar_correspondences, "measured lidar keypoints",
           "estimated lidar keypoints");
     }
-    if (show_loop_closure_correspondences_ && !stop_all_vis_){
+    if (show_loop_closure_correspondences_ && !stop_all_vis_) {
       this->ViewCameraMeasurements(
           camera_measurement_3d, estimated_camera_keypoints,
           camera_correspondences, "measured camera points",
@@ -784,6 +784,11 @@ bool Graph::HasConverged(uint16_t iteration) {
   return true;
 }
 
+void Graph::ResetViewer() {
+  pcl_viewer_ = boost::make_shared<pcl::visualization::PCLVisualizer>();
+  pcl_viewer_->setBackgroundColor(255, 255, 255);
+}
+
 void Graph::ViewCameraMeasurements(
     const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,
     const pcl::PointCloud<pcl::PointXYZ>::Ptr &c2,
@@ -819,9 +824,13 @@ void Graph::ViewCameraMeasurements(
   this->ResetViewer();
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, c1_name);
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, c2_name);
-  pcl_viewer_->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
-                                                    *correspondences);
-  // pcl_viewer_->resetCameraViewpoint(c1_name);
+  double width = 2;
+  int property = pcl::visualization::PCL_VISUALIZER_LINE_WIDTH;
+  std::string shape_id = "correspondences";
+  pcl_viewer_->addCorrespondences<pcl::PointXYZRGB>(
+      c1_col, c2_col, *correspondences, shape_id);
+  pcl_viewer_->setShapeRenderingProperties(property, width, shape_id);
+
   std::cout << "\nViewer Legend:\n"
             << "  Red   -> " << c1_name << "\n"
             << "  Green -> " << c2_name << "\n"
@@ -839,10 +848,6 @@ void Graph::ViewCameraMeasurements(
   pcl_viewer_->removeAllShapes();
   pcl_viewer_->resetStoppedFlag();
   pcl_viewer_->close();
-}
-
-void Graph::ResetViewer(){
-  pcl_viewer_ = boost::make_shared<pcl::visualization::PCLVisualizer>();
 }
 
 void Graph::ViewLidarMeasurements(
@@ -879,9 +884,13 @@ void Graph::ViewLidarMeasurements(
   this->ResetViewer();
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, c1_name);
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, c2_name);
-  pcl_viewer_->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
-                                                    *correspondences);
-  // pcl_viewer_->resetCameraViewpoint(c1_name);
+  double width = 2;
+  int property = pcl::visualization::PCL_VISUALIZER_LINE_WIDTH;
+  std::string shape_id = "correspondences";
+  pcl_viewer_->addCorrespondences<pcl::PointXYZRGB>(
+      c1_col, c2_col, *correspondences, shape_id);
+  pcl_viewer_->setShapeRenderingProperties(property, width, shape_id);
+
   std::cout << "\nViewer Legend:\n"
             << "  Red   -> " << c1_name << "\n"
             << "  Green -> " << c2_name << "\n"

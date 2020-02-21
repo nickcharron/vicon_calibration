@@ -2,40 +2,24 @@
   "bag_file": "/home/nick/bag_files/vicon_calibration/ig_calibration_static_tgts_2020-01-20-10-16-04.bag",
   "initial_calibration": "initial_calibration_ig_current.json",
   "lookup_tf_calibrations": true,
-  "initial_guess_perturb": [0.007, 0.015, 0, 0.2, 0.1, -0.3],
+  "initial_guess_perturb": [0.007, 0.015, 0, 0.02, 0.01, -0.03],
   "min_measurement_motion": 0.05,
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
   "time_steps": 2,
-  "show_camera_measurements": false,
-  "show_lidar_measurements": false,
+  "show_camera_measurements": true,
+  "show_lidar_measurements": true,
   "run_verification": true,
   "use_loop_closure_measurements": true,
   "targets":[
-    {"frame_id": "vicon/target1/target1",
-     "extractor_type": "CYLINDER",
-     "target_config": "CylinderTarget.json"
+    {"frame_id": "vicon/target8/target8",
+     "extractor_type": "DIAMOND",
+     "target_config": "DiamondTarget.json"
     },
     {"frame_id": "vicon/target2/target2",
      "extractor_type": "CYLINDER",
      "target_config": "CylinderTarget.json"
     },
     {"frame_id": "vicon/target3/target3",
-     "extractor_type": "CYLINDER",
-     "target_config": "CylinderTarget.json"
-    },
-    {"frame_id": "vicon/target4/target4",
-     "extractor_type": "CYLINDER",
-     "target_config": "CylinderTarget.json"
-    },
-    {"frame_id": "vicon/target5/target5",
-     "extractor_type": "CYLINDER",
-     "target_config": "CylinderTarget.json"
-    },
-    {"frame_id": "vicon/target6/target6",
-     "extractor_type": "CYLINDER",
-     "target_config": "CylinderTarget.json"
-    },
-    {"frame_id": "vicon/target7/target7",
      "extractor_type": "CYLINDER",
      "target_config": "CylinderTarget.json"
     }
@@ -47,5 +31,7 @@
      "images_distorted": true}
   ],
   "lidar_params":[
+    {"topic": "/hvlp/velodyne_points",
+     "frame": "hvlp_link"}
   ]
 }

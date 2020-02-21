@@ -5,7 +5,7 @@
   "show_loop_closure_correspondences": true,
   "extract_image_target_perimeter": true,
   "concave_hull_alpha": 10,
-  "max_pixel_cor_dist": 500,
+  "max_pixel_cor_dist": 1000,
   "max_point_cor_dist": 100,
   "abs_error_tol": 1e-9,
   "rel_error_tol": 1e-9,

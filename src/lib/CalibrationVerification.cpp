@@ -151,9 +151,9 @@ void CalibrationVerification::PrintCalibrationErrors(){
          << "rpy error (deg): [" << rpy_error[0] * RAD_TO_DEG << ", "
          << rpy_error[1] * RAD_TO_DEG << ", "
          << rpy_error[2] * RAD_TO_DEG << "]\n"
-         << "translation error (deg): [" << t_error[0] << ", "
-         << t_error[1] << ", "
-         << t_error[2] << "]\n\n";
+         << "translation error (mm): [" << t_error[0]*1000 << ", "
+         << t_error[1]*1000 << ", "
+         << t_error[2]*1000 << "]\n\n";
   }
 
   std::cout << "params_->using_simulation: " << params_->using_simulation << "\n";
@@ -186,9 +186,9 @@ void CalibrationVerification::PrintCalibrationErrors(){
          << "rpy error (deg): [" << rpy_error[0] * RAD_TO_DEG << ", "
          << rpy_error[1] * RAD_TO_DEG << ", "
          << rpy_error[2] * RAD_TO_DEG << "]\n"
-         << "translation error (deg): [" << t_error[0] << ", "
-         << t_error[1] << ", "
-         << t_error[2] << "]\n\n";
+         << "translation error (mm): [" << t_error[0]*1000 << ", "
+         << t_error[1]*1000 << ", "
+         << t_error[2]*1000 << "]\n\n";
   }
 
   // next print errors between perturbed calibration and final
@@ -216,9 +216,9 @@ void CalibrationVerification::PrintCalibrationErrors(){
          << "rpy error (deg): [" << rpy_error[0] * RAD_TO_DEG << ", "
          << rpy_error[1] * RAD_TO_DEG << ", "
          << rpy_error[2] * RAD_TO_DEG << "]\n"
-         << "translation error (deg): [" << t_error[0] << ", "
-         << t_error[1] << ", "
-         << t_error[2] << "]\n\n";
+         << "translation error (mm): [" << t_error[0]*1000 << ", "
+         << t_error[1]*1000 << ", "
+         << t_error[2]*1000 << "]\n\n";
   }
 }
 

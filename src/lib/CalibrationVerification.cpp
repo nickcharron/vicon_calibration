@@ -50,10 +50,14 @@ void CalibrationVerification::ProcessResults() {
   }
 
   this->CreateDirectories();
+  this->PrintConfig();
   this->PrintCalibrations(calibrations_initial_, "initial_calibrations.txt");
-  this->PrintCalibrations(calibrations_perturbed_,
-                          "perturbed_calibrations.txt");
   this->PrintCalibrations(calibrations_result_, "optimized_calibrations.txt");
+  if(params_->using_simulation){
+    this->PrintCalibrations(calibrations_perturbed_,
+                            "perturbed_calibrations.txt");
+  }
+
   this->SaveLidarResults();
   this->SaveCameraResults();
 }
@@ -114,9 +118,9 @@ void CalibrationVerification::PrintCalibrations(
     Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
     file << "T_" << calib[i].to_frame << "_" << calib[i].from_frame << ":\n"
          << T << "\n"
-         << "rpy (deg): [" << utils::WrapToPi(rpy[0]) * RAD_TO_DEG << ", "
-         << utils::WrapToPi(rpy[1]) * RAD_TO_DEG << ", "
-         << utils::WrapToPi(rpy[2]) * RAD_TO_DEG << "]\n";
+         << "rpy (deg): [" << utils::WrapToTwoPi(rpy[0]) * RAD_TO_DEG << ", "
+         << utils::WrapToTwoPi(rpy[1]) * RAD_TO_DEG << ", "
+         << utils::WrapToTwoPi(rpy[2]) * RAD_TO_DEG << "]\n";
   }
 }
 
@@ -145,12 +149,22 @@ void CalibrationVerification::SaveLidarResults() {
 
     // get initial calibration and optimized calibration
     Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_opt;
-    for (CalibrationResult calib : calibrations_perturbed_) {
-      if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
-        TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
-        break;
+    if(params_->using_simulation){
+      for (CalibrationResult calib : calibrations_perturbed_) {
+        if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
+          TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
+          break;
+        }
+      }
+    } else {
+      for (CalibrationResult calib : calibrations_initial_) {
+        if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
+          TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
+          break;
+        }
       }
     }
+
     for (CalibrationResult calib : calibrations_result_) {
       if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
         TA_VICONBASE_SENSOR_opt.matrix() = calib.transform;
@@ -250,12 +264,22 @@ void CalibrationVerification::SaveCameraResults() {
 
     // get initial calibration and optimized calibration
     Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_opt;
-    for (CalibrationResult calib : calibrations_perturbed_) {
-      if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
-        TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
-        break;
+    if(params_->using_simulation){
+      for (CalibrationResult calib : calibrations_perturbed_) {
+        if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
+          TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
+          break;
+        }
+      }
+    } else {
+      for (CalibrationResult calib : calibrations_initial_) {
+        if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
+          TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
+          break;
+        }
       }
     }
+
     for (CalibrationResult calib : calibrations_result_) {
       if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
         TA_VICONBASE_SENSOR_opt.matrix() = calib.transform;

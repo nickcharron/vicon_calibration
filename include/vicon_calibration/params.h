@@ -117,6 +117,7 @@ struct CalibratorConfig {
   std::string bag_file;
   std::string initial_calibration_file;
   bool lookup_tf_calibrations{false};
+  bool using_simulation{false};
   std::string vicon_baselink_frame;
   double time_steps;
   bool show_camera_measurements{false};

@@ -156,12 +156,20 @@ ViconCalibrator::GetInitialGuess(std::string &sensor_frame) {
     Eigen::Affine3d T_VICONBASE_TGTn = lookup_tree_->GetTransformEigen(
         params_->vicon_baselink_frame, params_->target_params[n]->frame_id,
         lookup_time_);
-    // perturb  for simulation testing ONLY
-    Eigen::Affine3d TA_VICONBASE_SENSOR_pert_;
-    TA_VICONBASE_SENSOR_pert_.matrix() = T_VICONBASE_SENSOR_pert_;
-    Eigen::Affine3d T_SENSOR_pert_TGTn =
-        TA_VICONBASE_SENSOR_pert_.inverse() * T_VICONBASE_TGTn;
-    T_sensor_tgts_estimated.push_back(T_SENSOR_pert_TGTn);
+    Eigen::Affine3d T_SENSOR_TGTn;
+    if(params_->using_simulation){
+      // perturb  for simulation testing ONLY
+      Eigen::Affine3d TA_VICONBASE_SENSOR_pert;
+      TA_VICONBASE_SENSOR_pert.matrix() = T_VICONBASE_SENSOR_pert_;
+      T_SENSOR_TGTn =
+          TA_VICONBASE_SENSOR_pert.inverse() * T_VICONBASE_TGTn;
+    } else {
+      Eigen::Affine3d TA_VICONBASE_SENSOR;
+      TA_VICONBASE_SENSOR.matrix() = T_VICONBASE_SENSOR_;
+      T_SENSOR_TGTn =
+          TA_VICONBASE_SENSOR.inverse() * T_VICONBASE_TGTn;
+    }
+    T_sensor_tgts_estimated.push_back(T_SENSOR_TGTn);
   }
   return T_sensor_tgts_estimated;
 }
@@ -197,8 +205,11 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
   ros::Duration time_step(params_->time_steps);
   ros::Time time_last(0, 0);
   this->GetInitialCalibration(sensor_frame, SensorType::LIDAR, lidar_iter);
-  this->GetInitialCalibrationPerturbed(sensor_frame, SensorType::LIDAR,
-                                       lidar_iter);
+  if(params_->using_simulation){
+    this->GetInitialCalibrationPerturbed(sensor_frame, SensorType::LIDAR,
+                                         lidar_iter);
+  }
+
   boost::shared_ptr<sensor_msgs::PointCloud2> lidar_msg;
   for (auto iter = view.begin(); iter != view.end(); iter++) {
     lidar_msg = iter->instantiate<sensor_msgs::PointCloud2>();
@@ -313,8 +324,11 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
   ros::Time time_last = view.getBeginTime();
 
   this->GetInitialCalibration(sensor_frame, SensorType::CAMERA, cam_iter);
-  this->GetInitialCalibrationPerturbed(sensor_frame, SensorType::CAMERA,
-                                       cam_iter);
+  if(params_->using_simulation){
+    this->GetInitialCalibrationPerturbed(sensor_frame, SensorType::CAMERA,
+                                         cam_iter);
+  }
+
   sensor_msgs::ImageConstPtr img_msg;
   cv::Mat current_image;
   for (auto iter = view.begin(); iter != view.end(); iter++) {
@@ -529,23 +543,30 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
   graph_.SetCameraParams(params_->camera_params);
   graph_.SetCameraMeasurements(camera_measurements_);
   graph_.SetLoopClosureMeasurements(loop_closure_measurements_);
-  // TODO: Change this to calibrations_initial_
-  // graph_.SetInitialGuess(calibrations_initial_);
-  graph_.SetInitialGuess(calibrations_perturbed_);
+  if(params_->using_simulation){
+    graph_.SetInitialGuess(calibrations_perturbed_);
+  } else {
+    graph_.SetInitialGuess(calibrations_initial_);
+  }
+
   graph_.SolveGraph();
   calibrations_result_ = graph_.GetResults();
   utils::OutputCalibrations(calibrations_initial_,
                             "Initial Calibration Estimates:");
-  utils::OutputCalibrations(calibrations_perturbed_, "Perturbed Calibrations:");
   utils::OutputCalibrations(calibrations_result_, "Optimized Calibrations:");
+  if(params_->using_simulation){
+    utils::OutputCalibrations(calibrations_perturbed_, "Perturbed Calibrations:");
+  }
 
   if (params_->run_verification) {
     CalibrationVerification ver;
     ver.SetConfig(config_file_path_);
     ver.SetParams(params_);
     ver.SetInitialCalib(calibrations_initial_);
-    ver.SetPeturbedCalib(calibrations_perturbed_);
     ver.SetOptimizedCalib(calibrations_result_);
+    if(params_->using_simulation){
+      ver.SetPeturbedCalib(calibrations_perturbed_);
+    }
     ver.ProcessResults();
   }
   return;

@@ -57,7 +57,7 @@ void CalibrationVerification::ProcessResults() {
     this->PrintCalibrations(calibrations_perturbed_,
                             "perturbed_calibrations.txt");
   }
-
+  this->PrintCalibrationErrors();
   this->SaveLidarResults();
   this->SaveCameraResults();
 }
@@ -121,6 +121,104 @@ void CalibrationVerification::PrintCalibrations(
          << "rpy (deg): [" << utils::WrapToTwoPi(rpy[0]) * RAD_TO_DEG << ", "
          << utils::WrapToTwoPi(rpy[1]) * RAD_TO_DEG << ", "
          << utils::WrapToTwoPi(rpy[2]) * RAD_TO_DEG << "]\n";
+  }
+}
+
+void CalibrationVerification::PrintCalibrationErrors(){
+  std::string output_path = results_directory_ + "calibration_errors.txt";
+  std::ofstream file(output_path);
+  // first print errors between initial calibration and final
+  file << "Showing errors between:\n"
+       << "initial calibration estimates and optimized calibrations:\n\n";
+  for(uint16_t i = 0; i < calibrations_result_.size(); i++){
+    Eigen::Matrix4d T_final = calibrations_result_[i].transform;
+    Eigen::Matrix4d T_init = calibrations_initial_[i].transform;
+    Eigen::Matrix3d R_final = T_final.block(0,0,3,3);
+    Eigen::Matrix3d R_init = T_init.block(0,0,3,3);
+    Eigen::Vector3d rpy_final = R_final.eulerAngles(0, 1, 2);
+    Eigen::Vector3d rpy_init = R_init.eulerAngles(0, 1, 2);
+    Eigen::Vector3d rpy_error = rpy_final - rpy_init;
+    rpy_error[0] = utils::GetAngleErrorPi(rpy_error[0]);
+    rpy_error[1] = utils::GetAngleErrorPi(rpy_error[1]);
+    rpy_error[2] = utils::GetAngleErrorPi(rpy_error[2]);
+    Eigen::Vector3d t_final = T_final.block(0,3,3,1);
+    Eigen::Vector3d t_init = T_init.block(0,3,3,1);
+    Eigen::Vector3d t_error = t_final - t_init;
+    t_error[0] = std::abs(t_error[0]);
+    t_error[1] = std::abs(t_error[1]);
+    t_error[2] = std::abs(t_error[2]);
+    file << "T_" << calibrations_result_[i].to_frame << "_" << calibrations_result_[i].from_frame << ":\n"
+         << "rpy error (deg): [" << rpy_error[0] * RAD_TO_DEG << ", "
+         << rpy_error[1] * RAD_TO_DEG << ", "
+         << rpy_error[2] * RAD_TO_DEG << "]\n"
+         << "translation error (deg): [" << t_error[0] << ", "
+         << t_error[1] << ", "
+         << t_error[2] << "]\n\n";
+  }
+
+  std::cout << "params_->using_simulation: " << params_->using_simulation << "\n";
+  if(!params_->using_simulation){
+    return;
+  }
+
+  // next print errors between initial calirations and perturbed calibration
+  file << "---------------------------------------------------------\n\n"
+       << "Showing errors between:\n"
+       << "initial calibrations and perturbed calibrations:\n\n";
+  for(uint16_t i = 0; i < calibrations_result_.size(); i++){
+    Eigen::Matrix4d T_final = calibrations_perturbed_[i].transform;
+    Eigen::Matrix4d T_init = calibrations_initial_[i].transform;
+    Eigen::Matrix3d R_final = T_final.block(0,0,3,3);
+    Eigen::Matrix3d R_init = T_init.block(0,0,3,3);
+    Eigen::Vector3d rpy_final = R_final.eulerAngles(0, 1, 2);
+    Eigen::Vector3d rpy_init = R_init.eulerAngles(0, 1, 2);
+    Eigen::Vector3d rpy_error = rpy_final - rpy_init;
+    rpy_error[0] = utils::GetAngleErrorPi(rpy_error[0]);
+    rpy_error[1] = utils::GetAngleErrorPi(rpy_error[1]);
+    rpy_error[2] = utils::GetAngleErrorPi(rpy_error[2]);
+    Eigen::Vector3d t_final = T_final.block(0,3,3,1);
+    Eigen::Vector3d t_init = T_init.block(0,3,3,1);
+    Eigen::Vector3d t_error = t_final - t_init;
+    t_error[0] = std::abs(t_error[0]);
+    t_error[1] = std::abs(t_error[1]);
+    t_error[2] = std::abs(t_error[2]);
+    file << "T_" << calibrations_result_[i].to_frame << "_" << calibrations_result_[i].from_frame << ":\n"
+         << "rpy error (deg): [" << rpy_error[0] * RAD_TO_DEG << ", "
+         << rpy_error[1] * RAD_TO_DEG << ", "
+         << rpy_error[2] * RAD_TO_DEG << "]\n"
+         << "translation error (deg): [" << t_error[0] << ", "
+         << t_error[1] << ", "
+         << t_error[2] << "]\n\n";
+  }
+
+  // next print errors between perturbed calibration and final
+  file << "---------------------------------------------------------\n\n"
+       << "Showing errors between:\n"
+       << "initial perturbed calibrations and optimized calibrations:\n\n";
+  for(uint16_t i = 0; i < calibrations_result_.size(); i++){
+    Eigen::Matrix4d T_final = calibrations_result_[i].transform;
+    Eigen::Matrix4d T_init = calibrations_perturbed_[i].transform;
+    Eigen::Matrix3d R_final = T_final.block(0,0,3,3);
+    Eigen::Matrix3d R_init = T_init.block(0,0,3,3);
+    Eigen::Vector3d rpy_final = R_final.eulerAngles(0, 1, 2);
+    Eigen::Vector3d rpy_init = R_init.eulerAngles(0, 1, 2);
+    Eigen::Vector3d rpy_error = rpy_final - rpy_init;
+    rpy_error[0] = utils::GetAngleErrorPi(rpy_error[0]);
+    rpy_error[1] = utils::GetAngleErrorPi(rpy_error[1]);
+    rpy_error[2] = utils::GetAngleErrorPi(rpy_error[2]);
+    Eigen::Vector3d t_final = T_final.block(0,3,3,1);
+    Eigen::Vector3d t_init = T_init.block(0,3,3,1);
+    Eigen::Vector3d t_error = t_final - t_init;
+    t_error[0] = std::abs(t_error[0]);
+    t_error[1] = std::abs(t_error[1]);
+    t_error[2] = std::abs(t_error[2]);
+    file << "T_" << calibrations_result_[i].to_frame << "_" << calibrations_result_[i].from_frame << ":\n"
+         << "rpy error (deg): [" << rpy_error[0] * RAD_TO_DEG << ", "
+         << rpy_error[1] * RAD_TO_DEG << ", "
+         << rpy_error[2] * RAD_TO_DEG << "]\n"
+         << "translation error (deg): [" << t_error[0] << ", "
+         << t_error[1] << ", "
+         << t_error[2] << "]\n\n";
   }
 }
 

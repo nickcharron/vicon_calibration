@@ -41,6 +41,8 @@ private:
   PrintCalibrations(std::vector<vicon_calibration::CalibrationResult> &calib,
                     const std::string &file_name);
 
+  void PrintCalibrationErrors();
+
   std::shared_ptr<cv::Mat> ProjectTargetToImage(
       const std::shared_ptr<cv::Mat> &img_in,
       const std::vector<Eigen::Affine3d,

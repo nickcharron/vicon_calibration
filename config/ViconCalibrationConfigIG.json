@@ -7,8 +7,8 @@
   "min_measurement_motion": 0.05,
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
   "time_steps": 0.5,
-  "show_camera_measurements": true,
-  "show_lidar_measurements": true,
+  "show_camera_measurements": false,
+  "show_lidar_measurements": false,
   "run_verification": true,
   "use_loop_closure_measurements": true,
   "targets":[
@@ -34,6 +34,10 @@
     }
   ],
   "camera_params": [
+    {"topic": "/F1/image_raw",
+     "frame": "F1_link",
+     "intrinsics": "F1_sim.json",
+     "images_distorted": true}
   ],
   "lidar_params":[
     {"topic": "/hvlp/velodyne_points",

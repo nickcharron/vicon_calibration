@@ -24,6 +24,26 @@ double WrapToTwoPi(const double &angle) {
   return wrapped_angle;
 }
 
+double GetAngleErrorTwoPi(const double &angle_in){
+  double angle_abs = WrapToTwoPi(std::abs(angle_in));
+  double error;
+  if(angle_abs > M_PI){
+    return 2*M_PI - angle_abs;
+  } else {
+    return angle_abs;
+  }
+}
+
+double GetAngleErrorPi(const double &angle_in){
+  double angle_abs = WrapToPi(std::abs(angle_in));
+  double error;
+  if(angle_abs > M_PI/2){
+    return M_PI - angle_abs;
+  } else {
+    return angle_abs;
+  }
+}
+
 Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd &M, const int &precision) {
   Eigen::MatrixXd Mround(M.rows(), M.cols());
   for (int i = 0; i < M.rows(); i++) {

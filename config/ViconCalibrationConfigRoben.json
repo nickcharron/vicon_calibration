@@ -5,11 +5,11 @@
   "initial_guess_perturb": [0.007, 0.015, 0, 0.0, 0.0, 0.0],
   "min_measurement_motion": 0.05,
   "vicon_baselink_frame": "vicon/roben/roben",
-  "time_steps": 1,
+  "time_steps": 2,
   "show_camera_measurements": false,
   "show_lidar_measurements": true,
   "run_verification": true,
-  "use_loop_closure_measurements": true,
+  "use_loop_closure_measurements": false,
   "targets":[
     {"frame_id": "vicon/target8/target8",
      "extractor_type": "DIAMOND",

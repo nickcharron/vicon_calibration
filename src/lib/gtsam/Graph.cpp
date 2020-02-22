@@ -89,6 +89,9 @@ void Graph::SolveGraph() {
     SetImageCorrespondences();
     SetLidarCorrespondences();
     SetLoopClosureCorrespondences();
+    if(iteration == 1){
+      match_centroids_ = false;
+    }
     SetImageFactors();
     SetLidarFactors();
     SetLidarCameraFactors();
@@ -132,6 +135,7 @@ void Graph::LoadConfig() {
   }
   error_tol_ = tmp;
   tmp.clear();
+  output_errors_ = J.at("output_errors");
   for (const auto &val : J["image_noise"]) {
     tmp.push_back(val);
   }
@@ -159,6 +163,8 @@ void Graph::LoadConfig() {
   }
   template_downsample_size_ = tmp;
   print_results_to_terminal_ = J.at("print_results_to_terminal");
+  viz_point_size_ = J.at("viz_point_size");
+  viz_corr_line_width_ = J.at("viz_corr_line_width");
 }
 
 std::vector<vicon_calibration::CalibrationResult> Graph::GetResults() {
@@ -344,11 +350,20 @@ void Graph::SetImageCorrespondences() {
         concave_hull.reconstruct(*hull_cloud);
         concave_hull.getHullPointIndices(*hull_point_correspondences);
 
+        // calculate centroids and translate target to match
+        pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints_temp;
+        if (match_centroids_) {
+          transformed_keypoints_temp =
+              MatchCentroids(measurement_3d, hull_cloud);
+        } else {
+          transformed_keypoints_temp = hull_cloud;
+        }
+
         // get correspondences
         boost::shared_ptr<pcl::Correspondences> correspondences_tmp =
             boost::make_shared<pcl::Correspondences>();
         corr_est.setInputSource(measurement_3d);
-        corr_est.setInputTarget(hull_cloud);
+        corr_est.setInputTarget(transformed_keypoints_temp);
         corr_est.determineCorrespondences(*correspondences_tmp,
                                           max_pixel_cor_dist_);
         for (int i = 0; i < correspondences_tmp->size(); i++) {
@@ -364,9 +379,18 @@ void Graph::SetImageCorrespondences() {
               "measured camera points", "projected camera points");
         }
       } else {
+        // calculate centroids and translate target to match
+        pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints_temp;
+        if (match_centroids_) {
+          transformed_keypoints_temp =
+              MatchCentroids(measurement_3d, projected_keypoints);
+        } else {
+          transformed_keypoints_temp = projected_keypoints;
+        }
+
         // get correspondences
         corr_est.setInputSource(measurement_3d);
-        corr_est.setInputTarget(projected_keypoints);
+        corr_est.setInputTarget(transformed_keypoints_temp);
         corr_est.determineCorrespondences(*correspondences,
                                           max_pixel_cor_dist_);
         if (show_camera_measurements_ && !stop_all_vis_) {
@@ -436,13 +460,22 @@ void Graph::SetLidarCorrespondences() {
             *transformed_keypoints, T_LIDAR_TARGET);
       }
 
+      // calculate centroids and translate target to match
+      pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints_temp;
+      if (match_centroids_) {
+        transformed_keypoints_temp =
+            MatchCentroids(measurement->keypoints, transformed_keypoints);
+      } else {
+        transformed_keypoints_temp = transformed_keypoints;
+      }
+
       // get correspondences
       pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
           corr_est;
       boost::shared_ptr<pcl::Correspondences> correspondences =
           boost::make_shared<pcl::Correspondences>();
       corr_est.setInputSource(measurement->keypoints);
-      corr_est.setInputTarget(transformed_keypoints);
+      corr_est.setInputTarget(transformed_keypoints_temp);
       corr_est.determineCorrespondences(*correspondences, max_point_cor_dist_);
       if (show_lidar_measurements_ && !stop_all_vis_) {
         this->ViewLidarMeasurements(
@@ -495,13 +528,22 @@ void Graph::SetLoopClosureCorrespondences() {
           utils::EigenPointToPCL(keypoint_transformed));
     }
 
+    // calculate centroids and translate target to match
+    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints_temp;
+    if (match_centroids_) {
+      transformed_keypoints_temp = MatchCentroids(measurement->keypoints_lidar,
+                                                  estimated_lidar_keypoints);
+    } else {
+      transformed_keypoints_temp = estimated_lidar_keypoints;
+    }
+
     // Get lidar correspondences
     pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
         lidar_corr_est;
     boost::shared_ptr<pcl::Correspondences> lidar_correspondences =
         boost::make_shared<pcl::Correspondences>();
     lidar_corr_est.setInputSource(measurement->keypoints_lidar);
-    lidar_corr_est.setInputTarget(estimated_lidar_keypoints);
+    lidar_corr_est.setInputTarget(transformed_keypoints_temp);
     lidar_corr_est.determineCorrespondences(*lidar_correspondences,
                                             max_point_cor_dist_);
 
@@ -545,13 +587,21 @@ void Graph::SetLoopClosureCorrespondences() {
       camera_measurement_3d->push_back(point);
     }
 
+    // calculate centroids and translate target to match
+    if (match_centroids_) {
+      transformed_keypoints_temp =
+          MatchCentroids(camera_measurement_3d, estimated_camera_keypoints);
+    } else {
+      transformed_keypoints_temp = estimated_camera_keypoints;
+    }
+
     // Get camera correspondences
     pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
         camera_corr_est;
     boost::shared_ptr<pcl::Correspondences> camera_correspondences =
         boost::make_shared<pcl::Correspondences>();
     camera_corr_est.setInputSource(camera_measurement_3d);
-    camera_corr_est.setInputTarget(estimated_camera_keypoints);
+    camera_corr_est.setInputTarget(transformed_keypoints_temp);
     camera_corr_est.determineCorrespondences(*camera_correspondences,
                                              max_pixel_cor_dist_);
 
@@ -589,6 +639,23 @@ void Graph::SetLoopClosureCorrespondences() {
   }
   LOG_INFO("Added %d lidar-camera correspondences",
            lidar_camera_correspondences_.size());
+}
+
+pcl::PointCloud<pcl::PointXYZ>::Ptr
+Graph::MatchCentroids(const pcl::PointCloud<pcl::PointXYZ>::Ptr &source_cloud,
+                      const pcl::PointCloud<pcl::PointXYZ>::Ptr &target_cloud) {
+  pcl::PointCloud<pcl::PointXYZ>::Ptr target_translated =
+      boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  Eigen::Vector4d source_centroid, target_centroid;
+  pcl::compute3DCentroid(*source_cloud, source_centroid);
+  pcl::compute3DCentroid(*target_cloud, target_centroid);
+  Eigen::Vector3d t_SOURCE_TARGET = utils::HomoPointToPoint(source_centroid) -
+                                    utils::HomoPointToPoint(target_centroid);
+  Eigen::Matrix4d T_SOURCE_TARGET;
+  T_SOURCE_TARGET.setIdentity();
+  T_SOURCE_TARGET.block(0, 3, 3, 1) = t_SOURCE_TARGET;
+  pcl::transformPointCloud(*target_cloud, *target_translated, T_SOURCE_TARGET);
+  return target_translated;
 }
 
 void Graph::SetImageFactors() {
@@ -747,8 +814,8 @@ bool Graph::HasConverged(uint16_t iteration) {
 
   // Loop through results
   Eigen::Matrix4d T_last, T_curr;
-  Eigen::Vector3d R_curr, R_last, t_curr, t_last, R_error, t_error;
-  double eR, et, eR_abs, et_abs;
+  Eigen::Matrix3d R_error;
+  Eigen::Vector3d t_curr, t_last, t_error, rpy_error;
   for (uint32_t i = 0; i < calibration_initials_.size(); i++) {
     gtsam::Key sensor_key;
     if (calibration_initials_[i].type == SensorType::LIDAR) {
@@ -762,21 +829,36 @@ bool Graph::HasConverged(uint16_t iteration) {
     T_curr = results_.at<gtsam::Pose3>(sensor_key).matrix();
 
     // Check all DOFs to see if the change is greater than the tolerance
-    R_curr = utils::RToLieAlgebra(T_curr.block(0, 0, 3, 3));
-    R_last = utils::RToLieAlgebra(T_last.block(0, 0, 3, 3));
     t_curr = T_curr.block(0, 3, 3, 1);
     t_last = T_last.block(0, 3, 3, 1);
-    R_error = R_curr - R_last;
+    R_error =
+        utils::LieAlgebraToR(utils::RToLieAlgebra(T_curr.block(0, 0, 3, 3)) -
+                             utils::RToLieAlgebra(T_last.block(0, 0, 3, 3)));
+    rpy_error = R_error.eulerAngles(0, 1, 2).cast<double>();
+    rpy_error[0] = RAD_TO_DEG * utils::GetAngleErrorPi(rpy_error[0]);
+    rpy_error[1] = RAD_TO_DEG * utils::GetAngleErrorPi(rpy_error[1]);
+    rpy_error[2] = RAD_TO_DEG * utils::GetAngleErrorPi(rpy_error[2]);
+
     t_error = t_curr - t_last;
+    t_error[0] = std::abs(t_error[0]);
+    t_error[1] = std::abs(t_error[1]);
+    t_error[2] = std::abs(t_error[2]);
+
+    if (output_errors_) {
+      std::cout << "rotation error (deg): [" << rpy_error[0] << ", "
+                << rpy_error[1] << ", " << rpy_error[2] << "]\n"
+                << "rotation threshold (deg): [" << error_tol_[0] << ", "
+                << error_tol_[1] << ", " << error_tol_[2] << "]\n"
+                << "translation error (m): [" << t_error[0] << ", "
+                << t_error[1] << ", " << t_error[2] << "]\n"
+                << "translation threshold (m): [" << error_tol_[3] << ", "
+                << error_tol_[4] << ", " << error_tol_[5] << "]\n";
+    }
     for (int i = 0; i < 3; i++) {
-      eR = R_error[i];
-      et = t_error[i];
-      eR_abs = sqrt(eR * eR * 1000 * 1000) / 1000;
-      et_abs = sqrt(et * et * 1000 * 1000) / 1000;
-      if (eR_abs > error_tol_[i]) {
+      if (rpy_error[i] > error_tol_[i]) {
         return false;
       }
-      if (et_abs > error_tol_[i + 3]) {
+      if (t_error[i] > error_tol_[i + 3]) {
         return false;
       }
     }
@@ -786,7 +868,7 @@ bool Graph::HasConverged(uint16_t iteration) {
 
 void Graph::ResetViewer() {
   pcl_viewer_ = boost::make_shared<pcl::visualization::PCLVisualizer>();
-  pcl_viewer_->setBackgroundColor(255, 255, 255);
+  // pcl_viewer_->setBackgroundColor(255, 255, 255);
 }
 
 void Graph::ViewCameraMeasurements(
@@ -824,12 +906,16 @@ void Graph::ViewCameraMeasurements(
   this->ResetViewer();
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, c1_name);
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, c2_name);
-  double width = 2;
-  int property = pcl::visualization::PCL_VISUALIZER_LINE_WIDTH;
   std::string shape_id = "correspondences";
-  pcl_viewer_->addCorrespondences<pcl::PointXYZRGB>(
-      c1_col, c2_col, *correspondences, shape_id);
-  pcl_viewer_->setShapeRenderingProperties(property, width, shape_id);
+  pcl_viewer_->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
+                                                    *correspondences, shape_id);
+  pcl_viewer_->setShapeRenderingProperties(
+      pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, viz_corr_line_width_,
+      shape_id);
+  pcl_viewer_->setPointCloudRenderingProperties(
+      pcl::visualization::PCL_VISUALIZER_POINT_SIZE, viz_point_size_, c1_name);
+  pcl_viewer_->setPointCloudRenderingProperties(
+      pcl::visualization::PCL_VISUALIZER_POINT_SIZE, viz_point_size_, c2_name);
 
   std::cout << "\nViewer Legend:\n"
             << "  Red   -> " << c1_name << "\n"
@@ -884,12 +970,16 @@ void Graph::ViewLidarMeasurements(
   this->ResetViewer();
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, c1_name);
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, c2_name);
-  double width = 2;
-  int property = pcl::visualization::PCL_VISUALIZER_LINE_WIDTH;
   std::string shape_id = "correspondences";
-  pcl_viewer_->addCorrespondences<pcl::PointXYZRGB>(
-      c1_col, c2_col, *correspondences, shape_id);
-  pcl_viewer_->setShapeRenderingProperties(property, width, shape_id);
+  pcl_viewer_->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
+                                                    *correspondences, shape_id);
+  pcl_viewer_->setShapeRenderingProperties(
+      pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, viz_corr_line_width_,
+      shape_id);
+  pcl_viewer_->setPointCloudRenderingProperties(
+      pcl::visualization::PCL_VISUALIZER_POINT_SIZE, viz_point_size_, c1_name);
+  pcl_viewer_->setPointCloudRenderingProperties(
+      pcl::visualization::PCL_VISUALIZER_POINT_SIZE, viz_point_size_, c2_name);
 
   std::cout << "\nViewer Legend:\n"
             << "  Red   -> " << c1_name << "\n"

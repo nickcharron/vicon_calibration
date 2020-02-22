@@ -10,9 +10,12 @@
   "abs_error_tol": 1e-9,
   "rel_error_tol": 1e-9,
   "lambda_upper_bound": 1e8,
-  "error_tol": [0.0001, 0.0001, 0.0001, 0.0002, 0.0002, 0.0002],
+  "error_tol": [0.3, 0.3, 0.3, 0.002, 0.002, 0.002],
+  "output_errors": true,
   "image_noise": [20, 20],
   "lidar_noise": [0.02, 0.02, 0.02],
   "template_downsample_size": [0.003, 0.003, 0.003],
-  "print_results_to_terminal": false
+  "print_results_to_terminal": false,
+  "viz_point_size": 5,
+  "viz_corr_line_width": 2
 }

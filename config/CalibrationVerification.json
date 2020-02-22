@@ -1,6 +1,6 @@
 {
   "output_directory": "/home/nick/vicon_calibration_results/",
-  "time_increment": 5,
+  "time_increment": 2,
   "max_image_results": 20,
   "max_lidar_results": 2
 }

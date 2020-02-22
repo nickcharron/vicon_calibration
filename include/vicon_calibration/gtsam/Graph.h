@@ -61,6 +61,10 @@ private:
 
   void SetLoopClosureCorrespondences();
 
+  pcl::PointCloud<pcl::PointXYZ>::Ptr
+  MatchCentroids(const pcl::PointCloud<pcl::PointXYZ>::Ptr &source_cloud,
+                 const pcl::PointCloud<pcl::PointXYZ>::Ptr &target_cloud);
+
   void SetImageFactors();
 
   void SetLidarFactors();
@@ -109,14 +113,18 @@ private:
   bool stop_all_vis_{false};
 
   // params
+  int viz_point_size_ = 3;
+  int viz_corr_line_width_ = 2;
   uint16_t max_iterations_{40};
   bool show_camera_measurements_{false};
   bool show_lidar_measurements_{false};
   bool show_loop_closure_correspondences_{false};
   bool extract_image_target_perimeter_{true};
+  bool output_errors_{false};
   double concave_hull_alpha_{10};
   double max_pixel_cor_dist_{500}; // in pixels
   double max_point_cor_dist_{0.3}; // in m
+  bool match_centroids_{false};
   double abs_error_tol_{1e-9};
   double rel_error_tol_{1e-9};
   double lambda_upper_bound_{1e8}; // the maximum lambda to try before assuming

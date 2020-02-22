@@ -53,6 +53,18 @@ double WrapToPi(const double &angle);
  */
 double WrapToTwoPi(const double &angle);
 
+/** Gets the angle error assuming the result is supposed to be 0 or 2PI
+ * @param[in] angle_in the original angle.
+ * @return the angle error.
+ */
+double GetAngleErrorTwoPi(const double &angle_in);
+
+/** Gets the angle error assuming the result is supposed to be 0 or PI
+ * @param[in] angle_in the original angle.
+ * @return the angle error.
+ */
+double GetAngleErrorPi(const double &angle_in);
+
 Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd &M, const int &precision);
 
 bool IsRotationMatrix(const Eigen::Matrix3d &R);

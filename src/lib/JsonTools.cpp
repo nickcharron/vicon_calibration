@@ -98,6 +98,7 @@ JsonTools::LoadViconCalibratorParams(const std::string &file_name) {
   params->bag_file = J["bag_file"];
   params->initial_calibration_file = J["initial_calibration"];
   params->lookup_tf_calibrations = J["lookup_tf_calibrations"];
+  params->using_simulation = J["using_simulation"];
   std::vector<double> vect;
   for (const auto &value : J["initial_guess_perturb"]) {
     vect.push_back(value);

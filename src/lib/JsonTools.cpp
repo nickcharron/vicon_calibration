@@ -106,7 +106,8 @@ JsonTools::LoadViconCalibratorParams(const std::string &file_name) {
   Eigen::VectorXd tmp(6, 1);
   tmp << vect[0], vect[1], vect[2], vect[3], vect[4], vect[5];
   params->initial_guess_perturbation = tmp;
-  params->min_measurement_motion = J["min_measurement_motion"];
+  params->min_target_motion = J["min_target_motion"];
+  params->max_target_velocity = J["max_target_velocity"];
   params->vicon_baselink_frame = J["vicon_baselink_frame"];
   params->time_steps = J["time_steps"];
   params->show_camera_measurements = J["show_camera_measurements"];

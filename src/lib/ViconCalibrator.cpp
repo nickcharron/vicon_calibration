@@ -1,6 +1,7 @@
 #include "vicon_calibration/ViconCalibrator.h"
 #include "vicon_calibration/CalibrationVerification.h"
 #include "vicon_calibration/JsonTools.h"
+#include "vicon_calibration/params.h"
 #include "vicon_calibration/utils.h"
 #include <Eigen/StdVector>
 #include <beam_utils/math.hpp>
@@ -147,9 +148,9 @@ void ViconCalibrator::GetInitialCalibrationPerturbed(std::string &sensor_frame,
   calibrations_perturbed_.push_back(calib_perturbed);
 }
 
-std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+std::vector<Eigen::Affine3d, AlignAff3d>
 ViconCalibrator::GetInitialGuess(std::string &sensor_frame) {
-  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+  std::vector<Eigen::Affine3d, AlignAff3d>
       T_sensor_tgts_estimated;
   for (uint8_t n; n < params_->target_params.size(); n++) {
     // get transform from sensor to target
@@ -186,7 +187,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
   std::string sensor_frame = params_->lidar_params[lidar_iter]->frame;
   LOG_INFO("Getting lidar measurements for frame id: %s and topic: %s .",
            sensor_frame.c_str(), topic.c_str());
-  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+  std::vector<Eigen::Affine3d, AlignAff3d>
       T_lidar_tgts_estimated_prev;
   rosbag::View view(bag_, rosbag::TopicQuery(topic), ros::TIME_MIN,
                     ros::TIME_MAX, true);
@@ -220,7 +221,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
       time_last = time_current;
       pcl_conversions::toPCL(*lidar_msg, *cloud_pc2);
       pcl::fromPCLPointCloud2(*cloud_pc2, *cloud);
-      std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+      std::vector<Eigen::Affine3d, AlignAff3d>
           T_lidar_tgts_estimated, T_viconbase_tgts;
       try {
         T_lidar_tgts_estimated = GetInitialGuess(sensor_frame);
@@ -309,7 +310,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
   std::string sensor_frame = params_->camera_params[cam_iter]->frame;
   LOG_INFO("Getting camera measurements for frame id: %s and topic: %s .",
            sensor_frame.c_str(), topic.c_str());
-  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+  std::vector<Eigen::Affine3d, AlignAff3d>
       T_cam_tgts_estimated_prev;
   rosbag::View view(bag_, rosbag::TopicQuery(topic), ros::TIME_MIN,
                     ros::TIME_MAX, true);
@@ -342,7 +343,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
       lookup_time_ = time_current;
       this->LoadLookupTree();
       time_last = time_current;
-      std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+      std::vector<Eigen::Affine3d, AlignAff3d>
           T_cam_tgts_estimated, T_viconbase_tgts;
       try {
         T_cam_tgts_estimated = GetInitialGuess(sensor_frame);

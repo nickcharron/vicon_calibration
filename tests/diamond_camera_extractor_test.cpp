@@ -51,8 +51,8 @@ void SetUp() {
   T_SENSOR_TARGET_PERT2 =
       utils::PerturbTransform(T_SENSOR_TARGET, perturbation2);
 
-  pcl::PointCloud<pcl::PointXYZ>::Ptr template_cloud =
-      boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  PointCloud::Ptr template_cloud =
+      boost::make_shared<PointCloud>();
   pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path, *template_cloud);
 
   JsonTools json_loader;

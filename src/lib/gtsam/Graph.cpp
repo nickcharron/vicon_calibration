@@ -2,7 +2,6 @@
 #include "vicon_calibration/gtsam/CameraFactor.h"
 #include "vicon_calibration/gtsam/CameraLidarFactor.h"
 #include "vicon_calibration/gtsam/LidarFactor.h"
-#include "vicon_calibration/utils.h"
 #include <algorithm>
 #include <fstream>
 #include <gtsam/geometry/Pose3.h>
@@ -27,8 +26,8 @@ void Graph::SetTargetParams(
   vox.setLeafSize(template_downsample_size_[0], template_downsample_size_[1],
                   template_downsample_size_[2]);
   for (int i = 0; i < target_params_.size(); i++) {
-    boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> downsampled_cloud =
-        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    boost::shared_ptr<PointCloud> downsampled_cloud =
+        boost::make_shared<PointCloud>();
     vox.setInputCloud(target_params_[i]->template_cloud);
     vox.filter(*downsampled_cloud);
     target_params_[i]->template_cloud = downsampled_cloud;
@@ -271,8 +270,8 @@ void Graph::SetImageCorrespondences() {
                      measurement->T_VICONBASE_TARGET;
 
       // convert measurement to 3D (set z to 0)
-      pcl::PointCloud<pcl::PointXYZ>::Ptr measurement_3d =
-          boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+      PointCloud::Ptr measurement_3d =
+          boost::make_shared<PointCloud>();
       pcl::PointXYZ point;
       for (pcl::PointCloud<pcl::PointXY>::iterator it =
                measurement->keypoints->begin();
@@ -291,10 +290,10 @@ void Graph::SetImageCorrespondences() {
       }
 
       // get point cloud of projected keypoints
-      pcl::PointCloud<pcl::PointXYZ>::Ptr projected_keypoints =
-          boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-      pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints =
-          boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+      PointCloud::Ptr projected_keypoints =
+          boost::make_shared<PointCloud>();
+      PointCloud::Ptr transformed_keypoints =
+          boost::make_shared<PointCloud>();
       if (use_target_keypoints) {
         // use keypoints specified in json
         Eigen::Vector4d keypoint_homo;
@@ -339,8 +338,8 @@ void Graph::SetImageCorrespondences() {
 
       if (extract_image_target_perimeter_ && !use_target_keypoints) {
         // keep only perimeter points
-        pcl::PointCloud<pcl::PointXYZ>::Ptr hull_cloud =
-            boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+        PointCloud::Ptr hull_cloud =
+            boost::make_shared<PointCloud>();
         pcl::PointIndices::Ptr hull_point_correspondences =
             boost::make_shared<pcl::PointIndices>();
         pcl::ConcaveHull<pcl::PointXYZ> concave_hull;
@@ -351,7 +350,7 @@ void Graph::SetImageCorrespondences() {
         concave_hull.getHullPointIndices(*hull_point_correspondences);
 
         // calculate centroids and translate target to match
-        pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints_temp;
+        PointCloud::Ptr transformed_keypoints_temp;
         if (match_centroids_) {
           transformed_keypoints_temp =
               MatchCentroids(measurement_3d, hull_cloud);
@@ -380,7 +379,7 @@ void Graph::SetImageCorrespondences() {
         }
       } else {
         // calculate centroids and translate target to match
-        pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints_temp;
+        PointCloud::Ptr transformed_keypoints_temp;
         if (match_centroids_) {
           transformed_keypoints_temp =
               MatchCentroids(measurement_3d, projected_keypoints);
@@ -437,8 +436,8 @@ void Graph::SetLidarCorrespondences() {
 
       // Check keypoints to see if we want to find correspondences between
       // keypoints or between all target points
-      pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints =
-          boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+      PointCloud::Ptr transformed_keypoints =
+          boost::make_shared<PointCloud>();
       if (target_params_[measurement->target_id]->keypoints_lidar.size() > 0) {
         // use keypoints specified in json
         Eigen::Vector4d keypoint_homo;
@@ -461,7 +460,7 @@ void Graph::SetLidarCorrespondences() {
       }
 
       // calculate centroids and translate target to match
-      pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints_temp;
+      PointCloud::Ptr transformed_keypoints_temp;
       if (match_centroids_) {
         transformed_keypoints_temp =
             MatchCentroids(measurement->keypoints, transformed_keypoints);
@@ -513,8 +512,8 @@ void Graph::SetLoopClosureCorrespondences() {
     measurement = loop_closure_measurements_[meas_iter];
 
     // Transform lidar target keypoints to lidar frame
-    pcl::PointCloud<pcl::PointXYZ>::Ptr estimated_lidar_keypoints =
-        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    PointCloud::Ptr estimated_lidar_keypoints =
+        boost::make_shared<PointCloud>();
     for (Eigen::Vector3d keypoint :
          target_params_[measurement->target_id]->keypoints_lidar) {
       // get transform from target to lidar
@@ -529,7 +528,7 @@ void Graph::SetLoopClosureCorrespondences() {
     }
 
     // calculate centroids and translate target to match
-    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_keypoints_temp;
+    PointCloud::Ptr transformed_keypoints_temp;
     if (match_centroids_) {
       transformed_keypoints_temp = MatchCentroids(measurement->keypoints_lidar,
                                                   estimated_lidar_keypoints);
@@ -548,8 +547,8 @@ void Graph::SetLoopClosureCorrespondences() {
                                             max_point_cor_dist_);
 
     // Transform camera target keypoints to camera frame and project to image
-    pcl::PointCloud<pcl::PointXYZ>::Ptr estimated_camera_keypoints =
-        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    PointCloud::Ptr estimated_camera_keypoints =
+        boost::make_shared<PointCloud>();
     for (Eigen::Vector3d keypoint :
          target_params_[measurement->target_id]->keypoints_camera) {
       // get transform from target to camera
@@ -575,8 +574,8 @@ void Graph::SetLoopClosureCorrespondences() {
     }
 
     // convert measurement to 3D (set z to 0)
-    pcl::PointCloud<pcl::PointXYZ>::Ptr camera_measurement_3d =
-        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    PointCloud::Ptr camera_measurement_3d =
+        boost::make_shared<PointCloud>();
     pcl::PointXYZ point;
     for (pcl::PointCloud<pcl::PointXY>::iterator it =
              measurement->keypoints_camera->begin();
@@ -641,11 +640,11 @@ void Graph::SetLoopClosureCorrespondences() {
            lidar_camera_correspondences_.size());
 }
 
-pcl::PointCloud<pcl::PointXYZ>::Ptr
-Graph::MatchCentroids(const pcl::PointCloud<pcl::PointXYZ>::Ptr &source_cloud,
-                      const pcl::PointCloud<pcl::PointXYZ>::Ptr &target_cloud) {
-  pcl::PointCloud<pcl::PointXYZ>::Ptr target_translated =
-      boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+PointCloud::Ptr
+Graph::MatchCentroids(const PointCloud::Ptr &source_cloud,
+                      const PointCloud::Ptr &target_cloud) {
+  PointCloud::Ptr target_translated =
+      boost::make_shared<PointCloud>();
   Eigen::Vector4d source_centroid, target_centroid;
   pcl::compute3DCentroid(*source_cloud, source_centroid);
   pcl::compute3DCentroid(*target_cloud, target_centroid);
@@ -872,8 +871,8 @@ void Graph::ResetViewer() {
 }
 
 void Graph::ViewCameraMeasurements(
-    const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,
-    const pcl::PointCloud<pcl::PointXYZ>::Ptr &c2,
+    const PointCloud::Ptr &c1,
+    const PointCloud::Ptr &c2,
     const boost::shared_ptr<pcl::Correspondences> &correspondences,
     const std::string &c1_name, const std::string &c2_name) {
   PointCloudColor::Ptr c1_col = boost::make_shared<PointCloudColor>();
@@ -883,7 +882,7 @@ void Graph::ViewCameraMeasurements(
   uint32_t rgb2 = (static_cast<uint32_t>(0) << 16 |
                    static_cast<uint32_t>(255) << 8 | static_cast<uint32_t>(0));
   pcl::PointXYZRGB point;
-  for (pcl::PointCloud<pcl::PointXYZ>::iterator it = c1->begin();
+  for (PointCloud::iterator it = c1->begin();
        it != c1->end(); ++it) {
     point.x = it->x;
     point.y = it->y;
@@ -891,7 +890,7 @@ void Graph::ViewCameraMeasurements(
     point.rgb = *reinterpret_cast<float *>(&rgb1);
     c1_col->push_back(point);
   }
-  for (pcl::PointCloud<pcl::PointXYZ>::iterator it = c2->begin();
+  for (PointCloud::iterator it = c2->begin();
        it != c2->end(); ++it) {
     point.x = it->x;
     point.y = it->y;
@@ -937,8 +936,8 @@ void Graph::ViewCameraMeasurements(
 }
 
 void Graph::ViewLidarMeasurements(
-    const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,
-    const pcl::PointCloud<pcl::PointXYZ>::Ptr &c2,
+    const PointCloud::Ptr &c1,
+    const PointCloud::Ptr &c2,
     const boost::shared_ptr<pcl::Correspondences> &correspondences,
     const std::string &c1_name, const std::string &c2_name) {
   PointCloudColor::Ptr c1_col = boost::make_shared<PointCloudColor>();

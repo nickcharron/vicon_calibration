@@ -63,7 +63,7 @@ void LidarExtractor::LoadConfig() {
 }
 
 void LidarExtractor::ProcessMeasurement(
-    const Eigen::Matrix4d &T_LIDAR_TARGET_EST, PointCloud::Ptr &cloud_in) {
+    const Eigen::Matrix4d &T_LIDAR_TARGET_EST, const PointCloud::Ptr &cloud_in) {
   // initialize member variables
   this->LoadConfig();
   scan_in_ = boost::make_shared<PointCloud>();

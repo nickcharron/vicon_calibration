@@ -30,8 +30,8 @@ JsonTools::LoadTargetParams(const std::string &file_name) {
   std::string template_name = J_target.at("template_cloud");
   if(template_name.size() > 5){
     std::string template_cloud_path = utils::GetFilePathData(template_name);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr template_cloud =
-        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    PointCloud::Ptr template_cloud =
+        boost::make_shared<PointCloud>();
     if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path,
                                             *template_cloud) == -1) {
       LOG_ERROR("Couldn't read template file: %s\n",

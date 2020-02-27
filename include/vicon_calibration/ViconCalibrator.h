@@ -7,6 +7,7 @@
 #include "vicon_calibration/measurement_extractors/DiamondCameraExtractor.h"
 #include "vicon_calibration/measurement_extractors/DiamondLidarExtractor.h"
 #include "vicon_calibration/params.h"
+#include "vicon_calibration/utils.h"
 #include <Eigen/Geometry>
 #include <opencv2/opencv.hpp>
 #include <ros/time.h>
@@ -57,7 +58,7 @@ private:
    * @return T_sensor_tgts_estimated estimated transform from targets to sensor
    * frame
    */
-  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
+  std::vector<Eigen::Affine3d, AlignAff3d>
   GetInitialGuess(std::string &sensor_frame);
 
   /**

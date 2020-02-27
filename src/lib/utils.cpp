@@ -24,20 +24,20 @@ double WrapToTwoPi(const double &angle) {
   return wrapped_angle;
 }
 
-double GetAngleErrorTwoPi(const double &angle_in){
+double GetAngleErrorTwoPi(const double &angle_in) {
   double angle_abs = WrapToTwoPi(std::abs(angle_in));
   double error;
-  if(angle_abs > M_PI){
-    return 2*M_PI - angle_abs;
+  if (angle_abs > M_PI) {
+    return 2 * M_PI - angle_abs;
   } else {
     return angle_abs;
   }
 }
 
-double GetAngleErrorPi(const double &angle_in){
+double GetAngleErrorPi(const double &angle_in) {
   double angle_abs = WrapToPi(std::abs(angle_in));
   double error;
-  if(angle_abs > M_PI/2){
+  if (angle_abs > M_PI / 2) {
     return M_PI - angle_abs;
   } else {
     return angle_abs;
@@ -213,25 +213,56 @@ cv::Mat DrawCoordinateFrame(
 }
 
 cv::Mat ProjectPointsToImage(
-    const cv::Mat &img,
-    boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
+    const cv::Mat &img, boost::shared_ptr<PointCloud> &cloud,
     const Eigen::MatrixXd &T_IMAGE_CLOUD,
-    std::shared_ptr<beam_calibration::CameraModel> &camera_model) {
+    std::shared_ptr<beam_calibration::CameraModel> &camera_model,
+    const bool &images_distorted) {
   cv::Mat img_out;
   img_out = img.clone();
   Eigen::Vector2d pixel(0, 0);
   Eigen::Vector4d point(0, 0, 0, 1);
   Eigen::Vector4d point_transformed(0, 0, 0, 1);
   for (int i = 0; i < cloud->size(); i++) {
-    point[0] = cloud->at(i).x;
-    point[1] = cloud->at(i).y;
-    point[2] = cloud->at(i).z;
+    point = utils::PointToHomoPoint(utils::PCLPointToEigen(cloud->at(i)));
     point_transformed = T_IMAGE_CLOUD * point;
-    pixel = camera_model->ProjectPoint(point_transformed);
+    if (images_distorted) {
+      pixel = camera_model->ProjectPoint(point_transformed);
+    } else {
+      pixel = camera_model->ProjectUndistortedPoint(
+          utils::HomoPointToPoint(point_transformed));
+    }
     cv::circle(img_out, cv::Point(pixel[0], pixel[1]), 2,
                cv::Scalar(0, 255, 0));
   }
   return img_out;
+}
+
+boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>
+ProjectPoints(boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
+              std::shared_ptr<beam_calibration::CameraModel> &camera_model,
+              const bool &images_distorted,
+              const Eigen::Matrix4d &T) {
+  Eigen::Vector2d pixel(0, 0);
+  Eigen::Vector4d point(0, 0, 0, 1);
+  Eigen::Vector4d point_transformed(0, 0, 0, 1);
+  pcl::PointXYZ point_projected;
+  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> projected_points =
+      boost::make_shared<PointCloud>();
+  for (int i = 0; i < cloud->size(); i++) {
+    point = utils::PointToHomoPoint(utils::PCLPointToEigen(cloud->at(i)));
+    point_transformed = T * point;
+    if (images_distorted) {
+      pixel = camera_model->ProjectPoint(point_transformed);
+    } else {
+      pixel = camera_model->ProjectUndistortedPoint(
+          utils::HomoPointToPoint(point_transformed));
+    }
+    point_projected.x = pixel[0];
+    point_projected.y = pixel[1];
+    point_projected.z = 0;
+    projected_points->push_back(point_projected);
+  }
+  return projected_points;
 }
 
 void OutputTransformInformation(const Eigen::Affine3d &T,
@@ -283,14 +314,12 @@ ConvertTimeToDate(const std::chrono::system_clock::time_point &time_) {
   return outputTime;
 }
 
-std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
-GetTargetLocation(
+std::vector<Eigen::Affine3d, AlignAff3d> GetTargetLocation(
     const std::vector<std::shared_ptr<vicon_calibration::TargetParams>>
         &target_params,
     const std::string &vicon_baselink_frame, const ros::Time &lookup_time,
     const std::shared_ptr<vicon_calibration::TfTree> &lookup_tree) {
-  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
-      T_viconbase_tgts;
+  std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts;
   for (uint8_t n; n < target_params.size(); n++) {
     Eigen::Affine3d T_viconbase_tgt;
     T_viconbase_tgt = lookup_tree->GetTransformEigen(

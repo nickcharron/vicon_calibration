@@ -31,10 +31,10 @@ void CylinderLidarExtractor::GetKeypoints() {
     measurement_complete_ = true;
     if (show_measurements_) {
       std::cout << "ICP failed. Displaying cropped scan." << std::endl;
-      boost::shared_ptr<pcl::PointCloud<pcl::PointXYZRGB>>
+      boost::shared_ptr<PointCloudColor>
           scan_cropped_coloured;
       scan_cropped_coloured =
-          boost::make_shared<pcl::PointCloud<pcl::PointXYZRGB>>();
+          boost::make_shared<PointCloudColor>();
       Eigen::MatrixXd T_identity = Eigen::MatrixXd(4, 4);
       T_identity.setIdentity();
       scan_cropped_coloured = this->ColourPointCloud(scan_cropped_, 255, 0, 0);

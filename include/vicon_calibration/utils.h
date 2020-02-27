@@ -14,6 +14,9 @@ namespace vicon_calibration {
 
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudColor;
+typedef Eigen::aligned_allocator<Eigen::Vector3d> AlignVec3d;
+typedef Eigen::aligned_allocator<Eigen::Vector2d> AlignVec2d;
+typedef Eigen::aligned_allocator<Eigen::Affine3d> AlignAff3d;
 
 #ifndef FILENAME
 #define FILENAME                                                               \
@@ -93,7 +96,14 @@ cv::Mat ProjectPointsToImage(
     const cv::Mat &img,
     boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
     const Eigen::MatrixXd &T_IMAGE_CLOUD,
-    std::shared_ptr<beam_calibration::CameraModel> &camera_model);
+    std::shared_ptr<beam_calibration::CameraModel> &camera_model,
+    const bool &images_distorted);
+
+boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>
+ProjectPoints(boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
+              std::shared_ptr<beam_calibration::CameraModel> &camera_model,
+              const bool &images_distorted,
+              const Eigen::Matrix4d &T);
 
 void OutputTransformInformation(const Eigen::Affine3d &T,
                                 const std::string &transform_name);
@@ -155,8 +165,7 @@ inline Eigen::Vector4d PointToHomoPoint(const Eigen::Vector3d &pt_in) {
 std::string
 ConvertTimeToDate(const std::chrono::system_clock::time_point &time_);
 
-std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
-GetTargetLocation(
+std::vector<Eigen::Affine3d, AlignAff3d> GetTargetLocation(
     const std::vector<std::shared_ptr<vicon_calibration::TargetParams>>
         &target_params,
     const std::string &vicon_baselink_frame, const ros::Time &lookup_time,

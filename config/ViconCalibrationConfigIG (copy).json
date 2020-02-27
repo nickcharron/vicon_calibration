@@ -1,9 +1,11 @@
 {
-  "bag_file": "/home/nick/bag_files/vicon_calibration/ig_calibration_static_tgts_2020-01-20-10-16-04.bag",
+  "bag_file": "/home/nick/bag_files/vicon_calibration/simulation/ig_calibration_static_tgts_2020-01-20-10-16-04.bag",
   "initial_calibration": "initial_calibration_ig_current.json",
   "lookup_tf_calibrations": true,
+  "using_simulation": true,
   "initial_guess_perturb": [0.007, 0.015, 0, 0.02, 0.01, -0.03],
-  "min_measurement_motion": 0.05,
+  "min_target_motion": 0.05,
+  "max_target_velocity": 0.7,
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
   "time_steps": 2,
   "show_camera_measurements": true,

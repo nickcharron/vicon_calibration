@@ -1,10 +1,11 @@
 {
-  "bag_file": "/home/nick/bag_files/vicon_calibration/roben_calibration_static_tgts_2020-01-20-10-33-12-GOOD.bag",
+  "bag_file": "/home/nick/bag_files/vicon_calibration/simulation/roben_calibration_static_tgts_2020-01-20-10-33-12-GOOD.bag",
   "initial_calibration": "initial_calibration_roben.json",
   "lookup_tf_calibrations": true,
   "using_simulation": true,
   "initial_guess_perturb": [0.007, 0.015, 0, 0.0, 0.0, 0.0],
-  "min_measurement_motion": 0.05,
+  "min_target_motion": 0.05,
+  "max_target_velocity": 0.7,
   "vicon_baselink_frame": "vicon/roben/roben",
   "time_steps": 2,
   "show_camera_measurements": false,

@@ -76,6 +76,12 @@ private:
 
   void SetCalibrationInitials();
 
+  bool PassedMinTranslation(const Eigen::Affine3d &TA_S_T_prev,
+                            const Eigen::Affine3d &TA_S_T_curr);
+
+  bool PassedMaxVelocity(const Eigen::Affine3d &TA_S_T_before,
+                         const Eigen::Affine3d &TA_S_T_after);
+
   std::shared_ptr<CalibratorConfig> params_;
   std::string results_directory_;
   std::string config_file_path_;

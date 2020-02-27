@@ -157,17 +157,15 @@ ViconCalibrator::GetInitialGuess(std::string &sensor_frame) {
         params_->vicon_baselink_frame, params_->target_params[n]->frame_id,
         lookup_time_);
     Eigen::Affine3d T_SENSOR_TGTn;
-    if(params_->using_simulation){
+    if (params_->using_simulation) {
       // perturb  for simulation testing ONLY
       Eigen::Affine3d TA_VICONBASE_SENSOR_pert;
       TA_VICONBASE_SENSOR_pert.matrix() = T_VICONBASE_SENSOR_pert_;
-      T_SENSOR_TGTn =
-          TA_VICONBASE_SENSOR_pert.inverse() * T_VICONBASE_TGTn;
+      T_SENSOR_TGTn = TA_VICONBASE_SENSOR_pert.inverse() * T_VICONBASE_TGTn;
     } else {
       Eigen::Affine3d TA_VICONBASE_SENSOR;
       TA_VICONBASE_SENSOR.matrix() = T_VICONBASE_SENSOR_;
-      T_SENSOR_TGTn =
-          TA_VICONBASE_SENSOR.inverse() * T_VICONBASE_TGTn;
+      T_SENSOR_TGTn = TA_VICONBASE_SENSOR.inverse() * T_VICONBASE_TGTn;
     }
     T_sensor_tgts_estimated.push_back(T_SENSOR_TGTn);
   }
@@ -205,7 +203,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
   ros::Duration time_step(params_->time_steps);
   ros::Time time_last(0, 0);
   this->GetInitialCalibration(sensor_frame, SensorType::LIDAR, lidar_iter);
-  if(params_->using_simulation){
+  if (params_->using_simulation) {
     this->GetInitialCalibrationPerturbed(sensor_frame, SensorType::LIDAR,
                                          lidar_iter);
   }
@@ -221,12 +219,27 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
       pcl_conversions::toPCL(*lidar_msg, *cloud_pc2);
       pcl::fromPCLPointCloud2(*cloud_pc2, *cloud);
       std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
-          T_lidar_tgts_estimated, T_viconbase_tgts;
+          T_lidar_tgts_estimated, T_viconbase_tgts, T_viconbase_tgts_before,
+          T_viconbase_tgts_after;
       try {
         T_lidar_tgts_estimated = GetInitialGuess(sensor_frame);
         T_viconbase_tgts = utils::GetTargetLocation(
             params_->target_params, params_->vicon_baselink_frame, lookup_time_,
             lookup_tree_);
+
+        // get transforms just before and after which will be used to calculate
+        // velocities
+        ros::Duration time_window_half(0.15);
+        if (lookup_time_ - time_window_half > view.getBeginTime()) {
+          T_viconbase_tgts_before = utils::GetTargetLocation(
+              params_->target_params, params_->vicon_baselink_frame,
+              lookup_time_ - time_window_half, lookup_tree_);
+        }
+        if (lookup_time_ + time_window_half < view.getEndTime()) {
+          T_viconbase_tgts_after = utils::GetTargetLocation(
+              params_->target_params, params_->vicon_baselink_frame,
+              lookup_time_ + time_window_half, lookup_tree_);
+        }
       } catch (const std::exception err) {
         LOG_ERROR("%s", err.what());
         std::cout
@@ -239,21 +252,23 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
       }
 
       for (uint8_t n = 0; n < T_lidar_tgts_estimated.size(); n++) {
-        // check minimal translation
         if (T_lidar_tgts_estimated_prev.size() > 0) {
-          Eigen::Vector3d error = T_lidar_tgts_estimated[n].translation() -
-                                  T_lidar_tgts_estimated_prev[n].translation();
-          error[0] = sqrt(error[0] * error[0] * 1000000) / 1000;
-          error[1] = sqrt(error[1] * error[1] * 1000000) / 1000;
-          error[2] = sqrt(error[2] * error[2] * 1000000) / 1000;
-          if (error[0] < params_->min_measurement_motion &&
-              error[1] < params_->min_measurement_motion &&
-              error[2] < params_->min_measurement_motion) {
+          if (!PassedMinTranslation(T_lidar_tgts_estimated_prev[n],
+                                    T_lidar_tgts_estimated[n])) {
             LOG_INFO("Target has not moved relative to base since last "
                      "measurement. Skipping.");
             continue;
           }
         }
+        if (T_viconbase_tgts_before.size() >= n &&
+            T_viconbase_tgts_after.size() >= n) {
+          if (!PassedMaxVelocity(T_viconbase_tgts_before[n],
+                                 T_viconbase_tgts_after[n])) {
+            LOG_INFO("Target is moving too quickly. Skipping.");
+            continue;
+          }
+        }
+
         std::string extractor_type = params_->target_params[n]->extractor_type;
         // TODO: add factory method [create(...)] to initialize these
         //       automatically without having to do these if statements.
@@ -324,7 +339,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
   ros::Time time_last = view.getBeginTime();
 
   this->GetInitialCalibration(sensor_frame, SensorType::CAMERA, cam_iter);
-  if(params_->using_simulation){
+  if (params_->using_simulation) {
     this->GetInitialCalibrationPerturbed(sensor_frame, SensorType::CAMERA,
                                          cam_iter);
   }
@@ -343,12 +358,27 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
       this->LoadLookupTree();
       time_last = time_current;
       std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
-          T_cam_tgts_estimated, T_viconbase_tgts;
+          T_cam_tgts_estimated, T_viconbase_tgts, T_viconbase_tgts_before,
+          T_viconbase_tgts_after;
       try {
         T_cam_tgts_estimated = GetInitialGuess(sensor_frame);
         T_viconbase_tgts = utils::GetTargetLocation(
             params_->target_params, params_->vicon_baselink_frame, lookup_time_,
             lookup_tree_);
+
+        // get transforms just before and after which will be used to
+        // calculate velocities
+        ros::Duration time_window_half(0.15);
+        if (lookup_time_ - time_window_half > view.getBeginTime()) {
+          T_viconbase_tgts_before = utils::GetTargetLocation(
+              params_->target_params, params_->vicon_baselink_frame,
+              lookup_time_ - time_window_half, lookup_tree_);
+        }
+        if (lookup_time_ + time_window_half < view.getEndTime()) {
+          T_viconbase_tgts_after = utils::GetTargetLocation(
+              params_->target_params, params_->vicon_baselink_frame,
+              lookup_time_ + time_window_half, lookup_tree_);
+        }
       } catch (const std::exception err) {
         LOG_ERROR("%s", err.what());
         std::cout
@@ -360,21 +390,23 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
         continue;
       }
       for (uint8_t n = 0; n < T_cam_tgts_estimated.size(); n++) {
-        // check minimal translation
         if (T_cam_tgts_estimated_prev.size() > 0) {
-          Eigen::Vector3d error = T_cam_tgts_estimated[n].translation() -
-                                  T_cam_tgts_estimated_prev[n].translation();
-          error[0] = sqrt(error[0] * error[0] * 1000000) / 1000;
-          error[1] = sqrt(error[1] * error[1] * 1000000) / 1000;
-          error[2] = sqrt(error[2] * error[2] * 1000000) / 1000;
-          if (error[0] < params_->min_measurement_motion &&
-              error[1] < params_->min_measurement_motion &&
-              error[2] < params_->min_measurement_motion) {
+          if (!PassedMinTranslation(T_cam_tgts_estimated_prev[n],
+                                    T_cam_tgts_estimated[n])) {
             LOG_INFO("Target has not moved relative to base since last "
                      "measurement. Skipping.");
             continue;
           }
         }
+        if (T_viconbase_tgts_before.size() >= n &&
+            T_viconbase_tgts_after.size() >= n) {
+          if (!PassedMaxVelocity(T_viconbase_tgts_before[n],
+                                 T_viconbase_tgts_after[n])) {
+            LOG_INFO("Target is moving too quickly. Skipping.");
+            continue;
+          }
+        }
+
         std::string extractor_type = params_->target_params[n]->extractor_type;
         if (extractor_type == "CYLINDER") {
           camera_extractor_ =
@@ -432,9 +464,9 @@ void ViconCalibrator::GetLoopClosureMeasurements() {
     for (int lid_iter = 0; lid_iter < lidar_measurements_.size(); lid_iter++) {
       for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
            meas_iter++) {
-        // save loop closure measurement only if that measurement was successful
-        // for the camera and lidar at that timepoint, and that the target has
-        // distinct features (e.g., diamond target)
+        // save loop closure measurement only if that measurement was
+        // successful for the camera and lidar at that timepoint, and that the
+        // target has distinct features (e.g., diamond target)
         // TODO: add ^this criteria to the DOCS
         if (camera_measurements_[cam_iter][meas_iter] == nullptr ||
             lidar_measurements_[lid_iter][meas_iter] == nullptr) {
@@ -469,6 +501,37 @@ void ViconCalibrator::GetLoopClosureMeasurements() {
   }
   LOG_INFO("Saved %d lidar-camera loop closure measurements.",
            loop_closure_measurements_.size());
+}
+
+bool ViconCalibrator::PassedMinTranslation(const Eigen::Affine3d &TA_S_T_prev,
+                                           const Eigen::Affine3d &TA_S_T_curr) {
+  Eigen::Vector3d error = TA_S_T_curr.translation() - TA_S_T_prev.translation();
+  error[0] = std::abs(error[0]);
+  error[1] = std::abs(error[1]);
+  error[2] = std::abs(error[2]);
+  if (error[0] < params_->min_target_motion &&
+      error[1] < params_->min_target_motion &&
+      error[2] < params_->min_target_motion) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+bool ViconCalibrator::PassedMaxVelocity(const Eigen::Affine3d &TA_S_T_before,
+                                        const Eigen::Affine3d &TA_S_T_after) {
+  Eigen::Vector3d velocities =
+      TA_S_T_after.translation() - TA_S_T_before.translation();
+  velocities[0] = std::abs(velocities[0]) / 0.3;
+  velocities[1] = std::abs(velocities[1]) / 0.3;
+  velocities[2] = std::abs(velocities[2]) / 0.3;
+  if (velocities[0] > params_->max_target_velocity ||
+      velocities[1] > params_->max_target_velocity ||
+      velocities[2] > params_->max_target_velocity) {
+    return false;
+  } else {
+    return true;
+  }
 }
 
 void ViconCalibrator::RunCalibration(std::string config_file) {
@@ -543,7 +606,7 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
   graph_.SetCameraParams(params_->camera_params);
   graph_.SetCameraMeasurements(camera_measurements_);
   graph_.SetLoopClosureMeasurements(loop_closure_measurements_);
-  if(params_->using_simulation){
+  if (params_->using_simulation) {
     graph_.SetInitialGuess(calibrations_perturbed_);
   } else {
     graph_.SetInitialGuess(calibrations_initial_);
@@ -554,8 +617,9 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
   utils::OutputCalibrations(calibrations_initial_,
                             "Initial Calibration Estimates:");
   utils::OutputCalibrations(calibrations_result_, "Optimized Calibrations:");
-  if(params_->using_simulation){
-    utils::OutputCalibrations(calibrations_perturbed_, "Perturbed Calibrations:");
+  if (params_->using_simulation) {
+    utils::OutputCalibrations(calibrations_perturbed_,
+                              "Perturbed Calibrations:");
   }
 
   if (params_->run_verification) {
@@ -564,7 +628,7 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
     ver.SetParams(params_);
     ver.SetInitialCalib(calibrations_initial_);
     ver.SetOptimizedCalib(calibrations_result_);
-    if(params_->using_simulation){
+    if (params_->using_simulation) {
       ver.SetPeturbedCalib(calibrations_perturbed_);
     }
     ver.ProcessResults();

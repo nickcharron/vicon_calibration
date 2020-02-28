@@ -162,8 +162,6 @@ void CalibrationVerification::PrintCalibrationErrors() {
          << t_error[1] * 1000 << ", " << t_error[2] * 1000 << "]\n\n";
   }
 
-  std::cout << "params_->using_simulation: " << params_->using_simulation
-            << "\n";
   if (!params_->using_simulation) {
     return;
   }

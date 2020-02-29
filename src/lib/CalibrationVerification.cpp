@@ -473,7 +473,8 @@ void CalibrationVerification::GetLidarErrors() {
       if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) {
         continue;
       }
-
+      measurement = lidar_measurements_[lidar_iter][meas_iter];
+      
       T_SENSOR_TARGET_opt = TA_VICONBASE_SENSOR_opt.inverse().matrix() *
                             measurement->T_VICONBASE_TARGET;
       T_SENSOR_TARGET_est = TA_VICONBASE_SENSOR_est.inverse().matrix() *

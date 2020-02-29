@@ -240,8 +240,7 @@ cv::Mat ProjectPointsToImage(
 boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>
 ProjectPoints(boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
               std::shared_ptr<beam_calibration::CameraModel> &camera_model,
-              const bool &images_distorted,
-              const Eigen::Matrix4d &T) {
+              const bool &images_distorted, const Eigen::Matrix4d &T) {
   Eigen::Vector2d pixel(0, 0);
   Eigen::Vector4d point(0, 0, 0, 1);
   Eigen::Vector4d point_transformed(0, 0, 0, 1);
@@ -263,6 +262,24 @@ ProjectPoints(boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
     projected_points->push_back(point_projected);
   }
   return projected_points;
+}
+
+PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr &cloud,
+                                      const int &r, const int &g,
+                                      const int &b) {
+  PointCloudColor::Ptr coloured_cloud;
+  coloured_cloud = boost::make_shared<PointCloudColor>();
+  uint32_t rgb = (static_cast<uint32_t>(r) << 16 |
+                  static_cast<uint32_t>(g) << 8 | static_cast<uint32_t>(b));
+  pcl::PointXYZRGB point;
+  for (PointCloud::iterator it = cloud->begin(); it != cloud->end(); ++it) {
+    point.x = it->x;
+    point.y = it->y;
+    point.z = it->z;
+    point.rgb = *reinterpret_cast<float *>(&rgb);
+    coloured_cloud->push_back(point);
+  }
+  return coloured_cloud;
 }
 
 void OutputTransformInformation(const Eigen::Affine3d &T,

@@ -60,6 +60,7 @@ struct LidarMeasurement {
   int target_id;
   std::string lidar_frame;
   std::string target_frame;
+  ros::Time time_stamp;
   LidarMeasurement() { T_VICONBASE_TARGET = Eigen::MatrixXd(4, 4); }
 };
 
@@ -71,6 +72,7 @@ struct CameraMeasurement {
   int target_id;
   std::string camera_frame;
   std::string target_frame;
+  ros::Time time_stamp;
   CameraMeasurement() { T_VICONBASE_TARGET = Eigen::MatrixXd(4, 4); }
 };
 

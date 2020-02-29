@@ -251,8 +251,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
                "json has missing/invalid transforms\n";
         continue;
       }
-
-      for (uint8_t n = 0; n < T_lidar_tgts_estimated.size(); n++) {
+      for (int n = 0; n < T_lidar_tgts_estimated.size(); n++) {
         if (T_lidar_tgts_estimated_prev.size() > 0) {
           if (!PassedMinTranslation(T_lidar_tgts_estimated_prev[n],
                                     T_lidar_tgts_estimated[n])) {
@@ -261,8 +260,8 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
             continue;
           }
         }
-        if (T_viconbase_tgts_before.size() >= n &&
-            T_viconbase_tgts_after.size() >= n) {
+        if (T_viconbase_tgts_before.size() > 0 &&
+            T_viconbase_tgts_after.size() > 0) {
           if (!PassedMaxVelocity(T_viconbase_tgts_before[n],
                                  T_viconbase_tgts_after[n])) {
             LOG_INFO("Target is moving too quickly. Skipping.");
@@ -292,7 +291,6 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
         lidar_extractor_->SetLidarParams(params_->lidar_params[lidar_iter]);
         lidar_extractor_->SetTargetParams(params_->target_params[n]);
         lidar_extractor_->SetShowMeasurements(params_->show_lidar_measurements);
-
         lidar_extractor_->ProcessMeasurement(T_lidar_tgts_estimated[n].matrix(),
                                              cloud);
         params_->show_lidar_measurements =
@@ -308,6 +306,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
           lidar_measurement->lidar_frame =
               params_->lidar_params[lidar_iter]->frame;
           lidar_measurement->target_frame = params_->target_params[n]->frame_id;
+          lidar_measurement->time_stamp = time_current;
           lidar_measurements_[lidar_iter][current_measurement] =
               lidar_measurement;
         }
@@ -390,7 +389,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
                "json has missing/invalid transforms\n";
         continue;
       }
-      for (uint8_t n = 0; n < T_cam_tgts_estimated.size(); n++) {
+      for (int n = 0; n < T_cam_tgts_estimated.size(); n++) {
         if (T_cam_tgts_estimated_prev.size() > 0) {
           if (!PassedMinTranslation(T_cam_tgts_estimated_prev[n],
                                     T_cam_tgts_estimated[n])) {
@@ -399,8 +398,8 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
             continue;
           }
         }
-        if (T_viconbase_tgts_before.size() >= n &&
-            T_viconbase_tgts_after.size() >= n) {
+        if (T_viconbase_tgts_before.size() >= 0 &&
+            T_viconbase_tgts_after.size() >= 0) {
           if (!PassedMaxVelocity(T_viconbase_tgts_before[n],
                                  T_viconbase_tgts_after[n])) {
             LOG_INFO("Target is moving too quickly. Skipping.");
@@ -445,6 +444,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
               params_->camera_params[cam_iter]->frame;
           camera_measurement->target_frame =
               params_->target_params[n]->frame_id;
+          camera_measurement->time_stamp = time_current;
           camera_measurements_[cam_iter][current_measurement] =
               camera_measurement;
         }
@@ -629,6 +629,8 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
     ver.SetParams(params_);
     ver.SetInitialCalib(calibrations_initial_);
     ver.SetOptimizedCalib(calibrations_result_);
+    ver.SetLidarMeasurements(lidar_measurements_);
+    ver.SetCameraMeasurements(camera_measurements_);
     if (params_->using_simulation) {
       ver.SetPeturbedCalib(calibrations_perturbed_);
     }

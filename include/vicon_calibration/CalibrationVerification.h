@@ -14,6 +14,8 @@ class CalibrationVerification {
 public:
   void LoadJSON(const std::string &file_name = "CalibrationVerification.json");
 
+  void CheckInputs();
+
   void SetInitialCalib(
       const std::vector<vicon_calibration::CalibrationResult> &calib);
 
@@ -27,23 +29,45 @@ public:
 
   void SetParams(std::shared_ptr<CalibratorConfig> &params);
 
+  void SetLidarMeasurements(
+      const std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>
+          &lidar_measurements);
+
+  void SetCameraMeasurements(
+      const std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>
+          &camera_measurements);
+
   void ProcessResults();
 
 private:
   void CreateDirectories();
 
-  void SaveLidarResults();
+  void SaveLidarVisuals();
 
-  std::vector<Eigen::Vector3d, AlignVec3d> GetLidarErrors(
-      const std::vector<Eigen::Affine3d, AlignAff3d> &T_VICONBASE_TGTS,
-      const PointCloud::Ptr &scan_viconbase, uint8_t &lidar_id);
+  PointCloud::Ptr GetLidarScanFromBag(const std::string &topic);
 
-  std::vector<Eigen::Vector2d, AlignVec2d> GetCameraErrors(
-      const std::vector<Eigen::Affine3d, AlignAff3d> &T_VICONBASE_TGTS,
-      const Eigen::Matrix4d &T_VICONBASE_CAMERA,
-      const std::shared_ptr<cv::Mat> &img, uint8_t &camera_id);
+  void SaveScans(const PointCloud::Ptr &scan_est,
+                 const PointCloud::Ptr &scan_opt,
+                 const PointCloud::Ptr &targets, const std::string &save_path,
+                 const int &scan_count);
 
-  void SaveCameraResults();
+  void GetLidarErrors();
+
+  std::vector<Eigen::Vector3d, AlignVec3d>
+  CalculateLidarErrors(const PointCloud::Ptr &measured_keypoints,
+                       const Eigen::Matrix4d &T_SENSOR_TARGET,
+                       const int &target_id);
+
+  void SaveCameraVisuals();
+
+  std::shared_ptr<cv::Mat> GetImageFromBag(const std::string &topic);
+
+  void GetCameraErrors();
+
+  std::vector<Eigen::Vector2d, AlignVec2d>
+  CalculateCameraErrors(const PointCloud::Ptr &measured_keypoints,
+                        const Eigen::Matrix4d &T_SENSOR_TARGET,
+                        const int &target_id, const int &camera_id);
 
   void PrintConfig();
 
@@ -61,13 +85,16 @@ private:
 
   void LoadLookupTree();
 
-  void PrintErrors();
+  void PrintErrorsSummary();
 
   // params:
   std::vector<double> template_downsample_size_{0.005, 0.005, 0.005};
   double concave_hull_alpha_{5};
 
   // member variables:
+  bool initial_calib_set_{false}, optimized_calib_set_{false},
+      perturbed_calib_set_{false}, params_set_{false}, config_path_set_{false},
+      lidar_measurements_set_{false}, camera_measurements_set_{false};
   int num_tgts_in_img_;
   std::shared_ptr<CalibratorConfig> params_;
   std::string output_directory_;
@@ -86,9 +113,13 @@ private:
   std::vector<vicon_calibration::CalibrationResult> calibrations_result_,
       calibrations_initial_, calibrations_perturbed_;
   std::vector<Eigen::Vector3d, AlignVec3d> lidar_errors_opt_,
-      lidar_errors_init_;
+      lidar_errors_init_, lidar_errors_pert_;
   std::vector<Eigen::Vector2d, AlignVec2d> camera_errors_opt_,
-      camera_errors_init_;
+      camera_errors_init_, camera_errors_pert_;
+  std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>
+      lidar_measurements_;
+  std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>
+      camera_measurements_;
 };
 
 } // end namespace vicon_calibration

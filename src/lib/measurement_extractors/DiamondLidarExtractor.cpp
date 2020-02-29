@@ -31,7 +31,7 @@ void DiamondLidarExtractor::GetKeypoints() {
           boost::make_shared<PointCloudColor>();
       Eigen::MatrixXd T_identity = Eigen::MatrixXd(4,4);
       T_identity.setIdentity();
-      scan_cropped_coloured = this->ColourPointCloud(scan_cropped_, 255, 0, 0);
+      scan_cropped_coloured = utils::ColorPointCloud(scan_cropped_, 255, 0, 0);
       this->AddColouredPointCloudToViewer(scan_cropped_coloured,
                                           "red_cloud", T_identity);
       this->AddPointCloudToViewer(scan_in_, "white_cloud", T_identity);
@@ -71,7 +71,7 @@ void DiamondLidarExtractor::GetKeypoints() {
 
     // add estimated template cloud
     PointCloudColor::Ptr estimated_template_cloud =
-        this->ColourPointCloud(target_params_->template_cloud, 0, 0, 255);
+        utils::ColorPointCloud(target_params_->template_cloud, 0, 0, 255);
     pcl::transformPointCloud(*estimated_template_cloud,
                              *estimated_template_cloud,
                              T_LIDAR_TARGET_EST_.cast<float>());
@@ -81,7 +81,7 @@ void DiamondLidarExtractor::GetKeypoints() {
 
     // add measured template cloud
     PointCloudColor::Ptr measured_template_cloud =
-        this->ColourPointCloud(target_params_->template_cloud, 0, 255, 0);
+        utils::ColorPointCloud(target_params_->template_cloud, 0, 255, 0);
     pcl::transformPointCloud(*measured_template_cloud, *measured_template_cloud,
                              T_LIDAR_TARGET_OPT.cast<float>());
     this->AddColouredPointCloudToViewer(
@@ -89,7 +89,7 @@ void DiamondLidarExtractor::GetKeypoints() {
 
     // add keypoints
     PointCloudColor::Ptr measured_keypoints =
-        this->ColourPointCloud(keypoints_measured_, 255, 255, 0);
+        utils::ColorPointCloud(keypoints_measured_, 255, 255, 0);
     this->AddColouredPointCloudToViewer(
         measured_keypoints, "keypoints", T_LIDAR_TARGET_OPT, 5);
 

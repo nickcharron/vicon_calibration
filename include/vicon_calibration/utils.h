@@ -102,8 +102,10 @@ cv::Mat ProjectPointsToImage(
 boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>
 ProjectPoints(boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
               std::shared_ptr<beam_calibration::CameraModel> &camera_model,
-              const bool &images_distorted,
-              const Eigen::Matrix4d &T);
+              const bool &images_distorted, const Eigen::Matrix4d &T);
+
+PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr &cloud, const int &r,
+                                     const int &g, const int &b);
 
 void OutputTransformInformation(const Eigen::Affine3d &T,
                                 const std::string &transform_name);

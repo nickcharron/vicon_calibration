@@ -77,9 +77,6 @@ protected:
 
   void CropScan();
 
-  PointCloudColor::Ptr ColourPointCloud(PointCloud::Ptr &cloud, int r, int g,
-                                        int b);
-
   void AddColouredPointCloudToViewer(const PointCloudColor::Ptr &cloud,
                                      const std::string &cloud_name,
                                      boost::optional<Eigen::MatrixXd &> T,

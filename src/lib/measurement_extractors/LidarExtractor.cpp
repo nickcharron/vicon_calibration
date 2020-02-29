@@ -122,23 +122,6 @@ void LidarExtractor::CropScan() {
   cropper.Filter(*scan_in_, *scan_cropped_);
 }
 
-PointCloudColor::Ptr LidarExtractor::ColourPointCloud(PointCloud::Ptr &cloud,
-                                                      int r, int g, int b) {
-  PointCloudColor::Ptr coloured_cloud;
-  coloured_cloud = boost::make_shared<PointCloudColor>();
-  uint32_t rgb = (static_cast<uint32_t>(r) << 16 |
-                  static_cast<uint32_t>(g) << 8 | static_cast<uint32_t>(b));
-  pcl::PointXYZRGB point;
-  for (PointCloud::iterator it = cloud->begin(); it != cloud->end(); ++it) {
-    point.x = it->x;
-    point.y = it->y;
-    point.z = it->z;
-    point.rgb = *reinterpret_cast<float *>(&rgb);
-    coloured_cloud->push_back(point);
-  }
-  return coloured_cloud;
-}
-
 void LidarExtractor::AddColouredPointCloudToViewer(
     const PointCloudColor::Ptr &cloud, const std::string &cloud_name,
     boost::optional<Eigen::MatrixXd &> T = boost::none, int point_size) {

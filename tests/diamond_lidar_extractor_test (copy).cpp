@@ -133,7 +133,7 @@ void ConfirmMeasurementKeyboardCallback(
   }
 }
 
-void AddPointCloudToViewer(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
+void AddPointCloudToViewer(PointCloud::Ptr cloud,
                            std::string cloud_name, Eigen::Affine3d &T) {
   pcl_viewer->addPointCloud<pcl::PointXYZ>(cloud, cloud_name);
   pcl_viewer->addCoordinateSystem(1, T.cast<float>(), cloud_name + "frame");
@@ -155,9 +155,9 @@ TEST_CASE("Test cylinder extractor with empty template cloud && empty scan") {
   std::shared_ptr<vicon_calibration::TargetParams> invalid_target_params =
       std::make_shared<vicon_calibration::TargetParams>();
   invalid_target_params = target_params;
-  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> null_cloud;
-  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> empty_cloud;
-  empty_cloud = boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  boost::shared_ptr<PointCloud> null_cloud;
+  boost::shared_ptr<PointCloud> empty_cloud;
+  empty_cloud = boost::make_shared<PointCloud>();
   invalid_target_params->template_cloud = null_cloud;
   std::shared_ptr<vicon_calibration::LidarExtractor> cyl_extractor;
   cyl_extractor = std::make_shared<vicon_calibration::CylinderLidarExtractor>();
@@ -244,7 +244,7 @@ target_params; Eigen::Vector3d div_crop(0.5, 0.2, 0.2);
   cyl_extractor->SetShowMeasurements(true);
   cyl_extractor->SetLidarParams(lidar_params);
   cyl_extractor->SetTargetParams(target_params2);
-  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> keypoints1, keypoints2;
+  boost::shared_ptr<PointCloud> keypoints1, keypoints2;
 
   // view keypoints 1
   cyl_extractor->ExtractKeypoints(T_SCAN_TARGET1_TRUE.matrix(), sim_cloud);

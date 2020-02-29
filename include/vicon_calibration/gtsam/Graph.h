@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vicon_calibration/params.h"
+#include "vicon_calibration/utils.h"
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <pcl/registration/correspondence_estimation.h>
 #include <pcl/visualization/pcl_visualizer.h>
@@ -61,9 +62,9 @@ private:
 
   void SetLoopClosureCorrespondences();
 
-  pcl::PointCloud<pcl::PointXYZ>::Ptr
-  MatchCentroids(const pcl::PointCloud<pcl::PointXYZ>::Ptr &source_cloud,
-                 const pcl::PointCloud<pcl::PointXYZ>::Ptr &target_cloud);
+  PointCloud::Ptr
+  MatchCentroids(const PointCloud::Ptr &source_cloud,
+                 const PointCloud::Ptr &target_cloud);
 
   void SetImageFactors();
 
@@ -78,14 +79,14 @@ private:
   void ResetViewer();
 
   void ViewLidarMeasurements(
-      const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,
-      const pcl::PointCloud<pcl::PointXYZ>::Ptr &c2,
+      const PointCloud::Ptr &c1,
+      const PointCloud::Ptr &c2,
       const boost::shared_ptr<pcl::Correspondences> &correspondences,
       const std::string &c1_name, const std::string &c2_name);
 
   void ViewCameraMeasurements(
-      const pcl::PointCloud<pcl::PointXYZ>::Ptr &c1,
-      const pcl::PointCloud<pcl::PointXYZ>::Ptr &c2,
+      const PointCloud::Ptr &c1,
+      const PointCloud::Ptr &c2,
       const boost::shared_ptr<pcl::Correspondences> &correspondences,
       const std::string &c1_name, const std::string &c2_name);
 

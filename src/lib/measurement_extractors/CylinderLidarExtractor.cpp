@@ -31,13 +31,13 @@ void CylinderLidarExtractor::GetKeypoints() {
     measurement_complete_ = true;
     if (show_measurements_) {
       std::cout << "ICP failed. Displaying cropped scan." << std::endl;
-      boost::shared_ptr<pcl::PointCloud<pcl::PointXYZRGB>>
+      boost::shared_ptr<PointCloudColor>
           scan_cropped_coloured;
       scan_cropped_coloured =
-          boost::make_shared<pcl::PointCloud<pcl::PointXYZRGB>>();
+          boost::make_shared<PointCloudColor>();
       Eigen::MatrixXd T_identity = Eigen::MatrixXd(4, 4);
       T_identity.setIdentity();
-      scan_cropped_coloured = this->ColourPointCloud(scan_cropped_, 255, 0, 0);
+      scan_cropped_coloured = utils::ColorPointCloud(scan_cropped_, 255, 0, 0);
       this->AddColouredPointCloudToViewer(scan_cropped_coloured,
                                           "red_cloud", T_identity);
       this->AddPointCloudToViewer(scan_in_, "white_cloud", T_identity);
@@ -156,7 +156,7 @@ void CylinderLidarExtractor::CheckErrors() {
     PointCloudColor::Ptr estimated_template_cloud =
         boost::make_shared<PointCloudColor>();
     estimated_template_cloud =
-        this->ColourPointCloud(target_params_->template_cloud, 0, 0, 255);
+        utils::ColorPointCloud(target_params_->template_cloud, 0, 0, 255);
     pcl::transformPointCloud(*estimated_template_cloud,
                              *estimated_template_cloud,
                              T_LIDAR_TARGET_EST_.cast<float>());
@@ -167,7 +167,7 @@ void CylinderLidarExtractor::CheckErrors() {
     PointCloudColor::Ptr measured_template_cloud =
         boost::make_shared<PointCloudColor>();
     measured_template_cloud =
-        this->ColourPointCloud(target_params_->template_cloud, 0, 255, 0);
+        utils::ColorPointCloud(target_params_->template_cloud, 0, 255, 0);
     pcl::transformPointCloud(*measured_template_cloud, *measured_template_cloud,
                              T_LIDAR_TARGET_OPT_.cast<float>());
     this->AddColouredPointCloudToViewer(measured_template_cloud,

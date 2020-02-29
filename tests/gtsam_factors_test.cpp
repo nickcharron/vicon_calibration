@@ -14,6 +14,8 @@
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/ProjectionFactor.h>
 
+typedef Eigen::aligned_allocator<Eigen::Vector2d> AlignVec2d;
+
 Eigen::Vector2d EvaluateCameraError(
     Eigen::Matrix4d T_op, Eigen::Matrix4d T_VT,
     Eigen::Vector3d corresponding_point, Eigen::Vector2d measured_pixel,
@@ -419,7 +421,7 @@ TEST_CASE("Test camera factor in Optimization") {
   T_VC_pert = vicon_calibration::utils::PerturbTransform(T_VC, perturbation);
 
   // create projected (detected) points - no noise
-  std::vector<Eigen::Vector2d, Eigen::aligned_allocator<Eigen::Vector2d>>
+  std::vector<Eigen::Vector2d, AlignVec2d>
       pixels(points.size());
   std::vector<bool> pixels_valid(points.size());
   Eigen::Vector4d point_transformed;
@@ -644,7 +646,7 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
   T_VL_pert = vicon_calibration::utils::PerturbTransform(T_VL, perturb_lid);
 
   // create measured pixels and measured lidar points - no noise
-  std::vector<Eigen::Vector2d, Eigen::aligned_allocator<Eigen::Vector2d>>
+  std::vector<Eigen::Vector2d, AlignVec2d>
       pixels_measured(points.size());
   std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
       points_measured(points.size());

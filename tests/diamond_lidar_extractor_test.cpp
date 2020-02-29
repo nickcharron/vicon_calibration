@@ -142,7 +142,7 @@ void ConfirmMeasurementKeyboardCallback(
   }
 }
 
-void AddPointCloudToViewer(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
+void AddPointCloudToViewer(PointCloud::Ptr cloud,
                            std::string cloud_name, Eigen::Affine3d &T) {
   pcl_viewer->addPointCloud<pcl::PointXYZ>(cloud, cloud_name);
   pcl_viewer->addCoordinateSystem(1, T.cast<float>(), cloud_name + "frame");
@@ -164,9 +164,9 @@ TEST_CASE("Test diamond extractor with empty template cloud && empty scan") {
   std::shared_ptr<TargetParams> invalid_target_params =
       std::make_shared<TargetParams>();
   *invalid_target_params = *target_params;
-  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> null_cloud;
-  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> empty_cloud =
-      boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  boost::shared_ptr<PointCloud> null_cloud;
+  boost::shared_ptr<PointCloud> empty_cloud =
+      boost::make_shared<PointCloud>();
   invalid_target_params->template_cloud = null_cloud;
   std::shared_ptr<LidarExtractor> diamond_extractor;
   diamond_extractor = std::make_shared<DiamondLidarExtractor>();
@@ -256,7 +256,7 @@ TEST_CASE("Test best correspondence estimation") {
   diamond_extractor->SetShowMeasurements(true);
   diamond_extractor->SetLidarParams(lidar_params);
   diamond_extractor->SetTargetParams(target_params2);
-  boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> keypoints1, keypoints2;
+  boost::shared_ptr<PointCloud> keypoints1, keypoints2;
 
   // view keypoints 1
   diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE,

@@ -2,6 +2,7 @@
 
 #include "vicon_calibration/TfTree.h"
 #include "vicon_calibration/params.h"
+#include "vicon_calibration/utils.h"
 #include <Eigen/Geometry>
 #include <ros/time.h>
 #include <rosbag/bag.h>
@@ -12,6 +13,8 @@ class CalibrationVerification {
 
 public:
   void LoadJSON(const std::string &file_name = "CalibrationVerification.json");
+
+  void CheckInputs();
 
   void SetInitialCalib(
       const std::vector<vicon_calibration::CalibrationResult> &calib);
@@ -26,14 +29,45 @@ public:
 
   void SetParams(std::shared_ptr<CalibratorConfig> &params);
 
+  void SetLidarMeasurements(
+      const std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>
+          &lidar_measurements);
+
+  void SetCameraMeasurements(
+      const std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>
+          &camera_measurements);
+
   void ProcessResults();
 
 private:
   void CreateDirectories();
 
-  void SaveLidarResults();
+  void SaveLidarVisuals();
 
-  void SaveCameraResults();
+  PointCloud::Ptr GetLidarScanFromBag(const std::string &topic);
+
+  void SaveScans(const PointCloud::Ptr &scan_est,
+                 const PointCloud::Ptr &scan_opt,
+                 const PointCloud::Ptr &targets, const std::string &save_path,
+                 const int &scan_count);
+
+  void GetLidarErrors();
+
+  std::vector<Eigen::Vector3d, AlignVec3d>
+  CalculateLidarErrors(const PointCloud::Ptr &measured_keypoints,
+                       const Eigen::Matrix4d &T_SENSOR_TARGET,
+                       const int &target_id);
+
+  void SaveCameraVisuals();
+
+  std::shared_ptr<cv::Mat> GetImageFromBag(const std::string &topic);
+
+  void GetCameraErrors();
+
+  std::vector<Eigen::Vector2d, AlignVec2d>
+  CalculateCameraErrors(const PointCloud::Ptr &measured_keypoints,
+                        const Eigen::Matrix4d &T_SENSOR_TARGET,
+                        const int &target_id, const int &camera_id);
 
   void PrintConfig();
 
@@ -45,19 +79,22 @@ private:
 
   std::shared_ptr<cv::Mat> ProjectTargetToImage(
       const std::shared_ptr<cv::Mat> &img_in,
-      const std::vector<Eigen::Affine3d,
-                        Eigen::aligned_allocator<Eigen::Affine3d>>
-          &T_viconbase_tgts,
+      const std::vector<Eigen::Affine3d, AlignAff3d> &T_VICONBASE_TGTS,
       const Eigen::Matrix4d &T_VICONBASE_SENSOR, const int &cam_iter,
       cv::Scalar colour);
 
   void LoadLookupTree();
+
+  void PrintErrorsSummary();
 
   // params:
   std::vector<double> template_downsample_size_{0.005, 0.005, 0.005};
   double concave_hull_alpha_{5};
 
   // member variables:
+  bool initial_calib_set_{false}, optimized_calib_set_{false},
+      perturbed_calib_set_{false}, params_set_{false}, config_path_set_{false},
+      lidar_measurements_set_{false}, camera_measurements_set_{false};
   int num_tgts_in_img_;
   std::shared_ptr<CalibratorConfig> params_;
   std::string output_directory_;
@@ -68,11 +105,21 @@ private:
   ros::Duration time_increment_ = ros::Duration(10);
   int max_image_results_{20};
   int max_lidar_results_{3};
+  double max_pixel_cor_dist_{500}; // in pixels
+  double max_point_cor_dist_{0.3}; // in m
   ros::Time lookup_time_;
   std::shared_ptr<vicon_calibration::TfTree> lookup_tree_ =
       std::make_shared<vicon_calibration::TfTree>();
   std::vector<vicon_calibration::CalibrationResult> calibrations_result_,
       calibrations_initial_, calibrations_perturbed_;
+  std::vector<Eigen::Vector3d, AlignVec3d> lidar_errors_opt_,
+      lidar_errors_init_, lidar_errors_pert_;
+  std::vector<Eigen::Vector2d, AlignVec2d> camera_errors_opt_,
+      camera_errors_init_, camera_errors_pert_;
+  std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>
+      lidar_measurements_;
+  std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>
+      camera_measurements_;
 };
 
 } // end namespace vicon_calibration

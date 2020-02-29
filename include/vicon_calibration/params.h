@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Eigen/Geometry>
+#include <beam_calibration/CameraModel.h>
 #include <gtsam/geometry/Point2.h>
 #include <gtsam/geometry/Point3.h>
 #include <opencv2/opencv.hpp>
@@ -8,9 +9,14 @@
 #include <pcl/point_types.h>
 #include <ros/time.h>
 #include <string>
-#include <beam_calibration/CameraModel.h>
 
 namespace vicon_calibration {
+
+typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
+typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudColor;
+typedef Eigen::aligned_allocator<Eigen::Vector3d> AlignVec3d;
+typedef Eigen::aligned_allocator<Eigen::Vector2d> AlignVec2d;
+typedef Eigen::aligned_allocator<Eigen::Affine3d> AlignAff3d;
 
 /**
  * @brief Enum class for different types of sensors
@@ -37,11 +43,9 @@ struct TargetParams {
   std::string target_config_path;
   Eigen::VectorXd crop_scan;
   Eigen::VectorXd crop_image;
-  pcl::PointCloud<pcl::PointXYZ>::Ptr template_cloud;
-  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>
-      keypoints_lidar;
-  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>
-      keypoints_camera;
+  PointCloud::Ptr template_cloud;
+  std::vector<Eigen::Vector3d, AlignVec3d> keypoints_lidar;
+  std::vector<Eigen::Vector3d, AlignVec3d> keypoints_camera;
   TargetParams() {
     crop_scan = Eigen::VectorXd(3);
     crop_image = Eigen::VectorXd(2);
@@ -50,12 +54,13 @@ struct TargetParams {
 
 struct LidarMeasurement {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints;
+  PointCloud::Ptr keypoints;
   Eigen::MatrixXd T_VICONBASE_TARGET;
   int lidar_id;
   int target_id;
   std::string lidar_frame;
   std::string target_frame;
+  ros::Time time_stamp;
   LidarMeasurement() { T_VICONBASE_TARGET = Eigen::MatrixXd(4, 4); }
 };
 
@@ -67,13 +72,14 @@ struct CameraMeasurement {
   int target_id;
   std::string camera_frame;
   std::string target_frame;
+  ros::Time time_stamp;
   CameraMeasurement() { T_VICONBASE_TARGET = Eigen::MatrixXd(4, 4); }
 };
 
 struct LoopClosureMeasurement {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   pcl::PointCloud<pcl::PointXY>::Ptr keypoints_camera;
-  pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_lidar;
+  PointCloud::Ptr keypoints_lidar;
   Eigen::MatrixXd T_VICONBASE_TARGET;
   int camera_id;
   int lidar_id;

@@ -63,11 +63,11 @@ public:
   bool GetShowMeasurements();
 
   void ProcessMeasurement(const Eigen::Matrix4d &T_LIDAR_TARGET_EST,
-                          pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in);
+                          const PointCloud::Ptr &cloud_in);
 
   bool GetMeasurementValid();
 
-  pcl::PointCloud<pcl::PointXYZ>::Ptr GetMeasurement();
+  PointCloud::Ptr GetMeasurement();
 
 protected:
   // this is what we will need to override in the derived class
@@ -76,9 +76,6 @@ protected:
   void CheckInputs();
 
   void CropScan();
-
-  PointCloudColor::Ptr ColourPointCloud(PointCloud::Ptr &cloud, int r, int g,
-                                        int b);
 
   void AddColouredPointCloudToViewer(const PointCloudColor::Ptr &cloud,
                                      const std::string &cloud_name,
@@ -104,7 +101,7 @@ protected:
   PointCloud::Ptr scan_cropped_;
   Eigen::MatrixXd T_LIDAR_TARGET_EST_ = Eigen::MatrixXd(4, 4);
   pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
-  pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_measured_;
+  PointCloud::Ptr keypoints_measured_;
   std::string template_cloud_path_;
   bool measurement_valid_{false};
   bool measurement_complete_{false};

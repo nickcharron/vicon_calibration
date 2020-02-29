@@ -70,6 +70,9 @@ void LidarExtractor::ProcessMeasurement(
   scan_cropped_ = boost::make_shared<PointCloud>();
   if (show_measurements_) {
     pcl_viewer_ = boost::make_shared<pcl::visualization::PCLVisualizer>();
+    int hor_res, vert_res;
+    utils::GetScreenResolution(hor_res, vert_res);
+    pcl_viewer_->setSize(hor_res, vert_res);
   }
   scan_in_ = cloud_in;
   T_LIDAR_TARGET_EST_ = T_LIDAR_TARGET_EST;
@@ -140,7 +143,6 @@ void LidarExtractor::AddColouredPointCloudToViewer(
     point.x = (*T)(0, 3);
     point.y = (*T)(1, 3);
     point.z = (*T)(2, 3);
-    pcl_viewer_->addText3D(cloud_name + " ", point, 0.05, 0.05, 0.05);
   }
 
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(
@@ -168,7 +170,6 @@ void LidarExtractor::AddPointCloudToViewer(const PointCloud::Ptr &cloud,
   point.x = T(0, 3);
   point.y = T(1, 3);
   point.z = T(2, 3);
-  pcl_viewer_->addText3D(cloud_name + " ", point, 0.05, 0.05, 0.05);
 }
 
 void LidarExtractor::ConfirmMeasurementKeyboardCallback(

@@ -40,6 +40,10 @@ typedef Eigen::aligned_allocator<Eigen::Affine3d> AlignAff3d;
 #define RAD_TO_DEG 57.29577951
 #endif
 
+#ifndef DEG_TO_RAD
+#define DEG_TO_RAD 0.01745329
+#endif
+
 namespace utils {
 
 double time_now(void);
@@ -74,6 +78,12 @@ bool IsRotationMatrix(const Eigen::Matrix3d &R);
 
 bool IsTransformationMatrix(const Eigen::Matrix4d &T);
 
+/** Peturbs a transformation
+ * @param[in] T_in the original transformation matrix
+ * @param[in] perturbations [rx(deg), ry(deg), rz(deg), tx(m), ty(m),
+ * tx(m)]
+ * @return perturbed transformation
+ */
 Eigen::Matrix4d PerturbTransform(const Eigen::Matrix4d &T_in,
                                  const Eigen::VectorXd &perturbations);
 
@@ -207,6 +217,8 @@ std::string GetFilePathTestClouds(const std::string &file_name);
  * @return full file path
  */
 std::string GetFilePathTestBags(const std::string &file_name);
+
+void GetScreenResolution(int& horizontal, int& vertical);
 
 } // namespace utils
 

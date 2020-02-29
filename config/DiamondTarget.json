@@ -1,5 +1,5 @@
 {
-  "crop_scan": [0.5, 0.5, 0.5],
+  "crop_scan": [0.8, 0.8, 0.8],
   "crop_image": [-25, -25],
   "template_cloud": "diamond_target_simulation.pcd",
   "keypoints_lidar": [

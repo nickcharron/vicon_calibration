@@ -1,4 +1,5 @@
 #include "vicon_calibration/utils.h"
+#include <X11/Xlib.h>
 #include <unsupported/Eigen/MatrixFunctions>
 
 namespace vicon_calibration {
@@ -107,7 +108,7 @@ bool IsTransformationMatrix(const Eigen::Matrix4d &T) {
 
 Eigen::Matrix4d PerturbTransform(const Eigen::Matrix4d &T_in,
                                  const Eigen::VectorXd &perturbations) {
-  Eigen::Vector3d r_perturb = perturbations.block(0, 0, 3, 1);
+  Eigen::Vector3d r_perturb = perturbations.block(0, 0, 3, 1) * DEG_TO_RAD;
   Eigen::Vector3d t_perturb = perturbations.block(3, 0, 3, 1);
   Eigen::Matrix3d R_in = T_in.block(0, 0, 3, 3);
   Eigen::Vector3d r_in = RToLieAlgebra(R_in);
@@ -264,9 +265,8 @@ ProjectPoints(boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
   return projected_points;
 }
 
-PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr &cloud,
-                                      const int &r, const int &g,
-                                      const int &b) {
+PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr &cloud, const int &r,
+                                     const int &g, const int &b) {
   PointCloudColor::Ptr coloured_cloud;
   coloured_cloud = boost::make_shared<PointCloudColor>();
   uint32_t rgb = (static_cast<uint32_t>(r) << 16 |
@@ -394,6 +394,13 @@ std::string GetFilePathTestBags(const std::string &file_name) {
   file_location += "tests/test_bags/";
   file_location += file_name;
   return file_location;
+}
+
+void GetScreenResolution(int &horizontal, int &vertical) {
+  Display *d = XOpenDisplay(NULL);
+  Screen *s = DefaultScreenOfDisplay(d);
+  horizontal = s->width;
+  vertical = s->height;
 }
 
 } // namespace utils

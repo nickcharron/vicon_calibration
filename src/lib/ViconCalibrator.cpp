@@ -627,13 +627,15 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
     CalibrationVerification ver;
     ver.SetConfig(config_file_path_);
     ver.SetParams(params_);
-    ver.SetInitialCalib(calibrations_initial_);
+    if(params_->using_simulation){
+      ver.SetInitialCalib(calibrations_perturbed_);
+      ver.SetGroundTruthCalib(calibrations_initial_);
+    } else {
+      ver.SetInitialCalib(calibrations_initial_);
+    }
     ver.SetOptimizedCalib(calibrations_result_);
     ver.SetLidarMeasurements(lidar_measurements_);
     ver.SetCameraMeasurements(camera_measurements_);
-    if (params_->using_simulation) {
-      ver.SetPeturbedCalib(calibrations_perturbed_);
-    }
     ver.ProcessResults();
   }
   return;

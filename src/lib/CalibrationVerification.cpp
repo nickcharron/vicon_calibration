@@ -82,9 +82,9 @@ void CalibrationVerification::ProcessResults() {
   this->PrintConfig();
   this->PrintCalibrations(calibrations_initial_, "initial_calibrations.txt");
   this->PrintCalibrations(calibrations_result_, "optimized_calibrations.txt");
-  if (params_->using_simulation && perturbed_calib_set_) {
-    this->PrintCalibrations(calibrations_perturbed_,
-                            "perturbed_calibrations.txt");
+  if (params_->using_simulation && ground_truth_calib_set_) {
+    this->PrintCalibrations(calibrations_ground_truth_,
+                            "ground_truth_calibrations.txt");
   }
   this->PrintCalibrationErrors();
   this->SaveLidarVisuals();
@@ -107,10 +107,10 @@ void CalibrationVerification::SetInitialCalib(
 
 // TODO: add checks for whether or not this was set. This
 // should still work otherwise
-void CalibrationVerification::SetPeturbedCalib(
+void CalibrationVerification::SetGroundTruthCalib(
     const std::vector<vicon_calibration::CalibrationResult> &calib) {
-  calibrations_perturbed_ = calib;
-  perturbed_calib_set_ = true;
+  calibrations_ground_truth_ = calib;
+  ground_truth_calib_set_ = true;
 }
 
 void CalibrationVerification::SetOptimizedCalib(
@@ -213,13 +213,13 @@ void CalibrationVerification::PrintCalibrationErrors() {
     return;
   }
 
-  // next print errors between initial calirations and perturbed calibration
+  // next print errors between ground truth calibrations and optimized
   file << "---------------------------------------------------------\n\n"
        << "Showing errors between:\n"
-       << "initial calibrations and perturbed calibrations:\n\n";
+       << "initial ground truth calibrations and optimized calibrations:\n\n";
   for (uint16_t i = 0; i < calibrations_result_.size(); i++) {
-    Eigen::Matrix4d T_final = calibrations_perturbed_[i].transform;
-    Eigen::Matrix4d T_init = calibrations_initial_[i].transform;
+    Eigen::Matrix4d T_final = calibrations_result_[i].transform;
+    Eigen::Matrix4d T_init = calibrations_ground_truth_[i].transform;
     Eigen::Matrix3d R_final = T_final.block(0, 0, 3, 3);
     Eigen::Matrix3d R_init = T_init.block(0, 0, 3, 3);
     Eigen::Vector3d rpy_final = R_final.eulerAngles(0, 1, 2);
@@ -243,13 +243,13 @@ void CalibrationVerification::PrintCalibrationErrors() {
          << t_error[1] * 1000 << ", " << t_error[2] * 1000 << "]\n\n";
   }
 
-  // next print errors between perturbed calibration and final
+  // next print errors between initial calibrations and ground truth calibration
   file << "---------------------------------------------------------\n\n"
        << "Showing errors between:\n"
-       << "initial perturbed calibrations and optimized calibrations:\n\n";
+       << "initial calibrations and ground truth calibrations:\n\n";
   for (uint16_t i = 0; i < calibrations_result_.size(); i++) {
-    Eigen::Matrix4d T_final = calibrations_result_[i].transform;
-    Eigen::Matrix4d T_init = calibrations_perturbed_[i].transform;
+    Eigen::Matrix4d T_final = calibrations_initial_[i].transform;
+    Eigen::Matrix4d T_init = calibrations_ground_truth_[i].transform;
     Eigen::Matrix3d R_final = T_final.block(0, 0, 3, 3);
     Eigen::Matrix3d R_init = T_init.block(0, 0, 3, 3);
     Eigen::Vector3d rpy_final = R_final.eulerAngles(0, 1, 2);
@@ -264,8 +264,8 @@ void CalibrationVerification::PrintCalibrationErrors() {
     t_error[0] = std::abs(t_error[0]);
     t_error[1] = std::abs(t_error[1]);
     t_error[2] = std::abs(t_error[2]);
-    file << "T_" << calibrations_result_[i].to_frame << "_"
-         << calibrations_result_[i].from_frame << ":\n"
+    file << "T_" << calibrations_initial_[i].to_frame << "_"
+         << calibrations_initial_[i].from_frame << ":\n"
          << "rpy error (deg): [" << rpy_error[0] * RAD_TO_DEG << ", "
          << rpy_error[1] * RAD_TO_DEG << ", " << rpy_error[2] * RAD_TO_DEG
          << "]\n"
@@ -303,19 +303,10 @@ void CalibrationVerification::SaveLidarVisuals() {
 
     // get initial calibration and optimized calibration
     Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_opt;
-    if (params_->using_simulation && perturbed_calib_set_) {
-      for (CalibrationResult calib : calibrations_perturbed_) {
-        if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
-          TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
-          break;
-        }
-      }
-    } else {
-      for (CalibrationResult calib : calibrations_initial_) {
-        if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
-          TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
-          break;
-        }
+    for (CalibrationResult calib : calibrations_initial_) {
+      if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
+        TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
+        break;
       }
     }
 
@@ -438,12 +429,12 @@ void CalibrationVerification::GetLidarErrors() {
        lidar_iter++) {
 
     // get initial calibration and optimized calibration
-    Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_pert,
+    Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_true,
         TA_VICONBASE_SENSOR_opt;
-    if (params_->using_simulation && perturbed_calib_set_) {
-      for (CalibrationResult calib : calibrations_perturbed_) {
+    if (params_->using_simulation && ground_truth_calib_set_) {
+      for (CalibrationResult calib : calibrations_ground_truth_) {
         if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
-          TA_VICONBASE_SENSOR_pert.matrix() = calib.transform;
+          TA_VICONBASE_SENSOR_true.matrix() = calib.transform;
           break;
         }
       }
@@ -463,26 +454,48 @@ void CalibrationVerification::GetLidarErrors() {
 
     // iterate through all measurements for this lidar
     std::shared_ptr<LidarMeasurement> measurement;
-    PointCloud::Ptr measured_keypoints;
+    PointCloud::Ptr measured_keypoints, estimated_keypoints_target;
+    PointCloud::Ptr estimated_keypoints_est = boost::make_shared<PointCloud>();
+    PointCloud::Ptr estimated_keypoints_opt = boost::make_shared<PointCloud>();
+    PointCloud::Ptr estimated_keypoints_true = boost::make_shared<PointCloud>();
     Eigen::Matrix4d T_SENSOR_TARGET_opt, T_SENSOR_TARGET_est,
-        T_SENSOR_TARGET_pert;
+        T_SENSOR_TARGET_true;
     std::vector<Eigen::Vector3d, AlignVec3d> lidar_errors_opt,
-        lidar_errors_init, lidar_errors_pert;
+        lidar_errors_init, lidar_errors_true;
     for (int meas_iter = 0; meas_iter < lidar_measurements_[lidar_iter].size();
          meas_iter++) {
       if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) {
         continue;
       }
       measurement = lidar_measurements_[lidar_iter][meas_iter];
-      
+
       T_SENSOR_TARGET_opt = TA_VICONBASE_SENSOR_opt.inverse().matrix() *
                             measurement->T_VICONBASE_TARGET;
       T_SENSOR_TARGET_est = TA_VICONBASE_SENSOR_est.inverse().matrix() *
                             measurement->T_VICONBASE_TARGET;
-      lidar_errors_opt = CalculateLidarErrors(
-          measurement->keypoints, T_SENSOR_TARGET_opt, measurement->target_id);
-      lidar_errors_init = CalculateLidarErrors(
-          measurement->keypoints, T_SENSOR_TARGET_est, measurement->target_id);
+
+      // get estimated keypoints given calibrations
+      if (params_->target_params[measurement->target_id]
+              ->keypoints_lidar.size() > 0) {
+        estimated_keypoints_target = boost::make_shared<PointCloud>();
+        for (Eigen::Vector3d keypoint :
+             params_->target_params[measurement->target_id]->keypoints_lidar) {
+          estimated_keypoints_target->push_back(
+              utils::EigenPointToPCL(keypoint));
+        }
+      } else {
+        estimated_keypoints_target =
+            params_->target_params[measurement->target_id]->template_cloud;
+      }
+      pcl::transformPointCloud(*estimated_keypoints_target,
+                               *estimated_keypoints_est, T_SENSOR_TARGET_est);
+      pcl::transformPointCloud(*estimated_keypoints_target,
+                               *estimated_keypoints_opt, T_SENSOR_TARGET_opt);
+
+      lidar_errors_init =
+          CalculateLidarErrors(measurement->keypoints, estimated_keypoints_est);
+      lidar_errors_opt =
+          CalculateLidarErrors(measurement->keypoints, estimated_keypoints_opt);
 
       lidar_errors_opt_.insert(lidar_errors_opt_.end(),
                                lidar_errors_opt.begin(),
@@ -492,16 +505,18 @@ void CalibrationVerification::GetLidarErrors() {
                                 lidar_errors_init.begin(),
                                 lidar_errors_init.end());
 
-      if (params_->using_simulation && perturbed_calib_set_) {
-        T_SENSOR_TARGET_pert = TA_VICONBASE_SENSOR_pert.inverse().matrix() *
+      if (params_->using_simulation && ground_truth_calib_set_) {
+        T_SENSOR_TARGET_true = TA_VICONBASE_SENSOR_true.inverse().matrix() *
                                measurement->T_VICONBASE_TARGET;
-        lidar_errors_pert =
-            CalculateLidarErrors(measurement->keypoints, T_SENSOR_TARGET_pert,
-                                 measurement->target_id);
+        pcl::transformPointCloud(*estimated_keypoints_target,
+                                 *estimated_keypoints_true,
+                                 T_SENSOR_TARGET_true);
+        lidar_errors_true = CalculateLidarErrors(measurement->keypoints,
+                                                 estimated_keypoints_true);
 
-        lidar_errors_pert_.insert(lidar_errors_pert_.end(),
-                                  lidar_errors_pert.begin(),
-                                  lidar_errors_pert.end());
+        lidar_errors_true_.insert(lidar_errors_true_.end(),
+                                  lidar_errors_true.begin(),
+                                  lidar_errors_true.end());
       }
 
     } // measurement iter
@@ -511,38 +526,20 @@ void CalibrationVerification::GetLidarErrors() {
 std::vector<Eigen::Vector3d, AlignVec3d>
 CalibrationVerification::CalculateLidarErrors(
     const PointCloud::Ptr &measured_keypoints,
-    const Eigen::Matrix4d &T_SENSOR_TARGET, const int &target_id) {
-
-  // get estimated keypoints given calibrations
-  PointCloud::Ptr estimated_keypoints;
-  if (params_->target_params[target_id]->keypoints_lidar.size() > 0) {
-    estimated_keypoints = boost::make_shared<PointCloud>();
-    for (Eigen::Vector3d keypoint :
-         params_->target_params[target_id]->keypoints_lidar) {
-      estimated_keypoints->push_back(utils::EigenPointToPCL(keypoint));
-    }
-  } else {
-    estimated_keypoints = params_->target_params[target_id]->template_cloud;
-  }
-  pcl::transformPointCloud(*estimated_keypoints, *estimated_keypoints,
-                           T_SENSOR_TARGET);
+    const PointCloud::Ptr &estimated_keypoints) {
 
   // get correspondences
-  pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
-      corr_est;
-  boost::shared_ptr<pcl::Correspondences> correspondences =
-      boost::make_shared<pcl::Correspondences>();
-  corr_est.setInputSource(measured_keypoints);
-  corr_est.setInputTarget(estimated_keypoints);
-  corr_est.determineCorrespondences(*correspondences, max_point_cor_dist_);
+  corr_est_.setInputSource(measured_keypoints);
+  corr_est_.setInputTarget(estimated_keypoints);
+  corr_est_.determineCorrespondences(*correspondences_, max_point_cor_dist_);
 
   // get distances between correspondences
   int measurement_index, estimated_index;
   Eigen::Vector3d error;
   std::vector<Eigen::Vector3d, AlignVec3d> lidar_errors;
-  for (int i = 0; i < correspondences->size(); i++) {
-    measurement_index = correspondences->at(i).index_query;
-    estimated_index = correspondences->at(i).index_match;
+  for (int i = 0; i < correspondences_->size(); i++) {
+    measurement_index = correspondences_->at(i).index_query;
+    estimated_index = correspondences_->at(i).index_match;
     error = utils::PCLPointToEigen(measured_keypoints->at(measurement_index)) -
             utils::PCLPointToEigen(estimated_keypoints->at(estimated_index));
     error[0] = std::abs(error[0]);
@@ -572,20 +569,20 @@ void CalibrationVerification::SaveCameraVisuals() {
     ros::Time time_last(0, 0);
 
     // get initial calibration and optimized calibration
-    Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_opt;
-    if (params_->using_simulation && perturbed_calib_set_) {
-      for (CalibrationResult calib : calibrations_perturbed_) {
+    Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_opt,
+        TA_VICONBASE_SENSOR_true;
+    if (params_->using_simulation && ground_truth_calib_set_) {
+      for (CalibrationResult calib : calibrations_ground_truth_) {
         if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
-          TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
+          TA_VICONBASE_SENSOR_true.matrix() = calib.transform;
           break;
         }
       }
-    } else {
-      for (CalibrationResult calib : calibrations_initial_) {
-        if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
-          TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
-          break;
-        }
+    }
+    for (CalibrationResult calib : calibrations_initial_) {
+      if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
+        TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
+        break;
       }
     }
     for (CalibrationResult calib : calibrations_result_) {
@@ -680,12 +677,12 @@ void CalibrationVerification::GetCameraErrors() {
        cam_iter++) {
 
     // get initial calibration and optimized calibration
-    Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_pert,
+    Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_true,
         TA_VICONBASE_SENSOR_opt;
-    if (params_->using_simulation && perturbed_calib_set_) {
-      for (CalibrationResult calib : calibrations_perturbed_) {
+    if (params_->using_simulation && ground_truth_calib_set_) {
+      for (CalibrationResult calib : calibrations_ground_truth_) {
         if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
-          TA_VICONBASE_SENSOR_pert.matrix() = calib.transform;
+          TA_VICONBASE_SENSOR_true.matrix() = calib.transform;
           break;
         }
       }
@@ -707,9 +704,9 @@ void CalibrationVerification::GetCameraErrors() {
     std::shared_ptr<CameraMeasurement> measurement;
     PointCloud::Ptr measured_keypoints;
     Eigen::Matrix4d T_SENSOR_TARGET_opt, T_SENSOR_TARGET_est,
-        T_SENSOR_TARGET_pert;
+        T_SENSOR_TARGET_true;
     std::vector<Eigen::Vector2d, AlignVec2d> camera_errors_opt,
-        camera_errors_init, camera_errors_pert;
+        camera_errors_init, camera_errors_true;
     for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
          meas_iter++) {
       if (camera_measurements_[cam_iter][meas_iter] == nullptr) {
@@ -719,7 +716,8 @@ void CalibrationVerification::GetCameraErrors() {
 
       // convert 2d measured keypoints to 3d
       PointCloud::Ptr measured_keypoints_3d = boost::make_shared<PointCloud>();
-      pcl::PointCloud<pcl::PointXY>::Ptr measured_keypoints_2d = measurement->keypoints;
+      pcl::PointCloud<pcl::PointXY>::Ptr measured_keypoints_2d =
+          measurement->keypoints;
       pcl::PointXYZ point3d{0, 0, 0};
       for (int i = 0; i < measured_keypoints_2d->size(); i++) {
         point3d.x = measured_keypoints_2d->at(i).x;
@@ -746,16 +744,16 @@ void CalibrationVerification::GetCameraErrors() {
                                  camera_errors_init.begin(),
                                  camera_errors_init.end());
 
-      if (params_->using_simulation && perturbed_calib_set_) {
-        T_SENSOR_TARGET_pert = TA_VICONBASE_SENSOR_pert.inverse().matrix() *
+      if (params_->using_simulation && ground_truth_calib_set_) {
+        T_SENSOR_TARGET_true = TA_VICONBASE_SENSOR_true.inverse().matrix() *
                                measurement->T_VICONBASE_TARGET;
-        camera_errors_pert = CalculateCameraErrors(
-            measured_keypoints_3d, T_SENSOR_TARGET_pert, measurement->target_id,
+        camera_errors_true = CalculateCameraErrors(
+            measured_keypoints_3d, T_SENSOR_TARGET_true, measurement->target_id,
             measurement->camera_id);
 
-        camera_errors_pert_.insert(camera_errors_pert_.end(),
-                                   camera_errors_pert.begin(),
-                                   camera_errors_pert.end());
+        camera_errors_true_.insert(camera_errors_true_.end(),
+                                   camera_errors_true.begin(),
+                                   camera_errors_true.end());
       }
     } // measurement iter
   }   // camera iter
@@ -947,17 +945,17 @@ void CalibrationVerification::PrintErrorsSummary() {
        << "Average Error Norm (m): " << norms_averaged << "\n"
        << "Samples Used: " << lidar_errors_init_.size() << "\n";
 
-  if(params_->using_simulation && perturbed_calib_set_){
+  if (params_->using_simulation && ground_truth_calib_set_) {
     norms_summed = 0;
-    for (int i = 0; i < lidar_errors_pert_.size(); i++) {
-      norms_summed += lidar_errors_pert_[i].norm();
+    for (int i = 0; i < lidar_errors_true_.size(); i++) {
+      norms_summed += lidar_errors_true_[i].norm();
     }
-    norms_averaged = norms_summed / lidar_errors_pert_.size();
+    norms_averaged = norms_summed / lidar_errors_true_.size();
 
     file << "\n-----------------------------------------------------------\n\n"
-         << "Outputting Error Statistics for Perturbed Lidar Calibrations:\n"
+         << "Outputting Error Statistics for Ground Truth Lidar Calibrations:\n"
          << "Average Error Norm (m): " << norms_averaged << "\n"
-         << "Samples Used: " << lidar_errors_pert_.size() << "\n";
+         << "Samples Used: " << lidar_errors_true_.size() << "\n";
   }
 
   // print camera errors
@@ -983,17 +981,18 @@ void CalibrationVerification::PrintErrorsSummary() {
        << "Average Error Norm (pixels): " << norms_averaged << "\n"
        << "Samples Used: " << camera_errors_init_.size() << "\n";
 
-  if(params_->using_simulation && perturbed_calib_set_){
+  if (params_->using_simulation && ground_truth_calib_set_) {
     norms_summed = 0;
-    for (int i = 0; i < camera_errors_pert_.size(); i++) {
-      norms_summed += camera_errors_pert_[i].norm();
+    for (int i = 0; i < camera_errors_true_.size(); i++) {
+      norms_summed += camera_errors_true_[i].norm();
     }
-    norms_averaged = norms_summed / camera_errors_pert_.size();
+    norms_averaged = norms_summed / camera_errors_true_.size();
 
-    file << "\n-----------------------------------------------------------\n\n"
-         << "Outputting Error Statistics for Perturbed Camera Calibrations:\n"
-         << "Average Error Norm (pixels): " << norms_averaged << "\n"
-         << "Samples Used: " << camera_errors_pert_.size() << "\n";
+    file
+        << "\n-----------------------------------------------------------\n\n"
+        << "Outputting Error Statistics for Ground Truth Camera Calibrations:\n"
+        << "Average Error Norm (pixels): " << norms_averaged << "\n"
+        << "Samples Used: " << camera_errors_true_.size() << "\n";
   }
 }
 

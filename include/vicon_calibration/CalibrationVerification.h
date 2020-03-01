@@ -3,6 +3,7 @@
 #include "vicon_calibration/TfTree.h"
 #include "vicon_calibration/params.h"
 #include "vicon_calibration/utils.h"
+#include <pcl/registration/correspondence_estimation.h>
 #include <Eigen/Geometry>
 #include <ros/time.h>
 #include <rosbag/bag.h>
@@ -19,7 +20,7 @@ public:
   void SetInitialCalib(
       const std::vector<vicon_calibration::CalibrationResult> &calib);
 
-  void SetPeturbedCalib(
+  void SetGroundTruthCalib(
       const std::vector<vicon_calibration::CalibrationResult> &calib);
 
   void SetOptimizedCalib(
@@ -55,8 +56,7 @@ private:
 
   std::vector<Eigen::Vector3d, AlignVec3d>
   CalculateLidarErrors(const PointCloud::Ptr &measured_keypoints,
-                       const Eigen::Matrix4d &T_SENSOR_TARGET,
-                       const int &target_id);
+                       const PointCloud::Ptr &estimated_keypoints);
 
   void SaveCameraVisuals();
 
@@ -93,7 +93,7 @@ private:
 
   // member variables:
   bool initial_calib_set_{false}, optimized_calib_set_{false},
-      perturbed_calib_set_{false}, params_set_{false}, config_path_set_{false},
+      ground_truth_calib_set_{false}, params_set_{false}, config_path_set_{false},
       lidar_measurements_set_{false}, camera_measurements_set_{false};
   int num_tgts_in_img_;
   std::shared_ptr<CalibratorConfig> params_;
@@ -111,15 +111,19 @@ private:
   std::shared_ptr<vicon_calibration::TfTree> lookup_tree_ =
       std::make_shared<vicon_calibration::TfTree>();
   std::vector<vicon_calibration::CalibrationResult> calibrations_result_,
-      calibrations_initial_, calibrations_perturbed_;
+      calibrations_initial_, calibrations_ground_truth_;
   std::vector<Eigen::Vector3d, AlignVec3d> lidar_errors_opt_,
-      lidar_errors_init_, lidar_errors_pert_;
+      lidar_errors_init_, lidar_errors_true_;
   std::vector<Eigen::Vector2d, AlignVec2d> camera_errors_opt_,
-      camera_errors_init_, camera_errors_pert_;
+      camera_errors_init_, camera_errors_true_;
   std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>
       lidar_measurements_;
   std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>
       camera_measurements_;
+  pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
+      corr_est_;
+  boost::shared_ptr<pcl::Correspondences> correspondences_ =
+      boost::make_shared<pcl::Correspondences>();
 };
 
 } // end namespace vicon_calibration

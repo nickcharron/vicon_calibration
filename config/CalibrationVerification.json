@@ -4,5 +4,5 @@
   "max_image_results": 20,
   "max_lidar_results": 2,
   "max_pixel_cor_dist": 500,
-  "max_point_cor_dist": 0.3
+  "max_point_cor_dist": 1
 }

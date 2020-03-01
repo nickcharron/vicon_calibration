@@ -126,10 +126,12 @@ protected:
                                         // est. tgt. loc. is less than this
   double dist_acceptance_criteria_{0.05}; // acceptable error between estimated
                                           // target and registered target
+  double concave_hull_alpha_{0.1};                                        
   double icp_transform_epsilon_{1e-8};
   double icp_euclidean_epsilon_{1e-2};
   int icp_max_iterations_{80};
   double icp_max_correspondence_dist_{1};
+  bool icp_enable_debug_{false};
 };
 
 } // namespace vicon_calibration

@@ -56,10 +56,12 @@ void LidarExtractor::LoadConfig() {
   crop_scan_ = J.at("crop_scan");
   max_keypoint_distance_ = J.at("max_keypoint_distance");
   dist_acceptance_criteria_ = J.at("dist_acceptance_criteria");
+  concave_hull_alpha_ = J.at("concave_hull_alpha");
   icp_transform_epsilon_ = J.at("icp_transform_epsilon");
   icp_euclidean_epsilon_ = J.at("icp_euclidean_epsilon");
   icp_max_iterations_ = J.at("icp_max_iterations");
   icp_max_correspondence_dist_ = J.at("icp_max_correspondence_dist");
+  icp_enable_debug_ = J.at("icp_enable_debug");
 }
 
 void LidarExtractor::ProcessMeasurement(
@@ -73,6 +75,9 @@ void LidarExtractor::ProcessMeasurement(
     int hor_res, vert_res;
     utils::GetScreenResolution(hor_res, vert_res);
     pcl_viewer_->setSize(hor_res, vert_res);
+  }
+  if(icp_enable_debug_){
+     pcl::console::setVerbosityLevel(pcl::console::L_DEBUG);
   }
   scan_in_ = cloud_in;
   T_LIDAR_TARGET_EST_ = T_LIDAR_TARGET_EST;

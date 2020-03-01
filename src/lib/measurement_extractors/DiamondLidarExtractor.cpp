@@ -1,22 +1,40 @@
 #include "vicon_calibration/measurement_extractors/DiamondLidarExtractor.h"
+#include <pcl/surface/concave_hull.h>
 
 namespace vicon_calibration {
 
 void DiamondLidarExtractor::GetKeypoints() {
   measurement_failed_ = false;
-  boost::shared_ptr<PointCloud> scan_registered;
-  scan_registered = boost::make_shared<PointCloud>();
+
+  // setup icp
+  PointCloud::Ptr scan_registered = boost::make_shared<PointCloud>();
   IterativeClosestPointCustom<pcl::PointXYZ, pcl::PointXYZ> icp;
   icp.setTransformationEpsilon(icp_transform_epsilon_);
   icp.setEuclideanFitnessEpsilon(icp_euclidean_epsilon_);
   icp.setMaximumIterations(icp_max_iterations_);
   icp.setMaxCorrespondenceDistance(icp_max_correspondence_dist_);
+
+  // setup concave hull extractor
+  PointCloud::Ptr scan_hull =
+      boost::make_shared<PointCloud>();
+  PointCloud::Ptr template_hull =
+      boost::make_shared<PointCloud>();
+  pcl::ConcaveHull<pcl::PointXYZ> concave_hull;
+  concave_hull.setAlpha(concave_hull_alpha_);
+
+
+  // extract concave hull for template cloud and scan
   if (crop_scan_) {
-    icp.setInputSource(scan_cropped_);
+    concave_hull.setInputCloud(scan_cropped_);
   } else {
-    icp.setInputSource(scan_in_);
+    concave_hull.setInputCloud(scan_in_);
   }
-  icp.setInputTarget(target_params_->template_cloud);
+  concave_hull.reconstruct(*scan_hull);
+  concave_hull.setInputCloud(target_params_->template_cloud);
+  concave_hull.reconstruct(*template_hull);
+
+  icp.setInputSource(scan_hull);
+  icp.setInputTarget(template_hull);
   icp.align(*scan_registered, utils::InvertTransform(T_LIDAR_TARGET_EST_).cast<float>());
 
   if (!icp.hasConverged()) {

@@ -31,7 +31,8 @@ void CylinderCameraExtractor::GetKeypoints() {
     measurement_valid_ = false;
     this->DisplayImage(
         *image_in_, "Invalid Measurement",
-        "Showing original invalid image (no target found after thresholding)");
+        "Showing original invalid image (no target found after thresholding)",
+        false);
     return;
   }
   target_contour_ = contours[max_area_iter];
@@ -171,8 +172,8 @@ void CylinderCameraExtractor::DrawContourAxis(
   cv::Point q_ = q;
   double angle =
       std::atan2((double)p_.y - q_.y, (double)p_.x - q_.x); // angle in radians
-  double hypotenuse =
-      std::sqrt((double)(p_.y - q_.y) * (p_.y - q_.y) + (p_.x - q_.x) * (p_.x - q_.x));
+  double hypotenuse = std::sqrt((double)(p_.y - q_.y) * (p_.y - q_.y) +
+                                (p_.x - q_.x) * (p_.x - q_.x));
   // Here we lengthen the arrow by a factor of scale
   q_.x = (int)(p_.x - scale * hypotenuse * std::cos(angle));
   q_.y = (int)(p_.y - scale * hypotenuse * std::sin(angle));

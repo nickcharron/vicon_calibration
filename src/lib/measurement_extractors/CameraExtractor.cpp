@@ -24,9 +24,7 @@ void CameraExtractor::SetShowMeasurements(const bool &show_measurements) {
   show_measurements_ = show_measurements;
 }
 
-bool CameraExtractor::GetShowMeasurements() {
-  return show_measurements_;
-}
+bool CameraExtractor::GetShowMeasurements() { return show_measurements_; }
 
 void CameraExtractor::ProcessMeasurement(
     const Eigen::Matrix4d &T_CAMERA_TARGET_EST, const cv::Mat &img_in) {
@@ -59,19 +57,17 @@ void CameraExtractor::ProcessMeasurement(
   }
 
   *image_annotated_ = utils::DrawCoordinateFrame(
-      *image_cropped_, T_CAMERA_TARGET_EST_, camera_params_->camera_model, axis_plot_scale_,
-      camera_params_->images_distorted);
+      *image_cropped_, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
+      axis_plot_scale_, camera_params_->images_distorted);
 
   this->GetKeypoints();
-  if (show_measurements_) {
-  }
 
   if (!measurement_valid_ && show_measurements_) {
     this->DisplayImage(*image_annotated_, "Inalid Measurement",
-                       "Showing failed measurement");
+                       "Showing failed measurement", false);
   } else if (measurement_valid_ && show_measurements_) {
     this->DisplayImage(*image_annotated_, "Valid Measurement",
-                       "Showing successfull measurement");
+                       "Showing successfull measurement", true);
   }
 
   measurement_complete_ = true;
@@ -127,7 +123,8 @@ CameraExtractor::TargetPointToPixel(const Eigen::Vector4d &point) {
   if (camera_params_->images_distorted) {
     return camera_params_->camera_model->ProjectPoint(transformed_point);
   } else {
-    return camera_params_->camera_model->ProjectUndistortedPoint(transformed_point);
+    return camera_params_->camera_model->ProjectUndistortedPoint(
+        transformed_point);
   }
 }
 
@@ -196,10 +193,12 @@ void CameraExtractor::CropImage() {
       LOG_INFO("Cropbox corners: [minu, minv, maxu, maxv]: [%d, %d, %d, %d]",
                min_vec_buffer[0], min_vec_buffer[1], max_vec_buffer[0],
                max_vec_buffer[1]);
-      LOG_INFO("Image Dimensions: [%d x %d]", camera_params_->camera_model->GetWidth(),
+      LOG_INFO("Image Dimensions: [%d x %d]",
+               camera_params_->camera_model->GetWidth(),
                camera_params_->camera_model->GetHeight());
       this->DisplayImage(*image_undistorted_, "Invalid Measurement",
-                         "Showing failed measurement (cropbox not in image)");
+                         "Showing failed measurement (cropbox not in image)",
+                         true);
     }
   } else {
     measurement_valid_ = true;
@@ -221,7 +220,7 @@ void CameraExtractor::CropImage() {
     mask(cv::Rect(min_vec_buffer(0), min_vec_buffer(1), width, height)) = 1;
     image_undistorted_->copyTo(bounded_img, mask);
     *image_cropped_ = bounded_img;
-  } else if(measurement_valid_){
+  } else if (measurement_valid_) {
     image_cropped_ = image_undistorted_;
   }
   return;
@@ -229,7 +228,8 @@ void CameraExtractor::CropImage() {
 
 void CameraExtractor::UndistortImage() {
   if (camera_params_->images_distorted) {
-    *image_undistorted_ = camera_params_->camera_model->UndistortImage(*image_in_);
+    *image_undistorted_ =
+        camera_params_->camera_model->UndistortImage(*image_in_);
   } else {
     image_undistorted_ = image_in_;
   }
@@ -237,11 +237,17 @@ void CameraExtractor::UndistortImage() {
 
 void CameraExtractor::DisplayImage(const cv::Mat &img,
                                    const std::string &display_name,
-                                   const std::string &output_text) {
-  if (show_measurements_) {
-    cv::Mat current_image_w_axes = utils::DrawCoordinateFrame(
-        img, T_CAMERA_TARGET_EST_, camera_params_->camera_model, axis_plot_scale_,
-        camera_params_->images_distorted);
+                                   const std::string &output_text,
+                                   const bool &allow_override) {
+  if (!show_measurements_) {
+    return;
+  }
+
+  cv::Mat current_image_w_axes = utils::DrawCoordinateFrame(
+      img, T_CAMERA_TARGET_EST_, camera_params_->camera_model, axis_plot_scale_,
+      camera_params_->images_distorted);
+
+  if(allow_override){
     std::cout << output_text << std::endl
               << "Press [c] to continue with default\n"
               << "Press [y] to accept measurement\n"
@@ -266,8 +272,24 @@ void CameraExtractor::DisplayImage(const cv::Mat &img,
         this->SetShowMeasurements(false);
       }
     }
-    cv::destroyAllWindows();
+  } else {
+    std::cout << output_text << std::endl
+              << "Press [c] to continue with default\n"
+              << "Press [s] to stop showing future measurements\n";
+    cv::namedWindow(display_name, cv::WINDOW_NORMAL);
+    cv::resizeWindow(display_name, img.cols / 2, img.rows / 2);
+    cv::imshow(display_name, current_image_w_axes);
+    auto key = 0;
+    while (key != 67 && key != 99 && key != 115) {
+      key = cv::waitKey();
+      if (key == 115) {
+        std::cout << "setting show measurements to false.\n";
+        this->SetShowMeasurements(false);
+      }
+    }
   }
+
+  cv::destroyAllWindows();
 }
 
 } // namespace vicon_calibration

@@ -63,7 +63,7 @@ protected:
   void UndistortImage();
 
   void DisplayImage(const cv::Mat &img, const std::string &display_name,
-                    const std::string &output_text);
+                    const std::string &output_text, const bool &allow_override);
 
   // params:
   double axis_plot_scale_{0.3}; // scale for plotting projected axes on an img

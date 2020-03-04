@@ -11,8 +11,6 @@ public:
   // Inherit base class constructors
   using LidarExtractor::LidarExtractor;
 
-  ~CylinderLidarExtractor() override = default;
-
   /**
    * @brief Get the type of LidarExtractor
    * @return Returns type as one of LidarExtractor types specified in the enum

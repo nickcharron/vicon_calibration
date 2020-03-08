@@ -107,6 +107,7 @@ JsonTools::LoadViconCalibratorParams(const std::string &file_name) {
   tmp << vect[0], vect[1], vect[2], vect[3], vect[4], vect[5];
   params->initial_guess_perturbation = tmp;
   params->min_target_motion = J["min_target_motion"];
+  params->min_target_rotation = J["min_target_rotation"];
   params->max_target_velocity = J["max_target_velocity"];
   params->vicon_baselink_frame = J["vicon_baselink_frame"];
   params->time_steps = J["time_steps"];
@@ -114,6 +115,7 @@ JsonTools::LoadViconCalibratorParams(const std::string &file_name) {
   params->show_lidar_measurements = J["show_lidar_measurements"];
   params->run_verification = J["run_verification"];
   params->use_loop_closure_measurements = J["use_loop_closure_measurements"];
+  params->start_delay = J["start_delay"];
 
   int counter = 0;
   for (const auto &target : J["targets"]) {

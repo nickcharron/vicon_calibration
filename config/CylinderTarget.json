@@ -1,6 +1,6 @@
 {
   "crop_scan": [0.7, 0.7, 0.7],
-  "crop_image": [50, 50],
+  "crop_image": [500, 500],
   "template_cloud": "cylinder_target.pcd",
   "keypoints_lidar": [],
   "keypoints_camera": []

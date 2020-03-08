@@ -132,7 +132,9 @@ struct CalibratorConfig {
   bool use_loop_closure_measurements{true};
   Eigen::VectorXd initial_guess_perturbation; // for testing sim
   double min_target_motion{0.05};
+  double min_target_rotation{5};
   double max_target_velocity{0.7};
+  double start_delay{0};
   std::vector<std::shared_ptr<vicon_calibration::TargetParams>> target_params;
   std::vector<std::shared_ptr<vicon_calibration::CameraParams>> camera_params;
   std::vector<std::shared_ptr<vicon_calibration::LidarParams>> lidar_params;

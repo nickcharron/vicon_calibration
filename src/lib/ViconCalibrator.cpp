@@ -71,8 +71,8 @@ void ViconCalibrator::LoadEstimatedExtrinsics() {
       LOG_INFO("Transform from base_link to %s not available on topic "
                "/tf_static, looking at topic /tf.",
                params_->vicon_baselink_frame.c_str());
-      rosbag::View view2(bag_, rosbag::TopicQuery("/tf"), ros::TIME_MIN,
-                         ros::TIME_MAX, true);
+      rosbag::View view2(bag_, rosbag::TopicQuery("/tf"), time_start_,
+                         time_end_, true);
       for (const auto &msg_instance : view2) {
         auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
         if (tf_message != nullptr) {
@@ -150,8 +150,7 @@ void ViconCalibrator::GetInitialCalibrationPerturbed(std::string &sensor_frame,
 
 std::vector<Eigen::Affine3d, AlignAff3d>
 ViconCalibrator::GetInitialGuess(std::string &sensor_frame) {
-  std::vector<Eigen::Affine3d, AlignAff3d>
-      T_sensor_tgts_estimated;
+  std::vector<Eigen::Affine3d, AlignAff3d> T_sensor_tgts_estimated;
   for (uint8_t n; n < params_->target_params.size(); n++) {
     // get transform from sensor to target
     Eigen::Affine3d T_VICONBASE_TGTn = lookup_tree_->GetTransformEigen(
@@ -185,10 +184,9 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
   std::string sensor_frame = params_->lidar_params[lidar_iter]->frame;
   LOG_INFO("Getting lidar measurements for frame id: %s and topic: %s .",
            sensor_frame.c_str(), topic.c_str());
-  std::vector<Eigen::Affine3d, AlignAff3d>
-      T_lidar_tgts_estimated_prev;
-  rosbag::View view(bag_, rosbag::TopicQuery(topic), ros::TIME_MIN,
-                    ros::TIME_MAX, true);
+  std::vector<Eigen::Affine3d, AlignAff3d> T_lidar_tgts_estimated_prev;
+  rosbag::View view(bag_, rosbag::TopicQuery(topic), time_start_, time_end_,
+                    true);
 
   if (view.size() == 0) {
     throw std::invalid_argument{
@@ -324,10 +322,9 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
   std::string sensor_frame = params_->camera_params[cam_iter]->frame;
   LOG_INFO("Getting camera measurements for frame id: %s and topic: %s .",
            sensor_frame.c_str(), topic.c_str());
-  std::vector<Eigen::Affine3d, AlignAff3d>
-      T_cam_tgts_estimated_prev;
-  rosbag::View view(bag_, rosbag::TopicQuery(topic), ros::TIME_MIN,
-                    ros::TIME_MAX, true);
+  std::vector<Eigen::Affine3d, AlignAff3d> T_cam_tgts_estimated_prev;
+  rosbag::View view(bag_, rosbag::TopicQuery(topic), time_start_, time_end_,
+                    true);
   if (view.size() == 0) {
     throw std::invalid_argument{
         "No image messages read. Check your topics in config file."};
@@ -506,16 +503,28 @@ void ViconCalibrator::GetLoopClosureMeasurements() {
 
 bool ViconCalibrator::PassedMinTranslation(const Eigen::Affine3d &TA_S_T_prev,
                                            const Eigen::Affine3d &TA_S_T_curr) {
-  Eigen::Vector3d error = TA_S_T_curr.translation() - TA_S_T_prev.translation();
-  error[0] = std::abs(error[0]);
-  error[1] = std::abs(error[1]);
-  error[2] = std::abs(error[2]);
-  if (error[0] < params_->min_target_motion &&
-      error[1] < params_->min_target_motion &&
-      error[2] < params_->min_target_motion) {
-    return false;
-  } else {
+  Eigen::Vector3d error_t =
+      TA_S_T_curr.translation() - TA_S_T_prev.translation();
+  error_t[0] = std::abs(error_t[0]);
+  error_t[1] = std::abs(error_t[1]);
+  error_t[2] = std::abs(error_t[2]);
+  Eigen::Vector3d error_r_ = utils::RToLieAlgebra(TA_S_T_curr.rotation()) -
+                            utils::RToLieAlgebra(TA_S_T_prev.rotation());
+  Eigen::Matrix3d error_R = utils::LieAlgebraToR(error_r_);
+  Eigen::Vector3d error_r = error_R.eulerAngles(0,1,2);
+  error_r[0] = utils::GetAngleErrorPi(error_r[0]) * RAD_TO_DEG;
+  error_r[1] = utils::GetAngleErrorPi(error_r[1]) * RAD_TO_DEG;
+  error_r[2] = utils::GetAngleErrorPi(error_r[2]) * RAD_TO_DEG;
+  if (error_t[0] > params_->min_target_motion ||
+      error_t[1] > params_->min_target_motion ||
+      error_t[2] > params_->min_target_motion) {
     return true;
+  } else if (error_r[0] > params_->min_target_rotation ||
+             error_r[1] > params_->min_target_rotation ||
+             error_r[2] > params_->min_target_rotation) {
+    return true;
+  } else {
+    return false;
   }
 }
 
@@ -557,9 +566,9 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
   }
   // get length of bag to calculate the amount of measurements
   rosbag::View view_tmp(bag_, ros::TIME_MIN, ros::TIME_MAX, true);
-  ros::Time time_start = view_tmp.getBeginTime();
-  ros::Time end_start = view_tmp.getEndTime();
-  ros::Duration bag_length = end_start - time_start;
+  time_start_ = view_tmp.getBeginTime() + ros::Duration(params_->start_delay);
+  time_end_ = view_tmp.getEndTime();
+  ros::Duration bag_length = time_end_ - time_start_;
   int num_measurements = std::floor(bag_length.toSec() / params_->time_steps);
 
   // initialize size of lidar measurement and camera measurement containers
@@ -627,7 +636,7 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
     CalibrationVerification ver;
     ver.SetConfig(config_file_path_);
     ver.SetParams(params_);
-    if(params_->using_simulation){
+    if (params_->using_simulation) {
       ver.SetInitialCalib(calibrations_perturbed_);
       ver.SetGroundTruthCalib(calibrations_initial_);
     } else {

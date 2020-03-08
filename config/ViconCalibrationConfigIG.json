@@ -1,35 +1,21 @@
 {
-  "bag_file": "/home/nick/bag_files/vicon_calibration/simulation/ig_calibration_static_tgts_2020-01-20-10-16-04.bag",
+  "bag_file": "/home/nick/bag_files/vicon_calibration/simulation/ig_calibration_static_robot_F1_ONLY_2020-03-03-17-20-35.bag",
   "initial_calibration": "initial_calibration_ig_current.json",
   "lookup_tf_calibrations": true,
   "using_simulation": true,
-  "initial_guess_perturb": [2, 5, -1, 0.02, 0.01, -0.03],
-  "min_target_motion": 0.05,
+  "initial_guess_perturb": [0, 0, 0, 0.0, 0.0, -0.0],
+  "min_target_motion": 0.1,
+  "min_target_rotation": 20,
   "max_target_velocity": 0.7,
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
-  "time_steps": 1,
+  "time_steps": 0.2,
   "show_camera_measurements": true,
-  "show_lidar_measurements": false,
+  "show_lidar_measurements": true,
   "run_verification": true,
   "use_loop_closure_measurements": true,
+  "start_delay": 270,
   "targets":[
-    {"frame_id": "vicon/target8/target8",
-     "extractor_type": "DIAMOND",
-     "target_config": "DiamondTarget.json"
-    },
-    {"frame_id": "vicon/target9/target9",
-     "extractor_type": "DIAMOND",
-     "target_config": "DiamondTarget.json"
-    },
-    {"frame_id": "vicon/target10/target10",
-     "extractor_type": "DIAMOND",
-     "target_config": "DiamondTarget.json"
-    },
-    {"frame_id": "vicon/target11/target11",
-     "extractor_type": "DIAMOND",
-     "target_config": "DiamondTarget.json"
-    },
-    {"frame_id": "vicon/target12/target12",
+    {"frame_id": "vicon/target3/target3",
      "extractor_type": "DIAMOND",
      "target_config": "DiamondTarget.json"
     }

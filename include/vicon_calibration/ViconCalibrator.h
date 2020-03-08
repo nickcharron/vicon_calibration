@@ -88,7 +88,7 @@ private:
   std::string config_file_path_;
   std::shared_ptr<LidarExtractor> lidar_extractor_;
   std::shared_ptr<CameraExtractor> camera_extractor_;
-  ros::Time lookup_time_;
+  ros::Time lookup_time_, time_start_, time_end_;
   std::shared_ptr<vicon_calibration::TfTree> estimate_extrinsics_ =
       std::make_shared<vicon_calibration::TfTree>();
   std::shared_ptr<vicon_calibration::TfTree> lookup_tree_ =

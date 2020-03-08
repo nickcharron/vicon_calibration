@@ -3,7 +3,7 @@
   "initial_calibration": "initial_calibration_ig_current.json",
   "lookup_tf_calibrations": true,
   "using_simulation": true,
-  "initial_guess_perturb": [0, 0, 0, 0.0, 0.0, -0.0],
+  "initial_guess_perturb": [0, 0, -0, 0.02, 0.01, -0.03],
   "min_target_motion": 0.1,
   "min_target_rotation": 20,
   "max_target_velocity": 0.7,

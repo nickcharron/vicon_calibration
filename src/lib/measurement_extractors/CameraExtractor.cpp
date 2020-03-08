@@ -31,7 +31,6 @@ void CameraExtractor::ProcessMeasurement(
   // initialize member variables
   image_in_ = std::make_shared<cv::Mat>();
   image_undistorted_ = std::make_shared<cv::Mat>();
-  image_cropped_ = std::make_shared<cv::Mat>();
   image_annotated_ = std::make_shared<cv::Mat>();
   T_CAMERA_TARGET_EST_ = T_CAMERA_TARGET_EST;
   *image_in_ = img_in;
@@ -49,25 +48,20 @@ void CameraExtractor::ProcessMeasurement(
   }
 
   this->UndistortImage();
-  this->CropImage();
-
-  if (!measurement_valid_) {
-    measurement_complete_ = true;
-    return;
-  }
-
-  *image_annotated_ = utils::DrawCoordinateFrame(
-      *image_cropped_, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
-      axis_plot_scale_, camera_params_->images_distorted);
-
+  *image_annotated_ = *image_undistorted_;
   this->GetKeypoints();
 
-  if (!measurement_valid_ && show_measurements_) {
-    this->DisplayImage(*image_annotated_, "Inalid Measurement",
-                       "Showing failed measurement", false);
-  } else if (measurement_valid_ && show_measurements_) {
-    this->DisplayImage(*image_annotated_, "Valid Measurement",
-                       "Showing successfull measurement", true);
+  if(show_measurements_){
+    *image_annotated_ = utils::DrawCoordinateFrame(
+        *image_annotated_, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
+        axis_plot_scale_, camera_params_->images_distorted);
+    if(!measurement_valid_){
+      this->DisplayImage(*image_annotated_, "Inalid Measurement",
+                         "Showing failed measurement", false);
+    } else {
+      this->DisplayImage(*image_annotated_, "Valid Measurement",
+                         "Showing successfull measurement", true);
+    }
   }
 
   measurement_complete_ = true;

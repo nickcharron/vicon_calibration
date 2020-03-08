@@ -22,7 +22,7 @@ void DiamondCameraExtractor::GetKeypoints() {
   // Find checkerboard corners
   std::vector<cv::Point2f> corners;
   bool checkerboard_found = cv::findChessboardCorners(
-      *image_cropped_, cv::Size(n_dim, m_dim), corners, cv::CALIB_CB_FAST_CHECK);
+      *image_undistorted_, cv::Size(n_dim, m_dim), corners, cv::CALIB_CB_FAST_CHECK);
 
   // check if valid
   if (!checkerboard_found) {
@@ -42,7 +42,6 @@ void DiamondCameraExtractor::GetKeypoints() {
   }
   drawChessboardCorners(*image_annotated_, cv::Size(n_dim, m_dim), corners,
                         checkerboard_found);
-
 }
 
 } // namespace vicon_calibration

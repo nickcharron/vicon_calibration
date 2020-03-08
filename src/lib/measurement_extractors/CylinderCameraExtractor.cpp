@@ -4,6 +4,15 @@
 namespace vicon_calibration {
 
 void CylinderCameraExtractor::GetKeypoints() {
+  image_cropped_ = std::make_shared<cv::Mat>();
+  this->CropImage();
+  *image_annotated_ = *image_cropped_;
+
+  if (!measurement_valid_) {
+    measurement_complete_ = true;
+    return;
+  }
+
   // Threshold the image
   cv::Mat image_binary;
   cv::inRange(*image_cropped_, color_threshold_min_, color_threshold_max_,

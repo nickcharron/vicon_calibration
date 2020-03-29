@@ -88,13 +88,13 @@ private:
   void PrintErrorsSummary();
 
   // params:
-  std::vector<double> template_downsample_size_{0.005, 0.005, 0.005};
-  double concave_hull_alpha_{5};
+  std::vector<double> template_downsample_size_{0.001, 0.001, 0.001};
 
   // member variables:
   bool initial_calib_set_{false}, optimized_calib_set_{false},
       ground_truth_calib_set_{false}, params_set_{false}, config_path_set_{false},
-      lidar_measurements_set_{false}, camera_measurements_set_{false};
+      lidar_measurements_set_{false}, camera_measurements_set_{false},
+      show_target_outline_on_image_{true};
   int num_tgts_in_img_;
   std::shared_ptr<CalibratorConfig> params_;
   std::string output_directory_;
@@ -105,8 +105,11 @@ private:
   ros::Duration time_increment_ = ros::Duration(10);
   int max_image_results_{20};
   int max_lidar_results_{3};
+  int keypoint_circle_diameter_{5};
+  int outline_circle_diameter_{2};
   double max_pixel_cor_dist_{500}; // in pixels
   double max_point_cor_dist_{0.3}; // in m
+  double concave_hull_alpha_multiplier_{1.5};
   ros::Time lookup_time_;
   std::shared_ptr<vicon_calibration::TfTree> lookup_tree_ =
       std::make_shared<vicon_calibration::TfTree>();

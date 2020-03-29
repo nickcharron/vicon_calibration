@@ -4,5 +4,9 @@
   "max_image_results": 20,
   "max_lidar_results": 2,
   "max_pixel_cor_dist": 500,
-  "max_point_cor_dist": 1
+  "max_point_cor_dist": 1,
+  "show_target_outline_on_image": true,
+  "concave_hull_alpha_multiplier": 5,
+  "keypoint_circle_diameter": 7,
+  "outline_circle_diameter": 2
 }

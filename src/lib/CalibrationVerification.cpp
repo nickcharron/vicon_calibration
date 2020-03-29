@@ -41,6 +41,10 @@ void CalibrationVerification::LoadJSON(const std::string &file_name) {
   max_lidar_results_ = J["max_lidar_results"];
   max_pixel_cor_dist_ = J["max_pixel_cor_dist"];
   max_point_cor_dist_ = J["max_point_cor_dist"];
+  concave_hull_alpha_multiplier_ = J["concave_hull_alpha_multiplier"];
+  show_target_outline_on_image_ = J["show_target_outline_on_image"];
+  keypoint_circle_diameter_ = J["keypoint_circle_diameter"];
+  outline_circle_diameter_ = J["outline_circle_diameter"];
 }
 
 void CalibrationVerification::CheckInputs() {
@@ -849,6 +853,34 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
 
     num_tgts_in_img_++;
 
+    // add keypoints to image
+    cv::Point point_cv_projected;
+    for (Eigen::Vector3d point :
+         params_->target_params[target_iter]->keypoints_camera) {
+      point_target = utils::PointToHomoPoint(point);
+      point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
+                          T_VICONBASE_TARGET * point_target;
+      if (params_->camera_params[cam_iter]->images_distorted) {
+        point_projected =
+            params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+                utils::HomoPointToPoint(point_transformed));
+      } else {
+        point_projected = params_->camera_params[cam_iter]
+                              ->camera_model->ProjectUndistortedPoint(
+                                  utils::HomoPointToPoint(point_transformed));
+      }
+      if (params_->camera_params[cam_iter]->camera_model->PixelInImage(
+              point_projected)) {
+        cv::Point pixel_cv;
+        pixel_cv.x = point_projected[0];
+        pixel_cv.y = point_projected[1];
+        cv::circle(*img_out, pixel_cv, keypoint_circle_diameter_, colour);
+      }
+    }
+
+    if (!show_target_outline_on_image_) {
+      return img_out;
+    }
     // iterate through all target points
     pcl::PointCloud<pcl::PointXYZ>::Ptr target =
         params_->target_params[target_iter]->template_cloud;
@@ -875,20 +907,40 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
       }
     }
 
+    // Get concave hull alpha
+    // we want to make sure alpha is larget than two consecutive projected pts
+    // assume template points are 5mm apart, calculate distance in pixels
+    // between two consecutive projected points
+    Eigen::Matrix4d T_SENSOR_TARGET =
+        utils::InvertTransform(T_VICONBASE_SENSOR) *
+        T_VICONBASE_TARGET.matrix();
+    Eigen::Vector4d point1 = T_SENSOR_TARGET * Eigen::Vector4d(0, 0, 0, 1);
+    Eigen::Vector4d point2 = T_SENSOR_TARGET * Eigen::Vector4d(0, 0, 0.005, 1);
+    Eigen::Vector2d point1_projected =
+        params_->camera_params[cam_iter]->camera_model->ProjectPoint(point1);
+    Eigen::Vector2d point2_projected =
+        params_->camera_params[cam_iter]->camera_model->ProjectPoint(point2);
+    double distance = (point1_projected - point2_projected).norm();
+
+    // for really small distances, set minimum
+    if (distance < 3){
+      distance = 3;
+    }
+
     // keep only perimeter points
     pcl::ConcaveHull<pcl::PointXYZ> concave_hull;
     concave_hull.setInputCloud(cloud_projected);
-    concave_hull.setAlpha(concave_hull_alpha_);
+    concave_hull.setAlpha(concave_hull_alpha_multiplier_ * distance);
     concave_hull.reconstruct(*cloud_projected);
 
     // colour image
-    int radius = 1;
-    cv::Point point_cv_projected;
+    point_cv_projected;
     for (uint32_t i = 0; i < cloud_projected->size(); i++) {
       point_pcl_projected = cloud_projected->at(i);
       point_cv_projected.x = point_pcl_projected.x;
       point_cv_projected.y = point_pcl_projected.y;
-      cv::circle(*img_out, point_cv_projected, radius, colour);
+      cv::circle(*img_out, point_cv_projected, outline_circle_diameter_,
+                 colour);
     }
   }
   return img_out;

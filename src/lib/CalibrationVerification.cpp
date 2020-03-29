@@ -630,6 +630,7 @@ void CalibrationVerification::SaveCameraVisuals() {
         continue;
       }
 
+      // Add measurements to image
       final_image = this->ProjectTargetToImage(current_image, T_VICONBASE_TGTS,
                                                TA_VICONBASE_SENSOR_est.matrix(),
                                                cam_iter, cv::Scalar(0, 0, 255));
@@ -638,11 +639,18 @@ void CalibrationVerification::SaveCameraVisuals() {
         continue;
       }
 
-      // save image with targets
       counter++;
       final_image = this->ProjectTargetToImage(final_image, T_VICONBASE_TGTS,
                                                TA_VICONBASE_SENSOR_opt.matrix(),
                                                cam_iter, cv::Scalar(255, 0, 0));
+
+      if (params_->using_simulation && ground_truth_calib_set_) {
+        final_image = this->ProjectTargetToImage(
+            final_image, T_VICONBASE_TGTS, TA_VICONBASE_SENSOR_true.matrix(),
+            cam_iter, cv::Scalar(0, 255, 0));
+      }
+
+      // save image with targets
       std::string save_path =
           current_save_path + "image_" + std::to_string(counter) + ".jpg";
       cv::imwrite(save_path, *final_image);
@@ -923,7 +931,7 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     double distance = (point1_projected - point2_projected).norm();
 
     // for really small distances, set minimum
-    if (distance < 3){
+    if (distance < 3) {
       distance = 3;
     }
 

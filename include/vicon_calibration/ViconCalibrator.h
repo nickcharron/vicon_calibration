@@ -83,7 +83,10 @@ private:
   bool PassedMaxVelocity(const Eigen::Affine3d &TA_S_T_before,
                          const Eigen::Affine3d &TA_S_T_after);
 
+  void OutputMeasurementStats();
+
   std::shared_ptr<CalibratorConfig> params_;
+  vicon_calibration::Counters counters_;
   std::string results_directory_;
   std::string config_file_path_;
   std::shared_ptr<LidarExtractor> lidar_extractor_;

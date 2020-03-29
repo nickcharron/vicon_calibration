@@ -140,4 +140,30 @@ struct CalibratorConfig {
   std::vector<std::shared_ptr<vicon_calibration::LidarParams>> lidar_params;
 };
 
+struct Counters {
+  int total_camera{0};
+  int camera_accepted{0};
+  int camera_rejected_fast{0};
+  int camera_rejected_still{0};
+  int camera_rejected_invalid{0};
+  int total_lidar{0};
+  int lidar_accepted{0};
+  int lidar_rejected_fast{0};
+  int lidar_rejected_still{0};
+  int lidar_rejected_invalid{0};
+
+  void reset(){
+    total_camera = 0;
+    camera_accepted = 0;
+    total_lidar = 0;
+    camera_rejected_fast = 0;
+    camera_rejected_still = 0;
+    camera_rejected_invalid = 0;
+    lidar_accepted = 0;
+    lidar_rejected_fast = 0;
+    lidar_rejected_still = 0;
+    lidar_rejected_invalid = 0;
+  }
+};
+
 } // end namespace vicon_calibration

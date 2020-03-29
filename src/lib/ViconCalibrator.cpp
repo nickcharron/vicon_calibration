@@ -250,11 +250,11 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
         continue;
       }
       for (int n = 0; n < T_lidar_tgts_estimated.size(); n++) {
+        counters_.total_lidar++;
         if (T_lidar_tgts_estimated_prev.size() > 0) {
           if (!PassedMinTranslation(T_lidar_tgts_estimated_prev[n],
                                     T_lidar_tgts_estimated[n])) {
-            LOG_INFO("Target has not moved relative to base since last "
-                     "measurement. Skipping.");
+            counters_.lidar_rejected_still++;
             continue;
           }
         }
@@ -263,6 +263,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
           if (!PassedMaxVelocity(T_viconbase_tgts_before[n],
                                  T_viconbase_tgts_after[n])) {
             LOG_INFO("Target is moving too quickly. Skipping.");
+            counters_.lidar_rejected_fast++;
             continue;
           }
         }
@@ -294,6 +295,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
         params_->show_lidar_measurements =
             lidar_extractor_->GetShowMeasurements();
         if (lidar_extractor_->GetMeasurementValid()) {
+          counters_.lidar_accepted++;
           valid_measurements++;
           std::shared_ptr<LidarMeasurement> lidar_measurement =
               std::make_shared<LidarMeasurement>();
@@ -307,6 +309,8 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
           lidar_measurement->time_stamp = time_current;
           lidar_measurements_[lidar_iter][current_measurement] =
               lidar_measurement;
+        } else {
+          counters_.lidar_rejected_invalid++;
         }
         current_measurement++;
       }
@@ -387,11 +391,11 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
         continue;
       }
       for (int n = 0; n < T_cam_tgts_estimated.size(); n++) {
+        counters_.total_camera++;
         if (T_cam_tgts_estimated_prev.size() > 0) {
           if (!PassedMinTranslation(T_cam_tgts_estimated_prev[n],
                                     T_cam_tgts_estimated[n])) {
-            LOG_INFO("Target has not moved relative to base since last "
-                     "measurement. Skipping.");
+            counters_.camera_rejected_still++;
             continue;
           }
         }
@@ -399,7 +403,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
             T_viconbase_tgts_after.size() >= 0) {
           if (!PassedMaxVelocity(T_viconbase_tgts_before[n],
                                  T_viconbase_tgts_after[n])) {
-            LOG_INFO("Target is moving too quickly. Skipping.");
+            counters_.camera_rejected_fast++;
             continue;
           }
         }
@@ -430,6 +434,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
         params_->show_camera_measurements =
             camera_extractor_->GetShowMeasurements();
         if (camera_extractor_->GetMeasurementValid()) {
+          counters_.camera_accepted++;
           valid_measurements++;
           std::shared_ptr<CameraMeasurement> camera_measurement =
               std::make_shared<CameraMeasurement>();
@@ -444,6 +449,8 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
           camera_measurement->time_stamp = time_current;
           camera_measurements_[cam_iter][current_measurement] =
               camera_measurement;
+        } else {
+          counters_.camera_rejected_invalid++;
         }
         current_measurement++;
       }
@@ -545,6 +552,7 @@ bool ViconCalibrator::PassedMaxVelocity(const Eigen::Affine3d &TA_S_T_before,
 }
 
 void ViconCalibrator::RunCalibration(std::string config_file) {
+  counters_.reset();
 
   // get configuration settings
   config_file_path_ = utils::GetFilePathConfig(config_file);
@@ -604,6 +612,8 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
     this->GetCameraMeasurements(cam_iter);
   }
 
+  this->OutputMeasurementStats();
+
   if (params_->use_loop_closure_measurements) {
     this->GetLoopClosureMeasurements();
   }
@@ -648,6 +658,26 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
     ver.ProcessResults();
   }
   return;
+}
+
+void ViconCalibrator::OutputMeasurementStats(){
+  std::cout << "------------------------------------------------------------\n"
+            << "Outputing Measurement Statistics\n"
+            << "--------------------------------\n"
+            << "Total possible camera measurements: " << counters_.total_camera
+            << "\nSaved: " << counters_.camera_accepted
+            << "\nRejected - no movement: " << counters_.camera_rejected_still
+            << "\nRejected - high motion: " << counters_.camera_rejected_fast
+            << "\nRejected - invalid result: "
+            << counters_.camera_rejected_invalid
+            << "\n\nTotal possible lidar measurements: "
+            << counters_.total_lidar
+            << "\nSaved: " << counters_.lidar_accepted
+            << "\nRejected - no movement: " << counters_.lidar_rejected_still
+            << "\nRejected - high motion: " << counters_.lidar_rejected_fast
+            << "\nRejected - invalid result: "
+            << counters_.lidar_rejected_invalid << "\n"
+            << "------------------------------------------------------------\n";
 }
 
 } // end namespace vicon_calibration

@@ -75,8 +75,6 @@ protected:
 
   void CheckInputs();
 
-  void CropScan();
-
   void AddColouredPointCloudToViewer(const PointCloudColor::Ptr &cloud,
                                      const std::string &cloud_name,
                                      boost::optional<Eigen::MatrixXd &> T,
@@ -98,7 +96,7 @@ protected:
 
   // member variables
   PointCloud::Ptr scan_in_;
-  PointCloud::Ptr scan_cropped_;
+  PointCloud::Ptr scan_isolated_;
   Eigen::MatrixXd T_LIDAR_TARGET_EST_ = Eigen::MatrixXd(4, 4);
   pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
   PointCloud::Ptr keypoints_measured_;
@@ -119,14 +117,13 @@ protected:
   // params:
   std::shared_ptr<vicon_calibration::LidarParams> lidar_params_;
   std::shared_ptr<vicon_calibration::TargetParams> target_params_;
-  bool crop_scan_{true};
   bool show_measurements_{false};
   double max_keypoint_distance_{0.005}; // keypoints will only be the taken when
                                         // the correspondence distance with the
                                         // est. tgt. loc. is less than this
   double dist_acceptance_criteria_{0.05}; // acceptable error between estimated
                                           // target and registered target
-  double concave_hull_alpha_{0.1};                                        
+  double concave_hull_alpha_{0.1};
   double icp_transform_epsilon_{1e-8};
   double icp_euclidean_epsilon_{1e-2};
   int icp_max_iterations_{80};

@@ -24,11 +24,7 @@ void DiamondLidarExtractor::GetKeypoints() {
 
 
   // extract concave hull for template cloud and scan
-  if (crop_scan_) {
-    concave_hull.setInputCloud(scan_cropped_);
-  } else {
-    concave_hull.setInputCloud(scan_in_);
-  }
+  concave_hull.setInputCloud(scan_isolated_);
   concave_hull.reconstruct(*scan_hull);
   concave_hull.setInputCloud(target_params_->template_cloud);
   concave_hull.reconstruct(*template_hull);
@@ -44,13 +40,13 @@ void DiamondLidarExtractor::GetKeypoints() {
     if (show_measurements_) {
       std::cout << "ICP failed. Displaying cropped scan." << std::endl;
       boost::shared_ptr<PointCloudColor>
-          scan_cropped_coloured;
-      scan_cropped_coloured =
+          scan_isolated_coloured;
+      scan_isolated_coloured =
           boost::make_shared<PointCloudColor>();
       Eigen::MatrixXd T_identity = Eigen::MatrixXd(4,4);
       T_identity.setIdentity();
-      scan_cropped_coloured = utils::ColorPointCloud(scan_cropped_, 255, 0, 0);
-      this->AddColouredPointCloudToViewer(scan_cropped_coloured,
+      scan_isolated_coloured = utils::ColorPointCloud(scan_isolated_, 255, 0, 0);
+      this->AddColouredPointCloudToViewer(scan_isolated_coloured,
                                           "red_cloud", T_identity);
       this->AddPointCloudToViewer(scan_in_, "white_cloud", T_identity);
       this->ShowFailedMeasurement();
@@ -113,7 +109,7 @@ void DiamondLidarExtractor::GetKeypoints() {
 
     Eigen::Matrix4d T_identity;
     T_identity.setIdentity();
-    this->AddPointCloudToViewer(scan_cropped_, "white_cloud", T_identity);
+    this->AddPointCloudToViewer(scan_isolated_, "white_cloud", T_identity);
     this->ShowFinalTransformation();
   }
 }

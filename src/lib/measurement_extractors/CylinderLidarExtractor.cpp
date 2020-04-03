@@ -17,11 +17,7 @@ void CylinderLidarExtractor::GetKeypoints() {
   icp.setEuclideanFitnessEpsilon(icp_euclidean_epsilon_);
   icp.setMaximumIterations(icp_max_iterations_);
   icp.setMaxCorrespondenceDistance(icp_max_correspondence_dist_);
-  if (crop_scan_) {
-    icp.setInputSource(scan_cropped_);
-  } else {
-    icp.setInputSource(scan_in_);
-  }
+  icp.setInputSource(scan_isolated_);
   icp.setInputTarget(target_params_->template_cloud);
   icp.align(*scan_registered, T_LIDAR_TARGET_EST_.inverse().cast<float>());
 
@@ -32,13 +28,13 @@ void CylinderLidarExtractor::GetKeypoints() {
     if (show_measurements_) {
       std::cout << "ICP failed. Displaying cropped scan." << std::endl;
       boost::shared_ptr<PointCloudColor>
-          scan_cropped_coloured;
-      scan_cropped_coloured =
+          scan_isolated_coloured;
+      scan_isolated_coloured =
           boost::make_shared<PointCloudColor>();
       Eigen::MatrixXd T_identity = Eigen::MatrixXd(4, 4);
       T_identity.setIdentity();
-      scan_cropped_coloured = utils::ColorPointCloud(scan_cropped_, 255, 0, 0);
-      this->AddColouredPointCloudToViewer(scan_cropped_coloured,
+      scan_isolated_coloured = utils::ColorPointCloud(scan_isolated_, 255, 0, 0);
+      this->AddColouredPointCloudToViewer(scan_isolated_coloured,
                                           "red_cloud", T_identity);
       this->AddPointCloudToViewer(scan_in_, "white_cloud", T_identity);
       this->ShowFailedMeasurement();
@@ -58,11 +54,7 @@ void CylinderLidarExtractor::GetKeypoints() {
     int source_index_i = corr_i.index_query;
     if (corr_i.distance < max_keypoint_distance_) {
       pcl::PointXYZ point;
-      if (crop_scan_) {
-        point = scan_cropped_->points[source_index_i];
-      } else {
-        point = scan_in_->points[source_index_i];
-      }
+      point = scan_isolated_->points[source_index_i];
       scan_best_points_->points.push_back(point);
     }
   }
@@ -175,7 +167,7 @@ void CylinderLidarExtractor::CheckErrors() {
                                         T_LIDAR_TARGET_OPT_);
     Eigen::Matrix4d T_identity;
     T_identity.setIdentity();
-    this->AddPointCloudToViewer(scan_cropped_, "white_cloud", T_identity);
+    this->AddPointCloudToViewer(scan_isolated_, "white_cloud", T_identity);
     this->ShowFinalTransformation();
   }
 }
@@ -184,8 +176,8 @@ void CylinderLidarExtractor::SaveMeasurement() {
   if (!measurement_valid_) {
     return;
   }
-  if (!crop_scan_) {
-    keypoints_measured_ = scan_in_;
+  if (!test_registration_) {
+    keypoints_measured_ = scan_isolated_;
   } else {
     keypoints_measured_ = scan_best_points_;
   }

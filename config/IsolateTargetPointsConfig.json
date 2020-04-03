@@ -1,0 +1,5 @@
+{
+  "crop_scan": true,
+  "isolator_volume_weight": 0.5,
+  "isolator_distance_weight": 0.5
+}

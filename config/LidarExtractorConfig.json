@@ -1,5 +1,4 @@
 {
-  "crop_scan": true,
   "max_keypoint_distance": 0.005,
   "dist_acceptance_criteria": 0.05,
   "concave_hull_alpha": 0.1,

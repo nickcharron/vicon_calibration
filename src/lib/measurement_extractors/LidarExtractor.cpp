@@ -53,7 +53,6 @@ void LidarExtractor::LoadConfig() {
   nlohmann::json J;
   std::ifstream file(config_path);
   file >> J;
-  crop_scan_ = J.at("crop_scan");
   max_keypoint_distance_ = J.at("max_keypoint_distance");
   dist_acceptance_criteria_ = J.at("dist_acceptance_criteria");
   concave_hull_alpha_ = J.at("concave_hull_alpha");
@@ -62,22 +61,25 @@ void LidarExtractor::LoadConfig() {
   icp_max_iterations_ = J.at("icp_max_iterations");
   icp_max_correspondence_dist_ = J.at("icp_max_correspondence_dist");
   icp_enable_debug_ = J.at("icp_enable_debug");
+  crop_scan_ = J.at("crop_scan");
+  isolator_volume_weight_ = J.at("isolator_volume_weight_");
+  isolator_distance_weight_ = J.at("isolator_distance_weight");
 }
 
 void LidarExtractor::ProcessMeasurement(
-    const Eigen::Matrix4d &T_LIDAR_TARGET_EST, const PointCloud::Ptr &cloud_in) {
+    const Eigen::Matrix4d &T_LIDAR_TARGET_EST,
+    const PointCloud::Ptr &cloud_in) {
+
   // initialize member variables
   this->LoadConfig();
-  scan_in_ = boost::make_shared<PointCloud>();
-  scan_cropped_ = boost::make_shared<PointCloud>();
   if (show_measurements_) {
     pcl_viewer_ = boost::make_shared<pcl::visualization::PCLVisualizer>();
     int hor_res, vert_res;
     utils::GetScreenResolution(hor_res, vert_res);
     pcl_viewer_->setSize(hor_res, vert_res);
   }
-  if(icp_enable_debug_){
-     pcl::console::setVerbosityLevel(pcl::console::L_DEBUG);
+  if (icp_enable_debug_) {
+    pcl::console::setVerbosityLevel(pcl::console::L_DEBUG);
   }
   scan_in_ = cloud_in;
   T_LIDAR_TARGET_EST_ = T_LIDAR_TARGET_EST;
@@ -85,7 +87,16 @@ void LidarExtractor::ProcessMeasurement(
   measurement_complete_ = false;
 
   this->CheckInputs();
-  this->CropScan();
+
+  // isolate the target points from the scan
+  IsolateTargetPoints isolate_target_point;
+  isolate_target_point.SetScan(scan_in_);
+  isolate_target_point.SetTransformEstimate(
+      utils::InvertTransform(T_LIDAR_TARGET_EST_));
+  isolate_target_point.SetTargetParams(target_params_);    
+  scan_isolated_ = isolate_target_point.GetPoints();
+
+  // save keypoints
   this->GetKeypoints();
   measurement_complete_ = true;
 }
@@ -113,21 +124,6 @@ void LidarExtractor::CheckInputs() {
     throw std::runtime_error{
         "Estimated transform from target to lidar is invalid"};
   }
-}
-
-void LidarExtractor::CropScan() {
-
-  Eigen::Affine3f T_TARGET_EST_SCAN;
-  T_TARGET_EST_SCAN.matrix() = T_LIDAR_TARGET_EST_.inverse().cast<float>();
-  beam_filtering::CropBox cropper;
-  Eigen::Vector3f min_vector, max_vector;
-  max_vector = target_params_->crop_scan.cast<float>();
-  min_vector = -max_vector;
-  cropper.SetMinVector(min_vector);
-  cropper.SetMaxVector(max_vector);
-  cropper.SetRemoveOutsidePoints(true);
-  cropper.SetTransform(T_TARGET_EST_SCAN);
-  cropper.Filter(*scan_in_, *scan_cropped_);
 }
 
 void LidarExtractor::AddColouredPointCloudToViewer(
@@ -180,12 +176,12 @@ void LidarExtractor::AddPointCloudToViewer(const PointCloud::Ptr &cloud,
 void LidarExtractor::ConfirmMeasurementKeyboardCallback(
     const pcl::visualization::KeyboardEvent &event, void *viewer_void) {
   // check if key has been down for two consecutive spins
-  if(viewer_key_down_ && event.keyDown()) {
+  if (viewer_key_down_ && event.keyDown()) {
     return;
-  } else if (viewer_key_down_ && !event.keyDown()){
+  } else if (viewer_key_down_ && !event.keyDown()) {
     viewer_key_down_ = false;
     return;
-  } else if (!viewer_key_down_ && event.keyDown()){
+  } else if (!viewer_key_down_ && event.keyDown()) {
     viewer_key_down_ = true;
   } else if (!viewer_key_down_ && !event.keyDown()) {
     return;

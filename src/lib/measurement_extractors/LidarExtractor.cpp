@@ -1,6 +1,5 @@
 #include "vicon_calibration/measurement_extractors/LidarExtractor.h"
-#include <beam_filtering/CropBox.h>
-#include <boost/make_shared.hpp>
+#include "vicon_calibration/measurement_extractors/IsolateTargetPoints.h"
 #include <chrono>
 #include <thread>
 
@@ -23,12 +22,6 @@ void LidarExtractor::SetTargetParams(
     std::shared_ptr<vicon_calibration::TargetParams> &target_params) {
   target_params_ = target_params;
   target_params_set_ = true;
-  if (target_params_->crop_scan[0] == 0 && target_params_->crop_scan[1] == 0 &&
-      target_params_->crop_scan[2] == 0) {
-    crop_scan_ = false;
-  } else {
-    crop_scan_ = true;
-  }
 }
 
 void LidarExtractor::SetShowMeasurements(const bool &show_measurements) {
@@ -46,6 +39,26 @@ bool LidarExtractor::GetMeasurementValid() {
   return measurement_valid_;
 }
 
+void LidarExtractor::ProcessMeasurement(
+    const Eigen::Matrix4d &T_LIDAR_TARGET_EST,
+    const PointCloud::Ptr &cloud_in) {
+  scan_in_ = cloud_in;
+  T_LIDAR_TARGET_EST_ = T_LIDAR_TARGET_EST;
+  this->LoadConfig();
+  this->SetupVariables();
+  this->CheckInputs();
+  this->IsolatePoints();
+  this->GetKeypoints();
+  measurement_complete_ = true;
+
+  /* TODO: refactor this code to run in this order:
+   * (1) Isolate target points (has cropping built in)
+   * (2) GetKeypoints() -> only part that is target dependent
+   * (3) IsMeasurementValid() -> use average distance to NN to work for all tgts
+   * (4) GetUserInput()
+   */
+}
+
 // TODO: move this to json tools object
 void LidarExtractor::LoadConfig() {
   std::string config_path =
@@ -61,17 +74,9 @@ void LidarExtractor::LoadConfig() {
   icp_max_iterations_ = J.at("icp_max_iterations");
   icp_max_correspondence_dist_ = J.at("icp_max_correspondence_dist");
   icp_enable_debug_ = J.at("icp_enable_debug");
-  crop_scan_ = J.at("crop_scan");
-  isolator_volume_weight_ = J.at("isolator_volume_weight_");
-  isolator_distance_weight_ = J.at("isolator_distance_weight");
 }
 
-void LidarExtractor::ProcessMeasurement(
-    const Eigen::Matrix4d &T_LIDAR_TARGET_EST,
-    const PointCloud::Ptr &cloud_in) {
-
-  // initialize member variables
-  this->LoadConfig();
+void LidarExtractor::SetupVariables() {
   if (show_measurements_) {
     pcl_viewer_ = boost::make_shared<pcl::visualization::PCLVisualizer>();
     int hor_res, vert_res;
@@ -81,33 +86,8 @@ void LidarExtractor::ProcessMeasurement(
   if (icp_enable_debug_) {
     pcl::console::setVerbosityLevel(pcl::console::L_DEBUG);
   }
-  scan_in_ = cloud_in;
-  T_LIDAR_TARGET_EST_ = T_LIDAR_TARGET_EST;
   measurement_valid_ = true;
   measurement_complete_ = false;
-
-  this->CheckInputs();
-
-  // isolate the target points from the scan
-  IsolateTargetPoints isolate_target_point;
-  isolate_target_point.SetScan(scan_in_);
-  isolate_target_point.SetTransformEstimate(
-      utils::InvertTransform(T_LIDAR_TARGET_EST_));
-  isolate_target_point.SetTargetParams(target_params_);    
-  scan_isolated_ = isolate_target_point.GetPoints();
-
-  // save keypoints
-  this->GetKeypoints();
-  measurement_complete_ = true;
-}
-
-pcl::PointCloud<pcl::PointXYZ>::Ptr LidarExtractor::GetMeasurement() {
-  if (!measurement_complete_) {
-    throw std::invalid_argument{
-        "Cannot retrieve measurement, please run ExtractKeypoints before "
-        "attempting to retrieve measurement."};
-  }
-  return keypoints_measured_;
 }
 
 void LidarExtractor::CheckInputs() {
@@ -124,6 +104,24 @@ void LidarExtractor::CheckInputs() {
     throw std::runtime_error{
         "Estimated transform from target to lidar is invalid"};
   }
+}
+
+void LidarExtractor::IsolatePoints() {
+  IsolateTargetPoints isolate_target_points;
+  isolate_target_points.SetScan(scan_in_);
+  isolate_target_points.SetTransformEstimate(
+      utils::InvertTransform(T_LIDAR_TARGET_EST_));
+  isolate_target_points.SetTargetParams(target_params_);
+  scan_isolated_ = isolate_target_points.GetPoints();
+}
+
+pcl::PointCloud<pcl::PointXYZ>::Ptr LidarExtractor::GetMeasurement() {
+  if (!measurement_complete_) {
+    throw std::invalid_argument{
+        "Cannot retrieve measurement, please run ExtractKeypoints before "
+        "attempting to retrieve measurement."};
+  }
+  return keypoints_measured_;
 }
 
 void LidarExtractor::AddColouredPointCloudToViewer(

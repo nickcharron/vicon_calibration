@@ -2,6 +2,7 @@
 
 #include "vicon_calibration/params.h"
 #include "vicon_calibration/utils.h"
+#include "vicon_calibration/measurement_extractors/IsolateTargetPoints.h"
 
 #include <Eigen/Geometry>
 #include <pcl/point_cloud.h>
@@ -73,7 +74,13 @@ protected:
   // this is what we will need to override in the derived class
   virtual void GetKeypoints() = 0;
 
+  void LoadConfig();
+
+  void SetupVariables();
+
   void CheckInputs();
+
+  void IsolatePoints();
 
   void AddColouredPointCloudToViewer(const PointCloudColor::Ptr &cloud,
                                      const std::string &cloud_name,
@@ -91,8 +98,6 @@ protected:
   void ShowFailedMeasurement();
 
   void ShowFinalTransformation();
-
-  void LoadConfig();
 
   // member variables
   PointCloud::Ptr scan_in_;

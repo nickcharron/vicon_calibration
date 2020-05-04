@@ -61,6 +61,7 @@ void DiamondLidarExtractor::GetKeypoints() {
   measurement_valid_ = true;
 
   // TODO: create error metric that depends on distance to sensor
+  // or average distance to nearest neighbours
 
   // transform keypoints from json using opt. transform and store
   Eigen::Vector4d keypoint_homo;

@@ -62,6 +62,7 @@ void CylinderLidarExtractor::GetKeypoints() {
   this->SaveMeasurement();
 }
 
+// TODO: change this to a method that uses average distance to NN 
 void CylinderLidarExtractor::CalculateErrors() {
   Eigen::Vector4d point_end_tgt(0.3, 0, 0, 1);
   Eigen::Vector4d point_orig_tgt(0, 0, 0, 1);

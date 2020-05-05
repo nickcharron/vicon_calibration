@@ -26,7 +26,6 @@ void IsolateTargetPoints::LoadConfig() {
   crop_scan_ = J.at("crop_scan");
   isolator_volume_weight_ = J.at("isolator_volume_weight");
   isolator_distance_weight_ = J.at("isolator_distance_weight");
-  angular_resolution_deg_ = J.at("angular_resolution_deg");
   clustering_multiplier_ = J.at("clustering_multiplier");
   min_cluster_size_ = J.at("min_cluster_size");
   max_cluster_size_ = J.at("max_cluster_size");
@@ -45,6 +44,11 @@ void IsolateTargetPoints::SetScan(const PointCloud::Ptr &scan_in) {
 void IsolateTargetPoints::SetTargetParams(
     const std::shared_ptr<TargetParams> &target_params) {
   target_params_ = target_params;
+}
+
+void IsolateTargetPoints::SetLidarParams(
+    const std::shared_ptr<LidarParams> &lidar_params) {
+  lidar_params_ = lidar_params;
 }
 
 PointCloud::Ptr IsolateTargetPoints::GetPoints() {
@@ -67,7 +71,7 @@ void IsolateTargetPoints::ClusterPoints() {
   Eigen::Vector3d translation = T_TARGET_LIDAR_.block(0, 3, 3, 1);
   double distance = translation.norm();
   double max_point_distance =
-      distance * tan(angular_resolution_deg_ * DEG_TO_RAD);
+      distance * tan(lidar_params_->max_angular_resolution_deg * DEG_TO_RAD);
 
   // create search tree
   pcl::search::KdTree<pcl::PointXYZ>::Ptr tree =
@@ -160,6 +164,9 @@ bool IsolateTargetPoints::CheckInputs() {
     return false;
   } else if (target_params_ == nullptr) {
     LOG_ERROR("Target params not set.");
+    return false;
+  } else if (lidar_params_ == nullptr) {
+    LOG_ERROR("Lidar params not set.");
     return false;
   } else if (!transform_estimate_set_) {
     LOG_ERROR("Transformation estimate not set.");

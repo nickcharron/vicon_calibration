@@ -2,7 +2,6 @@
   "crop_scan": true,
   "isolator_volume_weight": 0.5,
   "isolator_distance_weight": 0.5,
-  "angular_resolution_deg": 0.5,
   "clustering_multiplier": 1.3,
   "min_cluster_size": 30,
   "max_cluster_size": 2000

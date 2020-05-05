@@ -44,36 +44,13 @@ void LidarExtractor::ProcessMeasurement(
     const PointCloud::Ptr &cloud_in) {
   scan_in_ = cloud_in;
   T_LIDAR_TARGET_EST_ = T_LIDAR_TARGET_EST;
-  this->LoadConfig();
   this->SetupVariables();
   this->CheckInputs();
   this->IsolatePoints();
-  this->GetKeypoints();
+  this->GetKeypoints();          // implemented in derived class
+  this->CheckMeasurementValid(); // implemented in derived class
+  this->GetUserInput();
   measurement_complete_ = true;
-
-  /* TODO: refactor this code to run in this order:
-   * (1) Isolate target points (has cropping built in)
-   * (2) GetKeypoints() -> only part that is target dependent
-   * (3) IsMeasurementValid() -> use average distance to NN to work for all tgts
-   * (4) GetUserInput()
-   */
-}
-
-// TODO: move this to json tools object
-void LidarExtractor::LoadConfig() {
-  std::string config_path =
-      utils::GetFilePathConfig("LidarExtractorConfig.json");
-  nlohmann::json J;
-  std::ifstream file(config_path);
-  file >> J;
-  max_keypoint_distance_ = J.at("max_keypoint_distance");
-  dist_acceptance_criteria_ = J.at("dist_acceptance_criteria");
-  concave_hull_alpha_ = J.at("concave_hull_alpha");
-  icp_transform_epsilon_ = J.at("icp_transform_epsilon");
-  icp_euclidean_epsilon_ = J.at("icp_euclidean_epsilon");
-  icp_max_iterations_ = J.at("icp_max_iterations");
-  icp_max_correspondence_dist_ = J.at("icp_max_correspondence_dist");
-  icp_enable_debug_ = J.at("icp_enable_debug");
 }
 
 void LidarExtractor::SetupVariables() {
@@ -112,6 +89,7 @@ void LidarExtractor::IsolatePoints() {
   isolate_target_points.SetTransformEstimate(
       utils::InvertTransform(T_LIDAR_TARGET_EST_));
   isolate_target_points.SetTargetParams(target_params_);
+  isolate_target_points.SetLidarParams(lidar_params_);
   scan_isolated_ = isolate_target_points.GetPoints();
 }
 
@@ -122,6 +100,59 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr LidarExtractor::GetMeasurement() {
         "attempting to retrieve measurement."};
   }
   return keypoints_measured_;
+}
+
+void LidarExtractor::GetUserInput() {
+  if (!show_measurements_) {
+    return;
+  }
+  if (measurement_valid_) {
+    std::cout << "Measurement Valid\n";
+
+    // add estimated template cloud
+    PointCloudColor::Ptr estimated_template_cloud =
+        utils::ColorPointCloud(target_params_->template_cloud, 0, 0, 255);
+    pcl::transformPointCloud(*estimated_template_cloud,
+                             *estimated_template_cloud,
+                             T_LIDAR_TARGET_EST_.cast<float>());
+    this->AddColouredPointCloudToViewer(estimated_template_cloud, "blue_cloud",
+                                        T_LIDAR_TARGET_EST_);
+
+    // add measured template cloud
+    PointCloudColor::Ptr measured_template_cloud =
+        utils::ColorPointCloud(target_params_->template_cloud, 0, 255, 0);
+    pcl::transformPointCloud(*measured_template_cloud, *measured_template_cloud,
+                             T_LIDAR_TARGET_OPT_.cast<float>());
+    this->AddColouredPointCloudToViewer(measured_template_cloud, "green_cloud",
+                                        T_LIDAR_TARGET_OPT_);
+
+    // add keypoints if discrete keypoints are specified
+    if (target_params_->keypoints_lidar.size() > 0) {
+      std::cout << "Showing measured keypoints in yellow.\n";
+      PointCloudColor::Ptr measured_keypoints =
+          utils::ColorPointCloud(keypoints_measured_, 255, 255, 0);
+      this->AddColouredPointCloudToViewer(measured_keypoints, "keypoints",
+                                          T_LIDAR_TARGET_OPT_, 5);
+    }
+
+    // add the isolated scan
+    Eigen::Matrix4d T_identity;
+    T_identity.setIdentity();
+    this->AddPointCloudToViewer(scan_isolated_, "white_cloud", T_identity);
+    this->ShowPassedMeasurement();
+  } else {
+    std::cout << "Measurement Invalid\n";
+    PointCloudColor::Ptr scan_isolated_coloured =
+        boost::make_shared<PointCloudColor>();
+    Eigen::MatrixXd T_identity = Eigen::MatrixXd(4, 4);
+    T_identity.setIdentity();
+    scan_isolated_coloured = utils::ColorPointCloud(scan_isolated_, 255, 0, 0);
+    this->AddColouredPointCloudToViewer(scan_isolated_coloured, "red_cloud",
+                                        T_identity);
+    this->AddPointCloudToViewer(scan_in_, "white_cloud", T_identity);
+    this->ShowFailedMeasurement();
+  }
+  return;
 }
 
 void LidarExtractor::AddColouredPointCloudToViewer(
@@ -184,50 +215,44 @@ void LidarExtractor::ConfirmMeasurementKeyboardCallback(
   } else if (!viewer_key_down_ && !event.keyDown()) {
     return;
   }
-  if (measurement_failed_) {
-    if (event.getKeySym() == "c") {
-      measurement_failed_ = false;
-      close_viewer_ = true;
+
+  if (event.getKeySym() == "y") {
+    measurement_valid_ = true;
+    close_viewer_ = true;
+  } else if (event.getKeySym() == "n") {
+    measurement_valid_ = false;
+    close_viewer_ = true;
+  } else if (event.getKeySym() == "c") {
+    close_viewer_ = true;
+  } else if (event.getKeySym() == "s") {
+    this->SetShowMeasurements(false);
+    close_viewer_ = true;
+  } else if (event.getKeySym() == "KP_1") {
+    std::string cloud_id = "white_cloud";
+    if (white_cloud_on_) {
+      white_cloud_on_ = false;
+      pcl_viewer_->removePointCloud(cloud_id);
+    } else {
+      white_cloud_on_ = true;
+      pcl_viewer_->addPointCloud(white_cloud_, cloud_id);
     }
-  } else {
-    if (event.getKeySym() == "y") {
-      measurement_valid_ = true;
-      close_viewer_ = true;
-    } else if (event.getKeySym() == "n") {
-      measurement_valid_ = false;
-      close_viewer_ = true;
-    } else if (event.getKeySym() == "c") {
-      close_viewer_ = true;
-    } else if (event.getKeySym() == "s") {
-      this->SetShowMeasurements(false);
-      close_viewer_ = true;
-    } else if (event.getKeySym() == "KP_1") {
-      std::string cloud_id = "white_cloud";
-      if (white_cloud_on_) {
-        white_cloud_on_ = false;
-        pcl_viewer_->removePointCloud(cloud_id);
-      } else {
-        white_cloud_on_ = true;
-        pcl_viewer_->addPointCloud(white_cloud_, cloud_id);
-      }
-    } else if (event.getKeySym() == "KP_2") {
-      std::string cloud_id = "blue_cloud";
-      if (blue_cloud_on_) {
-        blue_cloud_on_ = false;
-        pcl_viewer_->removePointCloud(cloud_id);
-      } else {
-        blue_cloud_on_ = true;
-        pcl_viewer_->addPointCloud(blue_cloud_, cloud_id);
-      }
-    } else if (event.getKeySym() == "KP_3") {
-      std::string cloud_id = "green_cloud";
-      if (green_cloud_on_) {
-        green_cloud_on_ = false;
-        pcl_viewer_->removePointCloud(cloud_id);
-      } else {
-        green_cloud_on_ = true;
-        pcl_viewer_->addPointCloud(green_cloud_, cloud_id);
-      }
+  } else if (event.getKeySym() == "KP_2") {
+    std::string cloud_id = "blue_cloud";
+    if (blue_cloud_on_) {
+      blue_cloud_on_ = false;
+      pcl_viewer_->removePointCloud(cloud_id);
+    } else {
+      blue_cloud_on_ = true;
+      pcl_viewer_->addPointCloud(blue_cloud_, cloud_id);
+    }
+  } else if (event.getKeySym() == "KP_3") {
+    std::string cloud_id = "green_cloud";
+    if (green_cloud_on_) {
+      green_cloud_on_ = false;
+      pcl_viewer_->removePointCloud(cloud_id);
+    } else {
+      green_cloud_on_ = true;
+      pcl_viewer_->addPointCloud(green_cloud_, cloud_id);
     }
   }
 }
@@ -244,8 +269,9 @@ void LidarExtractor::ShowFailedMeasurement() {
   pcl_viewer_->addCube(translation, rotation, width, height, depth);
   pcl_viewer_->setRepresentationToWireframeForAllActors();
   std::cout << "\nViewer Legend:\n"
-            << "  Red   -> cropped scan\n"
+            << "  Red   -> isolated scan\n"
             << "  White -> original scan\n"
+            << "  Box: cropbox input"
             << "Press [c] to continue with other measurements\n"
             << "Press [s] to stop showing future measurements\n";
   while (!pcl_viewer_->wasStopped() && !close_viewer_) {
@@ -258,16 +284,14 @@ void LidarExtractor::ShowFailedMeasurement() {
   pcl_viewer_->removeAllPointClouds();
   pcl_viewer_->close();
   pcl_viewer_->resetStoppedFlag();
-  if (measurement_failed_) {
-    std::cout << "Continuing with taking measurements" << std::endl;
-  } else if (measurement_valid_) {
+  if (measurement_valid_) {
     std::cout << "Accepting measurement" << std::endl;
   } else {
     std::cout << "Rejecting measurement" << std::endl;
   }
 }
 
-void LidarExtractor::ShowFinalTransformation() {
+void LidarExtractor::ShowPassedMeasurement() {
   std::cout << "\nViewer Legend:\n"
             << "  White -> scan (press 1 to toggle on/off)\n"
             << "  Blue  -> target initial guess (press 2 to toggle on/off)\n"
@@ -287,9 +311,7 @@ void LidarExtractor::ShowFinalTransformation() {
   pcl_viewer_->removeAllShapes();
   pcl_viewer_->close();
   pcl_viewer_->resetStoppedFlag();
-  if (measurement_failed_) {
-    std::cout << "Continuing with taking measurements" << std::endl;
-  } else if (measurement_valid_) {
+  if (measurement_valid_) {
     std::cout << "Accepting measurement" << std::endl;
   } else {
     std::cout << "Rejecting measurement" << std::endl;

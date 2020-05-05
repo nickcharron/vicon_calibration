@@ -20,6 +20,8 @@ public:
 
   void SetTargetParams(const std::shared_ptr<TargetParams> &target_params);
 
+  void SetLidarParams(const std::shared_ptr<LidarParams> &lidar_params);
+
   PointCloud::Ptr GetPoints();
 
 private:
@@ -37,7 +39,7 @@ private:
   // projects the points into the new vector space with origin at the centroid
   // Then it calculates the min and max in all 3 axes and calculates the volume.
   // This should result in the same volume calculation regardless of input cloud
-  // position and orientation. It's not quite the minimal but it's close 
+  // position and orientation. It's not quite the minimal but it's close
   double CalculateMinimalVolume(const PointCloud::Ptr &cloud);
 
   // member variables
@@ -53,9 +55,9 @@ private:
   std::string config_file_{""};
   bool crop_scan_{true};
   std::shared_ptr<TargetParams> target_params_{nullptr};
+  std::shared_ptr<LidarParams> lidar_params_{nullptr};
   double isolator_volume_weight_{0.5};
   double isolator_distance_weight_{0.5};
-  double angular_resolution_deg_{2};
   double clustering_multiplier_{1.4};
   int min_cluster_size_{30};
   int max_cluster_size_{1000};

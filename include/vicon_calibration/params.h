@@ -26,6 +26,7 @@ enum class SensorType { CAMERA = 0, LIDAR };
 struct LidarParams {
   std::string topic;
   std::string frame;
+  double max_angular_resolution_deg;
 };
 
 struct CameraParams {

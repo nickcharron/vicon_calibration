@@ -66,6 +66,7 @@
   ],
   "lidar_params":[
     {"topic": "/m3d/aggregator/cloud",
-     "frame": "m3d_link"}
+     "frame": "m3d_link",
+     "max_angular_resolution_deg": 0.3}
   ]
 }

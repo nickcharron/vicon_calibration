@@ -83,6 +83,7 @@ JsonTools::LoadLidarParams(const nlohmann::json &J_in) {
   std::shared_ptr<LidarParams> params = std::make_shared<LidarParams>();
   params->topic = J_in.at("topic");
   params->frame = J_in.at("frame");
+  params->max_angular_resolution_deg = J_in.at("max_angular_resolution_deg");
   return params;
 }
 

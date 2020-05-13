@@ -24,6 +24,8 @@ public:
 
   PointCloud::Ptr GetPoints();
 
+  std::vector<PointCloud::Ptr> GetClusters();
+
 private:
   void LoadConfig();
 

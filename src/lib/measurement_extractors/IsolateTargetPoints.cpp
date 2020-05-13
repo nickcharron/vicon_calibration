@@ -66,6 +66,27 @@ PointCloud::Ptr IsolateTargetPoints::GetPoints() {
   return scan_isolated_;
 }
 
+std::vector<PointCloud::Ptr> IsolateTargetPoints::GetClusters(){
+  std::vector<PointCloud::Ptr> clusters;
+  if(cluster_indices_.size() == 0){
+    LOG_ERROR("No target clusters, make sure IsolateTargetPoints::GetPoints() has been called.");
+    return clusters;
+  }
+
+  pcl::ExtractIndices<pcl::PointXYZ> extract;
+  extract.setInputCloud(scan_cropped_);
+  for (pcl::PointIndices indices : cluster_indices_) {
+    Eigen::Vector4d centroid;
+    boost::shared_ptr<pcl::PointIndices> indices_ptr =
+        boost::make_shared<pcl::PointIndices>(indices);
+    PointCloud::Ptr cluster = boost::make_shared<PointCloud>();
+    extract.setIndices(indices_ptr);
+    extract.filter(*cluster);
+    clusters.push_back(cluster);
+  }
+  return clusters;
+}
+
 void IsolateTargetPoints::ClusterPoints() {
   // get estimated distance to target
   Eigen::Vector3d translation = T_TARGET_LIDAR_.block(0, 3, 3, 1);

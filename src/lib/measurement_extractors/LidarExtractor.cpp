@@ -1,6 +1,7 @@
 #include "vicon_calibration/measurement_extractors/LidarExtractor.h"
 #include "vicon_calibration/measurement_extractors/IsolateTargetPoints.h"
 #include <chrono>
+#include <pcl/io/pcd_io.h>
 #include <thread>
 
 namespace vicon_calibration {
@@ -50,6 +51,7 @@ void LidarExtractor::ProcessMeasurement(
   this->GetKeypoints();          // implemented in derived class
   this->CheckMeasurementValid(); // implemented in derived class
   this->GetUserInput();
+  this->OutputScans();
   measurement_complete_ = true;
 }
 
@@ -315,6 +317,38 @@ void LidarExtractor::ShowPassedMeasurement() {
     std::cout << "Accepting measurement" << std::endl;
   } else {
     std::cout << "Rejecting measurement" << std::endl;
+  }
+}
+
+void LidarExtractor::OutputScans() {
+  if (!output_scans_) {
+    return;
+  }
+  std::string date_and_time =
+      utils::ConvertTimeToDate(std::chrono::system_clock::now());
+  std::string save_dir = output_directory_ + date_and_time + "/";
+  boost::filesystem::create_directory(save_dir);
+  pcl::PCDWriter writer;
+  writer.write(save_dir + "scan_in.pcd", *scan_in_);
+  writer.write(save_dir + "scan_isolated.pcd", *scan_isolated_);
+  writer.write(save_dir + "keypoints_measured.pcd", *keypoints_measured_);
+  if (blue_cloud_->size() > 0) {
+    writer.write(save_dir + "target_initial_guess.pcd", *blue_cloud_);
+  }
+  if (green_cloud_->size() > 0) {
+    writer.write(save_dir + "target_optimized.pcd", *green_cloud_);
+  }
+  IsolateTargetPoints isolate_target_points;
+  isolate_target_points.SetScan(scan_in_);
+  isolate_target_points.SetTransformEstimate(
+      utils::InvertTransform(T_LIDAR_TARGET_EST_));
+  isolate_target_points.SetTargetParams(target_params_);
+  isolate_target_points.SetLidarParams(lidar_params_);
+  PointCloud::Ptr tmp = isolate_target_points.GetPoints();
+  std::vector<PointCloud::Ptr> clusters = isolate_target_points.GetClusters();
+  for (int i = 0; i < clusters.size(); i++) {
+    writer.write(save_dir + "cluster" + std::to_string(i) + ".pcd",
+                 *clusters[i]);
   }
 }
 

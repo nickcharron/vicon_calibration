@@ -92,6 +92,8 @@ protected:
 
   void ShowPassedMeasurement();
 
+  void OutputScans();
+
   // member variables
   PointCloud::Ptr scan_in_;
   PointCloud::Ptr scan_isolated_;
@@ -117,6 +119,8 @@ protected:
   bool show_measurements_{false};
   bool icp_enable_debug_{false};
   double allowable_keypoint_error_{0.03};
+  bool output_scans_{false};
+  std::string output_directory_{"/home/nick/tmp/"};
 
 };
 

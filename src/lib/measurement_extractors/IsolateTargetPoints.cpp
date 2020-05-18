@@ -24,7 +24,7 @@ void IsolateTargetPoints::LoadConfig() {
   std::ifstream file(config_file_);
   file >> J;
   crop_scan_ = J.at("crop_scan");
-  isolator_volume_weight_ = J.at("isolator_volume_weight");
+  isolator_size_weight_ = J.at("isolator_size_weight");
   isolator_distance_weight_ = J.at("isolator_distance_weight");
   clustering_multiplier_ = J.at("clustering_multiplier");
   min_cluster_size_ = J.at("min_cluster_size");
@@ -32,7 +32,7 @@ void IsolateTargetPoints::LoadConfig() {
 }
 
 void IsolateTargetPoints::SetTransformEstimate(
-    const Eigen::Matrix4d &T_TARGET_LIDAR) {
+    const Eigen::MatrixXd &T_TARGET_LIDAR) {
   T_TARGET_LIDAR_ = T_TARGET_LIDAR;
   transform_estimate_set_ = true;
 }
@@ -58,18 +58,15 @@ PointCloud::Ptr IsolateTargetPoints::GetPoints() {
   }
   CropScan();
   ClusterPoints();
-  if (!clustering_successful_) {
-    return scan_cropped_;
-  }
-
   GetTargetCluster();
   return scan_isolated_;
 }
 
-std::vector<PointCloud::Ptr> IsolateTargetPoints::GetClusters(){
+std::vector<PointCloud::Ptr> IsolateTargetPoints::GetClusters() {
   std::vector<PointCloud::Ptr> clusters;
-  if(cluster_indices_.size() == 0){
-    LOG_ERROR("No target clusters, make sure IsolateTargetPoints::GetPoints() has been called.");
+  if (cluster_indices_.size() == 0) {
+    LOG_ERROR("No target clusters, make sure IsolateTargetPoints::GetPoints() "
+              "has been called.");
     return clusters;
   }
 
@@ -107,16 +104,15 @@ void IsolateTargetPoints::ClusterPoints() {
   ec.setSearchMethod(tree);
   ec.setInputCloud(scan_cropped_);
   ec.extract(cluster_indices_);
-  if (cluster_indices_.size() > 0) {
-    clustering_successful_ = true;
-  } else {
-    LOG_INFO("Euclidiean clustering failed, not isolating points. Please relax "
-             "thresholding parameters");
-    clustering_successful_ = false;
-  }
 }
 
 void IsolateTargetPoints::GetTargetCluster() {
+  if (cluster_indices_.size() == 0) {
+    LOG_INFO("Euclidiean clustering failed, using cropped scan. Try relax "
+             "thresholding parameters");
+    scan_isolated_ = scan_cropped_;
+  }
+
   // get centroids of each cluster
   std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
       centroids;
@@ -135,49 +131,88 @@ void IsolateTargetPoints::GetTargetCluster() {
     centroids.push_back(centroid);
   }
 
+  if (clusters.size() == 1) {
+    scan_isolated_ = clusters[0];
+  }
+
   // get centroid of target if not already calculated
   if (target_params_->template_centroid.isZero()) {
-    Eigen::Vector4d template_centroid = target_params_->template_centroid;
+    Eigen::Vector4d template_centroid;
     pcl::compute3DCentroid(*target_params_->template_cloud, template_centroid);
+    target_params_->template_centroid = template_centroid;
   }
 
   // transform target centroid to lidar frame
   Eigen::Vector4d centroid_estimated = utils::InvertTransform(T_TARGET_LIDAR_) *
                                        target_params_->template_centroid;
 
-  // calculate distance errors
+  // calculate template size
+  if (target_params_->template_size == 0) {
+    target_params_->template_size =
+        CalculateMinimalSize(target_params_->template_cloud);
+  }
+
+  // iterate through clusters and calculate errors
   std::vector<double> distance_errors;
-  for (Eigen::Vector4d centroid : centroids) {
-    distance_errors.push_back(
-        std::abs(centroid.norm() - centroid_estimated.norm()));
-  }
-
-  // calculate volume errors
-  if (target_params_->template_volume == 0) {
-    target_params_->template_volume =
-        CalculateMinimalVolume(target_params_->template_cloud);
-  }
-  std::vector<double> volume_errors;
-  for (PointCloud::Ptr cluster : clusters) {
-    double volume = CalculateMinimalVolume(cluster);
-    volume_errors.push_back(std::abs(volume - target_params_->template_volume));
-  }
-
-  // iterate through clusters and calculate score
-  double best_score = std::numeric_limits<int>::max();
-  ;
-  int best_index = 0;
+  std::vector<double> size_errors;
+  std::vector<double> distances;
+  std::vector<double> sizes;
   for (int i = 0; i < clusters.size(); i++) {
-    double score = isolator_volume_weight_ * volume_errors[i] +
-                   isolator_distance_weight_ * distance_errors[i];
+    double centroid_distance = centroids[i].norm();
+    double size = CalculateMinimalSize(clusters[i]);
+    double distance_error =
+        std::abs(centroid_distance - centroid_estimated.hnormalized().norm());
+    double size_error = std::abs(size - target_params_->template_size);
+    distance_errors.push_back(distance_error);
+    size_errors.push_back(size_error);
+    distances.push_back(centroid_distance);
+    sizes.push_back(size);
+  }
+
+  // normalize errors and calculate scores
+  std::vector<double> scores;
+  double best_score = std::numeric_limits<int>::max();
+  int best_index = 0;
+  double max_distance_error =
+      *std::max_element(distance_errors.begin(), distance_errors.end());
+  double max_size_error =
+      *std::max_element(distance_errors.begin(), distance_errors.end());
+  double min_distance_error =
+      *std::min_element(distance_errors.begin(), distance_errors.end());
+  double min_size_error =
+      *std::min_element(distance_errors.begin(), distance_errors.end());
+  for (int i = 0; i < clusters.size(); i++) {
+    double distance_error_norm = (distance_errors[i] - min_distance_error) /
+                                 (max_distance_error - min_distance_error);
+    double size_error_norm =
+        (size_errors[i] - min_size_error) / (max_size_error - min_size_error);
+    double score = isolator_size_weight_ * size_error_norm +
+                   isolator_distance_weight_ * distance_error_norm;
+    scores.push_back(score);
     if (score < best_score) {
       best_score = score;
       best_index = i;
     }
   }
+
+  if (output_cluster_scores_) {
+    std::cout << "Cluster scores:\n"
+              << "Template distance = "
+              << centroid_estimated.hnormalized().norm() << "\n"
+              << "Template size = " << target_params_->template_size << "\n"
+              << "Index | score | size | distance \n";
+    for (int i = 0; i < clusters.size(); i++) {
+      std::cout << i << " | " << scores[i] << " | " << sizes[i] << " | "
+                << distances[i] << "\n";
+    }
+    std::cout << "Top index: " << best_index << "\n";
+  }
+
   scan_isolated_ = clusters.at(best_index);
   return;
 }
+
+PointCloud::Ptr IsolateTargetPoints::GetCroppedScan() { return scan_cropped_; }
 
 bool IsolateTargetPoints::CheckInputs() {
   if (scan_in_ == nullptr) {
@@ -212,7 +247,7 @@ void IsolateTargetPoints::CropScan() {
   cropper.Filter(*scan_in_, *scan_cropped_);
 }
 
-double IsolateTargetPoints::CalculateMinimalVolume(const PointCloud::Ptr &cloud) {
+double IsolateTargetPoints::CalculateMinimalSize(const PointCloud::Ptr &cloud) {
   pcl::PCA<pcl::PointXYZ> pca;
   PointCloud proj;
   pca.setInputCloud(cloud);
@@ -226,7 +261,12 @@ double IsolateTargetPoints::CalculateMinimalVolume(const PointCloud::Ptr &cloud)
   double dy = proj_max.y - proj_min.y;
   double dz = proj_max.z - proj_min.z;
 
-  return dx * dy * dz;
+  if (target_params_->is_target_2d) {
+    double minimum = std::min(std::min(dx, dy), dz);
+    return dx * dy * dz / minimum;
+  } else {
+    return dx * dy * dz;
+  }
 }
 
 } // namespace vicon_calibration

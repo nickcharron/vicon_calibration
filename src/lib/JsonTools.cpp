@@ -42,6 +42,8 @@ JsonTools::LoadTargetParams(const std::string &file_name) {
     LOG_WARN("No valid template cloud specified in target config file.");
   }
 
+  params->is_target_2d = J_target.at("is_target_2d");
+
   for (const auto &keypoint : J_target["keypoints_lidar"]) {
     Eigen::Vector3d point;
     point << keypoint.at("x"), keypoint.at("y"), keypoint.at("z");

@@ -1,14 +1,14 @@
 #pragma once
 
-#include "vicon_calibration/params.h"
-#include "vicon_calibration/utils.h"
-#include "vicon_calibration/measurement_extractors/IsolateTargetPoints.h"
-
 #include <Eigen/Geometry>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
 #include <pcl/visualization/pcl_visualizer.h>
+
+#include "vicon_calibration/params.h"
+#include "vicon_calibration/utils.h"
+#include "vicon_calibration/measurement_extractors/IsolateTargetPoints.h"
 
 namespace vicon_calibration {
 
@@ -95,8 +95,11 @@ protected:
   void OutputScans();
 
   // member variables
+  IsolateTargetPoints target_isolator_;
   PointCloud::Ptr scan_in_;
   PointCloud::Ptr scan_isolated_;
+  PointCloud::Ptr estimated_template_cloud_;
+  PointCloud::Ptr measured_template_cloud_;
   Eigen::MatrixXd T_LIDAR_TARGET_EST_ = Eigen::MatrixXd(4, 4);
   Eigen::MatrixXd T_LIDAR_TARGET_OPT_ = Eigen::MatrixXd(4, 4);
   pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
@@ -119,7 +122,7 @@ protected:
   bool show_measurements_{false};
   bool icp_enable_debug_{false};
   double allowable_keypoint_error_{0.03};
-  bool output_scans_{false};
+  bool output_scans_{true};
   std::string output_directory_{"/home/nick/tmp/"};
 
 };

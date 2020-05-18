@@ -47,15 +47,17 @@ struct TargetParams {
   std::vector<Eigen::Vector3d, AlignVec3d> keypoints_lidar;
   std::vector<Eigen::Vector3d, AlignVec3d> keypoints_camera;
   PointCloud::Ptr template_cloud;
+  bool is_target_2d;
   // These are calculated automatically and only used in IsolateTargetPoints
   Eigen::VectorXd template_centroid;
-  double template_volume;
+  double template_size;
   TargetParams() {
     crop_scan = Eigen::VectorXd(3);
     crop_image = Eigen::VectorXd(2);
     template_centroid = Eigen::VectorXd(4);
     template_centroid.setZero();
-    template_volume = 0;
+    template_size = 0;
+    is_target_2d = false;
   }
 };
 

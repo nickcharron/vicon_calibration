@@ -1,8 +1,9 @@
 #include "vicon_calibration/measurement_extractors/LidarExtractor.h"
-#include "vicon_calibration/measurement_extractors/IsolateTargetPoints.h"
 #include <chrono>
 #include <pcl/io/pcd_io.h>
 #include <thread>
+
+#include <beam_filtering/CropBox.h>
 
 namespace vicon_calibration {
 
@@ -86,13 +87,13 @@ void LidarExtractor::CheckInputs() {
 }
 
 void LidarExtractor::IsolatePoints() {
-  IsolateTargetPoints isolate_target_points;
-  isolate_target_points.SetScan(scan_in_);
-  isolate_target_points.SetTransformEstimate(
+  target_isolator_ = IsolateTargetPoints();
+  target_isolator_.SetScan(scan_in_);
+  target_isolator_.SetTransformEstimate(
       utils::InvertTransform(T_LIDAR_TARGET_EST_));
-  isolate_target_points.SetTargetParams(target_params_);
-  isolate_target_points.SetLidarParams(lidar_params_);
-  scan_isolated_ = isolate_target_points.GetPoints();
+  target_isolator_.SetTargetParams(target_params_);
+  target_isolator_.SetLidarParams(lidar_params_);
+  scan_isolated_ = target_isolator_.GetPoints();
 }
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr LidarExtractor::GetMeasurement() {
@@ -108,25 +109,30 @@ void LidarExtractor::GetUserInput() {
   if (!show_measurements_) {
     return;
   }
+  estimated_template_cloud_ = boost::make_shared<PointCloud>();
+  pcl::transformPointCloud(*target_params_->template_cloud,
+                           *estimated_template_cloud_,
+                           T_LIDAR_TARGET_EST_.cast<float>());
+                           
   if (measurement_valid_) {
     std::cout << "Measurement Valid\n";
 
+    PointCloudColor::Ptr estimated_template_cloud_col =
+        utils::ColorPointCloud(estimated_template_cloud_, 0, 0, 255);
+    measured_template_cloud_ = boost::make_shared<PointCloud>();
+    pcl::transformPointCloud(*target_params_->template_cloud,
+                             *measured_template_cloud_,
+                             T_LIDAR_TARGET_OPT_.cast<float>());
+    PointCloudColor::Ptr measured_template_cloud_col =
+        utils::ColorPointCloud(measured_template_cloud_, 0, 255, 0);
+
     // add estimated template cloud
-    PointCloudColor::Ptr estimated_template_cloud =
-        utils::ColorPointCloud(target_params_->template_cloud, 0, 0, 255);
-    pcl::transformPointCloud(*estimated_template_cloud,
-                             *estimated_template_cloud,
-                             T_LIDAR_TARGET_EST_.cast<float>());
-    this->AddColouredPointCloudToViewer(estimated_template_cloud, "blue_cloud",
-                                        T_LIDAR_TARGET_EST_);
+    this->AddColouredPointCloudToViewer(estimated_template_cloud_col,
+                                        "blue_cloud", T_LIDAR_TARGET_EST_);
 
     // add measured template cloud
-    PointCloudColor::Ptr measured_template_cloud =
-        utils::ColorPointCloud(target_params_->template_cloud, 0, 255, 0);
-    pcl::transformPointCloud(*measured_template_cloud, *measured_template_cloud,
-                             T_LIDAR_TARGET_OPT_.cast<float>());
-    this->AddColouredPointCloudToViewer(measured_template_cloud, "green_cloud",
-                                        T_LIDAR_TARGET_OPT_);
+    this->AddColouredPointCloudToViewer(measured_template_cloud_col,
+                                        "green_cloud", T_LIDAR_TARGET_OPT_);
 
     // add keypoints if discrete keypoints are specified
     if (target_params_->keypoints_lidar.size() > 0) {
@@ -329,27 +335,41 @@ void LidarExtractor::OutputScans() {
   std::string save_dir = output_directory_ + date_and_time + "/";
   boost::filesystem::create_directory(save_dir);
   pcl::PCDWriter writer;
-  writer.write(save_dir + "scan_in.pcd", *scan_in_);
-  writer.write(save_dir + "scan_isolated.pcd", *scan_isolated_);
-  writer.write(save_dir + "keypoints_measured.pcd", *keypoints_measured_);
-  if (blue_cloud_->size() > 0) {
-    writer.write(save_dir + "target_initial_guess.pcd", *blue_cloud_);
+  // crop scan in
+  PointCloud scan_in2;
+  beam_filtering::CropBox cropper;
+  Eigen::Vector3f min_vector(-7, -7, -7), max_vector(7, 7, 7);
+  cropper.SetMinVector(min_vector);
+  cropper.SetMaxVector(max_vector);
+  cropper.SetRemoveOutsidePoints(true);
+  cropper.Filter(*scan_in_, scan_in2);
+  if (scan_in_ != nullptr) {
+    writer.write(save_dir + "scan_in.pcd", scan_in2);
   }
-  if (green_cloud_->size() > 0) {
-    writer.write(save_dir + "target_optimized.pcd", *green_cloud_);
+  if (scan_isolated_ != nullptr) {
+    writer.write(save_dir + "scan_isolated.pcd", *scan_isolated_);
   }
-  IsolateTargetPoints isolate_target_points;
-  isolate_target_points.SetScan(scan_in_);
-  isolate_target_points.SetTransformEstimate(
-      utils::InvertTransform(T_LIDAR_TARGET_EST_));
-  isolate_target_points.SetTargetParams(target_params_);
-  isolate_target_points.SetLidarParams(lidar_params_);
-  PointCloud::Ptr tmp = isolate_target_points.GetPoints();
-  std::vector<PointCloud::Ptr> clusters = isolate_target_points.GetClusters();
+  if (keypoints_measured_ != nullptr) {
+    writer.write(save_dir + "keypoints_measured.pcd", *keypoints_measured_);
+  }
+  PointCloud::Ptr scan_cropped = target_isolator_.GetCroppedScan();
+  if (scan_cropped != nullptr) {
+    writer.write(save_dir + "scan_cropped.pcd", *scan_cropped);
+  }
+  if (estimated_template_cloud_ != nullptr) {
+    writer.write(save_dir + "estimated_template_cloud.pcd",
+                 *estimated_template_cloud_);
+  }
+  if (measured_template_cloud_ != nullptr) {
+    writer.write(save_dir + "measured_template_cloud.pcd",
+                 *measured_template_cloud_);
+  }
+  std::vector<PointCloud::Ptr> clusters = target_isolator_.GetClusters();
   for (int i = 0; i < clusters.size(); i++) {
     writer.write(save_dir + "cluster" + std::to_string(i) + ".pcd",
                  *clusters[i]);
   }
+  LOG_INFO("Saved %d clusters.", clusters.size());
 }
 
 } // namespace vicon_calibration

@@ -29,6 +29,7 @@ void IsolateTargetPoints::LoadConfig() {
   clustering_multiplier_ = J.at("clustering_multiplier");
   min_cluster_size_ = J.at("min_cluster_size");
   max_cluster_size_ = J.at("max_cluster_size");
+  output_cluster_scores_ = J.at("output_cluster_scores");
 }
 
 void IsolateTargetPoints::SetTransformEstimate(
@@ -176,11 +177,11 @@ void IsolateTargetPoints::GetTargetCluster() {
   double max_distance_error =
       *std::max_element(distance_errors.begin(), distance_errors.end());
   double max_size_error =
-      *std::max_element(distance_errors.begin(), distance_errors.end());
+      *std::max_element(size_errors.begin(), size_errors.end());
   double min_distance_error =
       *std::min_element(distance_errors.begin(), distance_errors.end());
   double min_size_error =
-      *std::min_element(distance_errors.begin(), distance_errors.end());
+      *std::min_element(size_errors.begin(), size_errors.end());
   for (int i = 0; i < clusters.size(); i++) {
     double distance_error_norm = (distance_errors[i] - min_distance_error) /
                                  (max_distance_error - min_distance_error);

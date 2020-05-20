@@ -62,10 +62,10 @@ private:
   std::shared_ptr<LidarParams> lidar_params_{nullptr};
   double isolator_size_weight_{0.5};
   double isolator_distance_weight_{0.5};
-  double clustering_multiplier_{1.4};
+  double clustering_multiplier_{2.0};
   int min_cluster_size_{30};
-  int max_cluster_size_{10000};
-  bool output_cluster_scores_{true};
+  int max_cluster_size_{25000};
+  bool output_cluster_scores_{false};
 };
 
 } // namespace vicon_calibration

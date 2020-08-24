@@ -283,7 +283,8 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
               "Invalid extractor type. Options: CYLINDER, DIAMOND"};
         }
         if (params_->show_lidar_measurements) {
-          std::cout << "Processing measurement for: L"
+          std::cout << "---------------------------------\n"
+                    << "Processing measurement for: L"
                     << std::to_string(lidar_iter + 1) << ", T"
                     << std::to_string(n + 1) << "\n";
         }
@@ -421,7 +422,8 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
         }
 
         if (params_->show_camera_measurements) {
-          std::cout << "Processing measurement for: C"
+          std::cout << "---------------------------------\n"
+                    << "Processing measurement for: C"
                     << std::to_string(cam_iter + 1) << ", T"
                     << std::to_string(n + 1) << "\n";
         }

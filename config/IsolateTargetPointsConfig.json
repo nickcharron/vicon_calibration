@@ -1,0 +1,9 @@
+{
+  "crop_scan": true,
+  "isolator_size_weight": 0.5,
+  "isolator_distance_weight": 0.5,
+  "clustering_multiplier": 2.0,
+  "min_cluster_size": 30,
+  "max_cluster_size": 25000,
+  "output_cluster_scores": false
+}

@@ -3,7 +3,7 @@
   "initial_calibration": "initial_calibration_roben.json",
   "lookup_tf_calibrations": true,
   "using_simulation": true,
-  "initial_guess_perturb": [2, 5, -1, 0.02, 0.01, -0.03],
+  "initial_guess_perturb": [0,0,0,0,0,0],
   "min_target_motion": 0.05,
   "min_target_rotation": 5,
   "max_target_velocity": 0.7,
@@ -40,6 +40,7 @@
   ],
   "lidar_params":[
     {"topic": "/m3d/aggregator/cloud",
-     "frame": "m3d_link"}
+     "frame": "m3d_link",
+     "max_angular_resolution_deg": 0.3}
   ]
 }

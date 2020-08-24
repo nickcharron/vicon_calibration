@@ -42,6 +42,8 @@ JsonTools::LoadTargetParams(const std::string &file_name) {
     LOG_WARN("No valid template cloud specified in target config file.");
   }
 
+  params->is_target_2d = J_target.at("is_target_2d");
+
   for (const auto &keypoint : J_target["keypoints_lidar"]) {
     Eigen::Vector3d point;
     point << keypoint.at("x"), keypoint.at("y"), keypoint.at("z");
@@ -83,6 +85,7 @@ JsonTools::LoadLidarParams(const nlohmann::json &J_in) {
   std::shared_ptr<LidarParams> params = std::make_shared<LidarParams>();
   params->topic = J_in.at("topic");
   params->frame = J_in.at("frame");
+  params->max_angular_resolution_deg = J_in.at("max_angular_resolution_deg");
   return params;
 }
 

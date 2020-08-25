@@ -75,8 +75,7 @@ JsonTools::LoadCameraParams(const nlohmann::json &J_in) {
   std::string intrinsics_filename = J_in.at("intrinsics");
   params->intrinsics = utils::GetFilePathData(intrinsics_filename);
   params->camera_model =
-      beam_calibration::CameraModel::LoadJSON(params->intrinsics);
-  params->images_distorted = J_in.at("images_distorted");
+      beam_calibration::CameraModel::Create(params->intrinsics);
   return params;
 }
 

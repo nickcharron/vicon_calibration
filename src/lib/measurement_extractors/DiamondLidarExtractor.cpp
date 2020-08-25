@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/search/impl/search.hpp>
 #include <pcl/surface/concave_hull.h>
 
 namespace vicon_calibration {

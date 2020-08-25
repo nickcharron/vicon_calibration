@@ -61,7 +61,6 @@ void SetUp() {
 
   camera_params = std::make_shared<CameraParams>();
   camera_params->intrinsics = intrinsic_path;
-  camera_params->images_distorted = true;
 
   diamond_extractor->SetTargetParams(target_params);
   diamond_extractor->SetShowMeasurements(show_measurements);

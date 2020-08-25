@@ -1,5 +1,5 @@
 {
-  "camera_type": "pinhole",
+  "camera_type": "RADTAN",
   "date": "2019_11_27",
   "method": "manual",
   "calibration": [

@@ -34,7 +34,6 @@ struct CameraParams {
   std::string frame;
   std::string intrinsics;
   std::shared_ptr<beam_calibration::CameraModel> camera_model;
-  bool images_distorted;
 };
 
 struct TargetParams {

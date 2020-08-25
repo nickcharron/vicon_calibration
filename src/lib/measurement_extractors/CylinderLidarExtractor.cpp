@@ -1,5 +1,7 @@
 #include "vicon_calibration/measurement_extractors/CylinderLidarExtractor.h"
 
+#include <pcl/search/impl/search.hpp>
+
 namespace vicon_calibration {
 
 void CylinderLidarExtractor::GetKeypoints() {

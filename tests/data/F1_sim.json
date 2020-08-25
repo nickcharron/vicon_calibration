@@ -1,5 +1,5 @@
 {
-  "camera_type": "pinhole",
+  "camera_type": "RADTAN",
   "date": "2020-01-15",
   "method": "matlab",
   "calibration": [

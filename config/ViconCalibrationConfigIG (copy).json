@@ -67,12 +67,10 @@
   "camera_params": [
     {"topic": "/F1/image_raw",
      "frame": "F1_link",
-     "intrinsics": "F1_sim.json",
-     "images_distorted": true},
+     "intrinsics": "F1_sim.json"},
     {"topic": "/F2/image_raw",
      "frame": "F2_link",
-     "intrinsics": "F2_sim.json",
-     "images_distorted": true}
+     "intrinsics": "F2_sim.json"}
   ],
   "lidar_params":[
     {"topic": "/hvlp/velodyne_points",

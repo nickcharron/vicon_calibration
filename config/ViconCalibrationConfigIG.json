@@ -23,8 +23,7 @@
   "camera_params": [
     {"topic": "/F1/image_raw",
      "frame": "F1_link",
-     "intrinsics": "F1_sim.json",
-     "images_distorted": true}
+     "intrinsics": "F1_sim.json"}
   ],
   "lidar_params":[
   ]

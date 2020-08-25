@@ -51,7 +51,6 @@ void SetUp() {
 
   camera_params = std::make_shared<CameraParams>();
   camera_params->intrinsics = intrinsic_path;
-  camera_params->images_distorted = true;
 
   cyl_extractor->SetTargetParams(target_params);
   cyl_extractor->SetShowMeasurements(false);

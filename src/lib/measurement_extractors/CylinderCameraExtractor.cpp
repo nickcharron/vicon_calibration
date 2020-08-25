@@ -123,15 +123,19 @@ void CylinderCameraExtractor::GetEstimatedPose() {
   // project axis points to image
   Eigen::Vector4d point_center(target_height / 2, 0, 0, 1);
   Eigen::Vector4d point_origin(0, 0, 0, 1);
-  Eigen::Vector2d pixel_center = this->TargetPointToPixel(point_center);
-  Eigen::Vector2d pixel_origin = this->TargetPointToPixel(point_origin);
+  opt<Eigen::Vector2i> pixel_center = this->TargetPointToPixel(point_center);
+  opt<Eigen::Vector2i> pixel_origin = this->TargetPointToPixel(point_origin);
+
+  if(!pixel_center.has_value() || !pixel_origin.has_value()){
+    measurement_valid_ = false;
+  }
 
   // save center and angle
-  double angle = std::atan2((pixel_origin[1] - pixel_center[1]),
-                            (pixel_origin[0] - pixel_center[0]));
+  double angle = std::atan2((pixel_origin.value()[1] - pixel_center.value()[1]),
+                            (pixel_origin.value()[0] - pixel_center.value()[0]));
   cv::Point cv_point_center;
-  cv_point_center.x = pixel_center[0];
-  cv_point_center.y = pixel_center[1];
+  cv_point_center.x = pixel_center.value()[0];
+  cv_point_center.y = pixel_center.value()[1];
   target_pose_estimated_ = std::make_pair(cv_point_center, angle);
 }
 

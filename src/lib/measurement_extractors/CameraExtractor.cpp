@@ -30,8 +30,6 @@ void CameraExtractor::ProcessMeasurement(
     const Eigen::Matrix4d &T_CAMERA_TARGET_EST, const cv::Mat &img_in) {
   // initialize member variables
   image_in_ = std::make_shared<cv::Mat>();
-  image_undistorted_ = std::make_shared<cv::Mat>();
-  image_annotated_ = std::make_shared<cv::Mat>();
   T_CAMERA_TARGET_EST_ = T_CAMERA_TARGET_EST;
   *image_in_ = img_in;
   measurement_valid_ = true;
@@ -40,22 +38,21 @@ void CameraExtractor::ProcessMeasurement(
 
   // first check if target is in FOV of camera:
   Eigen::Vector4d point_origin{0, 0, 0, 1};
-  Eigen::Vector2d pixel_projected = this->TargetPointToPixel(point_origin);
-  if (!camera_params_->camera_model->PixelInImage(pixel_projected)) {
+  opt<Eigen::Vector2i> pixel_projected = this->TargetPointToPixel(point_origin);
+  if (!pixel_projected.has_value()) {
     measurement_complete_ = true;
     measurement_valid_ = false;
     return;
   }
 
-  this->UndistortImage();
-  *image_annotated_ = *image_undistorted_;
   this->GetKeypoints();
 
-  if(show_measurements_){
+  if (show_measurements_) {
+    image_annotated_ = std::make_shared<cv::Mat>();
     *image_annotated_ = utils::DrawCoordinateFrame(
-        *image_annotated_, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
-        axis_plot_scale_, camera_params_->images_distorted);
-    if(!measurement_valid_){
+        *image_in_, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
+        axis_plot_scale_);
+    if (!measurement_valid_) {
       this->DisplayImage(*image_annotated_, "Inalid Measurement",
                          "Showing failed measurement", false);
     } else {
@@ -104,7 +101,7 @@ void CameraExtractor::CheckInputs() {
   }
 }
 
-Eigen::Vector2d
+opt<Eigen::Vector2i>
 CameraExtractor::TargetPointToPixel(const Eigen::Vector4d &point) {
   Eigen::Vector3d transformed_point;
   Eigen::Vector4d homogeneous_point;
@@ -113,37 +110,32 @@ CameraExtractor::TargetPointToPixel(const Eigen::Vector4d &point) {
 
   transformed_point << homogeneous_point[0], homogeneous_point[1],
       homogeneous_point[2];
-
-  if (camera_params_->images_distorted) {
-    return camera_params_->camera_model->ProjectPoint(transformed_point);
-  } else {
-    return camera_params_->camera_model->ProjectUndistortedPoint(
-        transformed_point);
-  }
+  return camera_params_->camera_model->ProjectPoint(transformed_point);
 }
 
 void CameraExtractor::CropImage() {
   // project taget points to image and get bounding box
-  Eigen::Vector4d point_target(0, 0, 0, 1);
-  Eigen::Vector2d pixel;
   int iter = 0;
   double maxu{0}, maxv{0}, minu{1000000}, minv{1000000};
   while (iter < target_params_->template_cloud->size()) {
-    point_target[0] = target_params_->template_cloud->at(iter).x;
-    point_target[1] = target_params_->template_cloud->at(iter).y;
-    point_target[2] = target_params_->template_cloud->at(iter).z;
-    pixel = this->TargetPointToPixel(point_target);
-    if (pixel[0] > maxu) {
-      maxu = pixel[0];
+    Eigen::Vector4d point_target{target_params_->template_cloud->at(iter).x,
+                                 target_params_->template_cloud->at(iter).y,
+                                 target_params_->template_cloud->at(iter).z, 1};
+    opt<Eigen::Vector2i> pixel = this->TargetPointToPixel(point_target);
+    if (!pixel.has_value()) {
+      continue;
     }
-    if (pixel[0] < minu) {
-      minu = pixel[0];
+    if (pixel.value()[0] > maxu) {
+      maxu = pixel.value()[0];
     }
-    if (pixel[1] > maxv) {
-      maxv = pixel[1];
+    if (pixel.value()[0] < minu) {
+      minu = pixel.value()[0];
     }
-    if (pixel[1] < minv) {
-      minv = pixel[1];
+    if (pixel.value()[1] > maxv) {
+      maxv = pixel.value()[1];
+    }
+    if (pixel.value()[1] < minv) {
+      minv = pixel.value()[1];
     }
     iter = iter + 5;
     // iter++;
@@ -190,7 +182,7 @@ void CameraExtractor::CropImage() {
       LOG_INFO("Image Dimensions: [%d x %d]",
                camera_params_->camera_model->GetWidth(),
                camera_params_->camera_model->GetHeight());
-      this->DisplayImage(*image_undistorted_, "Invalid Measurement",
+      this->DisplayImage(*image_in_, "Invalid Measurement",
                          "Showing failed measurement (cropbox not in image)",
                          true);
     }
@@ -204,29 +196,18 @@ void CameraExtractor::CropImage() {
 
   // create cropped image
   if (measurement_valid_ && cropbox_in_image) {
-    cv::Mat bounded_img(image_undistorted_->rows, image_undistorted_->cols,
-                        image_undistorted_->depth());
+    cv::Mat bounded_img(image_in_->rows, image_in_->cols, image_in_->depth());
     double width = max_vec_buffer(0) - min_vec_buffer(0);
     double height = max_vec_buffer(1) - min_vec_buffer(1);
     cv::Mat mask =
-        cv::Mat::zeros(image_undistorted_->rows, image_undistorted_->cols,
-                       image_undistorted_->depth());
+        cv::Mat::zeros(image_in_->rows, image_in_->cols, image_in_->depth());
     mask(cv::Rect(min_vec_buffer(0), min_vec_buffer(1), width, height)) = 1;
-    image_undistorted_->copyTo(bounded_img, mask);
+    image_in_->copyTo(bounded_img, mask);
     *image_cropped_ = bounded_img;
   } else if (measurement_valid_) {
-    image_cropped_ = image_undistorted_;
+    image_cropped_ = image_in_;
   }
   return;
-}
-
-void CameraExtractor::UndistortImage() {
-  if (camera_params_->images_distorted) {
-    *image_undistorted_ =
-        camera_params_->camera_model->UndistortImage(*image_in_);
-  } else {
-    image_undistorted_ = image_in_;
-  }
 }
 
 void CameraExtractor::DisplayImage(const cv::Mat &img,
@@ -238,10 +219,10 @@ void CameraExtractor::DisplayImage(const cv::Mat &img,
   }
 
   cv::Mat current_image_w_axes = utils::DrawCoordinateFrame(
-      img, T_CAMERA_TARGET_EST_, camera_params_->camera_model, axis_plot_scale_,
-      camera_params_->images_distorted);
+      img, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
+      axis_plot_scale_);
 
-  if(allow_override){
+  if (allow_override) {
     std::cout << output_text << std::endl
               << "Press [c] to continue with default\n"
               << "Press [y] to accept measurement\n"

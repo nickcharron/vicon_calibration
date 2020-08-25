@@ -792,7 +792,7 @@ CalibrationVerification::CalculateCameraErrors(
   // project points to image plane and save as cloud
   PointCloud::Ptr keypoints_projected = utils::ProjectPoints(
       keypoints_target_frame, params_->camera_params[camera_id]->camera_model,
-      params_->camera_params[camera_id]->images_distorted, T_SENSOR_TARGET);
+      T_SENSOR_TARGET);
 
   // get correspondences
   pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
@@ -829,8 +829,8 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
   // create all objects we'll need
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected =
       boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-  Eigen::Vector2d point_projected;
-  Eigen::Vector4d point_transformed, point_target;
+  Eigen::Vector4d point_transformed;
+  Eigen::Vector4d point_target;
   pcl::PointXYZ point_pcl_projected;
   std::shared_ptr<cv::Mat> img_out = std::make_shared<cv::Mat>();
   *img_out = img_in->clone();
@@ -845,17 +845,11 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     point_target = Eigen::Vector4d(0, 0, 0, 1);
     point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                         T_VICONBASE_TARGET * point_target;
-    if (params_->camera_params[cam_iter]->images_distorted) {
-      point_projected =
-          params_->camera_params[cam_iter]->camera_model->ProjectPoint(
-              utils::HomoPointToPoint(point_transformed));
-    } else {
-      point_projected = params_->camera_params[cam_iter]
-                            ->camera_model->ProjectUndistortedPoint(
-                                utils::HomoPointToPoint(point_transformed));
-    }
-    if (!params_->camera_params[cam_iter]->camera_model->PixelInImage(
-            point_projected)) {
+    opt<Eigen::Vector2i> origin_projected =
+        params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+            point_transformed.hnormalized());
+
+    if (!origin_projected.has_value()) {
       continue;
     }
 
@@ -865,23 +859,17 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     cv::Point point_cv_projected;
     for (Eigen::Vector3d point :
          params_->target_params[target_iter]->keypoints_camera) {
-      point_target = utils::PointToHomoPoint(point);
+      point_target = point.homogeneous();
       point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                           T_VICONBASE_TARGET * point_target;
-      if (params_->camera_params[cam_iter]->images_distorted) {
-        point_projected =
-            params_->camera_params[cam_iter]->camera_model->ProjectPoint(
-                utils::HomoPointToPoint(point_transformed));
-      } else {
-        point_projected = params_->camera_params[cam_iter]
-                              ->camera_model->ProjectUndistortedPoint(
-                                  utils::HomoPointToPoint(point_transformed));
-      }
-      if (params_->camera_params[cam_iter]->camera_model->PixelInImage(
-              point_projected)) {
+      opt<Eigen::Vector2i> point_projected =
+          params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+              point_transformed.hnormalized());
+
+      if (point_projected.has_value()) {
         cv::Point pixel_cv;
-        pixel_cv.x = point_projected[0];
-        pixel_cv.y = point_projected[1];
+        pixel_cv.x = point_projected.value()[0];
+        pixel_cv.y = point_projected.value()[1];
         cv::circle(*img_out, pixel_cv, keypoint_circle_diameter_, colour);
       }
     }
@@ -893,23 +881,16 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     pcl::PointCloud<pcl::PointXYZ>::Ptr target =
         params_->target_params[target_iter]->template_cloud;
     for (uint32_t i = 0; i < target->size(); i++) {
-      point_target =
-          utils::PointToHomoPoint(utils::PCLPointToEigen(target->at(i)));
+      point_target = utils::PCLPointToEigen(target->at(i)).homogeneous();
       point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                           T_VICONBASE_TARGET * point_target;
-      if (params_->camera_params[cam_iter]->images_distorted) {
-        point_projected =
-            params_->camera_params[cam_iter]->camera_model->ProjectPoint(
-                utils::HomoPointToPoint(point_transformed));
-      } else {
-        point_projected = params_->camera_params[cam_iter]
-                              ->camera_model->ProjectUndistortedPoint(
-                                  utils::HomoPointToPoint(point_transformed));
-      }
-      if (params_->camera_params[cam_iter]->camera_model->PixelInImage(
-              point_projected)) {
-        point_pcl_projected.x = point_projected[0];
-        point_pcl_projected.y = point_projected[1];
+      opt<Eigen::Vector2i> point_projected =
+          params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+              point_transformed.hnormalized());
+
+      if (point_projected.has_value()) {
+        point_pcl_projected.x = point_projected.value()[0];
+        point_pcl_projected.y = point_projected.value()[1];
         point_pcl_projected.z = 0;
         cloud_projected->push_back(point_pcl_projected);
       }
@@ -924,15 +905,20 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
         T_VICONBASE_TARGET.matrix();
     Eigen::Vector4d point1 = T_SENSOR_TARGET * Eigen::Vector4d(0, 0, 0, 1);
     Eigen::Vector4d point2 = T_SENSOR_TARGET * Eigen::Vector4d(0, 0, 0.005, 1);
-    Eigen::Vector2d point1_projected =
-        params_->camera_params[cam_iter]->camera_model->ProjectPoint(point1);
-    Eigen::Vector2d point2_projected =
-        params_->camera_params[cam_iter]->camera_model->ProjectPoint(point2);
-    double distance = (point1_projected - point2_projected).norm();
+    opt<Eigen::Vector2i> point1_projected =
+        params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+            point1.hnormalized());
+    opt<Eigen::Vector2i> point2_projected =
+        params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+            point2.hnormalized());
 
-    // for really small distances, set minimum
-    if (distance < 3) {
-      distance = 3;
+    double distance = 3;
+    if (point1_projected.has_value() && point2_projected.has_value()) {
+      distance = (point1_projected.value() - point2_projected.value()).norm();
+      // for really small distances, set minimum
+      if (distance < 3) {
+        distance = 3;
+      }
     }
 
     // keep only perimeter points

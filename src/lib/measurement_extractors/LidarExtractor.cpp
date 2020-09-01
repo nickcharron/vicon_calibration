@@ -49,7 +49,7 @@ void LidarExtractor::ProcessMeasurement(
   this->SetupVariables();
   this->CheckInputs();
   this->IsolatePoints();
-  this->GetKeypoints();          // implemented in derived class
+  this->GetKeypoints(); // implemented in derived class
   this->CheckMeasurementValid(); // implemented in derived class
   this->GetUserInput();
   this->OutputScans();
@@ -113,7 +113,7 @@ void LidarExtractor::GetUserInput() {
   pcl::transformPointCloud(*target_params_->template_cloud,
                            *estimated_template_cloud_,
                            T_LIDAR_TARGET_EST_.cast<float>());
-                           
+
   if (measurement_valid_) {
     std::cout << "Measurement Valid\n";
 
@@ -343,24 +343,26 @@ void LidarExtractor::OutputScans() {
   cropper.SetMaxVector(max_vector);
   cropper.SetRemoveOutsidePoints(true);
   cropper.Filter(*scan_in_, scan_in2);
-  if (scan_in_ != nullptr) {
+  if (scan_in_ != nullptr && scan_in2.size() > 0) {
     writer.write(save_dir + "scan_in.pcd", scan_in2);
   }
-  if (scan_isolated_ != nullptr) {
+  if (scan_isolated_ != nullptr && scan_isolated_->size() > 0) {
     writer.write(save_dir + "scan_isolated.pcd", *scan_isolated_);
   }
-  if (keypoints_measured_ != nullptr) {
+  if (keypoints_measured_ != nullptr && keypoints_measured_->size() > 0) {
     writer.write(save_dir + "keypoints_measured.pcd", *keypoints_measured_);
   }
   PointCloud::Ptr scan_cropped = target_isolator_.GetCroppedScan();
-  if (scan_cropped != nullptr) {
+  if (scan_cropped != nullptr && scan_cropped->size() > 0) {
     writer.write(save_dir + "scan_cropped.pcd", *scan_cropped);
   }
-  if (estimated_template_cloud_ != nullptr) {
+  if (estimated_template_cloud_ != nullptr &&
+      estimated_template_cloud_->size() > 0) {
     writer.write(save_dir + "estimated_template_cloud.pcd",
                  *estimated_template_cloud_);
   }
-  if (measured_template_cloud_ != nullptr) {
+  if (measured_template_cloud_ != nullptr &&
+      measured_template_cloud_->size() > 0) {
     writer.write(save_dir + "measured_template_cloud.pcd",
                  *measured_template_cloud_);
   }

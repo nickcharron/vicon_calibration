@@ -112,6 +112,7 @@ void IsolateTargetPoints::GetTargetCluster() {
     LOG_INFO("Euclidiean clustering failed, using cropped scan. Try relax "
              "thresholding parameters");
     scan_isolated_ = scan_cropped_;
+    return;
   }
 
   // get centroids of each cluster

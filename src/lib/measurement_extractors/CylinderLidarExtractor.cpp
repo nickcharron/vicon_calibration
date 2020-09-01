@@ -5,6 +5,8 @@
 namespace vicon_calibration {
 
 void CylinderLidarExtractor::GetKeypoints() {
+  measurement_valid_ = true;
+  
   PointCloud::Ptr scan_registered = boost::make_shared<PointCloud>();
   IterativeClosestPointCustom<pcl::PointXYZ, pcl::PointXYZ> icp;
   icp.setTransformationEpsilon(icp_transform_epsilon_);
@@ -44,6 +46,10 @@ void CylinderLidarExtractor::GetKeypoints() {
 
 
 void CylinderLidarExtractor::CheckMeasurementValid() {
+  if(!measurement_valid_){
+    return;
+  }
+
   pcl::KdTreeFLANN<pcl::PointXYZ> kd_tree;
   PointCloud::Ptr template_transformed = boost::make_shared<PointCloud>();
   pcl::transformPointCloud(*target_params_->template_cloud,

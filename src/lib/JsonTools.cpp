@@ -28,10 +28,9 @@ JsonTools::LoadTargetParams(const std::string &file_name) {
   crop_image << vect2[0], vect2[1];
   params->crop_image = crop_image;
   std::string template_name = J_target.at("template_cloud");
-  if(template_name.size() > 5){
+  if (template_name.size() > 5) {
     std::string template_cloud_path = utils::GetFilePathData(template_name);
-    PointCloud::Ptr template_cloud =
-        boost::make_shared<PointCloud>();
+    PointCloud::Ptr template_cloud = boost::make_shared<PointCloud>();
     if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path,
                                             *template_cloud) == -1) {
       LOG_ERROR("Couldn't read template file: %s\n",
@@ -57,10 +56,12 @@ JsonTools::LoadTargetParams(const std::string &file_name) {
   return params;
 }
 
-std::shared_ptr<TargetParams> JsonTools::LoadTargetParams(const nlohmann::json &J_in) {
+std::shared_ptr<TargetParams>
+JsonTools::LoadTargetParams(const nlohmann::json &J_in) {
   std::string target_config = J_in.at("target_config");
   std::string target_config_full_path = utils::GetFilePathConfig(target_config);
-  std::shared_ptr<TargetParams> params = LoadTargetParams(target_config_full_path);
+  std::shared_ptr<TargetParams> params =
+      LoadTargetParams(target_config_full_path);
   params->frame_id = J_in.at("frame_id");
   params->extractor_type = J_in.at("extractor_type");
   params->target_config_path = target_config_full_path;
@@ -69,13 +70,11 @@ std::shared_ptr<TargetParams> JsonTools::LoadTargetParams(const nlohmann::json &
 
 std::shared_ptr<CameraParams>
 JsonTools::LoadCameraParams(const nlohmann::json &J_in) {
-  std::shared_ptr<CameraParams> params = std::make_shared<CameraParams>();
+  std::string intrinsics_filename = J_in.at("intrinsics");
+  std::shared_ptr<CameraParams> params =
+      std::make_shared<CameraParams>(intrinsics_filename);
   params->topic = J_in.at("topic");
   params->frame = J_in.at("frame");
-  std::string intrinsics_filename = J_in.at("intrinsics");
-  params->intrinsics = utils::GetFilePathData(intrinsics_filename);
-  params->camera_model =
-      beam_calibration::CameraModel::Create(params->intrinsics);
   return params;
 }
 
@@ -96,7 +95,8 @@ JsonTools::LoadViconCalibratorParams(const std::string &file_name) {
   std::ifstream file(file_name);
   file >> J;
 
-  std::shared_ptr<CalibratorConfig> params = std::make_shared<CalibratorConfig>();
+  std::shared_ptr<CalibratorConfig> params =
+      std::make_shared<CalibratorConfig>();
   params->bag_file = J["bag_file"];
   params->initial_calibration_file = J["initial_calibration"];
   params->lookup_tf_calibrations = J["lookup_tf_calibrations"];

@@ -30,6 +30,14 @@ struct LidarParams {
 };
 
 struct CameraParams {
+  CameraParams(const std::string &intrinsics_path,
+               const std::string &input_topic = "",
+               const std::string &input_frame = "") {
+    intrinsics = intrinsics_path;
+    topic = input_topic;
+    frame = input_frame;
+    camera_model = beam_calibration::CameraModel::Create(intrinsics);
+  };
   std::string topic;
   std::string frame;
   std::string intrinsics;

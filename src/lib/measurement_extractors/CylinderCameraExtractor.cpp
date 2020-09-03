@@ -4,10 +4,8 @@
 namespace vicon_calibration {
 
 void CylinderCameraExtractor::GetKeypoints() {
-  image_cropped_ = std::make_shared<cv::Mat>();
   this->CropImage();
-  *image_annotated_ = *image_cropped_;
-
+  
   if (!measurement_valid_) {
     measurement_complete_ = true;
     return;
@@ -33,6 +31,7 @@ void CylinderCameraExtractor::GetKeypoints() {
       max_area_iter = i;
     }
   }
+
   if (max_area < 10) {
     LOG_INFO(
         "No target found in image. Try relaxing colour thresholding or check "
@@ -45,8 +44,12 @@ void CylinderCameraExtractor::GetKeypoints() {
     return;
   }
   target_contour_ = contours[max_area_iter];
-  cv::drawContours(*image_annotated_, contours, static_cast<int>(max_area_iter),
-                   cv::Scalar(0, 0, 255), 2);
+
+  if (show_measurements_) {
+    *image_annotated_ = *image_cropped_;
+    cv::drawContours(*image_annotated_, contours,
+                     static_cast<int>(max_area_iter), cv::Scalar(0, 0, 255), 2);
+  }
 
   // convert to pcl point cloud
   keypoints_measured_->points.clear();
@@ -56,7 +59,6 @@ void CylinderCameraExtractor::GetKeypoints() {
     pixel.y = target_contour_[i].y;
     keypoints_measured_->points.push_back(pixel);
   }
-
   this->GetMeasuredPose();
   this->GetEstimatedPose();
   this->CheckError();
@@ -93,19 +95,23 @@ void CylinderCameraExtractor::GetMeasuredPose() {
     eigen_val[i] = pca_analysis.eigenvalues.at<double>(i);
   }
 
-  // Draw the principal components
-  cv::circle(*image_annotated_, cntr, 3, cv::Scalar(255, 0, 255), 2);
   cv::Point p1 =
       cntr + 0.02 * cv::Point(static_cast<int>(eigen_vecs[0].x * eigen_val[0]),
                               static_cast<int>(eigen_vecs[0].y * eigen_val[0]));
   cv::Point p2 =
       cntr - 0.02 * cv::Point(static_cast<int>(eigen_vecs[1].x * eigen_val[1]),
                               static_cast<int>(eigen_vecs[1].y * eigen_val[1]));
-  this->DrawContourAxis(image_annotated_, cntr, p1, cv::Scalar(0, 255, 0), 1);
-  this->DrawContourAxis(image_annotated_, cntr, p2, cv::Scalar(255, 255, 0), 5);
   double angle =
       std::atan2(eigen_vecs[0].y, eigen_vecs[0].x); // orientation in radians
   target_pose_measured_ = std::make_pair(cntr, angle);
+
+  // Draw the principal components
+  if (show_measurements_) {
+    cv::circle(*image_annotated_, cntr, 3, cv::Scalar(255, 0, 255), 2);
+    this->DrawContourAxis(image_annotated_, cntr, p1, cv::Scalar(0, 255, 0), 1);
+    this->DrawContourAxis(image_annotated_, cntr, p2, cv::Scalar(255, 255, 0),
+                          5);
+  }
 }
 
 void CylinderCameraExtractor::GetEstimatedPose() {
@@ -126,13 +132,14 @@ void CylinderCameraExtractor::GetEstimatedPose() {
   opt<Eigen::Vector2i> pixel_center = this->TargetPointToPixel(point_center);
   opt<Eigen::Vector2i> pixel_origin = this->TargetPointToPixel(point_origin);
 
-  if(!pixel_center.has_value() || !pixel_origin.has_value()){
+  if (!pixel_center.has_value() || !pixel_origin.has_value()) {
     measurement_valid_ = false;
   }
 
   // save center and angle
-  double angle = std::atan2((pixel_origin.value()[1] - pixel_center.value()[1]),
-                            (pixel_origin.value()[0] - pixel_center.value()[0]));
+  double angle =
+      std::atan2((pixel_origin.value()[1] - pixel_center.value()[1]),
+                 (pixel_origin.value()[0] - pixel_center.value()[0]));
   cv::Point cv_point_center;
   cv_point_center.x = pixel_center.value()[0];
   cv_point_center.y = pixel_center.value()[1];

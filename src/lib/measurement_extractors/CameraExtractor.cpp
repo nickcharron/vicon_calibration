@@ -39,18 +39,23 @@ void CameraExtractor::ProcessMeasurement(
   // first check if target is in FOV of camera:
   Eigen::Vector4d point_origin{0, 0, 0, 1};
   opt<Eigen::Vector2i> pixel_projected = this->TargetPointToPixel(point_origin);
+
   if (!pixel_projected.has_value()) {
     measurement_complete_ = true;
     measurement_valid_ = false;
     return;
   }
 
+  if (show_measurements_) {
+    image_annotated_ = std::make_shared<cv::Mat>();
+    *image_annotated_ = *image_in_;
+  }
+
   this->GetKeypoints();
 
   if (show_measurements_) {
-    image_annotated_ = std::make_shared<cv::Mat>();
     *image_annotated_ = utils::DrawCoordinateFrame(
-        *image_in_, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
+        *image_annotated_, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
         axis_plot_scale_);
     if (!measurement_valid_) {
       this->DisplayImage(*image_annotated_, "Inalid Measurement",
@@ -60,7 +65,6 @@ void CameraExtractor::ProcessMeasurement(
                          "Showing successfull measurement", true);
     }
   }
-
   measurement_complete_ = true;
   return;
 }
@@ -103,17 +107,14 @@ void CameraExtractor::CheckInputs() {
 
 opt<Eigen::Vector2i>
 CameraExtractor::TargetPointToPixel(const Eigen::Vector4d &point) {
-  Eigen::Vector3d transformed_point;
-  Eigen::Vector4d homogeneous_point;
-
-  homogeneous_point = T_CAMERA_TARGET_EST_ * point;
-
-  transformed_point << homogeneous_point[0], homogeneous_point[1],
-      homogeneous_point[2];
-  return camera_params_->camera_model->ProjectPoint(transformed_point);
+  Eigen::Vector4d transformed_point = T_CAMERA_TARGET_EST_ * point;
+  return camera_params_->camera_model->ProjectPoint(
+      transformed_point.hnormalized());
 }
 
 void CameraExtractor::CropImage() {
+  image_cropped_ = std::make_shared<cv::Mat>();
+
   // project taget points to image and get bounding box
   int iter = 0;
   double maxu{0}, maxv{0}, minu{1000000}, minv{1000000};
@@ -204,8 +205,8 @@ void CameraExtractor::CropImage() {
     mask(cv::Rect(min_vec_buffer(0), min_vec_buffer(1), width, height)) = 1;
     image_in_->copyTo(bounded_img, mask);
     *image_cropped_ = bounded_img;
-  } else if (measurement_valid_) {
-    image_cropped_ = image_in_;
+  } else {
+    *image_cropped_ = *image_in_;
   }
   return;
 }

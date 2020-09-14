@@ -50,11 +50,11 @@ void SetUp() {
   Eigen::VectorXd perturbation1(6);
   perturbation1 << 0.2, -0.3, 0, 0.07, 0.05, 0;
   T_SENSOR_TARGET_PERT1 =
-      utils::PerturbTransform(T_SENSOR_TARGET, perturbation1);
+      utils::PerturbTransformDegM(T_SENSOR_TARGET, perturbation1);
   Eigen::VectorXd perturbation2(6);
   perturbation2 << 0, 0, 0, 0.06, 0.04, 0;
   T_SENSOR_TARGET_PERT2 =
-      utils::PerturbTransform(T_SENSOR_TARGET, perturbation2);
+      utils::PerturbTransformDegM(T_SENSOR_TARGET, perturbation2);
 
   PointCloud::Ptr template_cloud =
       boost::make_shared<PointCloud>();

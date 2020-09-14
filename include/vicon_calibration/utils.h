@@ -80,12 +80,21 @@ bool IsTransformationMatrix(const Eigen::Matrix4d &T);
 
 /** Peturbs a transformation
  * @param[in] T_in the original transformation matrix
+ * @param[in] perturbations [rx(rad), ry(rad), rz(rad), tx(m), ty(m),
+ * tx(m)]
+ * @return perturbed transformation
+ */
+Eigen::Matrix4d PerturbTransformRadM(const Eigen::Matrix4d &T_in,
+                                     const Eigen::VectorXd &perturbations);
+
+/** Peturbs a transformation
+ * @param[in] T_in the original transformation matrix
  * @param[in] perturbations [rx(deg), ry(deg), rz(deg), tx(m), ty(m),
  * tx(m)]
  * @return perturbed transformation
  */
-Eigen::Matrix4d PerturbTransform(const Eigen::Matrix4d &T_in,
-                                 const Eigen::VectorXd &perturbations);
+Eigen::Matrix4d PerturbTransformDegM(const Eigen::Matrix4d &T_in,
+                                     const Eigen::VectorXd &perturbations);
 
 Eigen::Vector3d InvSkewTransform(const Eigen::Matrix3d &M);
 
@@ -209,7 +218,7 @@ std::string GetFilePathTestClouds(const std::string &file_name);
  */
 std::string GetFilePathTestBags(const std::string &file_name);
 
-void GetScreenResolution(int& horizontal, int& vertical);
+void GetScreenResolution(int &horizontal, int &vertical);
 
 } // namespace utils
 

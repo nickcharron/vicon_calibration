@@ -46,12 +46,13 @@ public:
     Eigen::MatrixXd dfdg(2, 3);
     opt<Eigen::Vector2i> projected_point =
         camera_model_->ProjectPoint(point_transformed, dfdg);
-    if (!projected_point.has_value()) {
-      throw std::runtime_error{"Cannot project point."};
+    gtsam::Vector error{Eigen::Vector2d::Zero()};
+    if (projected_point.has_value()) {
+      error = (measured_pixel_ - projected_point.value()).cast<double>();
     }
 
-    gtsam::Vector error =
-        (measured_pixel_ - projected_point.value()).cast<double>();
+    // TODO: do we leave the error as zero if it doesn't project to the image
+    // plane? Do we need to change the jacobian?
 
     if (H) {
       // Assume e(R,t) = measured_pixel - f(g(R,t))

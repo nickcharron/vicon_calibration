@@ -97,11 +97,11 @@ void LoadTransforms() {
   T_perturb_small << 0.01, -0.01, 0, 0.1, 0.1, 0.2;
   T_perturb_large << 0.1, -0.1, 0, 0.5, -1, 0.5;
   T_SCAN_TARGET1_EST_CONV =
-      utils::PerturbTransform(T_SCAN_TARGET1_TRUE, T_perturb_small);
+      utils::PerturbTransformDegM(T_SCAN_TARGET1_TRUE, T_perturb_small);
   T_SCAN_TARGET2_EST_CONV =
-      utils::PerturbTransform(T_SCAN_TARGET2_TRUE, T_perturb_small);
+      utils::PerturbTransformDegM(T_SCAN_TARGET2_TRUE, T_perturb_small);
   T_SCAN_TARGET1_EST_DIV =
-      utils::PerturbTransform(T_SCAN_TARGET1_TRUE, T_perturb_large);
+      utils::PerturbTransformDegM(T_SCAN_TARGET1_TRUE, T_perturb_large);
 }
 
 void LoadTargetParams() {

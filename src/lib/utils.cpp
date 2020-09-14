@@ -106,9 +106,9 @@ bool IsTransformationMatrix(const Eigen::Matrix4d &T) {
   }
 }
 
-Eigen::Matrix4d PerturbTransform(const Eigen::Matrix4d &T_in,
-                                 const Eigen::VectorXd &perturbations) {
-  Eigen::Vector3d r_perturb = perturbations.block(0, 0, 3, 1) * DEG_TO_RAD;
+Eigen::Matrix4d PerturbTransformRadM(const Eigen::Matrix4d &T_in,
+                                     const Eigen::VectorXd &perturbations) {
+  Eigen::Vector3d r_perturb = perturbations.block(0, 0, 3, 1);
   Eigen::Vector3d t_perturb = perturbations.block(3, 0, 3, 1);
   Eigen::Matrix3d R_in = T_in.block(0, 0, 3, 3);
   Eigen::Vector3d r_in = RToLieAlgebra(R_in);
@@ -118,6 +118,15 @@ Eigen::Matrix4d PerturbTransform(const Eigen::Matrix4d &T_in,
   T_out.block(0, 3, 3, 1) = T_in.block(0, 3, 3, 1) + t_perturb;
   T_out.block(0, 0, 3, 3) = R_out;
   return T_out;
+}
+
+Eigen::Matrix4d PerturbTransformDegM(const Eigen::Matrix4d &T_in,
+                                     const Eigen::VectorXd &perturbations) {
+  Eigen::VectorXd perturbations_rad(perturbations);
+  perturbations_rad[0] = perturbations_rad[0] * DEG_TO_RAD;
+  perturbations_rad[1] = perturbations_rad[1] * DEG_TO_RAD;
+  perturbations_rad[2] = perturbations_rad[2] * DEG_TO_RAD; 
+  return PerturbTransformRadM(T_in, perturbations_rad);
 }
 
 Eigen::Vector3d InvSkewTransform(const Eigen::Matrix3d &M) {

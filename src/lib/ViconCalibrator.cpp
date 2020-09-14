@@ -137,7 +137,7 @@ void ViconCalibrator::GetInitialCalibration(std::string &sensor_frame,
 void ViconCalibrator::GetInitialCalibrationPerturbed(std::string &sensor_frame,
                                                      SensorType type,
                                                      uint8_t &sensor_id) {
-  T_VICONBASE_SENSOR_pert_ = utils::PerturbTransform(
+  T_VICONBASE_SENSOR_pert_ = utils::PerturbTransformDegM(
       T_VICONBASE_SENSOR_, params_->initial_guess_perturbation);
   vicon_calibration::CalibrationResult calib_perturbed;
   calib_perturbed.transform = T_VICONBASE_SENSOR_pert_;
@@ -518,9 +518,9 @@ bool ViconCalibrator::PassedMinTranslation(const Eigen::Affine3d &TA_S_T_prev,
   error_t[1] = std::abs(error_t[1]);
   error_t[2] = std::abs(error_t[2]);
   Eigen::Vector3d error_r_ = utils::RToLieAlgebra(TA_S_T_curr.rotation()) -
-                            utils::RToLieAlgebra(TA_S_T_prev.rotation());
+                             utils::RToLieAlgebra(TA_S_T_prev.rotation());
   Eigen::Matrix3d error_R = utils::LieAlgebraToR(error_r_);
-  Eigen::Vector3d error_r = error_R.eulerAngles(0,1,2);
+  Eigen::Vector3d error_r = error_R.eulerAngles(0, 1, 2);
   error_r[0] = utils::GetAngleErrorPi(error_r[0]) * RAD_TO_DEG;
   error_r[1] = utils::GetAngleErrorPi(error_r[1]) * RAD_TO_DEG;
   error_r[2] = utils::GetAngleErrorPi(error_r[2]) * RAD_TO_DEG;
@@ -662,7 +662,7 @@ void ViconCalibrator::RunCalibration(std::string config_file) {
   return;
 }
 
-void ViconCalibrator::OutputMeasurementStats(){
+void ViconCalibrator::OutputMeasurementStats() {
   std::cout << "------------------------------------------------------------\n"
             << "Outputing Measurement Statistics\n"
             << "--------------------------------\n"
@@ -673,8 +673,7 @@ void ViconCalibrator::OutputMeasurementStats(){
             << "\nRejected - invalid result: "
             << counters_.camera_rejected_invalid
             << "\n\nTotal possible lidar measurements: "
-            << counters_.total_lidar
-            << "\nSaved: " << counters_.lidar_accepted
+            << counters_.total_lidar << "\nSaved: " << counters_.lidar_accepted
             << "\nRejected - no movement: " << counters_.lidar_rejected_still
             << "\nRejected - high motion: " << counters_.lidar_rejected_fast
             << "\nRejected - invalid result: "

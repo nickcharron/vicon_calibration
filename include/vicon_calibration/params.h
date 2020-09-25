@@ -9,6 +9,7 @@
 #include <pcl/point_types.h>
 #include <ros/time.h>
 #include <string>
+#include <nlohmann/json.hpp>
 
 namespace vicon_calibration {
 
@@ -36,7 +37,12 @@ struct CameraParams {
     intrinsics = intrinsics_path;
     topic = input_topic;
     frame = input_frame;
-    camera_model = beam_calibration::CameraModel::Create(intrinsics);
+    try {
+      camera_model = beam_calibration::CameraModel::Create(intrinsics);
+    } catch (nlohmann::detail::parse_error &ex) {
+      LOG_ERROR("Unable to load json config file: %s", intrinsics.c_str());
+      LOG_ERROR("%s", ex.what());
+    }
   };
   std::string topic;
   std::string frame;

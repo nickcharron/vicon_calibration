@@ -123,6 +123,7 @@ void CameraExtractor::CropImage() {
                                  target_params_->template_cloud->at(iter).y,
                                  target_params_->template_cloud->at(iter).z, 1};
     opt<Eigen::Vector2i> pixel = this->TargetPointToPixel(point_target);
+    iter = iter + 5;
     if (!pixel.has_value()) {
       continue;
     }
@@ -138,8 +139,6 @@ void CameraExtractor::CropImage() {
     if (pixel.value()[1] < minv) {
       minv = pixel.value()[1];
     }
-    iter = iter + 5;
-    // iter++;
   }
 
   // Get cropbox corners

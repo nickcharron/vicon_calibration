@@ -5,7 +5,7 @@ namespace vicon_calibration {
 
 void CylinderCameraExtractor::GetKeypoints() {
   this->CropImage();
-  
+
   if (!measurement_valid_) {
     measurement_complete_ = true;
     return;

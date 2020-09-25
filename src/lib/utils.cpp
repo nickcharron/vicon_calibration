@@ -125,7 +125,7 @@ Eigen::Matrix4d PerturbTransformDegM(const Eigen::Matrix4d &T_in,
   Eigen::VectorXd perturbations_rad(perturbations);
   perturbations_rad[0] = perturbations_rad[0] * DEG_TO_RAD;
   perturbations_rad[1] = perturbations_rad[1] * DEG_TO_RAD;
-  perturbations_rad[2] = perturbations_rad[2] * DEG_TO_RAD; 
+  perturbations_rad[2] = perturbations_rad[2] * DEG_TO_RAD;
   return PerturbTransformRadM(T_in, perturbations_rad);
 }
 
@@ -191,7 +191,8 @@ cv::Mat DrawCoordinateFrame(
 
   if (!start_pixel.has_value() || !end_pixel_x.has_value() ||
       !end_pixel_y.has_value() || !end_pixel_z.has_value()) {
-    LOG_WARN("Unable to draw coordinate frame.");
+    LOG_WARN("Unable to draw coordinate frame. Frame exceeds image dimensions");
+    return img_out;
   }
 
   cv::Point start, end_x, end_y, end_z;

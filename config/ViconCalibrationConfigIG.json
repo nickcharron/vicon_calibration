@@ -9,11 +9,11 @@
   "max_target_velocity": 0.7,
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
   "time_steps": 0.2,
-  "show_camera_measurements": false,
+  "show_camera_measurements": true,
   "show_lidar_measurements": true,
   "run_verification": true,
   "use_loop_closure_measurements": true,
-  "start_delay": 270,
+  "start_delay": 0,
   "targets":[
     {"frame_id": "vicon/target3/target3",
      "extractor_type": "DIAMOND",
@@ -23,7 +23,7 @@
   "camera_params": [
     {"topic": "/F1/image_raw",
      "frame": "F1_link",
-     "intrinsics": "F1_sim.json"}
+     "intrinsics": "/home/nick/catkin_ws/src/vicon_calibration/data/F1_sim.json"}
   ],
   "lidar_params":[
   ]

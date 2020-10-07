@@ -1,32 +1,18 @@
 {
-  "camera_type": "pinhole",
-  "date": "2019_11_27",
-  "method": "manual",
-  "calibration": [
-    {
-      "image_width": 2048,
-      "image_height": 1536,
-      "frame_id": "camera_link",
-      "distortion_model": "radtan",
-      "intrinsics": [
-        2352.19427,
-        2352.19427,
-        945.77417,
-        765.26225
-      ],
-      "distortion_coefficients": [
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "undistorted_intrinsics": [
-        2352.19427,
-        2352.19427,
-        945.77417,
-        765.26225
-      ]
-    }
+  "date": "2018_12_20",
+  "method": "matlab",
+  "camera_type": "RADTAN",
+  "image_width": 2048,
+  "image_height": 1536,
+  "frame_id": "F1_link",
+  "intrinsics": [
+    2352.19427,
+    2352.19427,
+    945.77417,
+    765.26225,
+    0,
+    0,
+    0,
+    0
   ]
 }

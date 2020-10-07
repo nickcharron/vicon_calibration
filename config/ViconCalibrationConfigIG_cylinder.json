@@ -49,7 +49,6 @@
     {"topic": "/F1/image_raw",
      "frame": "F1_link",
      "intrinsics": "F1_sim.json",
-     "images_distorted": true,
      "time_steps": 2}
   ],
   "lidar_params":[

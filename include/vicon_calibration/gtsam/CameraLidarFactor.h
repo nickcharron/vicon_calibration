@@ -12,26 +12,21 @@ namespace vicon_calibration {
 class CameraLidarFactor
     : public gtsam::NoiseModelFactor2<gtsam::Pose3, gtsam::Pose3> {
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
-  Eigen::Vector2d pixel_detected_;
+  Eigen::Vector2i pixel_detected_;
   Eigen::Vector3d point_detected_, P_T_ci_, P_T_li_;
   double Fx_, Fy_, Cx_, Cy_;
-  bool images_distorted_;
 
 public:
   CameraLidarFactor(
-      gtsam::Key lid_key, gtsam::Key cam_key, Eigen::Vector2d pixel_detected,
+      gtsam::Key lid_key, gtsam::Key cam_key, Eigen::Vector2i pixel_detected,
       Eigen::Vector3d point_detected, Eigen::Vector3d P_T_ci,
       Eigen::Vector3d P_T_li,
       std::shared_ptr<beam_calibration::CameraModel> &camera_model,
-      const gtsam::SharedNoiseModel &model,
-      const bool &images_distorted)
+      const gtsam::SharedNoiseModel &model)
       : gtsam::NoiseModelFactor2<gtsam::Pose3, gtsam::Pose3>(model, lid_key,
                                                              cam_key),
         pixel_detected_(pixel_detected), point_detected_(point_detected),
-        P_T_ci_(P_T_ci), P_T_li_(P_T_li), camera_model_(camera_model),
-        Fx_(camera_model->GetFx()), Fy_(camera_model->GetFy()),
-        Cx_(camera_model->GetCx()), Cy_(camera_model->GetCy()),
-        images_distorted_(images_distorted) {}
+        P_T_ci_(P_T_ci), P_T_li_(P_T_li), camera_model_(camera_model) {}
 
   /** destructor */
   ~CameraLidarFactor() {}
@@ -49,21 +44,25 @@ public:
     Eigen::Vector3d tmp_point = point_detected_ + P_T_ci_ - P_T_li_;
     Eigen::Vector3d point_transformed =
         R_VC.transpose() * (R_VL * tmp_point + t_VL - t_VC);
-    Eigen::Vector2d projected_point;
     Eigen::MatrixXd dfdg(2, 3);
+    opt<Eigen::Vector2i> projected_point =
+        camera_model_->ProjectPoint(point_transformed, dfdg);
 
-    if(images_distorted_){
-      projected_point = camera_model_->ProjectPoint(point_transformed, dfdg);
-    } else {
-      projected_point = camera_model_->ProjectUndistortedPoint(point_transformed, dfdg);
+    gtsam::Vector error{Eigen::Vector2d::Zero()};
+    if (projected_point.has_value()) {
+      error = (pixel_detected_ - projected_point.value()).cast<double>();
     }
 
-    gtsam::Vector error = pixel_detected_ - projected_point;
+    // TODO: do we leave the error as zero if it doesn't project to the image
+    // plane? Do we need to change the jacobian?
 
     // Assume e(R,t) = measured_pixel - f(g(R,t))
     // -> de/d(R,t) = [de/df * df/dg * dg/dR , de/df * df/dg * dg/dt]
     if (HL) {
-      Eigen::MatrixXd H_(2, 6), dfdg(2, 3), dgdR(3, 3), dgdt(3, 3), dedf(2, 2);
+      Eigen::MatrixXd H_(2, 6);
+      Eigen::MatrixXd dgdR(3, 3);
+      Eigen::MatrixXd dgdt(3, 3);
+      Eigen::MatrixXd dedf(2, 2);
       dgdR = R_VC.transpose() * R_VL * utils::SkewTransform(-1 * tmp_point);
       dgdt = R_VC.transpose();
       dedf.setIdentity();
@@ -73,16 +72,10 @@ public:
       (*HL) = H_;
     }
     if (HC) {
-      Eigen::MatrixXd H_(2, 6), dfdg(2, 3), dgdR(3, 3), dgdt(3, 3), dedf(2, 2);
-      dfdg(0, 0) = Fx_ / point_transformed[2];
-      dfdg(1, 0) = 0;
-      dfdg(0, 1) = 0;
-      dfdg(1, 1) = Fy_ / point_transformed[2];
-      dfdg(0, 2) = -point_transformed[0] * Fx_ /
-                   ((point_transformed[2]) * (point_transformed[2]));
-      dfdg(1, 2) = -point_transformed[1] * Fy_ /
-                   ((point_transformed[2]) * (point_transformed[2]));
-
+      Eigen::MatrixXd H_(2, 6);
+      Eigen::MatrixXd dgdR(3, 3);
+      Eigen::MatrixXd dgdt(3, 3);
+      Eigen::MatrixXd dedf(2, 2);
       dgdR = utils::SkewTransform(R_VC.transpose() *
                                   (R_VL * tmp_point + t_VL - t_VC));
       dgdt = -1 * R_VC.transpose();

@@ -3,5 +3,6 @@
   "crop_image": [20, 20],
   "template_cloud": "",
   "keypoints_lidar": [],
-  "keypoints_camera": []
+  "keypoints_camera": [],
+  "is_target_2d": false
 }

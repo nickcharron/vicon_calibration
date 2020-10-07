@@ -3,11 +3,14 @@
 #include <math.h>
 
 #include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/search/impl/search.hpp>
 #include <pcl/surface/concave_hull.h>
 
 namespace vicon_calibration {
 
 void DiamondLidarExtractor::GetKeypoints() {
+  measurement_valid_ = true;
+
   // setup icp
   PointCloud::Ptr scan_registered = boost::make_shared<PointCloud>();
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
@@ -56,6 +59,10 @@ void DiamondLidarExtractor::GetKeypoints() {
 }
 
 void DiamondLidarExtractor::CheckMeasurementValid() {
+  if(!measurement_valid_){
+    return;
+  }
+
   pcl::KdTreeFLANN<pcl::PointXYZ> kd_tree;
   PointCloud::Ptr template_transformed = boost::make_shared<PointCloud>();
   pcl::transformPointCloud(*target_params_->template_cloud,

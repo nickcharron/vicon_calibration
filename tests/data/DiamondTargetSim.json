@@ -2,6 +2,7 @@
   "crop_scan": [0.05, 0.05, 0.05],
   "crop_image": [20, 20],
   "template_cloud": "",
+  "is_target_2d": true,
   "keypoints_lidar": [
     {
       "x": 0.116,

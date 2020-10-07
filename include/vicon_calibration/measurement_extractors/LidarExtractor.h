@@ -106,7 +106,7 @@ protected:
   Eigen::MatrixXd T_LIDAR_TARGET_OPT_ = Eigen::MatrixXd(4, 4);
   pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
   PointCloud::Ptr keypoints_measured_;
-  bool measurement_valid_{false};
+  bool measurement_valid_{true};
   bool measurement_complete_{false};
   bool target_params_set_{false};
   bool lidar_params_set_{false};
@@ -124,7 +124,7 @@ protected:
   bool show_measurements_{false};
   bool icp_enable_debug_{false};
   double allowable_keypoint_error_{0.03};
-  bool output_scans_{true};
+  bool output_scans_{false};
   std::string output_directory_{"/home/nick/tmp/"};
 
 };

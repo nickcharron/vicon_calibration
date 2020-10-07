@@ -1,19 +1,19 @@
 {
-  "bag_file": "/home/nick/bag_files/vicon_calibration/simulation/ig_calibration_static_robot_F1_ONLY_2020-03-03-17-20-35.bag",
+  "bag_file": "/home/nick/bag_files/vicon_calibration/simulation/ig_F1_hvlp_static_robot_2020-10-07-15-12-47.bag",
   "initial_calibration": "initial_calibration_ig_current.json",
   "lookup_tf_calibrations": true,
   "using_simulation": true,
-  "initial_guess_perturb": [0,0,0,0,0,0],
+  "initial_guess_perturb": [2, 5, -1, 0.02, 0.01, -0.03],
   "min_target_motion": 0.1,
   "min_target_rotation": 20,
   "max_target_velocity": 0.7,
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
-  "time_steps": 0.2,
-  "show_camera_measurements": false,
+  "time_steps": 5,
+  "show_camera_measurements": true,
   "show_lidar_measurements": true,
   "run_verification": true,
   "use_loop_closure_measurements": true,
-  "start_delay": 270,
+  "start_delay": 0,
   "targets":[
     {"frame_id": "vicon/target3/target3",
      "extractor_type": "DIAMOND",
@@ -21,10 +21,9 @@
     }
   ],
   "camera_params": [
-    {"topic": "/F1/image_raw",
-     "frame": "F1_link",
-     "intrinsics": "F1_sim.json",
-     "images_distorted": true}
+     {"topic": "/F1/image_raw",
+      "frame": "F1_link",
+      "intrinsics": "F1_sim.json"}
   ],
   "lidar_params":[
   ]

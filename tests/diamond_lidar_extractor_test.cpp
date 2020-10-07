@@ -20,8 +20,7 @@ using namespace vicon_calibration;
 // Global variables for testing
 std::string bag_path, template_cloud, template_cloud_rot, target_config;
 Eigen::Matrix4d T_SCAN_TARGET1_TRUE, T_SCAN_TARGET1_EST_CONV,
-    T_SCAN_TARGET1_EST_DIV, T_SCAN_TARGET2_TRUE, T_SCAN_TARGET2_EST_CONV,
-    T_SCAN_TARGET2_EST_DIV;
+    T_SCAN_TARGET1_EST_DIV, T_SCAN_TARGET2_TRUE, T_SCAN_TARGET2_EST_CONV;
 ros::Time transform_lookup_time;
 JsonTools json_loader;
 std::shared_ptr<TargetParams> target_params;
@@ -98,13 +97,11 @@ void LoadTransforms() {
   T_perturb_small << 0.01, -0.01, 0, 0.1, 0.1, 0.2;
   T_perturb_large << 0.1, -0.1, 0, 0.5, -1, 0.5;
   T_SCAN_TARGET1_EST_CONV =
-      utils::PerturbTransform(T_SCAN_TARGET1_TRUE, T_perturb_small);
+      utils::PerturbTransformDegM(T_SCAN_TARGET1_TRUE, T_perturb_small);
   T_SCAN_TARGET2_EST_CONV =
-      utils::PerturbTransform(T_SCAN_TARGET2_TRUE, T_perturb_small);
+      utils::PerturbTransformDegM(T_SCAN_TARGET2_TRUE, T_perturb_small);
   T_SCAN_TARGET1_EST_DIV =
-      utils::PerturbTransform(T_SCAN_TARGET1_TRUE, T_perturb_large);
-  T_SCAN_TARGET2_EST_DIV =
-      utils::PerturbTransform(T_SCAN_TARGET2_TRUE, T_perturb_large);
+      utils::PerturbTransformDegM(T_SCAN_TARGET1_TRUE, T_perturb_large);
 }
 
 void LoadTargetParams() {
@@ -212,8 +209,12 @@ TEST_CASE("Test extracting diamond target with and without diverged ICP "
   std::shared_ptr<TargetParams> div_target_params =
       std::make_shared<TargetParams>();
   *div_target_params = *target_params;
+  std::shared_ptr<TargetParams> conv_target_params =
+      std::make_shared<TargetParams>();
+  *conv_target_params = *target_params;
   Eigen::Vector3d div_crop1(-0.3, -0.3, -0.3);
   Eigen::Vector3d good_crop(0.4, 0.4, 0.4);
+  Eigen::Vector3d good_crop2(1, 1, 1);
   div_target_params->crop_scan = div_crop1;
   std::shared_ptr<LidarExtractor> diamond_extractor =
       std::make_shared<DiamondLidarExtractor>();
@@ -232,10 +233,10 @@ TEST_CASE("Test extracting diamond target with and without diverged ICP "
   REQUIRE(diamond_extractor->GetMeasurementValid() == false);
   diamond_extractor->ProcessMeasurement(T_SCAN_TARGET2_TRUE, sim_cloud);
   REQUIRE(diamond_extractor->GetMeasurementValid() == true);
+  conv_target_params->crop_scan = good_crop2;
+  diamond_extractor->SetTargetParams(conv_target_params);
   diamond_extractor->ProcessMeasurement(T_SCAN_TARGET2_EST_CONV, sim_cloud);
   REQUIRE(diamond_extractor->GetMeasurementValid() == true);
-  diamond_extractor->ProcessMeasurement(T_SCAN_TARGET2_EST_DIV, sim_cloud);
-  REQUIRE(diamond_extractor->GetMeasurementValid() == false);
 }
 
 /* need to view these results, can't automate the test

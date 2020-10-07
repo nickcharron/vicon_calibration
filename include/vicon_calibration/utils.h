@@ -80,12 +80,21 @@ bool IsTransformationMatrix(const Eigen::Matrix4d &T);
 
 /** Peturbs a transformation
  * @param[in] T_in the original transformation matrix
+ * @param[in] perturbations [rx(rad), ry(rad), rz(rad), tx(m), ty(m),
+ * tx(m)]
+ * @return perturbed transformation
+ */
+Eigen::Matrix4d PerturbTransformRadM(const Eigen::Matrix4d &T_in,
+                                     const Eigen::VectorXd &perturbations);
+
+/** Peturbs a transformation
+ * @param[in] T_in the original transformation matrix
  * @param[in] perturbations [rx(deg), ry(deg), rz(deg), tx(m), ty(m),
  * tx(m)]
  * @return perturbed transformation
  */
-Eigen::Matrix4d PerturbTransform(const Eigen::Matrix4d &T_in,
-                                 const Eigen::VectorXd &perturbations);
+Eigen::Matrix4d PerturbTransformDegM(const Eigen::Matrix4d &T_in,
+                                     const Eigen::VectorXd &perturbations);
 
 Eigen::Vector3d InvSkewTransform(const Eigen::Matrix3d &M);
 
@@ -100,19 +109,18 @@ Eigen::Matrix4d InvertTransform(const Eigen::MatrixXd &T);
 cv::Mat DrawCoordinateFrame(
     const cv::Mat &img_in, const Eigen::MatrixXd &T_cam_frame,
     const std::shared_ptr<beam_calibration::CameraModel> &camera_model,
-    const double &scale, const bool &images_distorted);
+    const double &scale);
 
 cv::Mat ProjectPointsToImage(
     const cv::Mat &img,
     boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
     const Eigen::MatrixXd &T_IMAGE_CLOUD,
-    std::shared_ptr<beam_calibration::CameraModel> &camera_model,
-    const bool &images_distorted);
+    std::shared_ptr<beam_calibration::CameraModel> &camera_model);
 
 boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>
 ProjectPoints(boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
               std::shared_ptr<beam_calibration::CameraModel> &camera_model,
-              const bool &images_distorted, const Eigen::Matrix4d &T);
+              const Eigen::Matrix4d &T);
 
 PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr &cloud, const int &r,
                                      const int &g, const int &b);
@@ -131,8 +139,8 @@ inline Eigen::Vector3d PCLPointToEigen(const pcl::PointXYZ &pt_in) {
   return Eigen::Vector3d(pt_in.x, pt_in.y, pt_in.z);
 }
 
-inline Eigen::Vector2d PCLPixelToEigen(const pcl::PointXY &pt_in) {
-  return Eigen::Vector2d(pt_in.x, pt_in.y);
+inline Eigen::Vector2i PCLPixelToEigen(const pcl::PointXY &pt_in) {
+  return Eigen::Vector2i(pt_in.x, pt_in.y);
 }
 
 inline pcl::PointXYZ EigenPointToPCL(const Eigen::Vector3d &pt_in) {
@@ -164,14 +172,6 @@ inline gtsam::Point3 PCLPointToGTSAM(const pcl::PointXYZ &pt_in) {
 
 inline gtsam::Point2 PCLPixelToGTSAM(const pcl::PointXY &pt_in) {
   return gtsam::Point2(pt_in.x, pt_in.y);
-}
-
-inline Eigen::Vector3d HomoPointToPoint(const Eigen::Vector4d &pt_in) {
-  return Eigen::Vector3d(pt_in[0], pt_in[1], pt_in[2]);
-}
-
-inline Eigen::Vector4d PointToHomoPoint(const Eigen::Vector3d &pt_in) {
-  return Eigen::Vector4d(pt_in[0], pt_in[1], pt_in[2], 1);
 }
 
 std::string
@@ -218,7 +218,7 @@ std::string GetFilePathTestClouds(const std::string &file_name);
  */
 std::string GetFilePathTestBags(const std::string &file_name);
 
-void GetScreenResolution(int& horizontal, int& vertical);
+void GetScreenResolution(int &horizontal, int &vertical);
 
 } // namespace utils
 

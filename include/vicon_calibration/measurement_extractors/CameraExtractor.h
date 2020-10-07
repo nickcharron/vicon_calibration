@@ -56,11 +56,13 @@ protected:
 
   void CheckInputs();
 
-  Eigen::Vector2d TargetPointToPixel(const Eigen::Vector4d &point);
+  opt<Eigen::Vector2i> TargetPointToPixel(const Eigen::Vector4d &point);
 
+  // this projects all template cloud points into the image plane, gets the min
+  // and max coordinates then adds a buffer based on the parameter "crop_image"
+  // in the target params. The crop_image is a percent to increase the bounding
+  // box by
   void CropImage();
-
-  void UndistortImage();
 
   void DisplayImage(const cv::Mat &img, const std::string &display_name,
                     const std::string &output_text, const bool &allow_override);
@@ -75,7 +77,6 @@ protected:
   Eigen::MatrixXd T_CAMERA_TARGET_EST_ = Eigen::MatrixXd(4, 4);
   pcl::PointCloud<pcl::PointXY>::Ptr keypoints_measured_;
   std::shared_ptr<cv::Mat> image_in_;
-  std::shared_ptr<cv::Mat> image_undistorted_;
   std::shared_ptr<cv::Mat> image_cropped_;
   std::shared_ptr<cv::Mat> image_annotated_;
   bool measurement_complete_{false};

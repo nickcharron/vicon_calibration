@@ -9,6 +9,7 @@
 #include <pcl/point_types.h>
 #include <ros/time.h>
 #include <string>
+#include <nlohmann/json.hpp>
 
 namespace vicon_calibration {
 
@@ -30,11 +31,23 @@ struct LidarParams {
 };
 
 struct CameraParams {
+  CameraParams(const std::string &intrinsics_path,
+               const std::string &input_topic = "",
+               const std::string &input_frame = "") {
+    intrinsics = intrinsics_path;
+    topic = input_topic;
+    frame = input_frame;
+    try {
+      camera_model = beam_calibration::CameraModel::Create(intrinsics);
+    } catch (nlohmann::detail::parse_error &ex) {
+      LOG_ERROR("Unable to load json config file: %s", intrinsics.c_str());
+      LOG_ERROR("%s", ex.what());
+    }
+  };
   std::string topic;
   std::string frame;
   std::string intrinsics;
   std::shared_ptr<beam_calibration::CameraModel> camera_model;
-  bool images_distorted;
 };
 
 struct TargetParams {

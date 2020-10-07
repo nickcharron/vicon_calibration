@@ -106,9 +106,9 @@ bool IsTransformationMatrix(const Eigen::Matrix4d &T) {
   }
 }
 
-Eigen::Matrix4d PerturbTransform(const Eigen::Matrix4d &T_in,
-                                 const Eigen::VectorXd &perturbations) {
-  Eigen::Vector3d r_perturb = perturbations.block(0, 0, 3, 1) * DEG_TO_RAD;
+Eigen::Matrix4d PerturbTransformRadM(const Eigen::Matrix4d &T_in,
+                                     const Eigen::VectorXd &perturbations) {
+  Eigen::Vector3d r_perturb = perturbations.block(0, 0, 3, 1);
   Eigen::Vector3d t_perturb = perturbations.block(3, 0, 3, 1);
   Eigen::Matrix3d R_in = T_in.block(0, 0, 3, 3);
   Eigen::Vector3d r_in = RToLieAlgebra(R_in);
@@ -118,6 +118,15 @@ Eigen::Matrix4d PerturbTransform(const Eigen::Matrix4d &T_in,
   T_out.block(0, 3, 3, 1) = T_in.block(0, 3, 3, 1) + t_perturb;
   T_out.block(0, 0, 3, 3) = R_out;
   return T_out;
+}
+
+Eigen::Matrix4d PerturbTransformDegM(const Eigen::Matrix4d &T_in,
+                                     const Eigen::VectorXd &perturbations) {
+  Eigen::VectorXd perturbations_rad(perturbations);
+  perturbations_rad[0] = perturbations_rad[0] * DEG_TO_RAD;
+  perturbations_rad[1] = perturbations_rad[1] * DEG_TO_RAD;
+  perturbations_rad[2] = perturbations_rad[2] * DEG_TO_RAD;
+  return PerturbTransformRadM(T_in, perturbations_rad);
 }
 
 Eigen::Vector3d InvSkewTransform(const Eigen::Matrix3d &M) {
@@ -162,7 +171,7 @@ Eigen::Matrix4d InvertTransform(const Eigen::MatrixXd &T) {
 cv::Mat DrawCoordinateFrame(
     const cv::Mat &img_in, const Eigen::MatrixXd &T_cam_frame,
     const std::shared_ptr<beam_calibration::CameraModel> &camera_model,
-    const double &scale, const bool &images_distorted = true) {
+    const double &scale) {
   cv::Mat img_out;
   img_out = img_in.clone();
   Eigen::Vector4d origin(0, 0, 0, 1), x_end(scale, 0, 0, 1),
@@ -175,31 +184,26 @@ cv::Mat DrawCoordinateFrame(
       y(y_trans(0), y_trans(1), y_trans(2)),
       z(z_trans(0), z_trans(1), z_trans(2));
 
-  Eigen::Vector2d start_pixel;
-  Eigen::Vector2d end_pixel_x;
-  Eigen::Vector2d end_pixel_y;
-  Eigen::Vector2d end_pixel_z;
-  if (images_distorted) {
-    start_pixel = camera_model->ProjectPoint(o);
-    end_pixel_x = camera_model->ProjectPoint(x);
-    end_pixel_y = camera_model->ProjectPoint(y);
-    end_pixel_z = camera_model->ProjectPoint(z);
-  } else {
-    start_pixel = camera_model->ProjectUndistortedPoint(o);
-    end_pixel_x = camera_model->ProjectUndistortedPoint(x);
-    end_pixel_y = camera_model->ProjectUndistortedPoint(y);
-    end_pixel_z = camera_model->ProjectUndistortedPoint(z);
+  opt<Eigen::Vector2i> start_pixel = camera_model->ProjectPoint(o);
+  opt<Eigen::Vector2i> end_pixel_x = camera_model->ProjectPoint(x);
+  opt<Eigen::Vector2i> end_pixel_y = camera_model->ProjectPoint(y);
+  opt<Eigen::Vector2i> end_pixel_z = camera_model->ProjectPoint(z);
+
+  if (!start_pixel.has_value() || !end_pixel_x.has_value() ||
+      !end_pixel_y.has_value() || !end_pixel_z.has_value()) {
+    LOG_WARN("Unable to draw coordinate frame. Frame exceeds image dimensions");
+    return img_out;
   }
 
   cv::Point start, end_x, end_y, end_z;
-  start.x = start_pixel(0);
-  start.y = start_pixel(1);
-  end_x.x = end_pixel_x(0);
-  end_x.y = end_pixel_x(1);
-  end_y.x = end_pixel_y(0);
-  end_y.y = end_pixel_y(1);
-  end_z.x = end_pixel_z(0);
-  end_z.y = end_pixel_z(1);
+  start.x = start_pixel.value()(0);
+  start.y = start_pixel.value()(1);
+  end_x.x = end_pixel_x.value()(0);
+  end_x.y = end_pixel_x.value()(1);
+  end_y.x = end_pixel_y.value()(0);
+  end_y.y = end_pixel_y.value()(1);
+  end_z.x = end_pixel_z.value()(0);
+  end_z.y = end_pixel_z.value()(1);
 
   cv::Scalar colourX(0, 0, 255); // BGR
   cv::Scalar colourY(0, 255, 0);
@@ -216,23 +220,20 @@ cv::Mat DrawCoordinateFrame(
 cv::Mat ProjectPointsToImage(
     const cv::Mat &img, boost::shared_ptr<PointCloud> &cloud,
     const Eigen::MatrixXd &T_IMAGE_CLOUD,
-    std::shared_ptr<beam_calibration::CameraModel> &camera_model,
-    const bool &images_distorted) {
+    std::shared_ptr<beam_calibration::CameraModel> &camera_model) {
   cv::Mat img_out;
   img_out = img.clone();
-  Eigen::Vector2d pixel(0, 0);
   Eigen::Vector4d point(0, 0, 0, 1);
   Eigen::Vector4d point_transformed(0, 0, 0, 1);
   for (int i = 0; i < cloud->size(); i++) {
-    point = utils::PointToHomoPoint(utils::PCLPointToEigen(cloud->at(i)));
+    point = utils::PCLPointToEigen(cloud->at(i)).homogeneous();
     point_transformed = T_IMAGE_CLOUD * point;
-    if (images_distorted) {
-      pixel = camera_model->ProjectPoint(point_transformed);
-    } else {
-      pixel = camera_model->ProjectUndistortedPoint(
-          utils::HomoPointToPoint(point_transformed));
+    opt<Eigen::Vector2i> pixel =
+        camera_model->ProjectPoint(point_transformed.hnormalized());
+    if (!pixel.has_value()) {
+      continue;
     }
-    cv::circle(img_out, cv::Point(pixel[0], pixel[1]), 2,
+    cv::circle(img_out, cv::Point(pixel.value()[0], pixel.value()[1]), 2,
                cv::Scalar(0, 255, 0));
   }
   return img_out;
@@ -241,24 +242,22 @@ cv::Mat ProjectPointsToImage(
 boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>
 ProjectPoints(boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
               std::shared_ptr<beam_calibration::CameraModel> &camera_model,
-              const bool &images_distorted, const Eigen::Matrix4d &T) {
-  Eigen::Vector2d pixel(0, 0);
-  Eigen::Vector4d point(0, 0, 0, 1);
+              const Eigen::Matrix4d &T) {
+  Eigen::Vector3d point(0, 0, 0);
   Eigen::Vector4d point_transformed(0, 0, 0, 1);
   pcl::PointXYZ point_projected;
   boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> projected_points =
       boost::make_shared<PointCloud>();
   for (int i = 0; i < cloud->size(); i++) {
-    point = utils::PointToHomoPoint(utils::PCLPointToEigen(cloud->at(i)));
-    point_transformed = T * point;
-    if (images_distorted) {
-      pixel = camera_model->ProjectPoint(point_transformed);
-    } else {
-      pixel = camera_model->ProjectUndistortedPoint(
-          utils::HomoPointToPoint(point_transformed));
+    point = utils::PCLPointToEigen(cloud->at(i));
+    point_transformed = T * point.homogeneous();
+    opt<Eigen::Vector2i> pixel =
+        camera_model->ProjectPoint(point_transformed.hnormalized());
+    if (!pixel.has_value()) {
+      continue;
     }
-    point_projected.x = pixel[0];
-    point_projected.y = pixel[1];
+    point_projected.x = pixel.value()[0];
+    point_projected.y = pixel.value()[1];
     point_projected.z = 0;
     projected_points->push_back(point_projected);
   }

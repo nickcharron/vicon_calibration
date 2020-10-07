@@ -117,7 +117,8 @@ void CameraExtractor::CropImage() {
 
   // project taget points to image and get bounding box
   int iter = 0;
-  double maxu{0}, maxv{0}, minu{1000000}, minv{1000000};
+  double maxu{0}, maxv{0}, minu{std::numeric_limits<double>::max()},
+      minv{std::numeric_limits<double>::max()};
   while (iter < target_params_->template_cloud->size()) {
     Eigen::Vector4d point_target{target_params_->template_cloud->at(iter).x,
                                  target_params_->template_cloud->at(iter).y,
@@ -150,52 +151,33 @@ void CameraExtractor::CropImage() {
   Eigen::Vector2d max_vec_buffer(maxu + buffer_u, maxv + buffer_v);
 
   // determine if target and/or cropbox is in the image
-  bool cropbox_in_image = true;
   bool target_in_image = true;
   if (!camera_params_->camera_model->PixelInImage(min_vec) ||
       !camera_params_->camera_model->PixelInImage(max_vec)) {
-    target_in_image = false;
-  }
-  if (!camera_params_->camera_model->PixelInImage(min_vec_buffer) ||
-      !camera_params_->camera_model->PixelInImage(max_vec_buffer)) {
-    cropbox_in_image = false;
-  }
-
-  // output results and allow the user to accept/decline
-  if (!cropbox_in_image) {
-    measurement_valid_ = false;
-    measurement_complete_ = true;
-    if (target_in_image && show_measurements_) {
-      LOG_WARN(
-          "Target in image, but cropbox is not, you may want to relax your "
-          "crop threshold. Skipping measurement.");
-    } else if (!target_in_image && show_measurements_) {
-      LOG_WARN("Target and cropbox not in image, skipping measurement.");
+      target_in_image = false;
     }
 
-    if (show_measurements_) {
-      LOG_INFO("Target corners: [minu, minv, maxu, maxv]: [%d, %d, %d, %d]",
-               min_vec[0], min_vec[1], max_vec[0], max_vec[1]);
-      LOG_INFO("Cropbox corners: [minu, minv, maxu, maxv]: [%d, %d, %d, %d]",
-               min_vec_buffer[0], min_vec_buffer[1], max_vec_buffer[0],
-               max_vec_buffer[1]);
-      LOG_INFO("Image Dimensions: [%d x %d]",
-               camera_params_->camera_model->GetWidth(),
-               camera_params_->camera_model->GetHeight());
-      this->DisplayImage(*image_in_, "Invalid Measurement",
-                         "Showing failed measurement (cropbox not in image)",
-                         true);
-    }
-  } else {
+  if (!camera_params_->camera_model->PixelInImage(min_vec_buffer)) {
+    min_vec_buffer = Eigen::Vector2d::Zero();
+  }
+  if (!camera_params_->camera_model->PixelInImage(max_vec_buffer)) {
+    max_vec_buffer = Eigen::Vector2d(camera_params_->camera_model->GetWidth(),
+                                     camera_params_->camera_model->GetHeight());
+  }
+
+  if(target_in_image){
     measurement_valid_ = true;
-    measurement_complete_ = true;
-    if (show_measurements_) {
-      LOG_INFO("Estimated target cropbox in image.");
+  } else {
+    measurement_valid_ = false;
+    if(show_measurements_){
+      LOG_WARN("Target not in image, skipping measurement.");
     }
   }
+
+  measurement_complete_ = true;
 
   // create cropped image
-  if (measurement_valid_ && cropbox_in_image) {
+  if (measurement_valid_) {
     cv::Mat bounded_img(image_in_->rows, image_in_->cols, image_in_->depth());
     double width = max_vec_buffer(0) - min_vec_buffer(0);
     double height = max_vec_buffer(1) - min_vec_buffer(1);

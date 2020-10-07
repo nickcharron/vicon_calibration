@@ -1,5 +1,7 @@
 #include "vicon_calibration/JsonTools.h"
 #include "vicon_calibration/utils.h"
+
+#include <boost/filesystem.hpp>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -71,6 +73,13 @@ JsonTools::LoadTargetParams(const nlohmann::json &J_in) {
 std::shared_ptr<CameraParams>
 JsonTools::LoadCameraParams(const nlohmann::json &J_in) {
   std::string intrinsics_filename = J_in.at("intrinsics");
+  if(!boost::filesystem::exists(intrinsics_filename)){
+    intrinsics_filename = utils::GetFilePathData(intrinsics_filename);
+    if(!boost::filesystem::exists(intrinsics_filename)){
+      LOG_ERROR("Cannot find intrinsics filename in the data folder, or at absolute path %s", J_in.at("intrinsics"));
+      throw std::invalid_argument{"Invalid intrinsics path."};
+    }
+  }
   std::shared_ptr<CameraParams> params =
       std::make_shared<CameraParams>(intrinsics_filename);
   params->topic = J_in.at("topic");

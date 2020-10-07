@@ -58,6 +58,10 @@ protected:
 
   opt<Eigen::Vector2i> TargetPointToPixel(const Eigen::Vector4d &point);
 
+  // this projects all template cloud points into the image plane, gets the min
+  // and max coordinates then adds a buffer based on the parameter "crop_image"
+  // in the target params. The crop_image is a percent to increase the bounding
+  // box by
   void CropImage();
 
   void DisplayImage(const cv::Mat &img, const std::string &display_name,

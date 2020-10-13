@@ -35,8 +35,6 @@ void CalibrationVerification::LoadJSON(const std::string &file_name) {
   file >> J;
 
   output_directory_ = J["output_directory"];
-  double t = J["time_increment"];
-  time_increment_ = ros::Duration(t);
   max_image_results_ = J["max_image_results"];
   max_lidar_results_ = J["max_lidar_results"];
   max_pixel_cor_dist_ = J["max_pixel_cor_dist"];
@@ -96,6 +94,7 @@ void CalibrationVerification::ProcessResults() {
   this->SaveCameraVisuals();
   this->GetCameraErrors();
   this->PrintErrorsSummary();
+  LOG_INFO("CalibrationVerification Complete.");
 }
 
 void CalibrationVerification::SetConfig(const std::string &calib_config) {
@@ -302,7 +301,6 @@ void CalibrationVerification::SaveLidarVisuals() {
     // get lidar info
     std::string topic = params_->lidar_params[lidar_iter]->topic;
     std::string sensor_frame = params_->lidar_params[lidar_iter]->frame;
-    ros::Time time_last(0, 0);
 
     // get initial calibration and optimized calibration
     Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_opt;
@@ -330,20 +328,14 @@ void CalibrationVerification::SaveLidarVisuals() {
 
     // iterate through all measurements for this lidar
     std::shared_ptr<LidarMeasurement> measurement;
-    ros::Time time_current;
     for (int meas_iter = 0; meas_iter < lidar_measurements_[lidar_iter].size();
          meas_iter++) {
       if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) {
         continue;
       }
       measurement = lidar_measurements_[lidar_iter][meas_iter];
-      time_current = measurement->time_stamp;
-      if (time_current < time_last + time_increment_) {
-        continue;
-      }
-      lookup_time_ = time_current;
+      lookup_time_ = measurement->time_stamp;
       this->LoadLookupTree();
-      time_last = time_current;
 
       // load scan and transform to viconbase frame
       scan = GetLidarScanFromBag(
@@ -569,7 +561,6 @@ void CalibrationVerification::SaveCameraVisuals() {
     std::vector<Eigen::Affine3d, AlignAff3d> T_cam_tgts_estimated_prev;
     rosbag::View view(bag_, rosbag::TopicQuery(topic), ros::TIME_MIN,
                       ros::TIME_MAX, true);
-    ros::Time time_last(0, 0);
 
     // get initial calibration and optimized calibration
     Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_opt,
@@ -598,7 +589,6 @@ void CalibrationVerification::SaveCameraVisuals() {
     // iterate through all measurements for this lidar
     std::shared_ptr<cv::Mat> current_image, final_image;
     std::shared_ptr<CameraMeasurement> measurement;
-    ros::Time time_current;
     for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
          meas_iter++) {
 
@@ -607,13 +597,8 @@ void CalibrationVerification::SaveCameraVisuals() {
       }
 
       measurement = camera_measurements_[cam_iter][meas_iter];
-      time_current = measurement->time_stamp;
-      if (time_current < time_last + time_increment_) {
-        continue;
-      }
-      lookup_time_ = time_current;
+      lookup_time_ = measurement->time_stamp;
       this->LoadLookupTree();
-      time_last = time_current;
 
       // load image from bag
       current_image = GetImageFromBag(

@@ -102,7 +102,6 @@ private:
   std::string date_and_time_;
   std::string results_directory_;
   rosbag::Bag bag_;
-  ros::Duration time_increment_ = ros::Duration(10);
   int max_image_results_{20};
   int max_lidar_results_{3};
   int keypoint_circle_diameter_{5};

@@ -88,7 +88,7 @@ void Graph::SolveGraph() {
     SetImageCorrespondences();
     SetLidarCorrespondences();
     SetLoopClosureCorrespondences();
-    if (iteration == 1) {
+    if (match_centroids_on_first_iter_only_ && iteration == 1) {
       match_centroids_ = false;
     }
     SetImageFactors();
@@ -311,8 +311,8 @@ void Graph::SetImageCorrespondences() {
 
       for (uint32_t i = 0; i < transformed_keypoints->size(); i++) {
         pcl::PointXYZ point_pcl = transformed_keypoints->at(i);
-        opt<Eigen::Vector2i> point_projected =
-            camera_params_[measurement->camera_id]->camera_model->ProjectPoint(
+        opt<Eigen::Vector2d> point_projected =
+            camera_params_[measurement->camera_id]->camera_model->ProjectPointPrecise(
                 utils::PCLPointToEigen(point_pcl));
         if (!point_projected.has_value()) {
           continue;
@@ -541,8 +541,8 @@ void Graph::SetLoopClosureCorrespondences() {
       T_SENSOR_TARGET = utils::InvertTransform(T_VICONBASE_SENSOR) *
                         measurement->T_VICONBASE_TARGET;
       keypoint_transformed = T_SENSOR_TARGET * keypoint.homogeneous();
-      opt<Eigen::Vector2i> keypoint_projected =
-          camera_params_[measurement->camera_id]->camera_model->ProjectPoint(
+      opt<Eigen::Vector2d> keypoint_projected =
+          camera_params_[measurement->camera_id]->camera_model->ProjectPointPrecise(
               keypoint_transformed.hnormalized());
       if (!keypoint_projected.has_value()) {
         continue;
@@ -641,8 +641,7 @@ void Graph::SetImageFactors() {
 
   // TODO: Figure out a smart way to do this. Do we want to tune the COV based
   // on the number of points per measurement?
-  gtsam::Vector2 noise_vec;
-  noise_vec << image_noise_[0], image_noise_[1];
+  gtsam::Vector2 noise_vec(image_noise_[0], image_noise_[1]);
   gtsam::noiseModel::Diagonal::shared_ptr ImageNoise =
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   for (vicon_calibration::Correspondence corr : camera_correspondences_) {
@@ -662,7 +661,7 @@ void Graph::SetImageFactors() {
               corr.target_point_index));
     }
 
-    Eigen::Vector2i pixel = utils::PCLPixelToEigen(
+    Eigen::Vector2d pixel = utils::PCLPixelToEigen(
         measurement->keypoints->at(corr.measured_point_index));
     gtsam::Key key = gtsam::Symbol('C', camera_index);
     graph_.emplace_shared<CameraFactor>(
@@ -724,7 +723,7 @@ void Graph::SetLidarCameraFactors() {
     camera_key = gtsam::Symbol('C', corr.camera_id);
 
     // get measured point/pixel expressed in sensor frame
-    Eigen::Vector2i pixel_detected = utils::PCLPixelToEigen(
+    Eigen::Vector2d pixel_detected = utils::PCLPixelToEigen(
         loop_closure_measurements_[corr.measurement_index]
             ->keypoints_camera->at(corr.camera_measurement_point_index));
     point_detected = utils::PCLPointToEigen(
@@ -807,9 +806,9 @@ bool Graph::HasConverged(uint16_t iteration) {
         utils::LieAlgebraToR(utils::RToLieAlgebra(T_curr.block(0, 0, 3, 3)) -
                              utils::RToLieAlgebra(T_last.block(0, 0, 3, 3)));
     rpy_error = R_error.eulerAngles(0, 1, 2).cast<double>();
-    rpy_error[0] = RAD_TO_DEG * utils::GetAngleErrorPi(rpy_error[0]);
-    rpy_error[1] = RAD_TO_DEG * utils::GetAngleErrorPi(rpy_error[1]);
-    rpy_error[2] = RAD_TO_DEG * utils::GetAngleErrorPi(rpy_error[2]);
+    rpy_error[0] = utils::Rad2Deg(std::abs(utils::WrapToPi(rpy_error[0])));
+    rpy_error[1] = utils::Rad2Deg(std::abs(utils::WrapToPi(rpy_error[1])));
+    rpy_error[2] = utils::Rad2Deg(std::abs(utils::WrapToPi(rpy_error[2])));
 
     t_error = t_curr - t_last;
     t_error[0] = std::abs(t_error[0]);

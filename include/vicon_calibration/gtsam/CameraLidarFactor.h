@@ -12,13 +12,13 @@ namespace vicon_calibration {
 class CameraLidarFactor
     : public gtsam::NoiseModelFactor2<gtsam::Pose3, gtsam::Pose3> {
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
-  Eigen::Vector2i pixel_detected_;
+  Eigen::Vector2d pixel_detected_;
   Eigen::Vector3d point_detected_, P_T_ci_, P_T_li_;
   double Fx_, Fy_, Cx_, Cy_;
 
 public:
   CameraLidarFactor(
-      gtsam::Key lid_key, gtsam::Key cam_key, Eigen::Vector2i pixel_detected,
+      gtsam::Key lid_key, gtsam::Key cam_key, Eigen::Vector2d pixel_detected,
       Eigen::Vector3d point_detected, Eigen::Vector3d P_T_ci,
       Eigen::Vector3d P_T_li,
       std::shared_ptr<beam_calibration::CameraModel> &camera_model,
@@ -45,8 +45,9 @@ public:
     Eigen::Vector3d point_transformed =
         R_VC.transpose() * (R_VL * tmp_point + t_VL - t_VC);
     Eigen::MatrixXd dfdg(2, 3);
-    opt<Eigen::Vector2i> projected_point =
-        camera_model_->ProjectPoint(point_transformed, dfdg);
+    opt<Eigen::Vector2d> projected_point =
+        camera_model_->ProjectPointPrecise(point_transformed);
+    camera_model_->ProjectPoint(point_transformed, dfdg);
 
     gtsam::Vector error{Eigen::Vector2d::Zero()};
     if (projected_point.has_value()) {

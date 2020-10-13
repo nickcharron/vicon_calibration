@@ -16,165 +16,6 @@
 
 typedef Eigen::aligned_allocator<Eigen::Vector2d> AlignVec2d;
 
-Eigen::Vector2d EvaluateCameraError(
-    Eigen::Matrix4d T_op, Eigen::Matrix4d T_VT,
-    Eigen::Vector3d corresponding_point, Eigen::Vector2d measured_pixel,
-    std::shared_ptr<beam_calibration::CameraModel> camera_model) {
-  Eigen::Matrix3d R_VT, R_op;
-  Eigen::Vector3d t_VT, t_op, point_transformed;
-  R_VT = T_VT.block(0, 0, 3, 3);
-  t_VT = T_VT.block(0, 3, 3, 1);
-  R_op = T_op.block(0, 0, 3, 3);
-  t_op = T_op.block(0, 3, 3, 1);
-  point_transformed =
-      R_op.transpose() * (R_VT * corresponding_point + t_VT - t_op);
-  opt<Eigen::Vector2d> projected_point =
-      camera_model->ProjectPointPrecise(point_transformed);
-  return Eigen::Vector2d(measured_pixel - projected_point.value());
-}
-
-Eigen::MatrixXd EvaluateCameraJacobian(
-    Eigen::Matrix4d T_op, Eigen::Matrix4d T_VT,
-    Eigen::Vector3d corresponding_point, Eigen::Vector2i measured_pixel,
-    std::shared_ptr<beam_calibration::CameraModel> camera_model) {
-  Eigen::Matrix3d R_VT, R_op;
-  Eigen::Vector3d t_VT, t_op, point_transformed;
-  R_VT = T_VT.block(0, 0, 3, 3);
-  t_VT = T_VT.block(0, 3, 3, 1);
-  R_op = T_op.block(0, 0, 3, 3);
-  t_op = T_op.block(0, 3, 3, 1);
-  point_transformed =
-      R_op.transpose() * (R_VT * corresponding_point + t_VT - t_op);
-  Eigen::MatrixXd dfdg(2, 3);
-  opt<Eigen::Vector2i> projected_point =
-      camera_model->ProjectPoint(point_transformed, dfdg);
-  Eigen::MatrixXd H(2, 6);
-  Eigen::MatrixXd dgdR(3, 3);
-  Eigen::MatrixXd dgdt(3, 3);
-  dgdR = vicon_calibration::utils::SkewTransform(
-      R_op.transpose() * (R_VT * corresponding_point + t_VT - t_op));
-  dgdt = -R_op.transpose();
-  H.block(0, 0, 2, 3) = -dfdg * dgdR;
-  H.block(0, 3, 2, 3) = -dfdg * dgdt;
-  return H;
-}
-
-Eigen::Vector3d EvaluateLidarError(Eigen::Matrix4d T_op, Eigen::Matrix4d T_VT,
-                                   Eigen::Vector3d corresponding_point,
-                                   Eigen::Vector3d measured_point) {
-  Eigen::Matrix3d R_VT, R_op;
-  Eigen::Vector3d t_VT, t_op, point_transformed;
-  R_VT = T_VT.block(0, 0, 3, 3);
-  t_VT = T_VT.block(0, 3, 3, 1);
-  R_op = T_op.block(0, 0, 3, 3);
-  t_op = T_op.block(0, 3, 3, 1);
-  point_transformed =
-      R_op.transpose() * (R_VT * corresponding_point + t_VT - t_op);
-  return Eigen::Vector3d(measured_point - point_transformed);
-}
-
-Eigen::MatrixXd EvaluateLidarJacobian(Eigen::Matrix4d T_op,
-                                      Eigen::Matrix4d T_VT,
-                                      Eigen::Vector3d corresponding_point,
-                                      Eigen::Vector3d measured_point) {
-  Eigen::Matrix3d R_VT, R_op;
-  Eigen::Vector3d t_VT, t_op, point_transformed;
-  R_VT = T_VT.block(0, 0, 3, 3);
-  t_VT = T_VT.block(0, 3, 3, 1);
-  R_op = T_op.block(0, 0, 3, 3);
-  t_op = T_op.block(0, 3, 3, 1);
-  point_transformed =
-      R_op.transpose() * (R_VT * corresponding_point + t_VT - t_op);
-  Eigen::MatrixXd H(3, 6);
-  H.block(0, 0, 3, 3) =
-      -vicon_calibration::utils::SkewTransform(point_transformed);
-  H.block(0, 3, 3, 3) = R_op.transpose();
-  return H;
-}
-
-Eigen::Vector2d EvaluateCameraLidarError(
-    Eigen::Matrix4d T_VL, Eigen::Matrix4d T_VC, Eigen::Vector3d P_T_ci,
-    Eigen::Vector3d P_T_li, Eigen::Vector3d measured_point,
-    Eigen::Vector2d measured_pixel,
-    std::shared_ptr<beam_calibration::CameraModel> camera_model) {
-  Eigen::Matrix3d R_VC = T_VC.block(0, 0, 3, 3);
-  Eigen::Vector3d t_VC = T_VC.block(0, 3, 3, 1);
-  Eigen::Matrix3d R_VL = T_VL.block(0, 0, 3, 3);
-  Eigen::Vector3d t_VL = T_VL.block(0, 3, 3, 1);
-
-  Eigen::Vector3d tmp_point = measured_point + P_T_ci - P_T_li;
-  Eigen::Vector3d point_transformed =
-      R_VC.transpose() * (R_VL * tmp_point + t_VL - t_VC);
-  opt<Eigen::Vector2d> projected_point =
-      camera_model->ProjectPointPrecise(point_transformed);
-  return Eigen::Vector2d(measured_pixel - projected_point.value());
-}
-
-Eigen::MatrixXd EvaluateCameraLidarJacobianL(
-    Eigen::Matrix4d T_VL, Eigen::Matrix4d T_VC, Eigen::Vector3d P_T_ci,
-    Eigen::Vector3d P_T_li, Eigen::Vector3d measured_point,
-    Eigen::Vector2i measured_pixel,
-    std::shared_ptr<beam_calibration::CameraModel> camera_model) {
-
-  Eigen::Matrix3d R_VC = T_VC.block(0, 0, 3, 3);
-  Eigen::Vector3d t_VC = T_VC.block(0, 3, 3, 1);
-  Eigen::Matrix3d R_VL = T_VL.block(0, 0, 3, 3);
-  Eigen::Vector3d t_VL = T_VL.block(0, 3, 3, 1);
-
-  Eigen::Vector3d tmp_point = measured_point + P_T_ci - P_T_li;
-  Eigen::Vector3d point_transformed =
-      R_VC.transpose() * (R_VL * tmp_point + t_VL - t_VC);
-  Eigen::MatrixXd dfdg(2, 3);
-  opt<Eigen::Vector2i> projected_point =
-      camera_model->ProjectPoint(point_transformed, dfdg);
-
-  Eigen::MatrixXd H(2, 6);
-  Eigen::MatrixXd dgdR(3, 3);
-  Eigen::MatrixXd dgdt(3, 3);
-  Eigen::MatrixXd dedf(2, 2);
-
-  dgdR = R_VC.transpose() * R_VL *
-         vicon_calibration::utils::SkewTransform(-1 * tmp_point);
-  dgdt = R_VC.transpose();
-  dedf.setIdentity();
-  dedf = -1 * dedf;
-  H.block(0, 0, 2, 3) = dedf * dfdg * dgdR;
-  H.block(0, 3, 2, 3) = dedf * dfdg * dgdt;
-  return H;
-}
-
-Eigen::MatrixXd EvaluateCameraLidarJacobianC(
-    Eigen::Matrix4d T_VL, Eigen::Matrix4d T_VC, Eigen::Vector3d P_T_ci,
-    Eigen::Vector3d P_T_li, Eigen::Vector3d measured_point,
-    Eigen::Vector2i measured_pixel,
-    std::shared_ptr<beam_calibration::CameraModel> camera_model) {
-
-  Eigen::Matrix3d R_VC = T_VC.block(0, 0, 3, 3);
-  Eigen::Vector3d t_VC = T_VC.block(0, 3, 3, 1);
-  Eigen::Matrix3d R_VL = T_VL.block(0, 0, 3, 3);
-  Eigen::Vector3d t_VL = T_VL.block(0, 3, 3, 1);
-
-  Eigen::Vector3d tmp_point = measured_point + P_T_ci - P_T_li;
-  Eigen::Vector3d point_transformed =
-      R_VC.transpose() * (R_VL * tmp_point + t_VL - t_VC);
-  Eigen::MatrixXd dfdg(2, 3);
-  opt<Eigen::Vector2i> projected_point =
-      camera_model->ProjectPoint(point_transformed, dfdg);
-
-  Eigen::MatrixXd H(2, 6);
-  Eigen::MatrixXd dgdR(3, 3);
-  Eigen::MatrixXd dgdt(3, 3);
-  Eigen::MatrixXd dedf(2, 2);
-  dgdR = vicon_calibration::utils::SkewTransform(
-      R_VC.transpose() * (R_VL * tmp_point + t_VL - t_VC));
-  dgdt = -1 * R_VC.transpose();
-  dedf.setIdentity();
-  dedf = -1 * dedf;
-  H.block(0, 0, 2, 3) = dedf * dfdg * dgdR;
-  H.block(0, 3, 2, 3) = dedf * dfdg * dgdt;
-  return H;
-}
-
 TEST_CASE("Test Camera Factor Error and Jacobian") {
   // Create intrinsics
   std::string camera_model_location = __FILE__;
@@ -193,11 +34,19 @@ TEST_CASE("Test Camera Factor Error and Jacobian") {
   Eigen::Matrix4d T_VT = T_VC * T_CT;
 
   // Create Points
-  Eigen::Vector4d point(0.2, 0.2, 1, 1);
-  Eigen::Vector4d point_transformed = T_CT * point;
-
+  Eigen::Vector3d point(0.2, 0.2, 1);
+  Eigen::Vector4d point_transformed = T_CT * point.homogeneous();
   opt<Eigen::Vector2d> pixel_measured =
       camera_model->ProjectPointPrecise(point_transformed.hnormalized());
+
+  // create factor
+  gtsam::Key dummy_key(gtsam::symbol('C', 0));
+  gtsam::Vector2 noise_vec(10, 10);
+  gtsam::noiseModel::Diagonal::shared_ptr ImageNoise =
+      gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
+  gtsam::Pose3 pose(T_VC);
+  vicon_calibration::CameraFactor factor(dummy_key, pixel_measured.value(),
+                                         point, camera_model, T_VT, ImageNoise);
 
   // calculate numerical Jacobian
   double eps = std::sqrt(1e-12);
@@ -205,26 +54,22 @@ TEST_CASE("Test Camera Factor Error and Jacobian") {
   p.setIdentity();
   p = p * eps;
   Eigen::MatrixXd J_numerical(2, 6);
-  Eigen::Matrix4d T_perturb;
-
   for (int i = 0; i < 6; i++) {
-    T_perturb = vicon_calibration::utils::PerturbTransformRadM(
+    Eigen::Matrix4d T_perturb = vicon_calibration::utils::PerturbTransformRadM(
         T_VC, p.block(0, i, 6, 1));
+    gtsam::Pose3 pose_perturbed(T_perturb);
     J_numerical.block(0, i, 2, 1) =
-        (EvaluateCameraError(T_perturb, T_VT, point.hnormalized(),
-                             pixel_measured.value(), camera_model) -
-         EvaluateCameraError(T_VC, T_VT, point.hnormalized(),
-                             pixel_measured.value(), camera_model)) /
+        (factor.evaluateError(pose_perturbed) - factor.evaluateError(pose)) /
         eps;
   }
 
   // calculate analytical jacobian
-  Eigen::MatrixXd J_analytical(2, 6);
-  J_analytical =
-      EvaluateCameraJacobian(T_perturb, T_VT, point.hnormalized(),
-                             pixel_measured.value().cast<int>(), camera_model);
-  REQUIRE(vicon_calibration::utils::RoundMatrix(J_numerical, 2) ==
-          vicon_calibration::utils::RoundMatrix(J_analytical, 2));
+  gtsam::Matrix J_analytical;
+  boost::optional<gtsam::Matrix> J_opt(J_analytical);
+  factor.evaluateError(pose, J_analytical);
+
+  REQUIRE(vicon_calibration::utils::RoundMatrix(J_numerical, 5) ==
+          vicon_calibration::utils::RoundMatrix(J_analytical.matrix(), 5));
 }
 
 TEST_CASE("Test Lidar Factor Error and Jacobian") {
@@ -240,28 +85,36 @@ TEST_CASE("Test Lidar Factor Error and Jacobian") {
   Eigen::Vector3d point(0.3, 0.2, 0.1);
   Eigen::Vector4d point_measured = T_LT * point.homogeneous();
 
+  // create factor
+  gtsam::Key dummy_key(gtsam::symbol('L', 0));
+  gtsam::Vector3 noise_vec(0.01, 0.01, 0.01);
+  gtsam::noiseModel::Diagonal::shared_ptr LidarNoise =
+      gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
+  gtsam::Pose3 pose(T_VL);
+  vicon_calibration::LidarFactor factor(dummy_key, point_measured.hnormalized(),
+                                        point, T_VT, LidarNoise);
+
   // calculate numerical Jacobian
   double eps = std::sqrt(1e-12);
   Eigen::MatrixXd p(6, 6);
   p.setIdentity();
   p = p * eps;
   Eigen::MatrixXd J_numerical(3, 6);
-  Eigen::Matrix4d T_perturb;
 
   for (int i = 0; i < 6; i++) {
-    T_perturb = vicon_calibration::utils::PerturbTransformRadM(
+    Eigen::Matrix4d T_perturb = vicon_calibration::utils::PerturbTransformRadM(
         T_VL, p.block(0, i, 6, 1));
+    gtsam::Pose3 pose_perturbed(T_perturb);
     J_numerical.block(0, i, 3, 1) =
-        (EvaluateLidarError(T_perturb, T_VT, point,
-                            point_measured.hnormalized()) -
-         EvaluateLidarError(T_VL, T_VT, point, point_measured.hnormalized())) /
+        (factor.evaluateError(pose_perturbed) - factor.evaluateError(pose)) /
         eps;
   }
 
   // calculate analytical jacobian
-  Eigen::MatrixXd J_analytical(3, 6);
-  J_analytical = EvaluateLidarJacobian(T_perturb, T_VT, point,
-                                       point_measured.hnormalized());
+  gtsam::Matrix J_analytical;
+  boost::optional<gtsam::Matrix> J_opt(J_analytical);
+  factor.evaluateError(pose, J_analytical);
+
   REQUIRE(vicon_calibration::utils::RoundMatrix(J_numerical, 5) ==
           vicon_calibration::utils::RoundMatrix(J_analytical, 5));
 }
@@ -295,6 +148,19 @@ TEST_CASE("Test Camera-Lidar Factor Error and Jacobian") {
   opt<Eigen::Vector2d> pixel_measured =
       camera_model->ProjectPointPrecise(P_C.hnormalized());
 
+  // create factor
+  gtsam::Key dummy_keyL(gtsam::symbol('L', 0));
+  gtsam::Key dummy_keyC(gtsam::symbol('C', 0));
+  gtsam::Vector2 noise_vec(10, 10);
+  gtsam::noiseModel::Diagonal::shared_ptr noise =
+      gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
+  gtsam::Pose3 camera_pose(T_VC);
+  gtsam::Pose3 lidar_pose(T_VL);
+  vicon_calibration::CameraLidarFactor factor(
+      dummy_keyL, dummy_keyC, pixel_measured.value(),
+      point_measured, P_T.hnormalized(), P_T.hnormalized(),
+      camera_model, noise);
+
   // calculate numerical Jacobian
   double eps = std::sqrt(1e-12);
   Eigen::MatrixXd p(6, 6);
@@ -302,44 +168,35 @@ TEST_CASE("Test Camera-Lidar Factor Error and Jacobian") {
   p = p * eps;
   Eigen::MatrixXd JC_numerical(2, 6);
   Eigen::MatrixXd JL_numerical(2, 6);
-  Eigen::Matrix4d T_VC_perturb, T_VL_perturb;
 
   for (int i = 0; i < 6; i++) {
-    T_VC_perturb = vicon_calibration::utils::PerturbTransformRadM(
+    Eigen::Matrix4d T_VC_perturb = vicon_calibration::utils::PerturbTransformRadM(
         T_VC, p.block(0, i, 6, 1));
-    T_VL_perturb = vicon_calibration::utils::PerturbTransformRadM(
+    Eigen::Matrix4d T_VL_perturb = vicon_calibration::utils::PerturbTransformRadM(
         T_VL, p.block(0, i, 6, 1));
+    gtsam::Pose3 camera_pose_perturbed(T_VC_perturb);
+    gtsam::Pose3 lidar_pose_perturbed(T_VL_perturb);
     JC_numerical.block(0, i, 2, 1) =
-        (EvaluateCameraLidarError(T_VL, T_VC_perturb, P_T.hnormalized(),
-                                  P_T.hnormalized(), point_measured,
-                                  pixel_measured.value(), camera_model) -
-         EvaluateCameraLidarError(T_VL, T_VC, P_T.hnormalized(),
-                                  P_T.hnormalized(), point_measured,
-                                  pixel_measured.value(), camera_model)) /
+        (factor.evaluateError(lidar_pose, camera_pose_perturbed) -
+         factor.evaluateError(lidar_pose, camera_pose)) /
         eps;
     JL_numerical.block(0, i, 2, 1) =
-        (EvaluateCameraLidarError(T_VL_perturb, T_VC, P_T.hnormalized(),
-                                  P_T.hnormalized(), point_measured,
-                                  pixel_measured.value(), camera_model) -
-         EvaluateCameraLidarError(T_VL, T_VC, P_T.hnormalized(),
-                                  P_T.hnormalized(), point_measured,
-                                  pixel_measured.value(), camera_model)) /
+        (factor.evaluateError(lidar_pose_perturbed, camera_pose) -
+         factor.evaluateError(lidar_pose, camera_pose)) /
         eps;
   }
 
   // calculate analytical jacobian
-  Eigen::MatrixXd JL_analytical(2, 6), JC_analytical(2, 6);
-  JC_analytical = EvaluateCameraLidarJacobianC(
-      T_VL, T_VC, P_T.hnormalized(), P_T.hnormalized(), point_measured,
-      pixel_measured.value().cast<int>(), camera_model);
-  JL_analytical = EvaluateCameraLidarJacobianL(
-      T_VL, T_VC, P_T.hnormalized(), P_T.hnormalized(), point_measured,
-      pixel_measured.value().cast<int>(), camera_model);
+  gtsam::Matrix JL_analytical;
+  gtsam::Matrix JC_analytical;
+  boost::optional<gtsam::Matrix> JC_opt(JC_analytical);
+  boost::optional<gtsam::Matrix> JL_opt(JL_analytical);
+  factor.evaluateError(lidar_pose, camera_pose, JL_analytical, JC_analytical);
 
-  REQUIRE(vicon_calibration::utils::RoundMatrix(JC_numerical, 2) ==
-          vicon_calibration::utils::RoundMatrix(JC_analytical, 2));
-  REQUIRE(vicon_calibration::utils::RoundMatrix(JL_numerical, 2) ==
-          vicon_calibration::utils::RoundMatrix(JL_analytical, 2));
+  REQUIRE(vicon_calibration::utils::RoundMatrix(JC_numerical, 5) ==
+          vicon_calibration::utils::RoundMatrix(JC_analytical, 5));
+  REQUIRE(vicon_calibration::utils::RoundMatrix(JL_numerical, 5) ==
+          vicon_calibration::utils::RoundMatrix(JL_analytical, 5));
 }
 
 TEST_CASE("Test lidar factor in Optimization") {
@@ -410,13 +267,6 @@ TEST_CASE("Test lidar factor in Optimization") {
   Eigen::Matrix4d T_VL_opt1 =
       results1.at<gtsam::Pose3>(gtsam::Symbol('L', 1)).matrix();
 
-  // std::cout << "\n-------------------------\n";
-  // std::cout << "PRINTING EXACT INITIALS: \n";
-  // initials_exact.print();
-  // graph.print();
-  // std::cout << "\nPRINTING RESULTS: \n";
-  // results1.print();
-
   // solve with perturbed initials
   gtsam::Values initials_pert, results2;
   gtsam::Pose3 initial_pose2(T_VL_pert);
@@ -425,13 +275,6 @@ TEST_CASE("Test lidar factor in Optimization") {
   results2 = optimizer2.optimize();
   Eigen::Matrix4d T_VL_opt2 =
       results2.at<gtsam::Pose3>(gtsam::Symbol('L', 1)).matrix();
-
-  // std::cout << "\n----------------------------\n";
-  // std::cout << "PRINTING PERTURBED INITIALS: \n";
-  // initials_pert.print();
-  // graph.print();
-  // std::cout << "\nPRINTING RESULTS: \n";
-  // results2.print();
 
   REQUIRE(T_VL == vicon_calibration::utils::RoundMatrix(T_VL_opt1, 5));
   REQUIRE(T_VL == vicon_calibration::utils::RoundMatrix(T_VL_opt2, 5));
@@ -474,12 +317,12 @@ TEST_CASE("Test camera factor in Optimization") {
       vicon_calibration::utils::PerturbTransformDegM(T_VC, perturbation);
 
   // create projected (detected) points - no noise
-  std::vector<Eigen::Vector2i, AlignVec2d> pixels(points.size());
+  std::vector<Eigen::Vector2d, AlignVec2d> pixels(points.size());
   std::vector<bool> pixels_valid(points.size());
   for (int i = 0; i < points.size(); i++) {
     Eigen::Vector4d point_transformed = T_CV * T_VT * points[i];
-    opt<Eigen::Vector2i> pixel =
-        camera_model->ProjectPoint(point_transformed.hnormalized());
+    opt<Eigen::Vector2d> pixel =
+        camera_model->ProjectPointPrecise(point_transformed.hnormalized());
     if (pixel.has_value()) {
       pixels_valid[i] = true;
       pixels[i] = pixel.value();
@@ -520,13 +363,6 @@ TEST_CASE("Test camera factor in Optimization") {
   Eigen::Matrix4d T_VC_opt1 =
       results1.at<gtsam::Pose3>(gtsam::Symbol('C', 1)).matrix();
 
-  // std::cout << "\n-------------------------\n";
-  // std::cout << "PRINTING EXACT INITIALS: \n";
-  // initials_exact.print();
-  // graph.print();
-  // std::cout << "\nPRINTING RESULTS: \n";
-  // results1.print();
-
   // solve with perturbed initials
   gtsam::Values initials_pert, results2;
   gtsam::Pose3 initial_pose2(T_VC_pert);
@@ -535,15 +371,9 @@ TEST_CASE("Test camera factor in Optimization") {
   results2 = optimizer2.optimize();
   Eigen::Matrix4d T_VC_opt2 =
       results2.at<gtsam::Pose3>(gtsam::Symbol('C', 1)).matrix();
-  // std::cout << "\n----------------------------\n";
-  // std::cout << "PRINTING PERTURBED INITIALS : \n ";
-  // initials_pert.print();
-  // graph.print();
-  // std::cout << "\nPRINTING RESULTS: \n";
-  // results2.print();
 
-  REQUIRE(T_VC == vicon_calibration::utils::RoundMatrix(T_VC_opt1, 3));
-  REQUIRE(T_VC == vicon_calibration::utils::RoundMatrix(T_VC_opt2, 3));
+  REQUIRE(T_VC == vicon_calibration::utils::RoundMatrix(T_VC_opt1, 5));
+  REQUIRE(T_VC == vicon_calibration::utils::RoundMatrix(T_VC_opt2, 5));
 }
 
 TEST_CASE("Test Camera-Lidar factor in Optimization") {
@@ -588,23 +418,22 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
   T_VL_pert = vicon_calibration::utils::PerturbTransformRadM(T_VL, perturb_lid);
 
   // create measured pixels and measured lidar points - no noise
-  std::vector<Eigen::Vector2i, AlignVec2d> pixels_measured(points.size());
+  std::vector<Eigen::Vector2d, AlignVec2d> pixels_measured(points.size());
   std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
       points_measured(points.size());
   std::vector<bool> pixels_valid(points.size());
 
   for (int i = 0; i < points.size(); i++) {
     Eigen::Vector4d point_transformed = T_CT * points[i];
-    opt<Eigen::Vector2i> pixel =
-        camera_model->ProjectPoint(point_transformed.hnormalized());
-    if(pixel.has_value()){
+    opt<Eigen::Vector2d> pixel =
+        camera_model->ProjectPointPrecise(point_transformed.hnormalized());
+    if (pixel.has_value()) {
       pixels_valid[i] = true;
       pixels_measured[i] = pixel.value();
       points_measured[i] = T_LV * T_VT * points[i];
     } else {
       pixels_valid[i] = false;
     }
-
   }
 
   // build graph
@@ -660,15 +489,6 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
   results1 = optimizer1.optimize();
   Eigen::Matrix4d T_VC_opt1 = results1.at<gtsam::Pose3>(camera_key).matrix();
   Eigen::Matrix4d T_VL_opt1 = results1.at<gtsam::Pose3>(lidar_key).matrix();
-  // std::cout << "\n-------------------------\n";
-  // std::cout << "PRINTING EXACT INITIALS: \n";
-  // initials_exact.print();
-  // std::string output_file = "/home/nick/gtsam_results/graph.xdot";
-  // std::ofstream graph_file(output_file);
-  // graph.saveGraph(graph_file);
-  // graph.print();
-  // std::cout << "\nPRINTING RESULTS: \n";
-  // results1.print();
 
   // solve with perturbed initials
   gtsam::Values initials_pert, results2;
@@ -679,12 +499,6 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
   results2 = optimizer2.optimize();
   Eigen::Matrix4d T_VC_opt2 = results1.at<gtsam::Pose3>(camera_key).matrix();
   Eigen::Matrix4d T_VL_opt2 = results1.at<gtsam::Pose3>(lidar_key).matrix();
-  // std::cout << "\n----------------------------\n";
-  // std::cout << "PRINTING PERTURBED INITIALS : \n ";
-  // initials_pert.print();
-  // graph.print();
-  // std::cout << "\nPRINTING RESULTS: \n";
-  // results2.print();
 
   REQUIRE(T_VC == vicon_calibration::utils::RoundMatrix(T_VC_opt1, 5));
   REQUIRE(T_VC == vicon_calibration::utils::RoundMatrix(T_VC_opt2, 5));

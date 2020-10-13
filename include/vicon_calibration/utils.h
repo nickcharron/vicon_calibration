@@ -36,41 +36,56 @@ typedef Eigen::aligned_allocator<Eigen::Affine3d> AlignAff3d;
 #define LOG_WARN(M, ...) fprintf(stdout, "[WARNING] " M "\n", ##__VA_ARGS__)
 #endif
 
-#ifndef RAD_TO_DEG
-#define RAD_TO_DEG 57.29577951
-#endif
-
-#ifndef DEG_TO_RAD
-#define DEG_TO_RAD 0.01745329
-#endif
-
 namespace utils {
 
 double time_now(void);
 
-/** Wraps input angle to the interval [-PI, PI).
- * @param[in] angle the original angle.
+/**
+ * @Brief Wraps input angle to the interval [-PI, PI).
+ * @param angle the original angle.
  * @return the wrapped angle.
  */
-double WrapToPi(const double &angle);
+double WrapToPi(double angle);
 
-/** Wraps input angle to the interval [0, 2*PI).
- * @param[in] angle the original angle.
+/**
+ * @Brief Wraps input angle to the interval [0, 2*PI).
+ * @param angle the original angle.
  * @return the wrapped angle.
  */
-double WrapToTwoPi(const double &angle);
+double WrapToTwoPi(double angle);
 
-/** Gets the angle error assuming the result is supposed to be 0 or 2PI
- * @param[in] angle_in the original angle.
- * @return the angle error.
+/**
+ * @Brief Return the smallest difference between two angles. This takes into
+ * account the case where one or both angles are outside (0, 360). By smallest
+ * error, we mean for example: GetSmallestAngleErrorDeg(10, 350) = 20, not 340
+ * @param angle 1 in degrees
+ * @param angle 2 in degrees
+ * @return error in degrees
  */
-double GetAngleErrorTwoPi(const double &angle_in);
+double GetSmallestAngleErrorDeg(double angle1, double angle2);
 
-/** Gets the angle error assuming the result is supposed to be 0 or PI
- * @param[in] angle_in the original angle.
- * @return the angle error.
+/**
+ * @Brief Return the smallest difference between two angles. This takes into
+ * account the case where one or both angles are outside (0, 2PI). By smallest
+ * error, we mean for example: GetSmallestAngleErrorDeg(0.1PI, 1.9PI) = 0.2PI,
+ * not 1.8PI
+ * @param angle 1 in radians
+ * @param angle 2 in radians
+ * @return error in radians
  */
-double GetAngleErrorPi(const double &angle_in);
+double GetSmallestAngleErrorRad(double angle1, double angle2);
+
+/** Converts degrees to radians. */
+double Deg2Rad(double d);
+
+/** Converts radians to degrees. */
+double Rad2Deg(double r);
+
+/** Wraps `euler_angle` to 180 degrees **/
+double wrapTo180(double euler_angle);
+
+/** Wraps `euler_angle` to 360 degrees **/
+double wrapTo360(double euler_angle);
 
 Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd &M, const int &precision);
 
@@ -139,8 +154,8 @@ inline Eigen::Vector3d PCLPointToEigen(const pcl::PointXYZ &pt_in) {
   return Eigen::Vector3d(pt_in.x, pt_in.y, pt_in.z);
 }
 
-inline Eigen::Vector2i PCLPixelToEigen(const pcl::PointXY &pt_in) {
-  return Eigen::Vector2i(pt_in.x, pt_in.y);
+inline Eigen::Vector2d PCLPixelToEigen(const pcl::PointXY &pt_in) {
+  return Eigen::Vector2d(pt_in.x, pt_in.y);
 }
 
 inline pcl::PointXYZ EigenPointToPCL(const Eigen::Vector3d &pt_in) {

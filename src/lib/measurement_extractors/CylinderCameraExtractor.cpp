@@ -129,8 +129,8 @@ void CylinderCameraExtractor::GetEstimatedPose() {
   // project axis points to image
   Eigen::Vector4d point_center(target_height / 2, 0, 0, 1);
   Eigen::Vector4d point_origin(0, 0, 0, 1);
-  opt<Eigen::Vector2i> pixel_center = this->TargetPointToPixel(point_center);
-  opt<Eigen::Vector2i> pixel_origin = this->TargetPointToPixel(point_origin);
+  opt<Eigen::Vector2d> pixel_center = this->TargetPointToPixel(point_center);
+  opt<Eigen::Vector2d> pixel_origin = this->TargetPointToPixel(point_origin);
 
   if (!pixel_center.has_value() || !pixel_origin.has_value()) {
     measurement_valid_ = false;

@@ -12,12 +12,12 @@ namespace vicon_calibration {
 class CameraFactor : public gtsam::NoiseModelFactor1<gtsam::Pose3> {
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
   Eigen::Matrix4d T_VICONBASE_TARGET_;
-  Eigen::Vector2i measured_pixel_;
+  Eigen::Vector2d measured_pixel_;
   Eigen::Vector3d corresponding_point_;
 
 public:
   CameraFactor(
-      const gtsam::Key i, const Eigen::Vector2i measured_pixel,
+      const gtsam::Key i, const Eigen::Vector2d measured_pixel,
       const Eigen::Vector3d corresponding_point,
       const std::shared_ptr<beam_calibration::CameraModel> &camera_model,
       const Eigen::Matrix4d &T_VICONBASE_TARGET,
@@ -44,8 +44,9 @@ public:
     Eigen::Vector3d point_transformed =
         R_op.transpose() * (R_VT * corresponding_point_ + t_VT - t_op);
     Eigen::MatrixXd dfdg(2, 3);
-    opt<Eigen::Vector2i> projected_point =
-        camera_model_->ProjectPoint(point_transformed, dfdg);
+    opt<Eigen::Vector2d> projected_point =
+        camera_model_->ProjectPointPrecise(point_transformed);
+    camera_model_->ProjectPoint(point_transformed, dfdg);        
     gtsam::Vector error{Eigen::Vector2d::Zero()};
     if (projected_point.has_value()) {
       error = (measured_pixel_ - projected_point.value()).cast<double>();
@@ -58,8 +59,9 @@ public:
       // Assume e(R,t) = measured_pixel - f(g(R,t))
       // -> de/d(R,t) = - [df/dg * dg/dR , df/dg * dg/dt]
       Eigen::MatrixXd H_(2, 6), dgdR(3, 3), dgdt(3, 3);
-      dgdR = utils::SkewTransform(R_op.transpose() *
-                                  (R_VT * corresponding_point_ + t_VT - t_op));
+      Eigen::Vector3d p = R_VT * corresponding_point_ + t_VT;
+      dgdR = utils::SkewTransform(R_op.transpose() * p) -
+             utils::SkewTransform(R_op.transpose() * t_op);
       dgdt = -R_op.transpose();
       H_.block(0, 0, 2, 3) = -dfdg * dgdR;
       H_.block(0, 3, 2, 3) = -dfdg * dgdt;

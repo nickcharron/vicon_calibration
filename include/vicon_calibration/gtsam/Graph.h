@@ -126,6 +126,7 @@ private:
   double max_pixel_cor_dist_{500}; // in pixels
   double max_point_cor_dist_{0.3}; // in m
   bool match_centroids_{true};
+  bool match_centroids_on_first_iter_only_{false};
   double abs_error_tol_{1e-9};
   double rel_error_tol_{1e-9};
   double lambda_upper_bound_{1e8}; // the maximum lambda to try before assuming

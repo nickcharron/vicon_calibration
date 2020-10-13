@@ -56,7 +56,7 @@ protected:
 
   void CheckInputs();
 
-  opt<Eigen::Vector2i> TargetPointToPixel(const Eigen::Vector4d &point);
+  opt<Eigen::Vector2d> TargetPointToPixel(const Eigen::Vector4d &point);
 
   // this projects all template cloud points into the image plane, gets the min
   // and max coordinates then adds a buffer based on the parameter "crop_image"

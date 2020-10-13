@@ -8,7 +8,7 @@
   "min_target_rotation": 5,
   "max_target_velocity": 0.7,
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
-  "time_steps": 2,
+  "time_steps": 1,
   "show_camera_measurements": true,
   "show_lidar_measurements": true,
   "run_verification": true,

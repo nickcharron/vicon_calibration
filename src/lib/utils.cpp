@@ -12,12 +12,12 @@ double time_now(void) {
   return ((double)t.tv_sec + ((double)t.tv_usec) / 1000000.0);
 }
 
-double WrapToPi(const double &angle) {
+double WrapToPi(double angle) {
   double wrapped_angle = WrapToTwoPi(angle + M_PI) - M_PI;
   return wrapped_angle;
 }
 
-double WrapToTwoPi(const double &angle) {
+double WrapToTwoPi(double angle) {
   double wrapped_angle = fmod(angle, 2 * M_PI);
   if (wrapped_angle < 0) {
     wrapped_angle += 2 * M_PI;
@@ -25,23 +25,32 @@ double WrapToTwoPi(const double &angle) {
   return wrapped_angle;
 }
 
-double GetAngleErrorTwoPi(const double &angle_in) {
-  double angle_abs = WrapToTwoPi(std::abs(angle_in));
-  double error;
-  if (angle_abs > M_PI) {
-    return 2 * M_PI - angle_abs;
-  } else {
-    return angle_abs;
-  }
+double Deg2Rad(double d) { return d * (M_PI / 180); }
+
+double Rad2Deg(double r) { return r * (180 / M_PI); }
+
+double WrapTo180(double euler_angle) {
+  return Rad2Deg(WrapToPi(Deg2Rad(euler_angle)));
 }
 
-double GetAngleErrorPi(const double &angle_in) {
-  double angle_abs = WrapToPi(std::abs(angle_in));
-  double error;
-  if (angle_abs > M_PI / 2) {
-    return M_PI - angle_abs;
+double WrapTo360(double euler_angle) {
+  return Rad2Deg(WrapToTwoPi(Deg2Rad(euler_angle)));
+}
+
+double GetSmallestAngleErrorDeg(double angle1, double angle2) {
+  return Rad2Deg(GetSmallestAngleErrorRad(Deg2Rad(angle1), Deg2Rad(angle2)));
+}
+
+double GetSmallestAngleErrorRad(double angle1, double angle2) {
+  double angle1_wrapped = WrapToTwoPi(angle1);
+  double angle2_wrapped = WrapToTwoPi(angle2);
+  if (std::min(angle1_wrapped, angle2_wrapped) < M_PI / 2 &&
+      std::max(angle1_wrapped, angle2_wrapped) > 3 * M_PI / 2) {
+    return 2 * M_PI - (std::max(angle1_wrapped, angle2_wrapped) -
+                       std::min(angle1_wrapped, angle2_wrapped));
   } else {
-    return angle_abs;
+    return std::max(angle1_wrapped, angle2_wrapped) -
+           std::min(angle1_wrapped, angle2_wrapped);
   }
 }
 
@@ -123,9 +132,9 @@ Eigen::Matrix4d PerturbTransformRadM(const Eigen::Matrix4d &T_in,
 Eigen::Matrix4d PerturbTransformDegM(const Eigen::Matrix4d &T_in,
                                      const Eigen::VectorXd &perturbations) {
   Eigen::VectorXd perturbations_rad(perturbations);
-  perturbations_rad[0] = perturbations_rad[0] * DEG_TO_RAD;
-  perturbations_rad[1] = perturbations_rad[1] * DEG_TO_RAD;
-  perturbations_rad[2] = perturbations_rad[2] * DEG_TO_RAD;
+  perturbations_rad[0] = utils::Deg2Rad(perturbations_rad[0]);
+  perturbations_rad[1] = utils::Deg2Rad(perturbations_rad[1]);
+  perturbations_rad[2] = utils::Deg2Rad(perturbations_rad[2]);
   return PerturbTransformRadM(T_in, perturbations_rad);
 }
 
@@ -251,8 +260,8 @@ ProjectPoints(boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> &cloud,
   for (int i = 0; i < cloud->size(); i++) {
     point = utils::PCLPointToEigen(cloud->at(i));
     point_transformed = T * point.homogeneous();
-    opt<Eigen::Vector2i> pixel =
-        camera_model->ProjectPoint(point_transformed.hnormalized());
+    opt<Eigen::Vector2d> pixel =
+        camera_model->ProjectPointPrecise(point_transformed.hnormalized());
     if (!pixel.has_value()) {
       continue;
     }
@@ -292,9 +301,9 @@ void OutputTransformInformation(const Eigen::Matrix4d &T,
   Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
   std::cout << transform_name << ":\n"
             << T << "\n"
-            << "rpy (deg): [" << WrapToPi(rpy[0]) * RAD_TO_DEG << ", "
-            << WrapToPi(rpy[1]) * RAD_TO_DEG << ", "
-            << WrapToPi(rpy[2]) * RAD_TO_DEG << "]\n";
+            << "rpy (deg): [" << utils::Rad2Deg(utils::WrapToPi(rpy[0])) << ", "
+            << utils::Rad2Deg(utils::WrapToPi(rpy[1])) << ", "
+            << utils::Rad2Deg(utils::WrapToPi(rpy[2])) << "]\n";
 }
 
 void OutputCalibrations(
@@ -308,9 +317,9 @@ void OutputCalibrations(
     std::cout << "T_" << calib[i].to_frame << "_" << calib[i].from_frame
               << ":\n"
               << T << "\n"
-              << "rpy (deg): [" << WrapToPi(rpy[0]) * RAD_TO_DEG << ", "
-              << WrapToPi(rpy[1]) * RAD_TO_DEG << ", "
-              << WrapToPi(rpy[2]) * RAD_TO_DEG << "]\n";
+              << "rpy (deg): [" << utils::Rad2Deg(utils::WrapToPi(rpy[0]))
+              << ", " << utils::Rad2Deg(utils::WrapToPi(rpy[1])) << ", "
+              << utils::Rad2Deg(utils::WrapToPi(rpy[2])) << "]\n";
   }
 }
 

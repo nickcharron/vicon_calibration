@@ -323,6 +323,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
 }
 
 void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
+  std::cout << "TEST1\n";
   std::string topic = params_->camera_params[cam_iter]->topic;
   std::string sensor_frame = params_->camera_params[cam_iter]->frame;
   LOG_INFO("Getting camera measurements for frame id: %s and topic: %s .",
@@ -346,6 +347,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
                                          cam_iter);
   }
 
+std::cout << "TEST2\n";
   sensor_msgs::ImageConstPtr img_msg;
   cv::Mat current_image;
   for (auto iter = view.begin(); iter != view.end(); iter++) {
@@ -400,8 +402,8 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
             continue;
           }
         }
-        if (T_viconbase_tgts_before.size() >= 0 &&
-            T_viconbase_tgts_after.size() >= 0) {
+        if (T_viconbase_tgts_before.size() > 0 &&
+            T_viconbase_tgts_after.size() > 0) {
           if (!PassedMaxVelocity(T_viconbase_tgts_before[n],
                                  T_viconbase_tgts_after[n])) {
             counters_.camera_rejected_fast++;
@@ -459,6 +461,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
       T_cam_tgts_estimated_prev = T_cam_tgts_estimated;
     }
   }
+  std::cout << "TEST3\n";
   LOG_INFO("Stored %d measurements for camera with frame id: %s",
            valid_measurements, sensor_frame.c_str());
 }

@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf
 )
 
+find_package(gflags REQUIRED)
 find_package(rosbag REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(Boost REQUIRED)
@@ -32,32 +33,11 @@ add_executable(${PROJECT_NAME}_main
 )
 
 target_link_libraries(${PROJECT_NAME}_main
-	${PROJECT_NAME}
+  ${PROJECT_NAME}
 	beam::utils
 	beam::calibration
   beam::filtering
-)
-
-add_executable(${PROJECT_NAME}_main_ig
-	src/main_ig.cpp
-)
-
-target_link_libraries(${PROJECT_NAME}_main_ig
-	${PROJECT_NAME}
-	beam::utils
-	beam::calibration
-  beam::filtering
-)
-
-add_executable(${PROJECT_NAME}_main_roben
-	src/main_roben.cpp
-)
-
-target_link_libraries(${PROJECT_NAME}_main_roben
-	${PROJECT_NAME}
-	beam::utils
-	beam::calibration
-  beam::filtering
+  gflags
 )
 
 ################## tools ##################

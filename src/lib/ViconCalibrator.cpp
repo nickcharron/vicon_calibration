@@ -3,30 +3,28 @@
 #include "vicon_calibration/JsonTools.h"
 #include "vicon_calibration/params.h"
 #include "vicon_calibration/utils.h"
+
 #include <Eigen/StdVector>
 #include <beam_utils/math.hpp>
+#include <boost/filesystem.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <fstream>
-#include <iostream>
-#include <nlohmann/json.hpp>
-#include <string>
-#include <tf2/buffer_core.h>
-#include <tf2_eigen/tf2_eigen.h>
-#include <tf2_msgs/TFMessage.h>
-
-// ROS specific headers
 #include <geometry_msgs/TransformStamped.h>
+#include <iostream>
 #include <nav_msgs/Odometry.h>
-#include <rosbag/view.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <sensor_msgs/image_encodings.h>
-
-// PCL specific headers
+#include <nlohmann/json.hpp>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <rosbag/view.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/image_encodings.h>
+#include <string>
+#include <tf2/buffer_core.h>
+#include <tf2_eigen/tf2_eigen.h>
+#include <tf2_msgs/TFMessage.h>
 
 namespace vicon_calibration {
 
@@ -323,7 +321,6 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t &lidar_iter) {
 }
 
 void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
-  std::cout << "TEST1\n";
   std::string topic = params_->camera_params[cam_iter]->topic;
   std::string sensor_frame = params_->camera_params[cam_iter]->frame;
   LOG_INFO("Getting camera measurements for frame id: %s and topic: %s .",
@@ -347,7 +344,6 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t &cam_iter) {
                                          cam_iter);
   }
 
-std::cout << "TEST2\n";
   sensor_msgs::ImageConstPtr img_msg;
   cv::Mat current_image;
   for (auto iter = view.begin(); iter != view.end(); iter++) {
@@ -461,7 +457,6 @@ std::cout << "TEST2\n";
       T_cam_tgts_estimated_prev = T_cam_tgts_estimated;
     }
   }
-  std::cout << "TEST3\n";
   LOG_INFO("Stored %d measurements for camera with frame id: %s",
            valid_measurements, sensor_frame.c_str());
 }
@@ -553,15 +548,25 @@ bool ViconCalibrator::PassedMaxVelocity(const Eigen::Affine3d &TA_S_T_before,
   }
 }
 
-void ViconCalibrator::RunCalibration(std::string config_file) {
+void ViconCalibrator::RunCalibration(const std::string &config_file,
+                                     bool show_lidar_measurements,
+                                     bool show_camera_measurements) {
   counters_.reset();
 
   // get configuration settings
-  config_file_path_ = utils::GetFilePathConfig(config_file);
+  if (config_file.empty()) {
+    config_file_path_ = utils::GetFilePathConfig("ViconCalibrationConfig.json");
+  } else if (!boost::filesystem::exists(config_file)) {
+    config_file_path_ = utils::GetFilePathConfig(config_file);
+  } else {
+    config_file_path_ = config_file;
+  }
 
   try {
     JsonTools json_loader;
     params_ = json_loader.LoadViconCalibratorParams(config_file_path_);
+    params_->show_camera_measurements = show_camera_measurements;
+    params_->show_lidar_measurements = show_lidar_measurements;
   } catch (nlohmann::detail::parse_error &ex) {
     LOG_ERROR("Unable to load json config file: %s", config_file_path_.c_str());
     LOG_ERROR("%s", ex.what());

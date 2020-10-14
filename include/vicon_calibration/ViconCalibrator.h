@@ -34,7 +34,9 @@ public:
   /**
    * @brief run calibration
    */
-  void RunCalibration(std::string config_file = "ViconCalibrationConfig.json");
+  void RunCalibration(const std::string &config_file,
+                      bool show_lidar_measurements,
+                      bool show_camera_measurements);
 
 private:
   /**

@@ -2,9 +2,14 @@
 #include "vicon_calibration/utils.h"
 
 #include <boost/filesystem.hpp>
+#include <gflags/gflags.h>
+#include <gflags/gflags_declare.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+
+DECLARE_bool(show_camera_measurements);
+DECLARE_bool(show_lidar_measurements);
 
 namespace vicon_calibration {
 
@@ -73,10 +78,12 @@ JsonTools::LoadTargetParams(const nlohmann::json &J_in) {
 std::shared_ptr<CameraParams>
 JsonTools::LoadCameraParams(const nlohmann::json &J_in) {
   std::string intrinsics_filename = J_in.at("intrinsics");
-  if(!boost::filesystem::exists(intrinsics_filename)){
+  if (!boost::filesystem::exists(intrinsics_filename)) {
     intrinsics_filename = utils::GetFilePathData(intrinsics_filename);
-    if(!boost::filesystem::exists(intrinsics_filename)){
-      LOG_ERROR("Cannot find intrinsics filename in the data folder, or at absolute path %s", J_in.at("intrinsics"));
+    if (!boost::filesystem::exists(intrinsics_filename)) {
+      LOG_ERROR("Cannot find intrinsics filename in the data folder, or at "
+                "absolute path %s",
+                J_in.at("intrinsics"));
       throw std::invalid_argument{"Invalid intrinsics path."};
     }
   }
@@ -122,8 +129,6 @@ JsonTools::LoadViconCalibratorParams(const std::string &file_name) {
   params->max_target_velocity = J["max_target_velocity"];
   params->vicon_baselink_frame = J["vicon_baselink_frame"];
   params->time_steps = J["time_steps"];
-  params->show_camera_measurements = J["show_camera_measurements"];
-  params->show_lidar_measurements = J["show_lidar_measurements"];
   params->run_verification = J["run_verification"];
   params->use_loop_closure_measurements = J["use_loop_closure_measurements"];
   params->start_delay = J["start_delay"];

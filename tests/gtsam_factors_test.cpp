@@ -1,9 +1,10 @@
 #define CATCH_CONFIG_MAIN
 
-#include "vicon_calibration/gtsam/CameraFactor.h"
-#include "vicon_calibration/gtsam/CameraLidarFactor.h"
-#include "vicon_calibration/gtsam/LidarFactor.h"
+#include "vicon_calibration/optimization/GtsamCameraFactor.h"
+#include "vicon_calibration/optimization/GtsamCameraLidarFactor.h"
+#include "vicon_calibration/optimization/GtsamLidarFactor.h"
 #include "vicon_calibration/utils.h"
+
 #include <Eigen/Geometry>
 #include <beam_calibration/CameraModel.h>
 #include <catch2/catch.hpp>

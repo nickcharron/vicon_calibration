@@ -2,14 +2,9 @@
 #include "vicon_calibration/utils.h"
 
 #include <boost/filesystem.hpp>
-#include <gflags/gflags.h>
-#include <gflags/gflags_declare.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-
-DECLARE_bool(show_camera_measurements);
-DECLARE_bool(show_lidar_measurements);
 
 namespace vicon_calibration {
 
@@ -132,6 +127,7 @@ JsonTools::LoadViconCalibratorParams(const std::string &file_name) {
   params->run_verification = J["run_verification"];
   params->use_loop_closure_measurements = J["use_loop_closure_measurements"];
   params->start_delay = J["start_delay"];
+  params->optimizer_type = J["optimizer_type"];
 
   int counter = 0;
   for (const auto &target : J["targets"]) {

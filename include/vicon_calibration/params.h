@@ -4,12 +4,12 @@
 #include <beam_calibration/CameraModel.h>
 #include <gtsam/geometry/Point2.h>
 #include <gtsam/geometry/Point3.h>
+#include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <ros/time.h>
 #include <string>
-#include <nlohmann/json.hpp>
 
 namespace vicon_calibration {
 
@@ -31,15 +31,15 @@ struct LidarParams {
 };
 
 struct CameraParams {
-  CameraParams(const std::string &intrinsics_path,
-               const std::string &input_topic = "",
-               const std::string &input_frame = "") {
+  CameraParams(const std::string& intrinsics_path,
+               const std::string& input_topic = "",
+               const std::string& input_frame = "") {
     intrinsics = intrinsics_path;
     topic = input_topic;
     frame = input_frame;
     try {
       camera_model = beam_calibration::CameraModel::Create(intrinsics);
-    } catch (nlohmann::detail::parse_error &ex) {
+    } catch (nlohmann::detail::parse_error& ex) {
       LOG_ERROR("Unable to load json config file: %s", intrinsics.c_str());
       LOG_ERROR("%s", ex.what());
     }
@@ -146,10 +146,10 @@ struct CalibratorConfig {
   std::string initial_calibration_file;
   bool lookup_tf_calibrations{false};
   bool using_simulation{false};
-  std::string vicon_baselink_frame;
-  double time_steps;
   bool show_camera_measurements{false};
   bool show_lidar_measurements{false};
+  std::string vicon_baselink_frame;
+  double time_steps;
   bool run_verification{true};
   bool use_loop_closure_measurements{true};
   Eigen::VectorXd initial_guess_perturbation; // for testing sim
@@ -157,6 +157,7 @@ struct CalibratorConfig {
   double min_target_rotation{5};
   double max_target_velocity{0.7};
   double start_delay{0};
+  std::string optimizer_type{"GTSAM"}; // Options: GTSAM, CERES
   std::vector<std::shared_ptr<vicon_calibration::TargetParams>> target_params;
   std::vector<std::shared_ptr<vicon_calibration::CameraParams>> camera_params;
   std::vector<std::shared_ptr<vicon_calibration::LidarParams>> lidar_params;
@@ -187,5 +188,15 @@ struct Counters {
     lidar_rejected_invalid = 0;
   }
 };
+
+typedef std::vector<std::shared_ptr<CameraParams>> CameraParamsVector;
+typedef std::vector<std::shared_ptr<TargetParams>> TargetParamsVector;
+typedef std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>
+    CameraMeasurements;
+typedef std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>
+    LidarMeasurements;
+typedef std::vector<std::shared_ptr<LoopClosureMeasurement>>
+    LoopClosureMeasurements;
+typedef std::vector<CalibrationResult> CalibrationResults;
 
 } // end namespace vicon_calibration

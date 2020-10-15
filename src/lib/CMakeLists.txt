@@ -10,7 +10,8 @@ add_library(${PROJECT_NAME}
   measurement_extractors/DiamondCameraExtractor.cpp
   measurement_extractors/DiamondLidarExtractor.cpp
   measurement_extractors/IsolateTargetPoints.cpp
-  gtsam/Graph.cpp
+  optimization/Optimizer.cpp
+  optimization/GtsamOptimizer.cpp
   TfTree.cpp
   utils.cpp
   JsonTools.cpp

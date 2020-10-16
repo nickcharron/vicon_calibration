@@ -81,7 +81,7 @@ TEST_CASE("Test Camera Factor Error and Jacobian") {
   gtsam::Matrix J_analytical;
   boost::optional<gtsam::Matrix> J_opt(J_analytical);
   factor.evaluateError(pose, J_analytical);
-  REQUIRE((J_numerical - J_analytical).norm() < 1e-5);
+  REQUIRE((J_numerical - J_analytical).norm() < 5e-4);
 }
 
 TEST_CASE("Test Camera Factor Inv Error and Jacobian") {
@@ -135,7 +135,7 @@ TEST_CASE("Test Camera Factor Inv Error and Jacobian") {
   gtsam::Matrix J_analytical;
   boost::optional<gtsam::Matrix> J_opt(J_analytical);
   factor.evaluateError(pose, J_analytical);
-  REQUIRE((J_analytical - J_numerical).norm() < 1e-5);
+  REQUIRE((J_analytical - J_numerical).norm() < 5e-4);
 }
 
 TEST_CASE("Test Lidar Factor Error and Jacobian") {
@@ -180,12 +180,7 @@ TEST_CASE("Test Lidar Factor Error and Jacobian") {
   gtsam::Matrix J_analytical;
   boost::optional<gtsam::Matrix> J_opt(J_analytical);
   factor.evaluateError(pose, J_analytical);
-  double precision = 1e-5;
-  bool jacobians_equal = J_numerical.isApprox(J_analytical.matrix(), precision);
-  if (!jacobians_equal) {
-    OutputJacobians(J_analytical, J_numerical, "Lidar Jacobian");
-  }
-  REQUIRE((J_analytical - J_numerical).norm() < 1e-5);
+  REQUIRE((J_analytical - J_numerical).norm() < 5e-4);
 }
 
 TEST_CASE("Test Camera-Lidar Factor Error and Jacobian") {
@@ -261,8 +256,8 @@ TEST_CASE("Test Camera-Lidar Factor Error and Jacobian") {
   gtsam::Matrix JC_analytical;
   factor.evaluateError(lidar_pose, camera_pose, JL_analytical, JC_analytical);
 
-  REQUIRE((JC_analytical - JC_numerical).norm() < 1e-5);
-  REQUIRE((JL_analytical - JL_numerical).norm() < 1e-5);
+  REQUIRE((JC_analytical - JC_numerical).norm() < 5e-4);
+  REQUIRE((JL_analytical - JL_numerical).norm() < 5e-4);
 }
 
 TEST_CASE("Test lidar factor in Optimization") {
@@ -345,7 +340,6 @@ TEST_CASE("Test lidar factor in Optimization") {
   REQUIRE(T_VL == vicon_calibration::utils::RoundMatrix(T_VL_opt1, 5));
   REQUIRE(T_VL == vicon_calibration::utils::RoundMatrix(T_VL_opt2, 5));
 }
-
 
 TEST_CASE("Test camera factor in Optimization") {
   // create keypoints

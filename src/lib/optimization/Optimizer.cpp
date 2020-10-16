@@ -65,6 +65,7 @@ void Optimizer::Solve() {
 }
 
 CalibrationResults Optimizer::GetResults() {
+  calibration_results_.clear();
   for (uint32_t i = 0; i < inputs_.calibration_initials.size(); i++) {
     vicon_calibration::CalibrationResult calib =
         inputs_.calibration_initials[i];

@@ -644,6 +644,7 @@ void ViconCalibrator::RunCalibration(const std::string& config_file,
   if (params_->optimizer_type == "GTSAM") {
     optimizer_ = std::make_shared<GtsamOptimizer>(optimizer_inputs);
   } else if (params_->optimizer_type == "CERES") {
+    // TODO: Implement Ceres Solver with autodiff
     throw std::runtime_error{"Ceres solver not implemented yet"};
     // optimizer_ = std::make_shared<CeresOptimizer>(optimizer_inputs);
   } else {

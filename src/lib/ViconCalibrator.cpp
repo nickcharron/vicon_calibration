@@ -515,17 +515,19 @@ bool ViconCalibrator::PassedMinTranslation(const Eigen::Affine3d& TA_S_T_prev,
   error_t[0] = std::abs(error_t[0]);
   error_t[1] = std::abs(error_t[1]);
   error_t[2] = std::abs(error_t[2]);
-  Eigen::Vector3d error_r_ = utils::RToLieAlgebra(TA_S_T_curr.rotation()) -
-                             utils::RToLieAlgebra(TA_S_T_prev.rotation());
-  Eigen::Matrix3d error_R = utils::LieAlgebraToR(error_r_);
-  Eigen::Vector3d error_r = error_R.eulerAngles(0, 1, 2);
+  Eigen::Vector3d rpy_curr = TA_S_T_curr.rotation().eulerAngles(0, 1, 2);
+  Eigen::Vector3d rpy_prev = TA_S_T_prev.rotation().eulerAngles(0, 1, 2);
+  Eigen::Vector3d error_r;
+  error_r[0] = utils::GetSmallestAngleErrorRad(rpy_curr[0], rpy_prev[0]);
+  error_r[1] = utils::GetSmallestAngleErrorRad(rpy_curr[1], rpy_prev[1]);
+  error_r[2] = utils::GetSmallestAngleErrorRad(rpy_curr[2], rpy_prev[2]);
   if (error_t[0] > params_->min_target_motion ||
       error_t[1] > params_->min_target_motion ||
       error_t[2] > params_->min_target_motion) {
     return true;
   } else if (utils::Rad2Deg(error_r[0]) > params_->min_target_rotation ||
              utils::Rad2Deg(error_r[1]) > params_->min_target_rotation ||
-             utils::Rad2Deg(error_r[2]) > params_->min_target_rotation) {
+             utils::Rad2Deg(error_r[2]) > params_->min_target_rotation) {               
     return true;
   } else {
     return false;

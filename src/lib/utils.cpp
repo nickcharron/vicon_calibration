@@ -120,8 +120,7 @@ Eigen::Matrix4d PerturbTransformRadM(const Eigen::Matrix4d &T_in,
   Eigen::Vector3d r_perturb = perturbations.block(0, 0, 3, 1);
   Eigen::Vector3d t_perturb = perturbations.block(3, 0, 3, 1);
   Eigen::Matrix3d R_in = T_in.block(0, 0, 3, 3);
-  Eigen::Vector3d r_in = RToLieAlgebra(R_in);
-  Eigen::Matrix3d R_out = LieAlgebraToR(r_in + r_perturb);
+  Eigen::Matrix3d R_out = LieAlgebraToR(r_perturb)*R_in;
   Eigen::Matrix4d T_out;
   T_out.setIdentity();
   T_out.block(0, 3, 3, 1) = T_in.block(0, 3, 3, 1) + t_perturb;

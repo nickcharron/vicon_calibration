@@ -30,8 +30,9 @@ void GtsamOptimizer::AddInitials() {
   for (uint32_t i = 0; i < inputs_.calibration_initials.size(); i++) {
     vicon_calibration::CalibrationResult calib =
         inputs_.calibration_initials[i];
-    Eigen::Matrix4d initial_pose_matrix = calib.transform;
-    gtsam::Pose3 initial_pose(initial_pose_matrix);
+    Eigen::Matrix4d T_SENSOR_VICONBASE =
+        utils::InvertTransform(calib.transform);
+    gtsam::Pose3 initial_pose(T_SENSOR_VICONBASE);
     if (calib.type == SensorType::LIDAR) {
       initials_.insert(gtsam::Symbol('L', calib.sensor_id), initial_pose);
     } else if (calib.type == SensorType::CAMERA) {
@@ -43,6 +44,7 @@ void GtsamOptimizer::AddInitials() {
   }
   initials_updated_ = initials_;
 }
+
 
 void GtsamOptimizer::Clear() {
   if (skip_to_next_iteration_) {
@@ -57,29 +59,29 @@ void GtsamOptimizer::Clear() {
 }
 
 Eigen::Matrix4d GtsamOptimizer::GetUpdatedInitialPose(SensorType type, int id) {
-  gtsam::Pose3 T_VICONBASE_SENSOR;
+  gtsam::Pose3 T_SENSOR_VICONBASE;
   if (type == SensorType::LIDAR) {
-    T_VICONBASE_SENSOR =
+    T_SENSOR_VICONBASE =
         initials_updated_.at<gtsam::Pose3>(gtsam::Symbol('L', id));
   } else if (type == SensorType::CAMERA) {
-    T_VICONBASE_SENSOR =
+    T_SENSOR_VICONBASE =
         initials_updated_.at<gtsam::Pose3>(gtsam::Symbol('C', id));
   } else {
     throw std::runtime_error{"Invalid sensor type."};
   }
-  return T_VICONBASE_SENSOR.matrix();
+  return utils::InvertTransform(T_SENSOR_VICONBASE.matrix());
 }
 
 Eigen::Matrix4d GtsamOptimizer::GetFinalPose(SensorType type, int id) {
-  gtsam::Pose3 T_VICONBASE_SENSOR;
+  gtsam::Pose3 T_SENSOR_VICONBASE;
   if (type == SensorType::LIDAR) {
-    T_VICONBASE_SENSOR = results_.at<gtsam::Pose3>(gtsam::Symbol('L', id));
+    T_SENSOR_VICONBASE = results_.at<gtsam::Pose3>(gtsam::Symbol('L', id));
   } else if (type == SensorType::CAMERA) {
-    T_VICONBASE_SENSOR = results_.at<gtsam::Pose3>(gtsam::Symbol('C', id));
+    T_SENSOR_VICONBASE = results_.at<gtsam::Pose3>(gtsam::Symbol('C', id));
   } else {
     throw std::runtime_error{"Invalid sensor type."};
   }
-  return T_VICONBASE_SENSOR.matrix();
+  return utils::InvertTransform(T_SENSOR_VICONBASE.matrix());
 }
 
 void GtsamOptimizer::AddImageMeasurements() {

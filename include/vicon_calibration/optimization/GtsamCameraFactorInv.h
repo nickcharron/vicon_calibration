@@ -9,14 +9,14 @@
 
 namespace vicon_calibration {
 
-class CameraFactor : public gtsam::NoiseModelFactor1<gtsam::Pose3> {
+class CameraFactorInv : public gtsam::NoiseModelFactor1<gtsam::Pose3> {
   std::shared_ptr<beam_calibration::CameraModel> camera_model_;
   Eigen::Matrix4d T_VICONBASE_TARGET_;
   Eigen::Vector2d measured_pixel_;
   Eigen::Vector3d corresponding_point_;
 
 public:
-  CameraFactor(
+  CameraFactorInv(
       const gtsam::Key i, const Eigen::Vector2d measured_pixel,
       const Eigen::Vector3d corresponding_point,
       const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
@@ -29,19 +29,20 @@ public:
         T_VICONBASE_TARGET_(T_VICONBASE_TARGET) {}
 
   /** destructor */
-  ~CameraFactor() {}
+  ~CameraFactorInv() {}
 
   gtsam::Vector
       evaluateError(const gtsam::Pose3& q,
                     boost::optional<gtsam::Matrix&> H = boost::none) const {
-    Eigen::Matrix3d R_VICONBASE_TARGET = T_VICONBASE_TARGET_.block(0, 0, 3, 3);
-    Eigen::Vector3d t_VICONBASE_TARGET = T_VICONBASE_TARGET_.block(0, 3, 3, 1);
-    Eigen::Matrix4d T_CAM_VICONBASE = q.matrix();
+    Eigen::Matrix4d T_VICONBASE_CAM = q.matrix();
+    Eigen::Matrix3d R_VICONBASE_CAM = T_VICONBASE_CAM.block(0, 0, 3, 3);
+    Eigen::Vector3d t_VICONBASE_CAM = T_VICONBASE_CAM.block(0, 3, 3, 1);
     Eigen::Vector3d P_VICONBASE =
         (T_VICONBASE_TARGET_ * corresponding_point_.homogeneous())
             .hnormalized();
     Eigen::Vector3d P_CAM =
-        (T_CAM_VICONBASE * P_VICONBASE.homogeneous()).hnormalized();
+        (utils::InvertTransform(T_VICONBASE_CAM) * P_VICONBASE.homogeneous())
+            .hnormalized();
     Eigen::MatrixXd dfdg(2, 3);
     opt<Eigen::Vector2d> projected_point =
         camera_model_->ProjectPointPrecise(P_CAM);
@@ -59,11 +60,11 @@ public:
     if (H) {
       // Assume e(R,t) = measured_pixel - f(g(R,t))
       // -> de/d(R,t) = - [df/dg * dg/dR , df/dg * dg/dt]
-      // where f is the projection function and g transforms the point to the
-      // camera frame
       Eigen::MatrixXd H_(2, 6), dgdR(3, 3), dgdt(3, 3);
-      dgdR = utils::SkewTransform(-P_VICONBASE);
-      dgdt.setIdentity();
+      dgdR =
+          utils::SkewTransform(R_VICONBASE_CAM.transpose() * P_VICONBASE) -
+          utils::SkewTransform(R_VICONBASE_CAM.transpose() * t_VICONBASE_CAM);
+      dgdt = -R_VICONBASE_CAM.transpose();
       H_.block(0, 0, 2, 3) = -dfdg * dgdR;
       H_.block(0, 3, 2, 3) = -dfdg * dgdt;
       (*H) = H_;

@@ -63,7 +63,7 @@ public:
       // camera frame
       Eigen::MatrixXd H_(2, 6), dgdR(3, 3), dgdt(3, 3);
       dgdR = T_CAM_VICONBASE.block(0,0,3,3) * utils::SkewTransform(-P_VICONBASE);
-      dgdt = T_CAM_VICONBASE.block(0,0,3,3);
+      dgdt = Eigen::Matrix3d::Identity();
       H_.block(0, 0, 2, 3) = -dfdg * dgdR;
       H_.block(0, 3, 2, 3) = -dfdg * dgdt;
       (*H) = H_;

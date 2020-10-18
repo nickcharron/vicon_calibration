@@ -12,6 +12,7 @@ add_library(${PROJECT_NAME}
   measurement_extractors/IsolateTargetPoints.cpp
   optimization/Optimizer.cpp
   optimization/GtsamOptimizer.cpp
+  optimization/CeresOptimizer.cpp
   TfTree.cpp
   utils.cpp
   JsonTools.cpp
@@ -33,6 +34,7 @@ target_link_libraries(${PROJECT_NAME}
   beam::calibration
   beam::filtering
   gtsam
+  ceres
   nlohmann_json::nlohmann_json
   ${rosbag_LIBRARIES}
   ${cv_bridge_LIBRARIES}

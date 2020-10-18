@@ -703,9 +703,11 @@ bool Optimizer::HasConverged(uint16_t iteration) {
   Eigen::Matrix3d R_error;
   Eigen::Vector3d t_curr, t_last, t_error, rpy_error;
   for (uint32_t i = 0; i < inputs_.calibration_initials.size(); i++) {
-    T_last = GetUpdatedInitialPose(inputs_.calibration_initials[i].type, inputs_.calibration_initials[i].sensor_id);
-    T_curr = GetFinalPose(inputs_.calibration_initials[i].type, inputs_.calibration_initials[i].sensor_id);
-    
+    T_last = GetUpdatedInitialPose(inputs_.calibration_initials[i].type,
+                                   inputs_.calibration_initials[i].sensor_id);
+    T_curr = GetFinalPose(inputs_.calibration_initials[i].type,
+                          inputs_.calibration_initials[i].sensor_id);
+
     // Check all DOFs to see if the change is greater than the tolerance
     t_curr = T_curr.block(0, 3, 3, 1);
     t_last = T_last.block(0, 3, 3, 1);
@@ -723,6 +725,14 @@ bool Optimizer::HasConverged(uint16_t iteration) {
     t_error[2] = std::abs(t_error[2]);
 
     if (optimizer_params_.output_errors) {
+      // Output transforms:
+      std::string transform_name =
+          "T_" + inputs_.calibration_initials[i].to_frame + "_" +
+          inputs_.calibration_initials[i].from_frame + "_prev";
+      utils::OutputTransformInformation(T_last, transform_name + "_prev");
+      utils::OutputTransformInformation(T_last, transform_name + "_current");
+
+      // Output errors:
       std::cout << "rotation error (deg): [" << rpy_error[0] << ", "
                 << rpy_error[1] << ", " << rpy_error[2] << "]\n"
                 << "rotation threshold (deg): ["

@@ -37,6 +37,12 @@ double WrapTo360(double euler_angle) {
   return Rad2Deg(WrapToTwoPi(Deg2Rad(euler_angle)));
 }
 
+std::pair<Eigen::Vector3d, double> RodriguesToAngleAxis(const Eigen::Vector3d& rotation){
+  double angle = std::sqrt(rotation[0]*rotation[0] + rotation[1]*rotation[1] + rotation[2]*rotation[2]);
+  Eigen::Vector3d axis(rotation[0]/angle, rotation[1]/angle, rotation[2]/angle);
+  return std::make_pair(axis, angle);
+}
+
 double GetSmallestAngleErrorDeg(double angle1, double angle2) {
   return Rad2Deg(GetSmallestAngleErrorRad(Deg2Rad(angle1), Deg2Rad(angle2)));
 }

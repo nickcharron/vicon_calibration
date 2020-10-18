@@ -14,7 +14,6 @@ namespace vicon_calibration {
  */
 class GtsamOptimizer : public Optimizer {
 public:
-
   // inherit base class constructor
   using Optimizer::Optimizer;
 

@@ -22,7 +22,7 @@ find_package(beam REQUIRED utils calibration filtering)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(Catch2 REQUIRED)
 find_package(GTSAM REQUIRED)
-#find_package(Ceres REQUIRED)
+find_package(Ceres REQUIRED)
 
 ################## Add the core library ##################
 add_subdirectory(src/lib)
@@ -35,9 +35,6 @@ add_executable(${PROJECT_NAME}_main
 
 target_link_libraries(${PROJECT_NAME}_main
   ${PROJECT_NAME}
-	beam::utils
-	beam::calibration
-  beam::filtering
   gflags
 )
 

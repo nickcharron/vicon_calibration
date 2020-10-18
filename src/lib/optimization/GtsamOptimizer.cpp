@@ -33,7 +33,7 @@ void GtsamOptimizer::AddInitials() {
         inputs_.calibration_initials[i];
     // Eigen::Matrix4d T_SENSOR_VICONBASE =
     //     utils::InvertTransform(calib.transform);
-    Eigen::Matrix4d T_VICONBASE_SENSOR =calib.transform;
+    Eigen::Matrix4d T_VICONBASE_SENSOR = calib.transform;
     gtsam::Pose3 initial_pose(T_VICONBASE_SENSOR);
     if (calib.type == SensorType::LIDAR) {
       initials_.insert(gtsam::Symbol('L', calib.sensor_id), initial_pose);
@@ -201,7 +201,7 @@ void GtsamOptimizer::AddLidarCameraMeasurements() {
 }
 
 void GtsamOptimizer::Optimize() {
-  LOG_INFO("Optimizing graph");
+  LOG_INFO("Optimizing Gtsam graph");
   gtsam::LevenbergMarquardtParams params;
   params.setVerbosity("TERMINATION");
   params.absoluteErrorTol = gtsam_params_.abs_error_tol;
@@ -215,12 +215,6 @@ void GtsamOptimizer::Optimize() {
 
   try {
     results_ = optimizer.optimize();
-    if (optimizer_params_.print_results_to_terminal) {
-      LOG_INFO("Printing Initials:");
-      initials_.print();
-      LOG_INFO("Printing Results:");
-      results_.print();
-    }
   } catch (...) {
     LOG_ERROR("Error optimizing GTSAM Graph. Printing graph and initial "
               "estimates to terminal.");

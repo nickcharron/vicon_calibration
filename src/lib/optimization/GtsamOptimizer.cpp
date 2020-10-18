@@ -33,8 +33,8 @@ void GtsamOptimizer::AddInitials() {
         inputs_.calibration_initials[i];
     // Eigen::Matrix4d T_SENSOR_VICONBASE =
     //     utils::InvertTransform(calib.transform);
-    Eigen::Matrix4d T_SENSOR_VICONBASE =calib.transform;
-    gtsam::Pose3 initial_pose(T_SENSOR_VICONBASE);
+    Eigen::Matrix4d T_VICONBASE_SENSOR =calib.transform;
+    gtsam::Pose3 initial_pose(T_VICONBASE_SENSOR);
     if (calib.type == SensorType::LIDAR) {
       initials_.insert(gtsam::Symbol('L', calib.sensor_id), initial_pose);
     } else if (calib.type == SensorType::CAMERA) {

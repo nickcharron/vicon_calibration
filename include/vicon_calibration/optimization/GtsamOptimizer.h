@@ -5,8 +5,6 @@
 #include "vicon_calibration/utils.h"
 
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
-#include <pcl/registration/correspondence_estimation.h>
-#include <pcl/visualization/pcl_visualizer.h>
 
 namespace vicon_calibration {
 

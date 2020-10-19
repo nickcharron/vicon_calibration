@@ -183,7 +183,7 @@ void CeresOptimizer::AddImageMeasurements() {
     problem_->AddResidualBlock(cost_function, loss_function_.get(),
                                results_[sensor_index]);
   }
-  LOG_INFO("Added %d image factors.", counter);
+  LOG_INFO("Added %d image measurements.", counter);
 }
 
 void CeresOptimizer::AddLidarMeasurements() {
@@ -265,10 +265,10 @@ void CeresOptimizer::AddLidarCameraMeasurements() {
 
 void CeresOptimizer::Optimize() {
   if (optimizer_params_.print_results_to_terminal) {
-    LOG_INFO("No. of parameter blocks: {}", problem_->NumParameterBlocks());
-    LOG_INFO("No. of parameters: {}", problem_->NumParameters());
-    LOG_INFO("No. of residual blocks: {}", problem_->NumResidualBlocks());
-    LOG_INFO("No. of residuals: {}", problem_->NumResiduals());
+    LOG_INFO("No. of parameter blocks: %d", problem_->NumParameterBlocks());
+    LOG_INFO("No. of parameters: %d", problem_->NumParameters());
+    LOG_INFO("No. of residual blocks: %d", problem_->NumResidualBlocks());
+    LOG_INFO("No. of residuals: %d", problem_->NumResiduals());
   }
 
   LOG_INFO("Optimizing Ceres Problem");

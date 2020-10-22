@@ -52,7 +52,7 @@ std::shared_ptr<ceres::Problem> SetupCeresProblem() {
       std::unique_ptr<ceres::LossFunction>(new ceres::HuberLoss(1.0));
 
   std::unique_ptr<ceres::LocalParameterization> quat_parameterization(
-      new ceres::EigenQuaternionParameterization());
+      new ceres::QuaternionParameterization());
   std::unique_ptr<ceres::LocalParameterization> identity_parameterization(
       new ceres::IdentityParameterization(3));
   se3_parameterization_ = std::unique_ptr<ceres::LocalParameterization>(
@@ -169,39 +169,17 @@ TEST_CASE("Test lidar optimization") {
   }
 
   LOG_INFO("TESTING WITH PERFECT INITIALIZATION");
-  if (output_results_) {
-    std::cout
-        << "PERFECT Init before opt: \n"
-        << vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
-               results_perfect_init)
-        << "\n";
-  }
   SolveProblem(problem1, output_results_);
   Eigen::Matrix4d T_LV_opt1 =
       vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
           results_perfect_init);
-  if (output_results_) {
-    std::cout << "PERFECT Init after opt: \n" << T_LV_opt1 << "\n";
-  }
 
   LOG_INFO("TESTING WITH PERTURBED INITIALIZATION");
-  if (output_results_) {
-    std::cout
-        << "PERTURBED Init before opt: \n"
-        << vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
-               results_perturbed_init)
-        << "\n";
-  }
   SolveProblem(problem2, output_results_);
   Eigen::Matrix4d T_LV_opt2 =
       vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
           results_perturbed_init);
-  if (output_results_) {
-    std::cout << "PERTURBED Init after opt: \n" << T_LV_opt2 << "\n";
-  }
 
-  // REQUIRE(T_LV.isApprox(T_LV_opt1, 1e-5));
-  // REQUIRE(T_LV.isApprox(T_LV_opt2, 1e-5));
   REQUIRE(vicon_calibration::utils::RoundMatrix(T_LV, 5) ==
           vicon_calibration::utils::RoundMatrix(T_LV_opt1, 5));
   REQUIRE(vicon_calibration::utils::RoundMatrix(T_LV, 5) ==

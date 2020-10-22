@@ -44,9 +44,9 @@ struct CeresCameraCostFunction {
     // rotate and translate point
     T P_CAMERA[3];
     ceres::QuaternionRotatePoint(T_CR, P_VICONBASE, P_CAMERA);
-    P_CAMERA[0] += T_CR[3];
-    P_CAMERA[1] += T_CR[4];
-    P_CAMERA[2] += T_CR[5];
+    P_CAMERA[0] += T_CR[4];
+    P_CAMERA[1] += T_CR[5];
+    P_CAMERA[2] += T_CR[6];
 
     const T P_CAMERA_const = *P_CAMERA;
 

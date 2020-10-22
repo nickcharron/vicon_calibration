@@ -17,9 +17,9 @@ struct CeresLidarCostFunction {
     // rotate and translate point
     T P_LIDAR[3];
     ceres::QuaternionRotatePoint(T_LR, P_VICONBASE, P_LIDAR);
-    P_LIDAR[0] += T_LR[3];
-    P_LIDAR[1] += T_LR[4];
-    P_LIDAR[2] += T_LR[5];
+    P_LIDAR[0] += T_LR[4];
+    P_LIDAR[1] += T_LR[5];
+    P_LIDAR[2] += T_LR[6];
 
     residuals[0] = point_detected_.cast<T>()[0] - P_LIDAR[0];
     residuals[1] = point_detected_.cast<T>()[1] - P_LIDAR[1];

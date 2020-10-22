@@ -1,6 +1,8 @@
 #include <ceres/autodiff_cost_function.h>
 #include <ceres/rotation.h>
 
+#include <beam_calibration/CameraModel.h>
+
 struct CameraProjectionFunctor {
   CameraProjectionFunctor(
       const std::shared_ptr<beam_calibration::CameraModel>& camera_model)
@@ -34,16 +36,14 @@ struct CeresCameraCostFunction {
 
   template <typename T>
   bool operator()(const T* const T_CR, T* residuals) const {
-    // T_CR[0,1,2] are the angle-axis rotation.
     T P_VICONBASE[3];
     P_VICONBASE[0] = P_VICONBASE_.cast<T>()[0];
     P_VICONBASE[1] = P_VICONBASE_.cast<T>()[1];
     P_VICONBASE[2] = P_VICONBASE_.cast<T>()[2];
 
+    // rotate and translate point
     T P_CAMERA[3];
-
-    ceres::AngleAxisRotatePoint(T_CR, P_VICONBASE, P_CAMERA);
-    // T_CR[3,4,5] are the translation.
+    ceres::QuaternionRotatePoint(T_CR, P_VICONBASE, P_CAMERA);
     P_CAMERA[0] += T_CR[3];
     P_CAMERA[1] += T_CR[4];
     P_CAMERA[2] += T_CR[5];
@@ -63,7 +63,7 @@ struct CeresCameraCostFunction {
   static ceres::CostFunction* Create(
       const Eigen::Vector2d pixel_detected, const Eigen::Vector3d P_VICONBASE,
       const std::shared_ptr<beam_calibration::CameraModel> camera_model) {
-    return (new ceres::AutoDiffCostFunction<CeresCameraCostFunction, 2, 6>(
+    return (new ceres::AutoDiffCostFunction<CeresCameraCostFunction, 2, 7>(
         new CeresCameraCostFunction(pixel_detected, P_VICONBASE,
                                     camera_model)));
   }

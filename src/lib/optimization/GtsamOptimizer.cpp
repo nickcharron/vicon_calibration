@@ -13,7 +13,7 @@ namespace vicon_calibration {
 
 void GtsamOptimizer::LoadConfig() {
   std::string config_path = utils::GetFilePathConfig("OptimizerConfig.json");
-  LOG_INFO("Loading GTSAM Graph Config file: %s", config_path.c_str());
+  LOG_INFO("Loading GTSAM Optimizer Config file: %s", config_path.c_str());
   nlohmann::json J;
   std::ifstream file(config_path);
   file >> J;

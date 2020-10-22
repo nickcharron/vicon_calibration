@@ -37,6 +37,7 @@ void Optimizer::Solve() {
   ResetViewer();
   CheckInputs();
   AddInitials();
+
   uint16_t iteration = 0;
   bool converged = false;
   while (!converged) {
@@ -715,9 +716,9 @@ bool Optimizer::HasConverged(uint16_t iteration) {
         utils::LieAlgebraToR(utils::RToLieAlgebra(T_curr.block(0, 0, 3, 3)) -
                              utils::RToLieAlgebra(T_last.block(0, 0, 3, 3)));
     rpy_error = R_error.eulerAngles(0, 1, 2).cast<double>();
-    rpy_error[0] = utils::Rad2Deg(std::abs(utils::WrapToPi(rpy_error[0])));
-    rpy_error[1] = utils::Rad2Deg(std::abs(utils::WrapToPi(rpy_error[1])));
-    rpy_error[2] = utils::Rad2Deg(std::abs(utils::WrapToPi(rpy_error[2])));
+    rpy_error[0] = utils::RadToDeg(std::abs(utils::WrapToPi(rpy_error[0])));
+    rpy_error[1] = utils::RadToDeg(std::abs(utils::WrapToPi(rpy_error[1])));
+    rpy_error[2] = utils::RadToDeg(std::abs(utils::WrapToPi(rpy_error[2])));
 
     t_error = t_curr - t_last;
     t_error[0] = std::abs(t_error[0]);

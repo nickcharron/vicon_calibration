@@ -1,6 +1,6 @@
 #include "vicon_calibration/optimization/CeresOptimizer.h"
 #include "vicon_calibration/optimization/CeresCameraCostFunction.h"
-// #include "vicon_calibration/optimization/CeresLidarCostFunction.h"
+#include "vicon_calibration/optimization/CeresLidarCostFunction.h"
 
 #include <Eigen/Geometry>
 
@@ -8,7 +8,7 @@ namespace vicon_calibration {
 
 void CeresOptimizer::LoadConfig() {
   std::string config_path = utils::GetFilePathConfig("OptimizerConfig.json");
-  LOG_INFO("Loading GTSAM Graph Config file: %s", config_path.c_str());
+  LOG_INFO("Loading Ceres Optimizer Config file: %s", config_path.c_str());
   nlohmann::json J;
   std::ifstream file(config_path);
   file >> J;
@@ -16,6 +16,9 @@ void CeresOptimizer::LoadConfig() {
 
   // get gtsam optimizer specific params
   nlohmann::json J_gtsam = J.at("ceres_options");
+  ceres_solver_options_.minimizer_progress_to_stdout =
+      J_gtsam.at("minimizer_progress_to_stdout");
+  ;
   ceres_params_.max_num_iterations = J_gtsam.at("max_num_iterations");
   ceres_params_.max_solver_time_in_seconds =
       J_gtsam.at("max_solver_time_in_seconds");
@@ -23,12 +26,21 @@ void CeresOptimizer::LoadConfig() {
   ceres_params_.gradient_tolerance = J_gtsam.at("gradient_tolerance");
   ceres_params_.parameter_tolerance = J_gtsam.at("parameter_tolerance");
   ceres_params_.loss_function = J_gtsam.at("loss_function");
+  ceres_params_.linear_solver_type = J_gtsam.at("linear_solver_type");
+  ceres_params_.preconditioner_type = J_gtsam.at("preconditioner_type");
 }
 
 void CeresOptimizer::SetupProblem() {
+  // set ceres problem options
+  ceres_problem_options_.loss_function_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
+  ceres_problem_options_.local_parameterization_ownership =
+      ceres::DO_NOT_TAKE_OWNERSHIP;
+
   problem_ = std::make_unique<ceres::Problem>(ceres_problem_options_);
 
   // set ceres solver params
+  ceres_solver_options_.minimizer_progress_to_stdout =
+      ceres_params_.minimizer_progress_to_stdout;
   ceres_solver_options_.max_num_iterations = ceres_params_.max_num_iterations;
   ceres_solver_options_.max_solver_time_in_seconds =
       ceres_params_.max_solver_time_in_seconds;
@@ -36,32 +48,56 @@ void CeresOptimizer::SetupProblem() {
   ceres_solver_options_.gradient_tolerance = ceres_params_.gradient_tolerance;
   ceres_solver_options_.parameter_tolerance = ceres_params_.parameter_tolerance;
 
-  // set ceres problem options
-  // ceresProblemOptions_.loss_function_ownership =
-  // ceres::DO_NOT_TAKE_OWNERSHIP;
-  // ceresProblemOptions_.local_parameterization_ownership =
-  // ceres::DO_NOT_TAKE_OWNERSHIP;
-  if (ceres_params_.loss_function == "HUBER") {
-    loss_function_ = std::make_unique<ceres::HuberLoss>(1.0);
-  } else if (ceres_params_.loss_function == "CAUCHY") {
-    loss_function_ = std::make_unique<ceres::CauchyLoss>(1.0);
-  } else if (ceres_params_.loss_function == "NULL") {
-    loss_function_ = nullptr;
+  if (ceres_params_.linear_solver_type == "SPARSE_SCHUR") {
+    ceres_solver_options_.linear_solver_type = ceres::SPARSE_SCHUR;
+  } else if (ceres_params_.linear_solver_type == "DENSE_SCHUR") {
+    ceres_solver_options_.linear_solver_type = ceres::DENSE_SCHUR;
+  } else if (ceres_params_.linear_solver_type == "SPARSE_NORMAL_CHOLESKY") {
+    ceres_solver_options_.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
   } else {
-    throw std::invalid_argument{
-        "Invalid loss function type. Options: HUBER, CAUCHY, NULL"};
+    LOG_ERROR("Invalid linear_solver_type, Options: SPARSE_SCHUR, DENSE_SCHUR, "
+              "SPARSE_NORMAL_CHOLESKY. Using default: SPARSE_SCHUR");
+    ceres_solver_options_.linear_solver_type = ceres::SPARSE_SCHUR;
   }
+  if (ceres_params_.preconditioner_type == "IDENTITY") {
+    ceres_solver_options_.preconditioner_type = ceres::IDENTITY;
+  } else if (ceres_params_.preconditioner_type == "JACOBI") {
+    ceres_solver_options_.preconditioner_type = ceres::JACOBI;
+  } else if (ceres_params_.preconditioner_type == "SCHUR_JACOBI") {
+    ceres_solver_options_.preconditioner_type = ceres::SCHUR_JACOBI;
+  } else {
+    LOG_ERROR("Invalid preconditioner_type, Options: IDENTITY, JACOBI, "
+              "SCHUR_JACOBI. Using default: SCHUR_JACOBI");
+    ceres_solver_options_.preconditioner_type = ceres::SCHUR_JACOBI;
+  }
+
+  // set loss function
+  if (ceres_params_.loss_function == "HUBER") {
+    loss_function_ =
+        std::unique_ptr<ceres::LossFunction>(new ceres::HuberLoss(1.0));
+  } else if (ceres_params_.loss_function == "CAUCHY") {
+    loss_function_ =
+        std::unique_ptr<ceres::LossFunction>(new ceres::CauchyLoss(1.0));
+  } else if (ceres_params_.loss_function == "NULL") {
+    loss_function_ = std::unique_ptr<ceres::LossFunction>(nullptr);
+  } else {
+    LOG_ERROR("Invalid preconditioner_type, Options: HUBER, CAUCHY, NULL. "
+              "Using default: HUBER");
+    loss_function_ =
+        std::unique_ptr<ceres::LossFunction>(new ceres::HuberLoss(1.0));
+  }
+
+  // set local parameterization
+  std::unique_ptr<ceres::LocalParameterization> quat_parametization(
+      new ceres::QuaternionParameterization());
+  std::unique_ptr<ceres::LocalParameterization> identity_parametization(
+      new ceres::IdentityParameterization(3));
+  se3_parametization_ = std::unique_ptr<ceres::LocalParameterization>(
+      new ceres::ProductParameterization(quat_parametization.release(),
+                                         identity_parametization.release()));
 }
 
 void CeresOptimizer::AddInitials() {
-  // first, check that number of sensors is not greater than max.
-  if (inputs_.calibration_initials.size() > 20) {
-    throw std::runtime_error{
-        "Number of sensors greater than max allowed. Increase array "
-        "sizes in CeresOptimizer.h for: results_, previous_iteration_results_, "
-        "and initials_ member variables."};
-  }
-
   SetupProblem();
 
   // add all sensors as the next poses
@@ -70,24 +106,20 @@ void CeresOptimizer::AddInitials() {
         inputs_.calibration_initials[i];
     Eigen::Matrix4d T_SENSOR_VICONBASE =
         utils::InvertTransform(calib.transform);
-    Eigen::Matrix3d R_SENSOR_VICONBASE = T_SENSOR_VICONBASE.block(0, 0, 3, 3);
-    Eigen::AngleAxis<double> AA = Eigen::AngleAxis<double>(R_SENSOR_VICONBASE);
-
-    // convert from Angle-Axis to Rodrigues vector representation
-    initials_[i][0] = AA.axis()[0] * AA.angle();
-    initials_[i][1] = AA.axis()[1] * AA.angle();
-    initials_[i][2] = AA.axis()[2] * AA.angle();
-    initials_[i][3] = T_SENSOR_VICONBASE(0, 3);
-    initials_[i][4] = T_SENSOR_VICONBASE(1, 3);
-    initials_[i][5] = T_SENSOR_VICONBASE(2, 3);
+    Eigen::Matrix3d R = T_SENSOR_VICONBASE.block(0, 0, 3, 3);
+    Eigen::Quaternion<double> q = Eigen::Quaternion<double>(R);
+    initials_.push_back(std::vector<double>{
+        q.w(), q.x(), q.y(), q.z(), T_SENSOR_VICONBASE(0, 3),
+        T_SENSOR_VICONBASE(1, 3), T_SENSOR_VICONBASE(2, 3)});
   }
 
   // copy arrays:
-  for (uint32_t i = 0; i < inputs_.calibration_initials.size(); i++) {
-    for (uint8_t j = 0; j < 6; j++) {
-      results_[i][j] = initials_[i][j];
-      previous_iteration_results_[i][j] = initials_[i][j];
-    }
+  results_ = initials_;
+  previous_iteration_results_ = initials_;
+
+  for (int i = 0; i < results_.size(); i++) {
+    problem_->AddParameterBlock(&(results_[i][0]), 7,
+                                se3_parametization_.get());
   }
 }
 
@@ -114,39 +146,16 @@ int CeresOptimizer::GetSensorIndex(SensorType type, int id) {
 
 Eigen::Matrix4d CeresOptimizer::GetUpdatedInitialPose(SensorType type, int id) {
   int index = GetSensorIndex(type, id);
-
-  Eigen::Vector3d rodrigues_vector{previous_iteration_results_[index][0],
-                                   previous_iteration_results_[index][1],
-                                   previous_iteration_results_[index][2]};
-  std::pair<Eigen::Vector3d, double> AA_tmp =
-      utils::RodriguesToAngleAxis(rodrigues_vector);
-  Eigen::AngleAxis<double> AA(AA_tmp.second, AA_tmp.first);
-
-  Eigen::Matrix4d T_SENSOR_VICONBASE = Eigen::Matrix4d::Identity();
-  T_SENSOR_VICONBASE.block(0, 0, 3, 3) = AA.toRotationMatrix();
-  T_SENSOR_VICONBASE(0, 3) = previous_iteration_results_[index][3];
-  T_SENSOR_VICONBASE(1, 3) = previous_iteration_results_[index][4];
-  T_SENSOR_VICONBASE(2, 3) = previous_iteration_results_[index][5];
-
+  Eigen::Matrix4d T_SENSOR_VICONBASE =
+      utils::QuaternionAndTranslationToTransformMatrix(
+          previous_iteration_results_[index]);
   return utils::InvertTransform(T_SENSOR_VICONBASE);
 }
 
 Eigen::Matrix4d CeresOptimizer::GetFinalPose(SensorType type, int id) {
   int index = GetSensorIndex(type, id);
-
-  Eigen::Vector3d rodrigues_vector{previous_iteration_results_[index][0],
-                                   previous_iteration_results_[index][1],
-                                   previous_iteration_results_[index][2]};
-  std::pair<Eigen::Vector3d, double> AA_tmp =
-      utils::RodriguesToAngleAxis(rodrigues_vector);
-  Eigen::AngleAxis<double> AA(AA_tmp.second, AA_tmp.first);
-
-  Eigen::Matrix4d T_SENSOR_VICONBASE = Eigen::Matrix4d::Identity();
-  T_SENSOR_VICONBASE.block(0, 0, 3, 3) = AA.toRotationMatrix();
-  T_SENSOR_VICONBASE(0, 3) = results_[index][3];
-  T_SENSOR_VICONBASE(1, 3) = results_[index][4];
-  T_SENSOR_VICONBASE(2, 3) = results_[index][5];
-
+  Eigen::Matrix4d T_SENSOR_VICONBASE =
+      utils::QuaternionAndTranslationToTransformMatrix(results_[index]);
   return utils::InvertTransform(T_SENSOR_VICONBASE);
 }
 
@@ -178,10 +187,12 @@ void CeresOptimizer::AddImageMeasurements() {
     Eigen::Vector3d P_VICONBASE =
         (measurement->T_VICONBASE_TARGET * P_TARGET.homogeneous())
             .hnormalized();
-    ceres::CostFunction* cost_function = CeresCameraCostFunction::Create(
-        pixel, P_VICONBASE, inputs_.camera_params[camera_index]->camera_model);
-    problem_->AddResidualBlock(cost_function, loss_function_.get(),
-                               results_[sensor_index]);
+    std::unique_ptr<ceres::CostFunction> cost_function =
+        std::unique_ptr<ceres::CostFunction>(CeresCameraCostFunction::Create(
+            pixel, P_VICONBASE,
+            inputs_.camera_params[camera_index]->camera_model));
+    problem_->AddResidualBlock(cost_function.release(), loss_function_.get(),
+                               &(results_[sensor_index][0]));
   }
   LOG_INFO("Added %d image measurements.", counter);
 }
@@ -273,17 +284,16 @@ void CeresOptimizer::Optimize() {
 
   LOG_INFO("Optimizing Ceres Problem");
   ceres::Solve(ceres_solver_options_, problem_.get(), &ceres_summary_);
+  if (optimizer_params_.print_results_to_terminal){
+    ceres_summary_.FullReport();
+  }
   LOG_INFO("Done.");
 }
 
 void CeresOptimizer::UpdateInitials() {
   // no need to update initials because ceres has already updated them, but we
   // will need the previous iteration array to be updated
-  for (uint32_t i = 0; i < inputs_.calibration_initials.size(); i++) {
-    for (uint8_t j = 0; j < 6; j++) {
-      previous_iteration_results_[i][j] = results_[i][j];
-    }
-  }
+  previous_iteration_results_ = results_;
 }
 
 } // end namespace vicon_calibration

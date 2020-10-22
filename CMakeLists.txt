@@ -126,4 +126,35 @@ target_link_libraries(${PROJECT_NAME}_tests_diamond_lidar_extractor
   beam::filtering
 )
 
+### TEST6 ###
+add_executable(${PROJECT_NAME}_tests_ceres_camera_tests
+  tests/ceres_camera_tests.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_tests_ceres_camera_tests
+  PUBLIC
+    include
+)
+
+target_link_libraries(${PROJECT_NAME}_tests_ceres_camera_tests
+  ${PROJECT_NAME}
+  Catch2::Catch2
+  beam::calibration
+)
+
+### TEST6 ###
+add_executable(${PROJECT_NAME}_tests_ceres_lidar_tests
+  tests/ceres_lidar_tests.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_tests_ceres_lidar_tests
+  PUBLIC
+    include
+)
+
+target_link_libraries(${PROJECT_NAME}_tests_ceres_lidar_tests
+  ${PROJECT_NAME}
+  Catch2::Catch2
+)
+
 #############################

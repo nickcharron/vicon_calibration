@@ -90,7 +90,7 @@ void IsolateTargetPoints::ClusterPoints() {
   Eigen::Vector3d translation = T_TARGET_LIDAR_.block(0, 3, 3, 1);
   double distance = translation.norm();
   double max_point_distance =
-      distance * tan(utils::Deg2Rad(lidar_params_->max_angular_resolution_deg));
+      distance * tan(utils::DegToRad(lidar_params_->max_angular_resolution_deg));
 
   // create search tree
   pcl::search::KdTree<pcl::PointXYZ>::Ptr tree =

@@ -174,9 +174,9 @@ void CalibrationVerification::PrintCalibrations(
     Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
     file << "T_" << calib[i].to_frame << "_" << calib[i].from_frame << ":\n"
          << T << "\n"
-         << "rpy (deg): [" << utils::Rad2Deg(utils::WrapToTwoPi(rpy[0])) << ", "
-         << utils::Rad2Deg(utils::WrapToTwoPi(rpy[1])) << ", "
-         << utils::Rad2Deg(utils::WrapToTwoPi(rpy[2])) << "]\n";
+         << "rpy (deg): [" << utils::RadToDeg(utils::WrapToTwoPi(rpy[0])) << ", "
+         << utils::RadToDeg(utils::WrapToTwoPi(rpy[1])) << ", "
+         << utils::RadToDeg(utils::WrapToTwoPi(rpy[2])) << "]\n";
   }
 }
 
@@ -204,8 +204,8 @@ void CalibrationVerification::PrintCalibrationErrors() {
     t_error[2] = std::abs(t_error[2]);
     file << "T_" << calibrations_result_[i].to_frame << "_"
          << calibrations_result_[i].from_frame << ":\n"
-         << "rpy error (deg): [" << utils::Rad2Deg(rpy_error[0]) << ", "
-         << utils::Rad2Deg(rpy_error[1]) << ", " << utils::Rad2Deg(rpy_error[2])
+         << "rpy error (deg): [" << utils::RadToDeg(rpy_error[0]) << ", "
+         << utils::RadToDeg(rpy_error[1]) << ", " << utils::RadToDeg(rpy_error[2])
          << "]\n"
          << "translation error (mm): [" << t_error[0] * 1000 << ", "
          << t_error[1] * 1000 << ", " << t_error[2] * 1000 << "]\n\n";
@@ -238,8 +238,8 @@ void CalibrationVerification::PrintCalibrationErrors() {
     t_error[2] = std::abs(t_error[2]);
     file << "T_" << calibrations_result_[i].to_frame << "_"
          << calibrations_result_[i].from_frame << ":\n"
-         << "rpy error (deg): [" << utils::Rad2Deg(rpy_error[0]) << ", "
-         << utils::Rad2Deg(rpy_error[1]) << ", " << utils::Rad2Deg(rpy_error[2])
+         << "rpy error (deg): [" << utils::RadToDeg(rpy_error[0]) << ", "
+         << utils::RadToDeg(rpy_error[1]) << ", " << utils::RadToDeg(rpy_error[2])
          << "]\n"
          << "translation error (mm): [" << t_error[0] * 1000 << ", "
          << t_error[1] * 1000 << ", " << t_error[2] * 1000 << "]\n\n";
@@ -268,8 +268,8 @@ void CalibrationVerification::PrintCalibrationErrors() {
     t_error[2] = std::abs(t_error[2]);
     file << "T_" << calibrations_initial_[i].to_frame << "_"
          << calibrations_initial_[i].from_frame << ":\n"
-         << "rpy error (deg): [" << utils::Rad2Deg(rpy_error[0]) << ", "
-         << utils::Rad2Deg(rpy_error[1]) << ", " << utils::Rad2Deg(rpy_error[2])
+         << "rpy error (deg): [" << utils::RadToDeg(rpy_error[0]) << ", "
+         << utils::RadToDeg(rpy_error[1]) << ", " << utils::RadToDeg(rpy_error[2])
          << "]\n"
          << "translation error (mm): [" << t_error[0] * 1000 << ", "
          << t_error[1] * 1000 << ", " << t_error[2] * 1000 << "]\n\n";

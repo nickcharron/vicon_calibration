@@ -77,18 +77,16 @@ double GetSmallestAngleErrorDeg(double angle1, double angle2);
 double GetSmallestAngleErrorRad(double angle1, double angle2);
 
 /** Converts degrees to radians. */
-double Deg2Rad(double d);
+double DegToRad(double d);
 
 /** Converts radians to degrees. */
-double Rad2Deg(double r);
+double RadToDeg(double r);
 
 /** Wraps `euler_angle` to 180 degrees **/
 double wrapTo180(double euler_angle);
 
 /** Wraps `euler_angle` to 360 degrees **/
 double wrapTo360(double euler_angle);
-
-std::pair<Eigen::Vector3d, double> RodriguesToAngleAxis(const Eigen::Vector3d& rotation);
 
 Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd& M, const int& precision);
 
@@ -114,6 +112,10 @@ Eigen::Matrix4d PerturbTransformRadM(const Eigen::Matrix4d& T_in,
 Eigen::Matrix4d PerturbTransformDegM(const Eigen::Matrix4d& T_in,
                                      const Eigen::VectorXd& perturbations);
 
+Eigen::Matrix4d BuildTransformEulerDegM(double rollInDeg, double pitchInDeg,
+                                        double yawInDeg, double tx, double ty,
+                                        double tz);
+
 Eigen::Vector3d InvSkewTransform(const Eigen::Matrix3d& M);
 
 Eigen::Matrix3d SkewTransform(const Eigen::Vector3d& V);
@@ -123,6 +125,12 @@ Eigen::Vector3d RToLieAlgebra(const Eigen::Matrix3d& R);
 Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d& eps);
 
 Eigen::Matrix4d InvertTransform(const Eigen::MatrixXd& T);
+
+Eigen::Matrix4d
+    QuaternionAndTranslationToTransformMatrix(const std::vector<double>& pose);
+
+std::vector<double>
+    TransformMatrixToQuaternionAndTranslation(const Eigen::Matrix4d& T);
 
 cv::Mat DrawCoordinateFrame(
     const cv::Mat& img_in, const Eigen::MatrixXd& T_cam_frame,

@@ -24,12 +24,15 @@ public:
    * @brief params specific to ceres optimizer
    */
   struct CeresParams {
+    bool minimizer_progress_to_stdout{false};
     double max_num_iterations{50};
     double max_solver_time_in_seconds{1e6};
     double function_tolerance{1e-6};
     double gradient_tolerance{1e-10};
     double parameter_tolerance{1e-8};
     std::string loss_function{"HUBER"}; // options: HUBER, CAUCHY, NULL
+    std::string linear_solver_type{"SPARSE_SCHUR"}; // options: SPARSE_SCHUR, DENSE_SCHUR, SPARSE_NORMAL_CHOLESKY
+    std::string preconditioner_type{"SCHUR_JACOBI"}; // options: IDENTITY, JACOBI, SCHUR_JACOBI
   };
 
 private:
@@ -58,10 +61,11 @@ private:
   void UpdateInitials() override;
 
   CeresParams ceres_params_;
-  double results_[20][6];
-  double previous_iteration_results_[20][6];
-  double initials_[20][6];
+  std::vector<std::vector<double>> results_;
+  std::vector<std::vector<double>> previous_iteration_results_;
+  std::vector<std::vector<double>> initials_;
   std::unique_ptr<ceres::LossFunction> loss_function_;
+  std::unique_ptr<ceres::LocalParameterization> se3_parametization_;
   std::unique_ptr<ceres::Problem> problem_;
   ceres::Solver::Options ceres_solver_options_;
   ceres::Problem::Options ceres_problem_options_;

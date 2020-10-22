@@ -25,11 +25,14 @@
   },
   "ceres_options":
   {
+    "minimizer_progress_to_stdout": true,
     "max_num_iterations": 50,
     "max_solver_time_in_seconds": 1e6,
     "function_tolerance": 1e-6,
     "gradient_tolerance": 1e-10,
     "parameter_tolerance": 1e-8,
-    "loss_function": "HUBER"
+    "loss_function": "HUBER",
+    "linear_solver_type": "SPARSE_SCHUR",
+    "preconditioner_type": "SCHUR_JACOBI"
   }
 }

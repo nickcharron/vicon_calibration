@@ -1,8 +1,8 @@
 #include "vicon_calibration/ViconCalibrator.h"
-#include "vicon_calibration/optimization/GtsamOptimizer.h"
-// #include "vicon_calibration/optimization/CeresOptimizer.h"
 #include "vicon_calibration/CalibrationVerification.h"
 #include "vicon_calibration/JsonTools.h"
+#include "vicon_calibration/optimization/CeresOptimizer.h"
+#include "vicon_calibration/optimization/GtsamOptimizer.h"
 #include "vicon_calibration/params.h"
 #include "vicon_calibration/utils.h"
 
@@ -525,9 +525,9 @@ bool ViconCalibrator::PassedMinTranslation(const Eigen::Affine3d& TA_S_T_prev,
       error_t[1] > params_->min_target_motion ||
       error_t[2] > params_->min_target_motion) {
     return true;
-  } else if (utils::Rad2Deg(error_r[0]) > params_->min_target_rotation ||
-             utils::Rad2Deg(error_r[1]) > params_->min_target_rotation ||
-             utils::Rad2Deg(error_r[2]) > params_->min_target_rotation) {               
+  } else if (utils::RadToDeg(error_r[0]) > params_->min_target_rotation ||
+             utils::RadToDeg(error_r[1]) > params_->min_target_rotation ||
+             utils::RadToDeg(error_r[2]) > params_->min_target_rotation) {
     return true;
   } else {
     return false;
@@ -644,9 +644,7 @@ void ViconCalibrator::RunCalibration(const std::string& config_file,
   if (params_->optimizer_type == "GTSAM") {
     optimizer_ = std::make_shared<GtsamOptimizer>(optimizer_inputs);
   } else if (params_->optimizer_type == "CERES") {
-    // TODO: Implement Ceres Solver with autodiff
-    throw std::runtime_error{"Ceres solver not implemented yet"};
-    // optimizer_ = std::make_shared<CeresOptimizer>(optimizer_inputs);
+    optimizer_ = std::make_shared<CeresOptimizer>(optimizer_inputs);
   } else {
     optimizer_ = std::make_shared<GtsamOptimizer>(optimizer_inputs);
     LOG_WARN("Invalid optimizer_type parameter. Options: GTSAM, CERES. Using "

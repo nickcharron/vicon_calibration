@@ -22,7 +22,7 @@ find_package(beam REQUIRED utils calibration filtering)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(Catch2 REQUIRED)
 find_package(GTSAM REQUIRED)
-#find_package(Ceres REQUIRED)
+find_package(Ceres REQUIRED)
 
 ################## Add the core library ##################
 add_subdirectory(src/lib)
@@ -35,9 +35,6 @@ add_executable(${PROJECT_NAME}_main
 
 target_link_libraries(${PROJECT_NAME}_main
   ${PROJECT_NAME}
-	beam::utils
-	beam::calibration
-  beam::filtering
   gflags
 )
 
@@ -127,6 +124,37 @@ target_link_libraries(${PROJECT_NAME}_tests_diamond_lidar_extractor
   Catch2::Catch2
   beam::utils
   beam::filtering
+)
+
+### TEST6 ###
+add_executable(${PROJECT_NAME}_tests_ceres_camera_tests
+  tests/ceres_camera_tests.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_tests_ceres_camera_tests
+  PUBLIC
+    include
+)
+
+target_link_libraries(${PROJECT_NAME}_tests_ceres_camera_tests
+  ${PROJECT_NAME}
+  Catch2::Catch2
+  beam::calibration
+)
+
+### TEST6 ###
+add_executable(${PROJECT_NAME}_tests_ceres_lidar_tests
+  tests/ceres_lidar_tests.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_tests_ceres_lidar_tests
+  PUBLIC
+    include
+)
+
+target_link_libraries(${PROJECT_NAME}_tests_ceres_lidar_tests
+  ${PROJECT_NAME}
+  Catch2::Catch2
 )
 
 #############################

@@ -16,7 +16,7 @@
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/ProjectionFactor.h>
 
-typedef Eigen::aligned_allocator<Eigen::Vector2d> AlignVec2d;
+using AlignVec2d = Eigen::aligned_allocator<Eigen::Vector2d>;
 
 void OutputJacobians(const Eigen::MatrixXd& J_analytical,
                      const Eigen::MatrixXd& J_numerical,

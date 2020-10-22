@@ -12,7 +12,7 @@
   "max_point_cor_dist": 100,
   "match_centroids": true,
   "match_centroids_on_first_iter_only": false,
-  "print_results_to_terminal": false,
+  "print_results_to_terminal": true,
   "error_tol": [0.001, 0.001, 0.001, 0.0001, 0.0001, 0.0001],
   "image_noise": [20, 20],
   "lidar_noise": [0.02, 0.02, 0.02],
@@ -25,8 +25,14 @@
   },
   "ceres_options":
   {
-    "abs_error_tol": 1e-12,
-    "rel_error_tol": 1e-12,
-    "lambda_upper_bound": 1e9
+    "minimizer_progress_to_stdout": true,
+    "max_num_iterations": 50,
+    "max_solver_time_in_seconds": 1e6,
+    "function_tolerance": 1e-6,
+    "gradient_tolerance": 1e-10,
+    "parameter_tolerance": 1e-8,
+    "loss_function": "HUBER",
+    "linear_solver_type": "SPARSE_SCHUR",
+    "preconditioner_type": "SCHUR_JACOBI"
   }
 }

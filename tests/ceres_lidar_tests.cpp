@@ -13,7 +13,9 @@
 using AlignVec2d = Eigen::aligned_allocator<Eigen::Vector2d>;
 
 ceres::Solver::Options ceres_solver_options_;
-bool output_ceres_results_{false};
+std::unique_ptr<ceres::LossFunction> loss_function_;
+std::unique_ptr<ceres::LocalParameterization> se3_parameterization_;
+bool output_results_{true};
 
 std::string GetFileLocationData(const std::string& name) {
   std::string full_path = __FILE__;
@@ -24,31 +26,12 @@ std::string GetFileLocationData(const std::string& name) {
   return full_path;
 }
 
-std::unique_ptr<ceres::LossFunction>
-    GetLossFunction(const std::string& loss_function_type) {
-  // set loss function
-  std::unique_ptr<ceres::LossFunction> loss_function;
-  if (loss_function_type == "HUBER") {
-    loss_function =
-        std::unique_ptr<ceres::LossFunction>(new ceres::HuberLoss(1.0));
-  } else if (loss_function_type == "CAUCHY") {
-    loss_function =
-        std::unique_ptr<ceres::LossFunction>(new ceres::CauchyLoss(1.0));
-  } else if (loss_function_type == "NULL") {
-    loss_function = std::unique_ptr<ceres::LossFunction>(nullptr);
-  } else {
-    throw std::invalid_argument{
-        "Invalid loss function type. Options: HUBER, CAUCHY, NULL"};
-  }
-  std::move(loss_function);
-}
-
 std::shared_ptr<ceres::Problem> SetupCeresProblem() {
   // set ceres solver params
-  ceres_solver_options_.minimizer_progress_to_stdout = true;
-  ceres_solver_options_.max_num_iterations = 1;
+  ceres_solver_options_.minimizer_progress_to_stdout = false;
+  ceres_solver_options_.max_num_iterations = 50;
   ceres_solver_options_.max_solver_time_in_seconds = 1e6;
-  ceres_solver_options_.function_tolerance = 1e-6;
+  ceres_solver_options_.function_tolerance = 1e-8;
   ceres_solver_options_.gradient_tolerance = 1e-10;
   ceres_solver_options_.parameter_tolerance = 1e-8;
   ceres_solver_options_.linear_solver_type = ceres::SPARSE_SCHUR;
@@ -58,46 +41,36 @@ std::shared_ptr<ceres::Problem> SetupCeresProblem() {
   ceres::Problem::Options ceres_problem_options;
 
   // if we want to manage our own data for these, we can set these flags:
-  // ceres_problem_options.loss_function_ownership =
-  // ceres::DO_NOT_TAKE_OWNERSHIP; 
-  // ceres_problem_options.local_parameterization_ownership =
-  // ceres::DO_NOT_TAKE_OWNERSHIP;
+  ceres_problem_options.loss_function_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
+  ceres_problem_options.local_parameterization_ownership =
+      ceres::DO_NOT_TAKE_OWNERSHIP;
 
   std::shared_ptr<ceres::Problem> problem =
       std::make_shared<ceres::Problem>(ceres_problem_options);
 
-  return problem;
-}
+  loss_function_ =
+      std::unique_ptr<ceres::LossFunction>(new ceres::HuberLoss(1.0));
 
-std::unique_ptr<ceres::LocalParameterization> GetParameterization() {
-  std::unique_ptr<ceres::LocalParameterization> quat_parametization(
-      new ceres::QuaternionParameterization());
-
-  std::unique_ptr<ceres::LocalParameterization> identity_parametization(
+  std::unique_ptr<ceres::LocalParameterization> quat_parameterization(
+      new ceres::EigenQuaternionParameterization());
+  std::unique_ptr<ceres::LocalParameterization> identity_parameterization(
       new ceres::IdentityParameterization(3));
+  se3_parameterization_ = std::unique_ptr<ceres::LocalParameterization>(
+      new ceres::ProductParameterization(quat_parameterization.release(),
+                                         identity_parameterization.release()));
 
-  std::unique_ptr<ceres::LocalParameterization> se3_parametization(
-      new ceres::ProductParameterization(quat_parametization.release(),
-                                         identity_parametization.release()));
-
-  return se3_parametization;
+  return problem;
 }
 
 void SolveProblem(const std::shared_ptr<ceres::Problem>& problem,
                   bool output_results) {
-  if (output_results) {
-    LOG_INFO("No. of parameter blocks: %d", problem->NumParameterBlocks());
-    LOG_INFO("No. of parameters: %d", problem->NumParameters());
-    LOG_INFO("No. of residual blocks: %d", problem->NumResidualBlocks());
-    LOG_INFO("No. of residuals: %d", problem->NumResiduals());
-    LOG_INFO("Optimizing Ceres Problem");
-  }
   ceres::Solver::Summary ceres_summary;
   ceres::Solve(ceres_solver_options_, problem.get(), &ceres_summary);
   if (output_results) {
     LOG_INFO("Done.");
     LOG_INFO("Outputting ceres summary:");
-    ceres_summary.BriefReport();
+    std::string report = ceres_summary.FullReport();
+    std::cout << report << "\n";
   }
 }
 
@@ -163,14 +136,10 @@ TEST_CASE("Test lidar optimization") {
   std::shared_ptr<ceres::Problem> problem1 = SetupCeresProblem();
   std::shared_ptr<ceres::Problem> problem2 = SetupCeresProblem();
 
-  std::unique_ptr<ceres::LocalParameterization> se3_parameterization1 =
-      GetParameterization();
-  std::unique_ptr<ceres::LocalParameterization> se3_parameterization2 =
-      GetParameterization();
   problem1->AddParameterBlock(&(results_perfect_init[0]), 7,
-                              se3_parameterization1.release());
+                              se3_parameterization_.get());
   problem2->AddParameterBlock(&(results_perturbed_init[0]), 7,
-                              se3_parameterization2.release());
+                              se3_parameterization_.get());
 
   for (int i = 0; i < points.size(); i++) {
     Eigen::Vector3d P_VICONBASE = (T_VT * points[i]).hnormalized();
@@ -179,19 +148,14 @@ TEST_CASE("Test lidar optimization") {
     // add residuals for perfect init
     std::unique_ptr<ceres::CostFunction> cost_function1(
         CeresLidarCostFunction::Create(point_measured, P_VICONBASE));
-    std::unique_ptr<ceres::LossFunction> loss_function1 =
-        GetLossFunction("HUBER");
-    problem1->AddResidualBlock(cost_function1.release(),
-                               loss_function1.release(),
+    problem1->AddResidualBlock(cost_function1.release(), loss_function_.get(),
                                &(results_perfect_init[0]));
 
     // add residuals for perturbed init
     std::unique_ptr<ceres::CostFunction> cost_function2(
         CeresLidarCostFunction::Create(point_measured, P_VICONBASE));
-    std::unique_ptr<ceres::LossFunction> loss_function2 =
-        GetLossFunction("HUBER");
-    problem2->AddResidualBlock(cost_function2.release(),
-                               loss_function2.release(),
+
+    problem2->AddResidualBlock(cost_function2.release(), loss_function_.get(),
                                &results_perturbed_init[0]);
 
     // Check that the inputs are correct:
@@ -201,23 +165,47 @@ TEST_CASE("Test lidar optimization") {
     Eigen::Vector3d point_transformed(P_L[0] + results_perfect_init[4],
                                       P_L[1] + results_perfect_init[5],
                                       P_L[2] + results_perfect_init[6]);
-    REQUIRE(point_measured.isApprox(point_transformed, 5));
+    REQUIRE(point_measured.isApprox(point_transformed, 1e-5));
   }
 
   LOG_INFO("TESTING WITH PERFECT INITIALIZATION");
-  SolveProblem(problem1, output_ceres_results_);
+  if (output_results_) {
+    std::cout
+        << "PERFECT Init before opt: \n"
+        << vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
+               results_perfect_init)
+        << "\n";
+  }
+  SolveProblem(problem1, output_results_);
   Eigen::Matrix4d T_LV_opt1 =
       vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
           results_perfect_init);
+  if (output_results_) {
+    std::cout << "PERFECT Init after opt: \n" << T_LV_opt1 << "\n";
+  }
 
   LOG_INFO("TESTING WITH PERTURBED INITIALIZATION");
-  SolveProblem(problem2, output_ceres_results_);
+  if (output_results_) {
+    std::cout
+        << "PERTURBED Init before opt: \n"
+        << vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
+               results_perturbed_init)
+        << "\n";
+  }
+  SolveProblem(problem2, output_results_);
   Eigen::Matrix4d T_LV_opt2 =
       vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
           results_perturbed_init);
+  if (output_results_) {
+    std::cout << "PERTURBED Init after opt: \n" << T_LV_opt2 << "\n";
+  }
 
-  REQUIRE(T_LV.isApprox(T_LV_opt1, 5));
-  REQUIRE(T_LV.isApprox(T_LV_opt2, 5));
+  // REQUIRE(T_LV.isApprox(T_LV_opt1, 1e-5));
+  // REQUIRE(T_LV.isApprox(T_LV_opt2, 1e-5));
+  REQUIRE(vicon_calibration::utils::RoundMatrix(T_LV, 5) ==
+          vicon_calibration::utils::RoundMatrix(T_LV_opt1, 5));
+  REQUIRE(vicon_calibration::utils::RoundMatrix(T_LV, 5) ==
+          vicon_calibration::utils::RoundMatrix(T_LV_opt2, 5));
 }
 
 /*

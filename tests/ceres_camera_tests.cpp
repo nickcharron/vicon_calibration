@@ -16,7 +16,7 @@ using AlignVec2d = Eigen::aligned_allocator<Eigen::Vector2d>;
 ceres::Solver::Options ceres_solver_options_;
 std::unique_ptr<ceres::LossFunction> loss_function_;
 std::unique_ptr<ceres::LocalParameterization> se3_parameterization_;
-bool output_ceres_results_{false};
+bool output_results_{true};
 
 std::string GetFileLocationData(const std::string& name) {
   std::string full_path = __FILE__;
@@ -29,10 +29,10 @@ std::string GetFileLocationData(const std::string& name) {
 
 std::shared_ptr<ceres::Problem> SetupCeresProblem() {
   // set ceres solver params
-  ceres_solver_options_.minimizer_progress_to_stdout = true;
-  ceres_solver_options_.max_num_iterations = 1;
+  ceres_solver_options_.minimizer_progress_to_stdout = false;
+  ceres_solver_options_.max_num_iterations = 50;
   ceres_solver_options_.max_solver_time_in_seconds = 1e6;
-  ceres_solver_options_.function_tolerance = 1e-6;
+  ceres_solver_options_.function_tolerance = 1e-8;
   ceres_solver_options_.gradient_tolerance = 1e-10;
   ceres_solver_options_.parameter_tolerance = 1e-8;
   ceres_solver_options_.linear_solver_type = ceres::SPARSE_SCHUR;
@@ -65,20 +65,13 @@ std::shared_ptr<ceres::Problem> SetupCeresProblem() {
 
 void SolveProblem(const std::shared_ptr<ceres::Problem>& problem,
                   bool output_results) {
-  if (output_results) {
-    LOG_INFO("No. of parameter blocks: %d", problem->NumParameterBlocks());
-    LOG_INFO("No. of parameters: %d", problem->NumParameters());
-    LOG_INFO("No. of residual blocks: %d", problem->NumResidualBlocks());
-    LOG_INFO("No. of residuals: %d", problem->NumResiduals());
-    LOG_INFO("Optimizing Ceres Problem");
-  }
   ceres::Solver::Summary ceres_summary;
   ceres::Solve(ceres_solver_options_, problem.get(), &ceres_summary);
   if (output_results) {
     LOG_INFO("Done.");
     LOG_INFO("Outputting ceres summary:");
-    // ceres_summary.BriefReport();
-    ceres_summary.FullReport();
+    std::string report = ceres_summary.FullReport();
+    std::cout << report << "\n";
   }
 }
 
@@ -168,16 +161,14 @@ TEST_CASE("Test camera optimization") {
           CeresCameraCostFunction::Create(pixels[i], P_VICONBASE,
                                           camera_model));
 
-      problem1->AddResidualBlock(cost_function1.release(),
-                                 loss_function_.get(),
+      problem1->AddResidualBlock(cost_function1.release(), loss_function_.get(),
                                  &(results_perfect_init[0]));
 
       // add residuals for perturbed init
       std::unique_ptr<ceres::CostFunction> cost_function2(
           CeresCameraCostFunction::Create(pixels[i], P_VICONBASE,
                                           camera_model));
-      problem1->AddResidualBlock(cost_function2.release(),
-                                 loss_function_.get(),
+      problem1->AddResidualBlock(cost_function2.release(), loss_function_.get(),
                                  &(results_perturbed_init[0]));
 
       // Check that the inputs are correct:
@@ -189,22 +180,48 @@ TEST_CASE("Test camera optimization") {
                                         P_C[2] + results_perfect_init[6]);
       opt<Eigen::Vector2d> pixels_projected =
           camera_model->ProjectPointPrecise(point_transformed);
-      REQUIRE(pixels_projected.value().isApprox(pixels[i], 5));
+      REQUIRE(pixels_projected.value().isApprox(pixels[i], 1e-5));
     }
   }
 
   LOG_INFO("TESTING WITH PERFECT INITIALIZATION");
-  SolveProblem(problem1, output_ceres_results_);
+  if (output_results_) {
+    std::cout
+        << "PERFECT Init before opt: \n"
+        << vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
+               results_perturbed_init)
+        << "\n";
+  }
+
+  SolveProblem(problem1, output_results_);
   Eigen::Matrix4d T_CV_opt1 =
       vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
           results_perfect_init);
+  if (output_results_) {
+    std::cout << "PERFECT Init after opt: \n" << T_CV_opt1 << "\n";
+  }
 
   LOG_INFO("TESTING WITH PERTURBED INITIALIZATION");
-  SolveProblem(problem2, output_ceres_results_);
+  if (output_results_) {
+    std::cout
+        << "PERTURBED Init before opt: \n"
+        << vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
+               results_perturbed_init)
+        << "\n";
+  }
+
+  SolveProblem(problem2, output_results_);
   Eigen::Matrix4d T_CV_opt2 =
       vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
           results_perturbed_init);
+  if (output_results_) {
+    std::cout << "PERTURBED Init after opt: \n" << T_CV_opt2 << "\n";
+  }
 
-  REQUIRE(T_CV.isApprox(T_CV_opt1, 5));
-  REQUIRE(T_CV.isApprox(T_CV_opt2, 5));
+  // REQUIRE(T_CV.isApprox(T_CV_opt1, 1e-5));
+  // REQUIRE(T_CV.isApprox(T_CV_opt2, 1e-5));
+  REQUIRE(vicon_calibration::utils::RoundMatrix(T_CV, 5) ==
+          vicon_calibration::utils::RoundMatrix(T_CV_opt1, 5));
+  REQUIRE(vicon_calibration::utils::RoundMatrix(T_CV, 5) ==
+          vicon_calibration::utils::RoundMatrix(T_CV_opt2, 5));
 }

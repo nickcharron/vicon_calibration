@@ -14,6 +14,8 @@
 using AlignVec2d = Eigen::aligned_allocator<Eigen::Vector2d>;
 
 ceres::Solver::Options ceres_solver_options_;
+std::unique_ptr<ceres::LossFunction> loss_function_;
+std::unique_ptr<ceres::LocalParameterization> se3_parameterization_;
 bool output_ceres_results_{false};
 
 std::string GetFileLocationData(const std::string& name) {
@@ -23,25 +25,6 @@ std::string GetFileLocationData(const std::string& name) {
   full_path += "data/";
   full_path += name;
   return full_path;
-}
-
-std::unique_ptr<ceres::LossFunction>
-    GetLossFunction(const std::string& loss_function_type) {
-  // set loss function
-  std::unique_ptr<ceres::LossFunction> loss_function;
-  if (loss_function_type == "HUBER") {
-    loss_function =
-        std::unique_ptr<ceres::LossFunction>(new ceres::HuberLoss(1.0));
-  } else if (loss_function_type == "CAUCHY") {
-    loss_function =
-        std::unique_ptr<ceres::LossFunction>(new ceres::CauchyLoss(1.0));
-  } else if (loss_function_type == "NULL") {
-    loss_function = std::unique_ptr<ceres::LossFunction>(nullptr);
-  } else {
-    throw std::invalid_argument{
-        "Invalid loss function type. Options: HUBER, CAUCHY, NULL"};
-  }
-  std::move(loss_function);
 }
 
 std::shared_ptr<ceres::Problem> SetupCeresProblem() {
@@ -59,29 +42,25 @@ std::shared_ptr<ceres::Problem> SetupCeresProblem() {
   ceres::Problem::Options ceres_problem_options;
 
   // if we want to manage our own data for these, we can set these flags:
-  // ceres_problem_options.loss_function_ownership =
-  // ceres::DO_NOT_TAKE_OWNERSHIP;
-  // ceres_problem_options.local_parameterization_ownership =
-  // ceres::DO_NOT_TAKE_OWNERSHIP;
+  ceres_problem_options.loss_function_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
+  ceres_problem_options.local_parameterization_ownership =
+      ceres::DO_NOT_TAKE_OWNERSHIP;
 
   std::shared_ptr<ceres::Problem> problem =
       std::make_shared<ceres::Problem>(ceres_problem_options);
 
-  return problem;
-}
+  loss_function_ =
+      std::unique_ptr<ceres::LossFunction>(new ceres::HuberLoss(1.0));
 
-std::unique_ptr<ceres::LocalParameterization> GetParameterization() {
-  std::unique_ptr<ceres::LocalParameterization> quat_parametization(
+  std::unique_ptr<ceres::LocalParameterization> quat_parameterization(
       new ceres::QuaternionParameterization());
-
-  std::unique_ptr<ceres::LocalParameterization> identity_parametization(
+  std::unique_ptr<ceres::LocalParameterization> identity_parameterization(
       new ceres::IdentityParameterization(3));
+  se3_parameterization_ = std::unique_ptr<ceres::LocalParameterization>(
+      new ceres::ProductParameterization(quat_parameterization.release(),
+                                         identity_parameterization.release()));
 
-  std::unique_ptr<ceres::LocalParameterization> se3_parametization(
-      new ceres::ProductParameterization(quat_parametization.release(),
-                                         identity_parametization.release()));
-
-  return se3_parametization;
+  return problem;
 }
 
 void SolveProblem(const std::shared_ptr<ceres::Problem>& problem,
@@ -98,7 +77,8 @@ void SolveProblem(const std::shared_ptr<ceres::Problem>& problem,
   if (output_results) {
     LOG_INFO("Done.");
     LOG_INFO("Outputting ceres summary:");
-    ceres_summary.BriefReport();
+    // ceres_summary.BriefReport();
+    ceres_summary.FullReport();
   }
 }
 
@@ -174,14 +154,10 @@ TEST_CASE("Test camera optimization") {
   std::shared_ptr<ceres::Problem> problem1 = SetupCeresProblem();
   std::shared_ptr<ceres::Problem> problem2 = SetupCeresProblem();
 
-  std::unique_ptr<ceres::LocalParameterization> se3_parameterization1 =
-      GetParameterization();
-  std::unique_ptr<ceres::LocalParameterization> se3_parameterization2 =
-      GetParameterization();
   problem1->AddParameterBlock(&(results_perfect_init[0]), 7,
-                              se3_parameterization1.release());
+                              se3_parameterization_.get());
   problem2->AddParameterBlock(&(results_perturbed_init[0]), 7,
-                              se3_parameterization2.release());
+                              se3_parameterization_.get());
 
   for (int i = 0; i < points.size(); i++) {
     if (pixels_valid[i]) {
@@ -191,20 +167,17 @@ TEST_CASE("Test camera optimization") {
       std::unique_ptr<ceres::CostFunction> cost_function1(
           CeresCameraCostFunction::Create(pixels[i], P_VICONBASE,
                                           camera_model));
-      std::unique_ptr<ceres::LossFunction> loss_function1 =
-          GetLossFunction("HUBER");
+
       problem1->AddResidualBlock(cost_function1.release(),
-                                 loss_function1.release(),
+                                 loss_function_.get(),
                                  &(results_perfect_init[0]));
 
       // add residuals for perturbed init
       std::unique_ptr<ceres::CostFunction> cost_function2(
           CeresCameraCostFunction::Create(pixels[i], P_VICONBASE,
                                           camera_model));
-      std::unique_ptr<ceres::LossFunction> loss_function2 =
-          GetLossFunction("HUBER");
       problem1->AddResidualBlock(cost_function2.release(),
-                                 loss_function2.release(),
+                                 loss_function_.get(),
                                  &(results_perturbed_init[0]));
 
       // Check that the inputs are correct:

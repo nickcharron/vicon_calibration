@@ -48,10 +48,10 @@ struct CeresCameraCostFunction {
     P_CAMERA[1] += T_CR[5];
     P_CAMERA[2] += T_CR[6];
 
-    const T P_CAMERA_const = *P_CAMERA;
+    const T* P_CAMERA_const = &(P_CAMERA[0]);
 
     T pixel_projected[2];
-    (*compute_projection)(&P_CAMERA_const, &pixel_projected[0]);
+    (*compute_projection)(P_CAMERA_const, &(pixel_projected[0]));
 
     residuals[0] = pixel_detected_.cast<T>()[0] - pixel_projected[0];
     residuals[1] = pixel_detected_.cast<T>()[1] - pixel_projected[1];

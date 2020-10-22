@@ -118,8 +118,6 @@ void CeresOptimizer::AddInitials() {
   previous_iteration_results_ = initials_;
 
   for (int i = 0; i < results_.size(); i++) {
-    // std::unique_ptr<ceres::LocalParameterization> se3_parameterization =
-    //     GetParameterization();
     problem_->AddParameterBlock(&(results_[i][0]), 7,
                                 se3_parameterization_.get());
   }
@@ -194,8 +192,6 @@ void CeresOptimizer::AddImageMeasurements() {
         CeresCameraCostFunction::Create(
             pixel, P_VICONBASE,
             inputs_.camera_params[camera_index]->camera_model));
-
-    // std::unique_ptr<ceres::LossFunction> loss_function = GetLossFunction();
 
     problem_->AddResidualBlock(cost_function.release(), loss_function_.get(),
                                &(results_[sensor_index][0]));
@@ -281,18 +277,11 @@ void CeresOptimizer::AddLidarCameraMeasurements() {
 }
 
 void CeresOptimizer::Optimize() {
-  if (optimizer_params_.print_results_to_terminal) {
-    LOG_INFO("No. of parameter blocks: %d", problem_->NumParameterBlocks());
-    LOG_INFO("No. of parameters: %d", problem_->NumParameters());
-    LOG_INFO("No. of residual blocks: %d", problem_->NumResidualBlocks());
-    LOG_INFO("No. of residuals: %d", problem_->NumResiduals());
-  }
-
   LOG_INFO("Optimizing Ceres Problem");
   ceres::Solve(ceres_solver_options_, problem_.get(), &ceres_summary_);
   if (optimizer_params_.print_results_to_terminal) {
-    ceres_summary_.FullReport();
-    LOG_ERROR("TEST");
+    std::string report = ceres_summary_.FullReport();
+    std::cout << report << "\n";
   }
   LOG_INFO("Done.");
 }
@@ -301,41 +290,6 @@ void CeresOptimizer::UpdateInitials() {
   // no need to update initials because ceres has already updated them, but we
   // will need the previous iteration array to be updated
   previous_iteration_results_ = results_;
-}
-
-std::unique_ptr<ceres::LocalParameterization>
-    CeresOptimizer::GetParameterization() {
-  std::unique_ptr<ceres::LocalParameterization> quat_parametization(
-      new ceres::QuaternionParameterization());
-
-  std::unique_ptr<ceres::LocalParameterization> identity_parametization(
-      new ceres::IdentityParameterization(3));
-
-  std::unique_ptr<ceres::LocalParameterization> se3_parametization(
-      new ceres::ProductParameterization(quat_parametization.release(),
-                                         identity_parametization.release()));
-
-  return se3_parametization;
-}
-
-std::unique_ptr<ceres::LossFunction> CeresOptimizer::GetLossFunction() {
-  // set loss function
-  std::unique_ptr<ceres::LossFunction> loss_function;
-  if (ceres_params_.loss_function == "HUBER") {
-    loss_function_ =
-        std::unique_ptr<ceres::LossFunction>(new ceres::HuberLoss(1.0));
-  } else if (ceres_params_.loss_function == "CAUCHY") {
-    loss_function_ =
-        std::unique_ptr<ceres::LossFunction>(new ceres::CauchyLoss(1.0));
-  } else if (ceres_params_.loss_function == "NULL") {
-    loss_function_ = std::unique_ptr<ceres::LossFunction>(nullptr);
-  } else {
-    LOG_ERROR("Invalid preconditioner_type, Options: HUBER, CAUCHY, NULL. "
-              "Using default: HUBER");
-    loss_function_ =
-        std::unique_ptr<ceres::LossFunction>(new ceres::HuberLoss(1.0));
-  }
-  std::move(loss_function);
 }
 
 } // end namespace vicon_calibration

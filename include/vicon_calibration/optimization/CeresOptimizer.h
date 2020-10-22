@@ -63,10 +63,6 @@ private:
 
   void UpdateInitials() override;
 
-  std::unique_ptr<ceres::LocalParameterization> GetParameterization();
-
-  std::unique_ptr<ceres::LossFunction> GetLossFunction();
-
   CeresParams ceres_params_;
   std::vector<std::vector<double>> results_;
   std::vector<std::vector<double>> previous_iteration_results_;

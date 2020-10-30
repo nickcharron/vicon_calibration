@@ -24,11 +24,13 @@ Optimizer::Optimizer(const OptimizerInputs& inputs) {
                   optimizer_params_.template_downsample_size[1],
                   optimizer_params_.template_downsample_size[2]);
   for (int i = 0; i < inputs_.target_params.size(); i++) {
-    boost::shared_ptr<PointCloud> downsampled_cloud =
-        boost::make_shared<PointCloud>();
-    vox.setInputCloud(inputs_.target_params[i]->template_cloud);
-    vox.filter(*downsampled_cloud);
-    inputs_.target_params[i]->template_cloud = downsampled_cloud;
+    if (inputs_.target_params[i]->template_cloud->size() > 0) {
+      boost::shared_ptr<PointCloud> downsampled_cloud =
+          boost::make_shared<PointCloud>();
+      vox.setInputCloud(inputs_.target_params[i]->template_cloud);
+      vox.filter(*downsampled_cloud);
+      inputs_.target_params[i]->template_cloud = downsampled_cloud;
+    } 
   }
 }
 
@@ -43,7 +45,7 @@ void Optimizer::Solve() {
   while (!converged) {
     iteration++;
     LOG_INFO("Iteration: %d", iteration);
-    Clear();
+    Reset();
     GetImageCorrespondences();
     GetLidarCorrespondences();
     GetLoopClosureCorrespondences();
@@ -152,9 +154,9 @@ void Optimizer::CheckInputs() {
   for (uint8_t i = 0; i < inputs_.target_params.size(); i++) {
     if (inputs_.target_params[i]->template_cloud->size() == 0 ||
         inputs_.target_params[i]->template_cloud == nullptr) {
-      LOG_ERROR("Target No. %d contains an empty template cloud.", i);
-      throw std::runtime_error{
-          "Missing target required to solve problem, or target is empty."};
+      LOG_WARN("Target No. %d contains an empty template cloud.", i);
+      // throw std::runtime_error{
+      //     "Missing target required to solve problem, or target is empty."};
     }
   }
 
@@ -178,6 +180,9 @@ void Optimizer::GetImageCorrespondences() {
         continue;
       }
       measurement = inputs_.camera_measurements[cam_iter][meas_iter];
+      ///////////////////
+      measurement->Print();
+      //////////////////
       T_VICONBASE_CAM =
           GetUpdatedInitialPose(SensorType::CAMERA, measurement->camera_id);
       T_CAM_TARGET = utils::InvertTransform(T_VICONBASE_CAM) *
@@ -729,7 +734,7 @@ bool Optimizer::HasConverged(uint16_t iteration) {
       // Output transforms:
       std::string transform_name =
           "T_" + inputs_.calibration_initials[i].to_frame + "_" +
-          inputs_.calibration_initials[i].from_frame + "_prev";
+          inputs_.calibration_initials[i].from_frame;
       utils::OutputTransformInformation(T_last, transform_name + "_prev");
       utils::OutputTransformInformation(T_last, transform_name + "_current");
 

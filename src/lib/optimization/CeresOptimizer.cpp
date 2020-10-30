@@ -1,13 +1,33 @@
 #include "vicon_calibration/optimization/CeresOptimizer.h"
+
+#include <boost/filesystem.hpp>
+
 #include "vicon_calibration/optimization/CeresCameraCostFunction.h"
 #include "vicon_calibration/optimization/CeresLidarCostFunction.h"
-
-#include <Eigen/Geometry>
 
 namespace vicon_calibration {
 
 void CeresOptimizer::LoadConfig() {
-  std::string config_path = utils::GetFilePathConfig("OptimizerConfig.json");
+  // get file path
+  std::string config_path;
+  if (inputs_.optimizer_config_path.empty()) {
+    config_path = utils::GetFilePathConfig("OptimizerConfig.json");
+    if (!boost::filesystem::exists(config_path)) {
+      LOG_ERROR("Cannot locate optimizer config file. No path given and "
+                "default path does not exist: %s",
+                config_path.c_str());
+      throw std::invalid_argument{"Cannot locate optimizer config file."};
+    }
+  } else {
+    config_path = inputs_.optimizer_config_path;
+    if (!boost::filesystem::exists(config_path)) {
+      LOG_ERROR(
+          "Cannot locate optimizer config file. Input path does not exist: %s",
+          config_path.c_str());
+      throw std::invalid_argument{"Invalid optimizer config file path."};
+    }
+  }
+
   LOG_INFO("Loading Ceres Optimizer Config file: %s", config_path.c_str());
   nlohmann::json J;
   std::ifstream file(config_path);
@@ -36,7 +56,7 @@ void CeresOptimizer::SetupProblem() {
   ceres_problem_options_.local_parameterization_ownership =
       ceres::DO_NOT_TAKE_OWNERSHIP;
 
-  problem_ = std::make_unique<ceres::Problem>(ceres_problem_options_);
+  problem_ = std::make_shared<ceres::Problem>(ceres_problem_options_);
 
   // set ceres solver params
   ceres_solver_options_.minimizer_progress_to_stdout =
@@ -95,11 +115,14 @@ void CeresOptimizer::SetupProblem() {
   se3_parameterization_ = std::unique_ptr<ceres::LocalParameterization>(
       new ceres::ProductParameterization(quat_parameterization.release(),
                                          identity_parameterization.release()));
+
+  for (int i = 0; i < results_.size(); i++) {
+    problem_->AddParameterBlock(&(results_[i][0]), 7,
+                                se3_parameterization_.get());
+  }                                         
 }
 
 void CeresOptimizer::AddInitials() {
-  SetupProblem();
-
   // add all sensors as the next poses
   for (uint32_t i = 0; i < inputs_.calibration_initials.size(); i++) {
     vicon_calibration::CalibrationResult calib =
@@ -116,22 +139,17 @@ void CeresOptimizer::AddInitials() {
   // copy arrays:
   results_ = initials_;
   previous_iteration_results_ = initials_;
-
-  for (int i = 0; i < results_.size(); i++) {
-    problem_->AddParameterBlock(&(results_[i][0]), 7,
-                                se3_parameterization_.get());
-  }
 }
 
-void CeresOptimizer::Clear() {
+void CeresOptimizer::Reset() {
   if (skip_to_next_iteration_) {
     stop_all_vis_ = false;
     skip_to_next_iteration_ = false;
   }
-  SetupProblem();
   camera_correspondences_.clear();
   lidar_correspondences_.clear();
   lidar_camera_correspondences_.clear();
+  SetupProblem();
 }
 
 int CeresOptimizer::GetSensorIndex(SensorType type, int id) {

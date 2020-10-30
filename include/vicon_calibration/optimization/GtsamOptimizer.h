@@ -33,7 +33,7 @@ private:
 
   void AddInitials() override;
 
-  void Clear() override;
+  void Reset() override;
 
   Eigen::Matrix4d GetUpdatedInitialPose(SensorType type, int id) override;
 

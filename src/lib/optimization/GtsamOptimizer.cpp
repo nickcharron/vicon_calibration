@@ -1,18 +1,39 @@
 #include "vicon_calibration/optimization/GtsamOptimizer.h"
-#include "vicon_calibration/optimization/GtsamCameraFactor.h"
-#include "vicon_calibration/optimization/GtsamCameraFactorInv.h"
-#include "vicon_calibration/optimization/GtsamCameraLidarFactor.h"
-#include "vicon_calibration/optimization/GtsamLidarFactor.h"
+
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/inference/Key.h>
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
+#include <boost/filesystem.hpp>
+
+#include "vicon_calibration/optimization/GtsamCameraFactor.h"
+#include "vicon_calibration/optimization/GtsamCameraFactorInv.h"
+#include "vicon_calibration/optimization/GtsamCameraLidarFactor.h"
+#include "vicon_calibration/optimization/GtsamLidarFactor.h"
 
 namespace vicon_calibration {
 
 void GtsamOptimizer::LoadConfig() {
-  std::string config_path = utils::GetFilePathConfig("OptimizerConfig.json");
+  // get file path
+  std::string config_path;
+  if (inputs_.optimizer_config_path.empty()) {
+    config_path = utils::GetFilePathConfig("OptimizerConfig.json");
+    if (!boost::filesystem::exists(config_path)) {
+      LOG_ERROR("Cannot locate optimizer config file. No path given and "
+                "default path does not exist: %s",
+                config_path.c_str());
+      throw std::invalid_argument{"Cannot locate optimizer config file."};
+    }
+  } else {
+    config_path = inputs_.optimizer_config_path;
+    if (!boost::filesystem::exists(config_path)) {
+      LOG_ERROR("Cannot locate optimizer config file. Input path does not exist: %s",
+                config_path.c_str());
+      throw std::invalid_argument{"Invalid optimizer config file path."};
+    }
+  }
+
   LOG_INFO("Loading GTSAM Optimizer Config file: %s", config_path.c_str());
   nlohmann::json J;
   std::ifstream file(config_path);
@@ -47,7 +68,7 @@ void GtsamOptimizer::AddInitials() {
   initials_updated_ = initials_;
 }
 
-void GtsamOptimizer::Clear() {
+void GtsamOptimizer::Reset() {
   if (skip_to_next_iteration_) {
     stop_all_vis_ = false;
     skip_to_next_iteration_ = false;

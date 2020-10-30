@@ -45,7 +45,7 @@ private:
 
   void AddInitials() override;
 
-  void Clear() override;
+  void Reset() override;
 
   int GetSensorIndex(SensorType type, int id);
 
@@ -69,7 +69,7 @@ private:
   std::vector<std::vector<double>> initials_;
   std::unique_ptr<ceres::LossFunction> loss_function_;
   std::unique_ptr<ceres::LocalParameterization> se3_parameterization_;
-  std::unique_ptr<ceres::Problem> problem_;
+  std::shared_ptr<ceres::Problem> problem_;
   ceres::Solver::Options ceres_solver_options_;
   ceres::Problem::Options ceres_problem_options_;
   ceres::Solver::Summary ceres_summary_;

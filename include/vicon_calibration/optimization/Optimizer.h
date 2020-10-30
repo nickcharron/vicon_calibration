@@ -18,6 +18,7 @@ struct OptimizerInputs {
   CameraMeasurements camera_measurements;
   LoopClosureMeasurements loop_closure_measurements;
   CalibrationResults calibration_initials;
+  std::string optimizer_config_path{""};
 };
 
 /**
@@ -94,7 +95,7 @@ protected:
 
   virtual void AddInitials() = 0;
 
-  virtual void Clear() = 0;
+  virtual void Reset() = 0;
 
   virtual Eigen::Matrix4d GetUpdatedInitialPose(SensorType type, int id) = 0;
 

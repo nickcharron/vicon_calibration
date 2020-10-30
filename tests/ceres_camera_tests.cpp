@@ -11,7 +11,7 @@
 #include "vicon_calibration/utils.h"
 #include <beam_calibration/CameraModel.h>
 
-using AlignVec2d = Eigen::aligned_allocator<Eigen::Vector2d>;
+using namespace vicon_calibration;
 
 ceres::Solver::Options ceres_solver_options_;
 std::unique_ptr<ceres::LossFunction> loss_function_;
@@ -95,18 +95,16 @@ TEST_CASE("Test camera optimization") {
       beam_calibration::CameraModel::Create(camera_model_location);
 
   // Create Transforms
-  Eigen::Matrix4d T_VC = vicon_calibration::utils::BuildTransformEulerDegM(
-      90, 10, -5, 0.1, -0.4, 0.2);
-  Eigen::Matrix4d T_CT =
-      vicon_calibration::utils::BuildTransformEulerDegM(10, -20, 5, 1, 1.5, 0);
-  Eigen::Matrix4d T_CV = T_VC.inverse();
+  Eigen::Matrix4d T_VC =
+      utils::BuildTransformEulerDegM(90, 10, -5, 0.1, -0.4, 0.2);
+  Eigen::Matrix4d T_CT = utils::BuildTransformEulerDegM(10, -20, 5, 1, 1.5, 0);
+  Eigen::Matrix4d T_CV = utils::InvertTransform(T_VC);
   Eigen::Matrix4d T_VT = T_VC * T_CT;
 
   // create perturbed initial
   Eigen::VectorXd perturbation(6, 1);
   perturbation << 0.3, -0.3, 0.3, 0.5, -0.5, 0.3;
-  Eigen::Matrix4d T_CV_pert =
-      vicon_calibration::utils::PerturbTransformDegM(T_CV, perturbation);
+  Eigen::Matrix4d T_CV_pert = utils::PerturbTransformDegM(T_CV, perturbation);
 
   // create projected (detected) points - no noise
   std::vector<Eigen::Vector2d, AlignVec2d> pixels(points.size());
@@ -127,9 +125,9 @@ TEST_CASE("Test camera optimization") {
   // ----------------------------------------------
   // THIS OPTION CAUSES A SEG FAULT FOR SOME REASON
   // std::vector<double> results_perfect_init =
-  //     vicon_calibration::utils::TransformMatrixToQuaternionAndTranslation(T_CV);
+  //     utils::TransformMatrixToQuaternionAndTranslation(T_CV);
   // std::vector<double> results_perturbed_init =
-  //     vicon_calibration::utils::TransformMatrixToQuaternionAndTranslation(
+  //     utils::TransformMatrixToQuaternionAndTranslation(
   //         T_CV_pert);
   // ----------------------------------------------
   Eigen::Matrix3d R1 = T_CV.block(0, 0, 3, 3);
@@ -187,17 +185,13 @@ TEST_CASE("Test camera optimization") {
   LOG_INFO("TESTING WITH PERFECT INITIALIZATION");
   SolveProblem(problem1, output_results_);
   Eigen::Matrix4d T_CV_opt1 =
-      vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
-          results_perfect_init);
-  
+      utils::QuaternionAndTranslationToTransformMatrix(results_perfect_init);
+
   LOG_INFO("TESTING WITH PERTURBED INITIALIZATION");
   SolveProblem(problem2, output_results_);
   Eigen::Matrix4d T_CV_opt2 =
-      vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
-          results_perturbed_init);
-  
-  REQUIRE(vicon_calibration::utils::RoundMatrix(T_CV, 5) ==
-          vicon_calibration::utils::RoundMatrix(T_CV_opt1, 5));
-  REQUIRE(vicon_calibration::utils::RoundMatrix(T_CV, 5) ==
-          vicon_calibration::utils::RoundMatrix(T_CV_opt2, 5));
+      utils::QuaternionAndTranslationToTransformMatrix(results_perturbed_init);
+
+  REQUIRE(utils::RoundMatrix(T_CV, 5) == utils::RoundMatrix(T_CV_opt1, 5));
+  REQUIRE(utils::RoundMatrix(T_CV, 5) == utils::RoundMatrix(T_CV_opt2, 5));
 }

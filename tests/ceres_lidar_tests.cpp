@@ -10,7 +10,7 @@
 #include "vicon_calibration/optimization/CeresLidarCostFunction.h"
 #include "vicon_calibration/utils.h"
 
-using AlignVec2d = Eigen::aligned_allocator<Eigen::Vector2d>;
+using namespace vicon_calibration;
 
 ceres::Solver::Options ceres_solver_options_;
 std::unique_ptr<ceres::LossFunction> loss_function_;
@@ -88,19 +88,17 @@ TEST_CASE("Test lidar optimization") {
   }
 
   // Create Transforms
-  Eigen::Matrix4d T_VL = vicon_calibration::utils::BuildTransformEulerDegM(
-      90, 10, -5, 0.1, -0.4, 0.2);
-  Eigen::Matrix4d T_LT =
-      vicon_calibration::utils::BuildTransformEulerDegM(10, -20, 5, 1, 1.5, 0);
-  Eigen::Matrix4d T_LV = T_VL.inverse();
+  Eigen::Matrix4d T_VL =
+      utils::BuildTransformEulerDegM(90, 10, -5, 0.1, -0.4, 0.2);
+  Eigen::Matrix4d T_LT = utils::BuildTransformEulerDegM(10, -20, 5, 1, 1.5, 0);
+  Eigen::Matrix4d T_LV = utils::InvertTransform(T_VL);
   Eigen::Matrix4d T_VT = T_VL * T_LT;
 
   // create perturbed initial
   Eigen::Matrix4d T_LV_pert;
   Eigen::VectorXd perturbation(6, 1);
   perturbation << 0.3, -0.3, 0.3, 0.5, -0.5, 0.3;
-  T_LV_pert =
-      vicon_calibration::utils::PerturbTransformRadM(T_LV, perturbation);
+  T_LV_pert = utils::PerturbTransformRadM(T_LV, perturbation);
 
   // create transformed (detected) points - no noise
   std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
@@ -115,9 +113,9 @@ TEST_CASE("Test lidar optimization") {
   // ------------------------------------
   // THIS METHOD CAUSES SEG FAULT AT LINE 163
   // std::vector<double> results_perfect_init =
-  //     vicon_calibration::utils::TransformMatrixToQuaternionAndTranslation(T_LV);
+  //     utils::TransformMatrixToQuaternionAndTranslation(T_LV);
   // std::vector<double> results_perturbed_init =
-  //     vicon_calibration::utils::TransformMatrixToQuaternionAndTranslation(
+  //     utils::TransformMatrixToQuaternionAndTranslation(
   //         T_LV_pert);
   // ------------------------------------
   // THIS METHOD DOES NOT
@@ -171,19 +169,15 @@ TEST_CASE("Test lidar optimization") {
   LOG_INFO("TESTING WITH PERFECT INITIALIZATION");
   SolveProblem(problem1, output_results_);
   Eigen::Matrix4d T_LV_opt1 =
-      vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
-          results_perfect_init);
+      utils::QuaternionAndTranslationToTransformMatrix(results_perfect_init);
 
   LOG_INFO("TESTING WITH PERTURBED INITIALIZATION");
   SolveProblem(problem2, output_results_);
   Eigen::Matrix4d T_LV_opt2 =
-      vicon_calibration::utils::QuaternionAndTranslationToTransformMatrix(
-          results_perturbed_init);
+      utils::QuaternionAndTranslationToTransformMatrix(results_perturbed_init);
 
-  REQUIRE(vicon_calibration::utils::RoundMatrix(T_LV, 5) ==
-          vicon_calibration::utils::RoundMatrix(T_LV_opt1, 5));
-  REQUIRE(vicon_calibration::utils::RoundMatrix(T_LV, 5) ==
-          vicon_calibration::utils::RoundMatrix(T_LV_opt2, 5));
+  REQUIRE(utils::RoundMatrix(T_LV, 5) == utils::RoundMatrix(T_LV_opt1, 5));
+  REQUIRE(utils::RoundMatrix(T_LV, 5) == utils::RoundMatrix(T_LV_opt2, 5));
 }
 
 /*
@@ -225,8 +219,8 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
   Eigen::VectorXd perturb_cam(6, 1), perturb_lid(6, 1);
   perturb_cam << 0.3, -0.3, 0.3, 0.5, -0.5, 0.3;
   perturb_lid << -0.3, 0.3, -0.3, -0.5, 0.5, -0.3;
-  T_VC_pert = vicon_calibration::utils::PerturbTransformRadM(T_VC, perturb_cam);
-  T_VL_pert = vicon_calibration::utils::PerturbTransformRadM(T_VL, perturb_lid);
+  T_VC_pert = utils::PerturbTransformRadM(T_VC, perturb_cam);
+  T_VL_pert = utils::PerturbTransformRadM(T_VL, perturb_lid);
 
   // create measured pixels and measured lidar points - no noise
   std::vector<Eigen::Vector2d, AlignVec2d> pixels_measured(points.size());
@@ -263,7 +257,7 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
     if (pixels_valid[i]) {
       pti = points[i].hnormalized();
       ptmi = points_measured[i].hnormalized();
-      graph.emplace_shared<vicon_calibration::CameraLidarFactor>(
+      graph.emplace_shared<CameraLidarFactor>(
           lidar_key, camera_key, pixels_measured[i], ptmi, pti, pti,
           camera_model, ImageNoise);
     }
@@ -279,7 +273,7 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
     if (!pixels_valid[i]) {
       pti = points[i].hnormalized();
       ptmi = points_measured[i].hnormalized();
-      graph.emplace_shared<vicon_calibration::LidarFactor>(lidar_key, ptmi, pti,
+      graph.emplace_shared<LidarFactor>(lidar_key, ptmi, pti,
                                                            T_VT, ScanNoise);
     }
   }
@@ -311,9 +305,9 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
   Eigen::Matrix4d T_VC_opt2 = results1.at<gtsam::Pose3>(camera_key).matrix();
   Eigen::Matrix4d T_VL_opt2 = results1.at<gtsam::Pose3>(lidar_key).matrix();
 
-  REQUIRE(T_VC == vicon_calibration::utils::RoundMatrix(T_VC_opt1, 5));
-  REQUIRE(T_VC == vicon_calibration::utils::RoundMatrix(T_VC_opt2, 5));
-  REQUIRE(T_VL == vicon_calibration::utils::RoundMatrix(T_VL_opt1, 5));
-  REQUIRE(T_VL == vicon_calibration::utils::RoundMatrix(T_VL_opt2, 5));
+  REQUIRE(T_VC == utils::RoundMatrix(T_VC_opt1, 5));
+  REQUIRE(T_VC == utils::RoundMatrix(T_VC_opt2, 5));
+  REQUIRE(T_VL == utils::RoundMatrix(T_VL_opt1, 5));
+  REQUIRE(T_VL == utils::RoundMatrix(T_VL_opt2, 5));
 }
 */

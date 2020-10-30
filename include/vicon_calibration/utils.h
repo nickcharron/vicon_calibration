@@ -1,14 +1,15 @@
 #pragma once
 
-#include "vicon_calibration/TfTree.h"
-#include "vicon_calibration/params.h"
 #include <Eigen/Geometry>
-#include <beam_calibration/CameraModel.h>
 #include <gtsam/geometry/Point2.h>
 #include <gtsam/geometry/Point3.h>
 #include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+
+#include <beam_calibration/CameraModel.h>
+#include "vicon_calibration/TfTree.h"
+#include "vicon_calibration/params.h"
 
 namespace vicon_calibration {
 
@@ -17,6 +18,7 @@ typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudColor;
 typedef Eigen::aligned_allocator<Eigen::Vector3d> AlignVec3d;
 typedef Eigen::aligned_allocator<Eigen::Vector2d> AlignVec2d;
 typedef Eigen::aligned_allocator<Eigen::Affine3d> AlignAff3d;
+typedef Eigen::aligned_allocator<Eigen::Matrix4d> AlignMat4d;
 
 #ifndef FILENAME
 #  define FILENAME                                                             \
@@ -36,6 +38,12 @@ typedef Eigen::aligned_allocator<Eigen::Affine3d> AlignAff3d;
 #ifndef LOG_WARN
 #  define LOG_WARN(M, ...) fprintf(stdout, "[WARNING] " M "\n", ##__VA_ARGS__)
 #endif
+
+// Forward declarations
+struct CalibrationResult;
+struct TargetParams;
+struct CameraParams;
+struct LidarParams;
 
 namespace utils {
 
@@ -129,6 +137,7 @@ Eigen::Matrix4d InvertTransform(const Eigen::MatrixXd& T);
 Eigen::Matrix4d
     QuaternionAndTranslationToTransformMatrix(const std::vector<double>& pose);
 
+// [qw qx qy qz tx ty tx]
 std::vector<double>
     TransformMatrixToQuaternionAndTranslation(const Eigen::Matrix4d& T);
 

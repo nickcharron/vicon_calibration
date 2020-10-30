@@ -16,7 +16,7 @@
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/ProjectionFactor.h>
 
-using AlignVec2d = Eigen::aligned_allocator<Eigen::Vector2d>;
+using namespace vicon_calibration;
 
 void OutputJacobians(const Eigen::MatrixXd& J_analytical,
                      const Eigen::MatrixXd& J_numerical,
@@ -44,7 +44,7 @@ TEST_CASE("Test Camera Factor Error and Jacobian") {
   Eigen::Matrix4d T_CT = Eigen::Matrix4d::Identity();
   T_VC.block(0, 3, 3, 1) = Eigen::Vector3d(1, 1, 0);
   T_CT.block(0, 3, 3, 1) = Eigen::Vector3d(0.2, 0.2, 3);
-  Eigen::Matrix4d T_CV = T_VC.inverse();
+  Eigen::Matrix4d T_CV = utils::InvertTransform(T_VC);
   Eigen::Matrix4d T_VT = T_VC * T_CT;
 
   // Create Points
@@ -59,8 +59,8 @@ TEST_CASE("Test Camera Factor Error and Jacobian") {
   gtsam::noiseModel::Diagonal::shared_ptr ImageNoise =
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   gtsam::Pose3 pose(T_CV);
-  vicon_calibration::CameraFactor factor(dummy_key, pixel_measured.value(),
-                                         point, camera_model, T_VT, ImageNoise);
+  CameraFactor factor(dummy_key, pixel_measured.value(), point, camera_model,
+                      T_VT, ImageNoise);
 
   // calculate numerical Jacobian
   double eps = std::sqrt(1e-8);
@@ -69,8 +69,8 @@ TEST_CASE("Test Camera Factor Error and Jacobian") {
   p = p * eps;
   Eigen::MatrixXd J_numerical(2, 6);
   for (int i = 0; i < 6; i++) {
-    Eigen::Matrix4d T_perturb = vicon_calibration::utils::PerturbTransformRadM(
-        T_CV, p.block(0, i, 6, 1));
+    Eigen::Matrix4d T_perturb =
+        utils::PerturbTransformRadM(T_CV, p.block(0, i, 6, 1));
     gtsam::Pose3 pose_perturbed(T_perturb);
     J_numerical.block(0, i, 2, 1) =
         (factor.evaluateError(pose_perturbed) - factor.evaluateError(pose)) /
@@ -98,7 +98,7 @@ TEST_CASE("Test Camera Factor Inv Error and Jacobian") {
   Eigen::Matrix4d T_CT = Eigen::Matrix4d::Identity();
   T_VC.block(0, 3, 3, 1) = Eigen::Vector3d(1, 1, 0);
   T_CT.block(0, 3, 3, 1) = Eigen::Vector3d(0.2, 0.2, 3);
-  Eigen::Matrix4d T_CV = T_VC.inverse();
+  Eigen::Matrix4d T_CV = utils::InvertTransform(T_VC);
   Eigen::Matrix4d T_VT = T_VC * T_CT;
 
   // Create Points
@@ -113,8 +113,8 @@ TEST_CASE("Test Camera Factor Inv Error and Jacobian") {
   gtsam::noiseModel::Diagonal::shared_ptr ImageNoise =
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   gtsam::Pose3 pose(T_VC);
-  vicon_calibration::CameraFactorInv factor(
-      dummy_key, pixel_measured.value(), point, camera_model, T_VT, ImageNoise);
+  CameraFactorInv factor(dummy_key, pixel_measured.value(), point, camera_model,
+                         T_VT, ImageNoise);
 
   // calculate numerical Jacobian
   double eps = std::sqrt(1e-8);
@@ -123,8 +123,8 @@ TEST_CASE("Test Camera Factor Inv Error and Jacobian") {
   p = p * eps;
   Eigen::MatrixXd J_numerical(2, 6);
   for (int i = 0; i < 6; i++) {
-    Eigen::Matrix4d T_perturb = vicon_calibration::utils::PerturbTransformRadM(
-        T_VC, p.block(0, i, 6, 1));
+    Eigen::Matrix4d T_perturb =
+        utils::PerturbTransformRadM(T_VC, p.block(0, i, 6, 1));
     gtsam::Pose3 pose_perturbed(T_perturb);
     J_numerical.block(0, i, 2, 1) =
         (factor.evaluateError(pose_perturbed) - factor.evaluateError(pose)) /
@@ -144,7 +144,7 @@ TEST_CASE("Test Lidar Factor Error and Jacobian") {
   Eigen::Matrix4d T_LT = Eigen::Matrix4d::Identity();
   T_VL.block(0, 3, 3, 1) = Eigen::Vector3d(1.1, 1.2, 1.3);
   T_LT.block(0, 3, 3, 1) = Eigen::Vector3d(2, 3, 4);
-  Eigen::Matrix4d T_LV = T_VL.inverse();
+  Eigen::Matrix4d T_LV = utils::InvertTransform(T_VL);
   Eigen::Matrix4d T_VT = T_VL * T_LT;
 
   // Create Points
@@ -157,8 +157,8 @@ TEST_CASE("Test Lidar Factor Error and Jacobian") {
   gtsam::noiseModel::Diagonal::shared_ptr LidarNoise =
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   gtsam::Pose3 pose(T_VL);
-  vicon_calibration::LidarFactor factor(dummy_key, point_measured.hnormalized(),
-                                        point, T_VT, LidarNoise);
+  LidarFactor factor(dummy_key, point_measured.hnormalized(), point, T_VT,
+                     LidarNoise);
 
   // calculate numerical Jacobian
   double eps = std::sqrt(1e-8);
@@ -168,8 +168,8 @@ TEST_CASE("Test Lidar Factor Error and Jacobian") {
   Eigen::MatrixXd J_numerical(3, 6);
 
   for (int i = 0; i < 6; i++) {
-    Eigen::Matrix4d T_perturb = vicon_calibration::utils::PerturbTransformRadM(
-        T_VL, p.block(0, i, 6, 1));
+    Eigen::Matrix4d T_perturb =
+        utils::PerturbTransformRadM(T_VL, p.block(0, i, 6, 1));
     gtsam::Pose3 pose_perturbed(T_perturb);
     J_numerical.block(0, i, 3, 1) =
         (factor.evaluateError(pose_perturbed) - factor.evaluateError(pose)) /
@@ -200,8 +200,8 @@ TEST_CASE("Test Camera-Lidar Factor Error and Jacobian") {
   T_CT.block(0, 3, 3, 1) = Eigen::Vector3d(0.2, 0.2, 3);
   T_VL.block(0, 3, 3, 1) =
       T_VC.block(0, 3, 3, 1) + Eigen::Vector3d(0.2, 0.2, 0);
-  Eigen::Matrix4d T_CV = T_VC.inverse();
-  Eigen::Matrix4d T_LV = T_VL.inverse();
+  Eigen::Matrix4d T_CV = utils::InvertTransform(T_VC);
+  Eigen::Matrix4d T_LV = utils::InvertTransform(T_VL);
   Eigen::Matrix4d T_VT = T_VC * T_CT;
 
   // Create Points
@@ -220,9 +220,9 @@ TEST_CASE("Test Camera-Lidar Factor Error and Jacobian") {
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   gtsam::Pose3 camera_pose(T_VC);
   gtsam::Pose3 lidar_pose(T_VL);
-  vicon_calibration::CameraLidarFactor factor(
-      dummy_keyL, dummy_keyC, pixel_measured.value(), point_measured,
-      P_T.hnormalized(), P_T.hnormalized(), camera_model, noise);
+  CameraLidarFactor factor(dummy_keyL, dummy_keyC, pixel_measured.value(),
+                           point_measured, P_T.hnormalized(), P_T.hnormalized(),
+                           camera_model, noise);
 
   // calculate numerical Jacobian
   double eps = std::sqrt(1e-12);
@@ -234,11 +234,9 @@ TEST_CASE("Test Camera-Lidar Factor Error and Jacobian") {
 
   for (int i = 0; i < 6; i++) {
     Eigen::Matrix4d T_VC_perturb =
-        vicon_calibration::utils::PerturbTransformRadM(T_VC,
-                                                       p.block(0, i, 6, 1));
+        utils::PerturbTransformRadM(T_VC, p.block(0, i, 6, 1));
     Eigen::Matrix4d T_VL_perturb =
-        vicon_calibration::utils::PerturbTransformRadM(T_VL,
-                                                       p.block(0, i, 6, 1));
+        utils::PerturbTransformRadM(T_VL, p.block(0, i, 6, 1));
     gtsam::Pose3 camera_pose_perturbed(T_VC_perturb);
     gtsam::Pose3 lidar_pose_perturbed(T_VL_perturb);
     JC_numerical.block(0, i, 2, 1) =
@@ -278,15 +276,14 @@ TEST_CASE("Test lidar factor in Optimization") {
   Eigen::Matrix4d T_LT = Eigen::Matrix4d::Identity();
   T_VL.block(0, 3, 3, 1) = Eigen::Vector3d(1.1, 1.2, 1.3);
   T_LT.block(0, 3, 3, 1) = Eigen::Vector3d(2, 3, 4);
-  Eigen::Matrix4d T_LV = T_VL.inverse();
+  Eigen::Matrix4d T_LV = utils::InvertTransform(T_VL);
   Eigen::Matrix4d T_VT = T_VL * T_LT;
 
   // create perturbed initial
   Eigen::Matrix4d T_VL_pert;
   Eigen::VectorXd perturbation(6, 1);
   perturbation << 0.3, -0.3, 0.3, 0.5, -0.5, 0.3;
-  T_VL_pert =
-      vicon_calibration::utils::PerturbTransformRadM(T_VL, perturbation);
+  T_VL_pert = utils::PerturbTransformRadM(T_VL, perturbation);
 
   // create transformed (detected) points - no noise
   std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
@@ -309,8 +306,7 @@ TEST_CASE("Test lidar factor in Optimization") {
   for (int i = 0; i < points.size(); i++) {
     pti = points[i].hnormalized();
     ptmi = points_measured[i].hnormalized();
-    graph.emplace_shared<vicon_calibration::LidarFactor>(key, ptmi, pti, T_VT,
-                                                         ScanNoise);
+    graph.emplace_shared<LidarFactor>(key, ptmi, pti, T_VT, ScanNoise);
   }
   gtsam::LevenbergMarquardtParams params;
   params.setVerbosity("SILENT");
@@ -337,8 +333,8 @@ TEST_CASE("Test lidar factor in Optimization") {
   Eigen::Matrix4d T_VL_opt2 =
       results2.at<gtsam::Pose3>(gtsam::Symbol('L', 1)).matrix();
 
-  REQUIRE(T_VL == vicon_calibration::utils::RoundMatrix(T_VL_opt1, 5));
-  REQUIRE(T_VL == vicon_calibration::utils::RoundMatrix(T_VL_opt2, 5));
+  REQUIRE(T_VL == utils::RoundMatrix(T_VL_opt1, 5));
+  REQUIRE(T_VL == utils::RoundMatrix(T_VL_opt2, 5));
 }
 
 TEST_CASE("Test camera factor in Optimization") {
@@ -367,15 +363,14 @@ TEST_CASE("Test camera factor in Optimization") {
   Eigen::Matrix4d T_CT = Eigen::Matrix4d::Identity();
   T_VC.block(0, 3, 3, 1) = Eigen::Vector3d(1, 1, 0);
   T_CT.block(0, 3, 3, 1) = Eigen::Vector3d(0.2, 0.2, 3);
-  Eigen::Matrix4d T_CV = T_VC.inverse();
+  Eigen::Matrix4d T_CV = utils::InvertTransform(T_VC);
   Eigen::Matrix4d T_VT = T_VC * T_CT;
 
   // create perturbed initial
   Eigen::Matrix4d T_CV_pert;
   Eigen::VectorXd perturbation(6, 1);
   perturbation << 0.3, -0.3, 0.3, 0.5, -0.5, 0.3;
-  T_CV_pert =
-      vicon_calibration::utils::PerturbTransformDegM(T_CV, perturbation);
+  T_CV_pert = utils::PerturbTransformDegM(T_CV, perturbation);
 
   // create projected (detected) points - no noise
   std::vector<Eigen::Vector2d, AlignVec2d> pixels(points.size());
@@ -402,9 +397,9 @@ TEST_CASE("Test camera factor in Optimization") {
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   for (int i = 0; i < points.size(); i++) {
     if (pixels_valid[i]) {
-      graph.emplace_shared<vicon_calibration::CameraFactor>(
-          key, pixels[i], points[i].hnormalized(), camera_model, T_VT,
-          ImageNoise);
+      graph.emplace_shared<CameraFactor>(key, pixels[i],
+                                         points[i].hnormalized(), camera_model,
+                                         T_VT, ImageNoise);
     }
   }
 
@@ -433,8 +428,8 @@ TEST_CASE("Test camera factor in Optimization") {
   Eigen::Matrix4d T_CV_opt2 =
       results2.at<gtsam::Pose3>(gtsam::Symbol('C', 1)).matrix();
 
-  REQUIRE(T_CV == vicon_calibration::utils::RoundMatrix(T_CV_opt1, 5));
-  REQUIRE(T_CV == vicon_calibration::utils::RoundMatrix(T_CV_opt2, 5));
+  REQUIRE(T_CV == utils::RoundMatrix(T_CV_opt1, 5));
+  REQUIRE(T_CV == utils::RoundMatrix(T_CV_opt2, 5));
 }
 
 TEST_CASE("Test camera factor inv in Optimization") {
@@ -463,15 +458,14 @@ TEST_CASE("Test camera factor inv in Optimization") {
   Eigen::Matrix4d T_CT = Eigen::Matrix4d::Identity();
   T_VC.block(0, 3, 3, 1) = Eigen::Vector3d(1, 1, 0);
   T_CT.block(0, 3, 3, 1) = Eigen::Vector3d(0.2, 0.2, 3);
-  Eigen::Matrix4d T_CV = T_VC.inverse();
+  Eigen::Matrix4d T_CV = utils::InvertTransform(T_VC);
   Eigen::Matrix4d T_VT = T_VC * T_CT;
 
   // create perturbed initial
   Eigen::Matrix4d T_VC_pert;
   Eigen::VectorXd perturbation(6, 1);
   perturbation << 0.3, -0.3, 0.3, 0.5, -0.5, 0.3;
-  T_VC_pert =
-      vicon_calibration::utils::PerturbTransformDegM(T_VC, perturbation);
+  T_VC_pert = utils::PerturbTransformDegM(T_VC, perturbation);
 
   // create projected (detected) points - no noise
   std::vector<Eigen::Vector2d, AlignVec2d> pixels(points.size());
@@ -498,9 +492,9 @@ TEST_CASE("Test camera factor inv in Optimization") {
       gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
   for (int i = 0; i < points.size(); i++) {
     if (pixels_valid[i]) {
-      graph.emplace_shared<vicon_calibration::CameraFactorInv>(
-          key, pixels[i], points[i].hnormalized(), camera_model, T_VT,
-          ImageNoise);
+      graph.emplace_shared<CameraFactorInv>(key, pixels[i],
+                                            points[i].hnormalized(),
+                                            camera_model, T_VT, ImageNoise);
     }
   }
 
@@ -529,8 +523,8 @@ TEST_CASE("Test camera factor inv in Optimization") {
   Eigen::Matrix4d T_VC_opt2 =
       results2.at<gtsam::Pose3>(gtsam::Symbol('C', 1)).matrix();
 
-  REQUIRE(T_VC == vicon_calibration::utils::RoundMatrix(T_VC_opt1, 5));
-  REQUIRE(T_VC == vicon_calibration::utils::RoundMatrix(T_VC_opt2, 5));
+  REQUIRE(T_VC == utils::RoundMatrix(T_VC_opt1, 5));
+  REQUIRE(T_VC == utils::RoundMatrix(T_VC_opt2, 5));
 }
 
 /*
@@ -563,8 +557,8 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
   T_CT.block(0, 3, 3, 1) = Eigen::Vector3d(0.2, 0.2, 3);
   T_VL.block(0, 3, 3, 1) =
       T_VC.block(0, 3, 3, 1) + Eigen::Vector3d(0.2, 0.2, 0);
-  Eigen::Matrix4d T_CV = T_VC.inverse();
-  Eigen::Matrix4d T_LV = T_VL.inverse();
+  Eigen::Matrix4d T_CV = utils::InvertTransform(T_VC);
+  Eigen::Matrix4d T_LV = utils::InvertTransform(T_VL);
   Eigen::Matrix4d T_VT = T_VC * T_CT;
 
   // create perturbed initial
@@ -572,8 +566,8 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
   Eigen::VectorXd perturb_cam(6, 1), perturb_lid(6, 1);
   perturb_cam << 0.3, -0.3, 0.3, 0.5, -0.5, 0.3;
   perturb_lid << -0.3, 0.3, -0.3, -0.5, 0.5, -0.3;
-  T_VC_pert = vicon_calibration::utils::PerturbTransformRadM(T_VC, perturb_cam);
-  T_VL_pert = vicon_calibration::utils::PerturbTransformRadM(T_VL, perturb_lid);
+  T_VC_pert = utils::PerturbTransformRadM(T_VC, perturb_cam);
+  T_VL_pert = utils::PerturbTransformRadM(T_VL, perturb_lid);
 
   // create measured pixels and measured lidar points - no noise
   std::vector<Eigen::Vector2d, AlignVec2d> pixels_measured(points.size());
@@ -610,7 +604,7 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
     if (pixels_valid[i]) {
       pti = points[i].hnormalized();
       ptmi = points_measured[i].hnormalized();
-      graph.emplace_shared<vicon_calibration::CameraLidarFactor>(
+      graph.emplace_shared<CameraLidarFactor>(
           lidar_key, camera_key, pixels_measured[i], ptmi, pti, pti,
           camera_model, ImageNoise);
     }
@@ -626,7 +620,7 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
     if (!pixels_valid[i]) {
       pti = points[i].hnormalized();
       ptmi = points_measured[i].hnormalized();
-      graph.emplace_shared<vicon_calibration::LidarFactor>(lidar_key, ptmi, pti,
+      graph.emplace_shared<LidarFactor>(lidar_key, ptmi, pti,
                                                            T_VT, ScanNoise);
     }
   }
@@ -658,9 +652,9 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
   Eigen::Matrix4d T_VC_opt2 = results1.at<gtsam::Pose3>(camera_key).matrix();
   Eigen::Matrix4d T_VL_opt2 = results1.at<gtsam::Pose3>(lidar_key).matrix();
 
-  REQUIRE(T_VC == vicon_calibration::utils::RoundMatrix(T_VC_opt1, 5));
-  REQUIRE(T_VC == vicon_calibration::utils::RoundMatrix(T_VC_opt2, 5));
-  REQUIRE(T_VL == vicon_calibration::utils::RoundMatrix(T_VL_opt1, 5));
-  REQUIRE(T_VL == vicon_calibration::utils::RoundMatrix(T_VL_opt2, 5));
+  REQUIRE(T_VC == utils::RoundMatrix(T_VC_opt1, 5));
+  REQUIRE(T_VC == utils::RoundMatrix(T_VC_opt2, 5));
+  REQUIRE(T_VL == utils::RoundMatrix(T_VL_opt1, 5));
+  REQUIRE(T_VL == utils::RoundMatrix(T_VL_opt2, 5));
 }
 */

@@ -142,7 +142,7 @@ target_link_libraries(${PROJECT_NAME}_tests_ceres_camera_tests
   beam::calibration
 )
 
-### TEST6 ###
+### TEST7 ###
 add_executable(${PROJECT_NAME}_tests_ceres_lidar_tests
   tests/ceres_lidar_tests.cpp
 )
@@ -157,4 +157,19 @@ target_link_libraries(${PROJECT_NAME}_tests_ceres_lidar_tests
   Catch2::Catch2
 )
 
+### TEST8 ###
+add_executable(${PROJECT_NAME}_tests_optimizer_tests
+  tests/optimizer_tests.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_tests_optimizer_tests
+  PUBLIC
+    include
+)
+
+target_link_libraries(${PROJECT_NAME}_tests_optimizer_tests
+  ${PROJECT_NAME}
+  Catch2::Catch2
+  beam::calibration
+)
 #############################

@@ -11,7 +11,6 @@ add_library(${PROJECT_NAME}
   measurement_extractors/DiamondLidarExtractor.cpp
   measurement_extractors/IsolateTargetPoints.cpp
   optimization/Optimizer.cpp
-  optimization/GtsamOptimizer.cpp
   optimization/CeresOptimizer.cpp
   TfTree.cpp
   utils.cpp

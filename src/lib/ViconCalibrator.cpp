@@ -2,7 +2,6 @@
 #include "vicon_calibration/CalibrationVerification.h"
 #include "vicon_calibration/JsonTools.h"
 #include "vicon_calibration/optimization/CeresOptimizer.h"
-#include "vicon_calibration/optimization/GtsamOptimizer.h"
 #include "vicon_calibration/params.h"
 #include "vicon_calibration/utils.h"
 
@@ -642,13 +641,15 @@ void ViconCalibrator::RunCalibration(const std::string& config_file,
     optimizer_inputs.calibration_initials = calibrations_initial_;
   }
   if (params_->optimizer_type == "GTSAM") {
-    optimizer_ = std::make_shared<GtsamOptimizer>(optimizer_inputs);
+    LOG_ERROR("GTSAM Optimizer not yet implemented. For untested "
+              "implementation, see add_gtsam_optimizer branch on github.");
+    throw std::invalid_argument{"Invalid optimizer type."};
   } else if (params_->optimizer_type == "CERES") {
     optimizer_ = std::make_shared<CeresOptimizer>(optimizer_inputs);
   } else {
-    optimizer_ = std::make_shared<GtsamOptimizer>(optimizer_inputs);
+    optimizer_ = std::make_shared<CeresOptimizer>(optimizer_inputs);
     LOG_WARN("Invalid optimizer_type parameter. Options: GTSAM, CERES. Using "
-             "default: GTSAM");
+             "default: CERES");
   }
   optimizer_->Solve();
   calibrations_result_ = optimizer_->GetResults();

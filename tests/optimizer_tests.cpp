@@ -7,20 +7,10 @@
 #include <ceres/loss_function.h>
 #include <ceres/solver.h>
 #include <ceres/types.h>
-#include <gtsam/geometry/Pose3.h>
-#include <gtsam/inference/Key.h>
-#include <gtsam/inference/Symbol.h>
-#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
-#include <gtsam/slam/PriorFactor.h>
-#include <gtsam/slam/ProjectionFactor.h>
 
 #include "vicon_calibration/JsonTools.h"
 #include "vicon_calibration/optimization/CeresCameraCostFunction.h"
 #include "vicon_calibration/optimization/CeresOptimizer.h"
-#include "vicon_calibration/optimization/GtsamCameraFactor.h"
-#include "vicon_calibration/optimization/GtsamCameraLidarFactor.h"
-#include "vicon_calibration/optimization/GtsamLidarFactor.h"
-#include "vicon_calibration/optimization/GtsamOptimizer.h"
 #include "vicon_calibration/utils.h"
 #include <beam_calibration/CameraModel.h>
 
@@ -318,51 +308,4 @@ TEST_CASE("Test with same data and not using Ceres Optimizer Class") {
   REQUIRE(utils::RoundMatrix(T_ceres, 4) == utils::RoundMatrix(T_CV, 4));
   REQUIRE(utils::RoundMatrix(T_ceres_initial, 4) ==
           utils::RoundMatrix(T_CV_pert, 4));
-}
-
-TEST_CASE("Test GTSAM Optimizer With Perturbed Initials") {
-  CreateTransforms();
-
-  // create measurements
-  TargetParamsVector target_params = GetTargetParams("DiamondTargetSim.json");
-  CameraParamsVector camera_params =
-      GetCameraParams("CamFactorIntrinsics.json");
-  LidarMeasurements lidar_measurements;
-  CameraMeasurements camera_measurements = CreateCameraMeasurements(
-      T_VC, T_VTs, *(target_params[0]), *(camera_params[0]));
-  LoopClosureMeasurements loop_closure_measurements;
-
-  CalibrationResults calibrations_initial = CreateInitialCalibrations(T_VC);
-  CalibrationResults calibrations_perturbed =
-      CreateInitialCalibrations(T_VC_pert);
-
-  // Build and solve problem
-  OptimizerInputs optimizer_inputs{
-      .target_params = target_params,
-      .camera_params = camera_params,
-      .lidar_measurements = lidar_measurements,
-      .camera_measurements = camera_measurements,
-      .loop_closure_measurements = loop_closure_measurements,
-      .calibration_initials = calibrations_perturbed,
-      .optimizer_config_path = GetFileLocationData("OptimizerConfig.json")};
-
-  std::shared_ptr<GtsamOptimizer> optimizer =
-      std::make_shared<GtsamOptimizer>(optimizer_inputs);
-  optimizer->Solve();
-  CalibrationResults calibrations_result = optimizer->GetResults();
-
-  // validate
-  // utils::OutputCalibrations(calibrations_initial,
-  //                           "Initial Calibration Estimates:");
-  // utils::OutputCalibrations(calibrations_perturbed, "Pertubed Calibrations:");
-  // utils::OutputCalibrations(calibrations_result, "Optimized Calibrations:");
-
-  for (int i = 0; i < calibrations_result.size(); i++) {
-    REQUIRE(calibrations_result[i].to_frame ==
-            calibrations_initial[i].to_frame);
-    REQUIRE(calibrations_result[i].from_frame ==
-            calibrations_initial[i].from_frame);
-    REQUIRE(utils::RoundMatrix(calibrations_result[i].transform, 4) ==
-            utils::RoundMatrix(calibrations_initial[i].transform, 4));
-  }
 }

@@ -21,6 +21,7 @@ find_package(PCL 1.8 REQUIRED)
 find_package(beam REQUIRED utils calibration filtering)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(Catch2 REQUIRED)
+find_package(GTSAM REQUIRED)
 find_package(Ceres REQUIRED)
 
 ################## Add the core library ##################
@@ -77,6 +78,22 @@ target_link_libraries(${PROJECT_NAME}_tests_cylinder_camera_extractor
 )
 
 ### TEST3 ###
+add_executable(${PROJECT_NAME}_tests_gtsam_factors
+  tests/gtsam_factors_test.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_tests_gtsam_factors
+  PUBLIC
+    include
+)
+
+target_link_libraries(${PROJECT_NAME}_tests_gtsam_factors
+  ${PROJECT_NAME}
+  Catch2::Catch2
+  beam::calibration
+)
+
+### TEST4 ###
 add_executable(${PROJECT_NAME}_tests_diamond_camera_extractor
   tests/diamond_camera_extractor_test.cpp
 )
@@ -92,7 +109,7 @@ target_link_libraries(${PROJECT_NAME}_tests_diamond_camera_extractor
   beam::calibration
 )
 
-### TEST4 ###
+### TEST5 ###
 add_executable(${PROJECT_NAME}_tests_diamond_lidar_extractor
   tests/diamond_lidar_extractor_test.cpp
 )
@@ -109,7 +126,7 @@ target_link_libraries(${PROJECT_NAME}_tests_diamond_lidar_extractor
   beam::filtering
 )
 
-### TEST5 ###
+### TEST6 ###
 add_executable(${PROJECT_NAME}_tests_ceres_camera_tests
   tests/ceres_camera_tests.cpp
 )
@@ -125,7 +142,7 @@ target_link_libraries(${PROJECT_NAME}_tests_ceres_camera_tests
   beam::calibration
 )
 
-### TEST6 ###
+### TEST7 ###
 add_executable(${PROJECT_NAME}_tests_ceres_lidar_tests
   tests/ceres_lidar_tests.cpp
 )

@@ -17,6 +17,12 @@
   "image_noise": [20, 20],
   "lidar_noise": [0.02, 0.02, 0.02],
   "template_downsample_size": [0.003, 0.003, 0.003],
+  "gtsam_options":
+  {
+    "abs_error_tol": 1e-12,
+    "rel_error_tol": 1e-12,
+    "lambda_upper_bound": 1e9
+  },
   "ceres_options":
   {
     "minimizer_progress_to_stdout": false,

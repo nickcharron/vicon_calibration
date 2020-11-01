@@ -57,13 +57,11 @@ public:
     // image
 
     if (H) {
-      // Assume e(R,t) = measured_pixel - f(g(R,t))
-      // -> de/d(R,t) = - [df/dg * dg/dR , df/dg * dg/dt]
-      // where f is the projection function and g transforms the point to the
-      // camera frame
       Eigen::MatrixXd H_(2, 6), dgdR(3, 3), dgdt(3, 3);
-      dgdR = T_CAM_VICONBASE.block(0,0,3,3) * utils::SkewTransform(-P_VICONBASE);
-      dgdt = Eigen::Matrix3d::Identity();
+      Eigen::Matrix3d R_CV = T_CAM_VICONBASE.block(0, 0, 3, 3);
+      Eigen::Vector3d t_CV = T_CAM_VICONBASE.block(0, 3, 3, 1);
+      dgdR = R_CV * (utils::SkewTransform(-P_VICONBASE));
+      dgdt = Eigen::Matrix3d::Identity();;
       H_.block(0, 0, 2, 3) = -dfdg * dgdR;
       H_.block(0, 3, 2, 3) = -dfdg * dgdt;
       (*H) = H_;

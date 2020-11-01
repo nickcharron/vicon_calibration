@@ -1,14 +1,13 @@
 #include "vicon_calibration/optimization/GtsamOptimizer.h"
 
+#include <boost/filesystem.hpp>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/inference/Key.h>
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
-#include <boost/filesystem.hpp>
 
 #include "vicon_calibration/optimization/GtsamCameraFactor.h"
-#include "vicon_calibration/optimization/GtsamCameraFactorInv.h"
 #include "vicon_calibration/optimization/GtsamCameraLidarFactor.h"
 #include "vicon_calibration/optimization/GtsamLidarFactor.h"
 
@@ -28,8 +27,9 @@ void GtsamOptimizer::LoadConfig() {
   } else {
     config_path = inputs_.optimizer_config_path;
     if (!boost::filesystem::exists(config_path)) {
-      LOG_ERROR("Cannot locate optimizer config file. Input path does not exist: %s",
-                config_path.c_str());
+      LOG_ERROR(
+          "Cannot locate optimizer config file. Input path does not exist: %s",
+          config_path.c_str());
       throw std::invalid_argument{"Invalid optimizer config file path."};
     }
   }
@@ -52,10 +52,9 @@ void GtsamOptimizer::AddInitials() {
   for (uint32_t i = 0; i < inputs_.calibration_initials.size(); i++) {
     vicon_calibration::CalibrationResult calib =
         inputs_.calibration_initials[i];
-    // Eigen::Matrix4d T_SENSOR_VICONBASE =
-    //     utils::InvertTransform(calib.transform);
-    Eigen::Matrix4d T_VICONBASE_SENSOR = calib.transform;
-    gtsam::Pose3 initial_pose(T_VICONBASE_SENSOR);
+    Eigen::Matrix4d T_SENSOR_VICONBASE =
+        utils::InvertTransform(calib.transform);
+    gtsam::Pose3 initial_pose(T_SENSOR_VICONBASE);
     if (calib.type == SensorType::LIDAR) {
       initials_.insert(gtsam::Symbol('L', calib.sensor_id), initial_pose);
     } else if (calib.type == SensorType::CAMERA) {
@@ -81,33 +80,29 @@ void GtsamOptimizer::Reset() {
 }
 
 Eigen::Matrix4d GtsamOptimizer::GetUpdatedInitialPose(SensorType type, int id) {
-  gtsam::Pose3 T_VICONBASE_SENSOR;
-  // gtsam::Pose3 T_SENSOR_VICONBASE;
+  gtsam::Pose3 T_SENSOR_VICONBASE;
   if (type == SensorType::LIDAR) {
-    T_VICONBASE_SENSOR =
+    T_SENSOR_VICONBASE =
         initials_updated_.at<gtsam::Pose3>(gtsam::Symbol('L', id));
   } else if (type == SensorType::CAMERA) {
-    T_VICONBASE_SENSOR =
+    T_SENSOR_VICONBASE =
         initials_updated_.at<gtsam::Pose3>(gtsam::Symbol('C', id));
   } else {
     throw std::runtime_error{"Invalid sensor type."};
   }
-  // return utils::InvertTransform(T_SENSOR_VICONBASE.matrix());
-  return T_VICONBASE_SENSOR.matrix();
+  return utils::InvertTransform(T_SENSOR_VICONBASE.matrix());
 }
 
 Eigen::Matrix4d GtsamOptimizer::GetFinalPose(SensorType type, int id) {
-  // gtsam::Pose3 T_SENSOR_VICONBASE;
-  gtsam::Pose3 T_VICONBASE_SENSOR;
+  gtsam::Pose3 T_SENSOR_VICONBASE;
   if (type == SensorType::LIDAR) {
-    T_VICONBASE_SENSOR = results_.at<gtsam::Pose3>(gtsam::Symbol('L', id));
+    T_SENSOR_VICONBASE = results_.at<gtsam::Pose3>(gtsam::Symbol('L', id));
   } else if (type == SensorType::CAMERA) {
-    T_VICONBASE_SENSOR = results_.at<gtsam::Pose3>(gtsam::Symbol('C', id));
+    T_SENSOR_VICONBASE = results_.at<gtsam::Pose3>(gtsam::Symbol('C', id));
   } else {
     throw std::runtime_error{"Invalid sensor type."};
   }
-  // return utils::InvertTransform(T_SENSOR_VICONBASE.matrix());
-  return T_VICONBASE_SENSOR.matrix();
+  return utils::InvertTransform(T_SENSOR_VICONBASE.matrix());
 }
 
 void GtsamOptimizer::AddImageMeasurements() {
@@ -141,7 +136,7 @@ void GtsamOptimizer::AddImageMeasurements() {
     Eigen::Vector2d pixel = utils::PCLPixelToEigen(
         measurement->keypoints->at(corr.measured_point_index));
     gtsam::Key key = gtsam::Symbol('C', camera_index);
-    graph_.emplace_shared<CameraFactorInv>(
+    graph_.emplace_shared<CameraFactor>(
         key, pixel, point, inputs_.camera_params[camera_index]->camera_model,
         measurement->T_VICONBASE_TARGET, ImageNoise);
   }

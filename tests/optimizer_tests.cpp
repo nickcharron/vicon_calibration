@@ -18,7 +18,6 @@
 #include "vicon_calibration/optimization/CeresCameraCostFunction.h"
 #include "vicon_calibration/optimization/CeresOptimizer.h"
 #include "vicon_calibration/optimization/GtsamCameraFactor.h"
-#include "vicon_calibration/optimization/GtsamCameraFactorInv.h"
 #include "vicon_calibration/optimization/GtsamCameraLidarFactor.h"
 #include "vicon_calibration/optimization/GtsamLidarFactor.h"
 #include "vicon_calibration/optimization/GtsamOptimizer.h"
@@ -321,7 +320,6 @@ TEST_CASE("Test with same data and not using Ceres Optimizer Class") {
           utils::RoundMatrix(T_CV_pert, 4));
 }
 
-/*
 TEST_CASE("Test GTSAM Optimizer With Perturbed Initials") {
   CreateTransforms();
 
@@ -356,8 +354,7 @@ TEST_CASE("Test GTSAM Optimizer With Perturbed Initials") {
   // validate
   // utils::OutputCalibrations(calibrations_initial,
   //                           "Initial Calibration Estimates:");
-  // utils::OutputCalibrations(calibrations_perturbed, "Pertubed
-Calibrations:");
+  // utils::OutputCalibrations(calibrations_perturbed, "Pertubed Calibrations:");
   // utils::OutputCalibrations(calibrations_result, "Optimized Calibrations:");
 
   for (int i = 0; i < calibrations_result.size(); i++) {
@@ -365,8 +362,7 @@ Calibrations:");
             calibrations_initial[i].to_frame);
     REQUIRE(calibrations_result[i].from_frame ==
             calibrations_initial[i].from_frame);
-    REQUIRE(utils::RoundMatrix(calibrations_result[i].transform, 5) ==
-            utils::RoundMatrix(calibrations_initial[i].transform, 5));
+    REQUIRE(utils::RoundMatrix(calibrations_result[i].transform, 4) ==
+            utils::RoundMatrix(calibrations_initial[i].transform, 4));
   }
 }
-*/

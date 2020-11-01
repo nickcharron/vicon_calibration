@@ -17,8 +17,8 @@ class LidarFactor : public gtsam::NoiseModelFactor1<gtsam::Pose3> {
 public:
   LidarFactor(const gtsam::Key i, const Eigen::Vector3d measured_point,
               const Eigen::Vector3d corresponding_point,
-              const Eigen::Matrix4d &T_VICONBASE_TARGET,
-              const gtsam::SharedNoiseModel &model)
+              const Eigen::Matrix4d& T_VICONBASE_TARGET,
+              const gtsam::SharedNoiseModel& model)
       : gtsam::NoiseModelFactor1<gtsam::Pose3>(model, i),
         measured_point_(measured_point),
         corresponding_point_(corresponding_point),
@@ -28,24 +28,23 @@ public:
   ~LidarFactor() {}
 
   gtsam::Vector
-  evaluateError(const gtsam::Pose3 &q,
-                boost::optional<gtsam::Matrix &> H = boost::none) const {
-    Eigen::Matrix4d T_op;
-    Eigen::Matrix3d R_VT, R_op;
-    Eigen::Vector3d t_VT, t_op, transformed_point;
-    T_op = q.matrix();
-    R_VT = T_VICONBASE_TARGET_.block(0, 0, 3, 3);
-    t_VT = T_VICONBASE_TARGET_.block(0, 3, 3, 1);
-    R_op = T_op.block(0, 0, 3, 3);
-    t_op = T_op.block(0, 3, 3, 1);
-    transformed_point =
-        R_op.transpose() * (R_VT * corresponding_point_ + t_VT - t_op);
-    gtsam::Vector error = measured_point_ - transformed_point;
+      evaluateError(const gtsam::Pose3& q,
+                    boost::optional<gtsam::Matrix&> H = boost::none) const {
+    Eigen::Matrix3d R_VICONBASE_TARGET = T_VICONBASE_TARGET_.block(0, 0, 3, 3);
+    Eigen::Vector3d t_VICONBASE_TARGET = T_VICONBASE_TARGET_.block(0, 3, 3, 1);
+    Eigen::Matrix4d T_LIDAR_VICONBASE = q.matrix();
+    Eigen::Vector3d P_VICONBASE =
+        (T_VICONBASE_TARGET_ * corresponding_point_.homogeneous())
+            .hnormalized();
+    Eigen::Vector3d P_LIDAR =
+        (T_LIDAR_VICONBASE * P_VICONBASE.homogeneous()).hnormalized();
+    gtsam::Vector error = measured_point_ - P_LIDAR;
 
     if (H) {
       Eigen::MatrixXd H_(3, 6);
-      H_.block(0, 0, 3, 3) = -utils::SkewTransform(transformed_point);
-      H_.block(0, 3, 3, 3) = R_op.transpose();
+      H_.block(0, 0, 3, 3) =
+          -T_LIDAR_VICONBASE.block(0, 0, 3, 3) * utils::SkewTransform(-P_LIDAR);
+      H_.block(0, 3, 3, 3) = -Eigen::Matrix3d::Identity();
       (*H) = H_;
     }
     return error;

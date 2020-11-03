@@ -119,7 +119,7 @@ void CeresOptimizer::SetupProblem() {
   for (int i = 0; i < results_.size(); i++) {
     problem_->AddParameterBlock(&(results_[i][0]), 7,
                                 se3_parameterization_.get());
-  }                                         
+  }
 }
 
 void CeresOptimizer::AddInitials() {
@@ -218,43 +218,38 @@ void CeresOptimizer::AddImageMeasurements() {
 }
 
 void CeresOptimizer::AddLidarMeasurements() {
-  LOG_ERROR("Lidar cost functions not implemented for Ceres solver.");
-  // LOG_INFO("Setting lidar factors");
-  // Eigen::Vector3d point_predicted, point_measured;
-  // int target_index, lidar_index;
-  // // TODO: Figure out a smart way to do this. Do we want to tune the COV
-  // based
-  // // on the number of points per measurement? ALso, shouldn't this be 2x2?
-  // gtsam::Vector3 noise_vec;
-  // noise_vec << optimizer_params_.lidar_noise[0],
-  //     optimizer_params_.lidar_noise[1], optimizer_params_.lidar_noise[2];
-  // gtsam::noiseModel::Diagonal::shared_ptr LidarNoise =
-  //     gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
-  // int counter = 0;
-  // for (vicon_calibration::Correspondence corr : lidar_correspondences_) {
-  //   counter++;
-  //   std::shared_ptr<LidarMeasurement> measurement =
-  //       inputs_.lidar_measurements[corr.sensor_index][corr.measurement_index];
-  //   target_index = measurement->target_id;
-  //   lidar_index = measurement->lidar_id;
+  LOG_INFO("Setting lidar factors");
+  int counter = 0;
+  for (vicon_calibration::Correspondence corr : lidar_correspondences_) {
+    counter++;
+    std::shared_ptr<LidarMeasurement> measurement =
+        inputs_.lidar_measurements[corr.sensor_index][corr.measurement_index];
+    int target_index = measurement->target_id;
+    int lidar_index = measurement->lidar_id;
+    int sensor_index = GetSensorIndex(SensorType::LIDAR, lidar_index);
 
-  //   if (inputs_.target_params[target_index]->keypoints_lidar.size() > 0) {
-  //     point_predicted = inputs_.target_params[target_index]
-  //                           ->keypoints_lidar[corr.target_point_index];
-  //   } else {
-  //     point_predicted = utils::PCLPointToEigen(
-  //         inputs_.target_params[target_index]->template_cloud->at(
-  //             corr.target_point_index));
-  //   }
+    Eigen::Vector3d P_TARGET;
+    if (inputs_.target_params[target_index]->keypoints_lidar.size() > 0) {
+      P_TARGET = inputs_.target_params[target_index]
+                     ->keypoints_lidar[corr.target_point_index];
+    } else {
+      P_TARGET = utils::PCLPointToEigen(
+          inputs_.target_params[target_index]->template_cloud->at(
+              corr.target_point_index));
+    }
+    Eigen::Vector3d P_VICONBASE =
+        (measurement->T_VICONBASE_TARGET * P_TARGET.homogeneous()).hnormalized();
 
-  //   point_measured = utils::PCLPointToEigen(
-  //       measurement->keypoints->at(corr.measured_point_index));
-  //   gtsam::Key key = gtsam::Symbol('L', lidar_index);
-  //   graph_.emplace_shared<LidarFactor>(key, point_measured, point_predicted,
-  //                                      measurement->T_VICONBASE_TARGET,
-  //                                      LidarNoise);
-  // }
-  // LOG_INFO("Added %d lidar factors.", counter);
+    Eigen::Vector3d point_measured = utils::PCLPointToEigen(
+        measurement->keypoints->at(corr.measured_point_index));
+
+    std::unique_ptr<ceres::CostFunction> cost_function(
+        CeresLidarCostFunction::Create(point_measured, P_VICONBASE));
+
+    problem_->AddResidualBlock(cost_function.release(), loss_function_.get(),
+                               &(results_[sensor_index][0]));
+  }
+  LOG_INFO("Added %d lidar measurements.", counter);
 }
 
 void CeresOptimizer::AddLidarCameraMeasurements() {

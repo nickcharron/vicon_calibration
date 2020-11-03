@@ -180,9 +180,7 @@ void Optimizer::GetImageCorrespondences() {
         continue;
       }
       measurement = inputs_.camera_measurements[cam_iter][meas_iter];
-      ///////////////////
-      measurement->Print();
-      //////////////////
+
       T_VICONBASE_CAM =
           GetUpdatedInitialPose(SensorType::CAMERA, measurement->camera_id);
       T_CAM_TARGET = utils::InvertTransform(T_VICONBASE_CAM) *
@@ -337,6 +335,7 @@ void Optimizer::GetLidarCorrespondences() {
         continue;
       }
       measurement = inputs_.lidar_measurements[lidar_iter][meas_iter];
+
       T_VICONBASE_LIDAR =
           GetUpdatedInitialPose(SensorType::LIDAR, measurement->lidar_id);
       T_LIDAR_TARGET = utils::InvertTransform(T_VICONBASE_LIDAR) *

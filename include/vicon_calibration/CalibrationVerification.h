@@ -3,40 +3,39 @@
 #include "vicon_calibration/TfTree.h"
 #include "vicon_calibration/params.h"
 #include "vicon_calibration/utils.h"
-#include <pcl/registration/correspondence_estimation.h>
 #include <Eigen/Geometry>
+#include <pcl/registration/correspondence_estimation.h>
 #include <ros/time.h>
 #include <rosbag/bag.h>
 
 namespace vicon_calibration {
 
 class CalibrationVerification {
-
 public:
-  void LoadJSON(const std::string &file_name = "CalibrationVerification.json");
+  void LoadJSON(const std::string& file_name = "CalibrationVerification.json");
 
   void CheckInputs();
 
   void SetInitialCalib(
-      const std::vector<vicon_calibration::CalibrationResult> &calib);
+      const std::vector<vicon_calibration::CalibrationResult>& calib);
 
   void SetGroundTruthCalib(
-      const std::vector<vicon_calibration::CalibrationResult> &calib);
+      const std::vector<vicon_calibration::CalibrationResult>& calib);
 
   void SetOptimizedCalib(
-      const std::vector<vicon_calibration::CalibrationResult> &calib);
+      const std::vector<vicon_calibration::CalibrationResult>& calib);
 
-  void SetConfig(const std::string &calib_config);
+  void SetConfig(const std::string& calib_config);
 
-  void SetParams(std::shared_ptr<CalibratorConfig> &params);
+  void SetParams(std::shared_ptr<CalibratorConfig>& params);
 
   void SetLidarMeasurements(
-      const std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>
-          &lidar_measurements);
+      const std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>&
+          lidar_measurements);
 
   void SetCameraMeasurements(
-      const std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>
-          &camera_measurements);
+      const std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>&
+          camera_measurements);
 
   void ProcessResults();
 
@@ -45,42 +44,46 @@ private:
 
   void SaveLidarVisuals();
 
-  PointCloud::Ptr GetLidarScanFromBag(const std::string &topic);
+  PointCloud::Ptr GetLidarScanFromBag(const std::string& topic);
 
-  void SaveScans(const PointCloud::Ptr &scan_est,
-                 const PointCloud::Ptr &scan_opt,
-                 const PointCloud::Ptr &targets, const std::string &save_path,
-                 const int &scan_count);
+  void SaveScans(const PointCloud::Ptr& scan_est,
+                 const PointCloud::Ptr& scan_opt,
+                 const PointCloud::Ptr& targets, const std::string& save_path,
+                 const int& scan_count);
 
   void GetLidarErrors();
 
   std::vector<Eigen::Vector3d, AlignVec3d>
-  CalculateLidarErrors(const PointCloud::Ptr &measured_keypoints,
-                       const PointCloud::Ptr &estimated_keypoints);
+      CalculateLidarErrors(const PointCloud::Ptr& measured_keypoints,
+                           const PointCloud::Ptr& estimated_keypoints);
 
   void SaveCameraVisuals();
 
-  std::shared_ptr<cv::Mat> GetImageFromBag(const std::string &topic);
+  std::shared_ptr<cv::Mat> GetImageFromBag(const std::string& topic);
 
   void GetCameraErrors();
 
   std::vector<Eigen::Vector2d, AlignVec2d>
-  CalculateCameraErrors(const PointCloud::Ptr &measured_keypoints,
-                        const Eigen::Matrix4d &T_SENSOR_TARGET,
-                        const int &target_id, const int &camera_id);
+      CalculateCameraErrors(const PointCloud::Ptr& measured_keypoints,
+                            const Eigen::Matrix4d& T_SENSOR_TARGET,
+                            const int& target_id, const int& camera_id);
 
   void PrintConfig();
 
-  void
-  PrintCalibrations(std::vector<vicon_calibration::CalibrationResult> &calib,
-                    const std::string &file_name);
+  void PrintCalibrations(
+      std::vector<vicon_calibration::CalibrationResult>& calib,
+      const std::string& file_name);
+
+  std::string CalibrationErrorsToString(
+      const Eigen::Matrix4d& T1, const Eigen::Matrix4d& T2,
+      const std::string& from_frame, const std::string& to_frame);
 
   void PrintCalibrationErrors();
 
   std::shared_ptr<cv::Mat> ProjectTargetToImage(
-      const std::shared_ptr<cv::Mat> &img_in,
-      const std::vector<Eigen::Affine3d, AlignAff3d> &T_VICONBASE_TGTS,
-      const Eigen::Matrix4d &T_VICONBASE_SENSOR, const int &cam_iter,
+      const std::shared_ptr<cv::Mat>& img_in,
+      const std::vector<Eigen::Affine3d, AlignAff3d>& T_VICONBASE_TGTS,
+      const Eigen::Matrix4d& T_VICONBASE_SENSOR, const int& cam_iter,
       cv::Scalar colour);
 
   void LoadLookupTree();
@@ -92,9 +95,9 @@ private:
 
   // member variables:
   bool initial_calib_set_{false}, optimized_calib_set_{false},
-      ground_truth_calib_set_{false}, params_set_{false}, config_path_set_{false},
-      lidar_measurements_set_{false}, camera_measurements_set_{false},
-      show_target_outline_on_image_{true};
+      ground_truth_calib_set_{false}, params_set_{false},
+      config_path_set_{false}, lidar_measurements_set_{false},
+      camera_measurements_set_{false}, show_target_outline_on_image_{true};
   int num_tgts_in_img_;
   std::shared_ptr<CalibratorConfig> params_;
   std::string output_directory_;

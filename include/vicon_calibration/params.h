@@ -96,14 +96,15 @@ struct TargetParams {
   bool is_target_2d;
   // These are calculated automatically and only used in IsolateTargetPoints
   Eigen::VectorXd template_centroid;
-  double template_size;
+  Eigen::VectorXd template_dimensions;
   TargetParams() {
     template_cloud = boost::make_shared<PointCloud>();
     crop_scan = Eigen::VectorXd(3);
     crop_image = Eigen::VectorXd(2);
     template_centroid = Eigen::VectorXd(4);
     template_centroid.setZero();
-    template_size = 0;
+    template_dimensions = Eigen::VectorXd(3);
+    template_dimensions.setZero();
     is_target_2d = false;
   }
   void Print() {

@@ -27,7 +27,7 @@
 
 namespace vicon_calibration {
 
-void CalibrationVerification::LoadJSON(const std::string &file_name) {
+void CalibrationVerification::LoadJSON(const std::string& file_name) {
   LOG_INFO("Loading CalibrationVerification Config File: %s",
            file_name.c_str());
   nlohmann::json J;
@@ -46,7 +46,6 @@ void CalibrationVerification::LoadJSON(const std::string &file_name) {
 }
 
 void CalibrationVerification::CheckInputs() {
-
   if (!optimized_calib_set_) {
     throw std::invalid_argument{"Optimized Calibration Not Set."};
   }
@@ -76,7 +75,7 @@ void CalibrationVerification::ProcessResults() {
   // load bag file
   try {
     bag_.open(params_->bag_file, rosbag::bagmode::Read);
-  } catch (rosbag::BagException &ex) {
+  } catch (rosbag::BagException& ex) {
     LOG_ERROR("Bag exception : %s", ex.what());
   }
 
@@ -97,13 +96,13 @@ void CalibrationVerification::ProcessResults() {
   LOG_INFO("CalibrationVerification Complete.");
 }
 
-void CalibrationVerification::SetConfig(const std::string &calib_config) {
+void CalibrationVerification::SetConfig(const std::string& calib_config) {
   calibration_config_ = calib_config;
   config_path_set_ = true;
 }
 
 void CalibrationVerification::SetInitialCalib(
-    const std::vector<vicon_calibration::CalibrationResult> &calib) {
+    const std::vector<vicon_calibration::CalibrationResult>& calib) {
   calibrations_initial_ = calib;
   initial_calib_set_ = true;
 }
@@ -111,19 +110,19 @@ void CalibrationVerification::SetInitialCalib(
 // TODO: add checks for whether or not this was set. This
 // should still work otherwise
 void CalibrationVerification::SetGroundTruthCalib(
-    const std::vector<vicon_calibration::CalibrationResult> &calib) {
+    const std::vector<vicon_calibration::CalibrationResult>& calib) {
   calibrations_ground_truth_ = calib;
   ground_truth_calib_set_ = true;
 }
 
 void CalibrationVerification::SetOptimizedCalib(
-    const std::vector<vicon_calibration::CalibrationResult> &calib) {
+    const std::vector<vicon_calibration::CalibrationResult>& calib) {
   calibrations_result_ = calib;
   optimized_calib_set_ = true;
 }
 
 void CalibrationVerification::SetParams(
-    std::shared_ptr<CalibratorConfig> &params) {
+    std::shared_ptr<CalibratorConfig>& params) {
   params_ = params;
   params_set_ = true;
 
@@ -141,15 +140,15 @@ void CalibrationVerification::SetParams(
 }
 
 void CalibrationVerification::SetLidarMeasurements(
-    const std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>
-        &lidar_measurements) {
+    const std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>&
+        lidar_measurements) {
   lidar_measurements_ = lidar_measurements;
   lidar_measurements_set_ = true;
 }
 
 void CalibrationVerification::SetCameraMeasurements(
-    const std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>
-        &camera_measurements) {
+    const std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>&
+        camera_measurements) {
   camera_measurements_ = camera_measurements;
   camera_measurements_set_ = true;
 }
@@ -164,8 +163,8 @@ void CalibrationVerification::CreateDirectories() {
 }
 
 void CalibrationVerification::PrintCalibrations(
-    std::vector<vicon_calibration::CalibrationResult> &calib,
-    const std::string &file_name) {
+    std::vector<vicon_calibration::CalibrationResult>& calib,
+    const std::string& file_name) {
   std::string output_path = results_directory_ + file_name;
   std::ofstream file(output_path);
   for (uint16_t i = 0; i < calib.size(); i++) {
@@ -174,10 +173,36 @@ void CalibrationVerification::PrintCalibrations(
     Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
     file << "T_" << calib[i].to_frame << "_" << calib[i].from_frame << ":\n"
          << T << "\n"
-         << "rpy (deg): [" << utils::RadToDeg(utils::WrapToTwoPi(rpy[0])) << ", "
-         << utils::RadToDeg(utils::WrapToTwoPi(rpy[1])) << ", "
+         << "rpy (deg): [" << utils::RadToDeg(utils::WrapToTwoPi(rpy[0]))
+         << ", " << utils::RadToDeg(utils::WrapToTwoPi(rpy[1])) << ", "
          << utils::RadToDeg(utils::WrapToTwoPi(rpy[2])) << "]\n";
   }
+}
+
+std::string CalibrationVerification::CalibrationErrorsToString(
+    const Eigen::Matrix4d& T1, const Eigen::Matrix4d& T2,
+    const std::string& from_frame, const std::string& to_frame) {
+  Eigen::Matrix3d R2 = T2.block(0, 0, 3, 3);
+  Eigen::Matrix3d R1 = T1.block(0, 0, 3, 3);
+  Eigen::Vector3d rpy2 = R2.eulerAngles(0, 1, 2);
+  Eigen::Vector3d rpy1 = R1.eulerAngles(0, 1, 2);
+  Eigen::Vector3d rpy_error;
+  rpy_error[0] = utils::GetSmallestAngleErrorRad(rpy2[0], rpy1[0]);
+  rpy_error[1] = utils::GetSmallestAngleErrorRad(rpy2[1], rpy1[1]);
+  rpy_error[2] = utils::GetSmallestAngleErrorRad(rpy2[2], rpy1[2]);
+  Eigen::Vector3d t_error = T2.block(0, 3, 3, 1) - T1.block(0, 3, 3, 1);
+  t_error[0] = std::abs(t_error[0]);
+  t_error[1] = std::abs(t_error[1]);
+  t_error[2] = std::abs(t_error[2]);
+  std::string output;
+  output += "T_" + to_frame + "_" + from_frame + ":\n" + "rpy error (deg): [" +
+            std::to_string(utils::RadToDeg(rpy_error[0])) + ", " +
+            std::to_string(utils::RadToDeg(rpy_error[1])) + ", " +
+            std::to_string(utils::RadToDeg(rpy_error[2])) + "]\n" +
+            "translation error (mm): [" + std::to_string(t_error[0] * 1000) +
+            ", " + std::to_string(t_error[1] * 1000) + ", " +
+            std::to_string(t_error[2] * 1000) + "]\n\n";
+  return output;
 }
 
 void CalibrationVerification::PrintCalibrationErrors() {
@@ -187,62 +212,22 @@ void CalibrationVerification::PrintCalibrationErrors() {
   file << "Showing errors between:\n"
        << "initial calibration estimates and optimized calibrations:\n\n";
   for (uint16_t i = 0; i < calibrations_result_.size(); i++) {
-    Eigen::Matrix4d T_final = calibrations_result_[i].transform;
-    Eigen::Matrix4d T_init = calibrations_initial_[i].transform;
-    Eigen::Matrix3d R_final = T_final.block(0, 0, 3, 3);
-    Eigen::Matrix3d R_init = T_init.block(0, 0, 3, 3);
-    Eigen::Vector3d rpy_final = R_final.eulerAngles(0, 1, 2);
-    Eigen::Vector3d rpy_init = R_init.eulerAngles(0, 1, 2);
-    Eigen::Vector3d rpy_error;
-    rpy_error[0] = utils::GetSmallestAngleErrorRad(rpy_final[0], rpy_init[0]);
-    rpy_error[1] = utils::GetSmallestAngleErrorRad(rpy_final[1], rpy_init[1]);
-    rpy_error[2] = utils::GetSmallestAngleErrorRad(rpy_final[2], rpy_init[2]);
-    Eigen::Vector3d t_error =
-        T_final.block(0, 3, 3, 1) - T_init.block(0, 3, 3, 1);
-    t_error[0] = std::abs(t_error[0]);
-    t_error[1] = std::abs(t_error[1]);
-    t_error[2] = std::abs(t_error[2]);
-    file << "T_" << calibrations_result_[i].to_frame << "_"
-         << calibrations_result_[i].from_frame << ":\n"
-         << "rpy error (deg): [" << utils::RadToDeg(rpy_error[0]) << ", "
-         << utils::RadToDeg(rpy_error[1]) << ", " << utils::RadToDeg(rpy_error[2])
-         << "]\n"
-         << "translation error (mm): [" << t_error[0] * 1000 << ", "
-         << t_error[1] * 1000 << ", " << t_error[2] * 1000 << "]\n\n";
+    file << CalibrationErrorsToString(
+        calibrations_result_[i].transform, calibrations_initial_[i].transform,
+        calibrations_result_[i].from_frame, calibrations_result_[i].to_frame);
   }
 
-  if (!params_->using_simulation) {
-    return;
-  }
+  if (!params_->using_simulation) { return; }
 
   // next print errors between ground truth calibrations and optimized
   file << "---------------------------------------------------------\n\n"
        << "Showing errors between:\n"
        << "initial ground truth calibrations and optimized calibrations:\n\n";
   for (uint16_t i = 0; i < calibrations_result_.size(); i++) {
-    Eigen::Matrix4d T_final = calibrations_result_[i].transform;
-    Eigen::Matrix4d T_init = calibrations_ground_truth_[i].transform;
-    Eigen::Matrix3d R_final = T_final.block(0, 0, 3, 3);
-    Eigen::Matrix3d R_init = T_init.block(0, 0, 3, 3);
-    Eigen::Vector3d rpy_final = R_final.eulerAngles(0, 1, 2);
-    Eigen::Vector3d rpy_init = R_init.eulerAngles(0, 1, 2);
-    Eigen::Vector3d rpy_error;
-    rpy_error[0] = utils::GetSmallestAngleErrorRad(rpy_final[0], rpy_init[0]);
-    rpy_error[1] = utils::GetSmallestAngleErrorRad(rpy_final[1], rpy_init[1]);
-    rpy_error[2] = utils::GetSmallestAngleErrorRad(rpy_final[2], rpy_init[2]);
-    Eigen::Vector3d t_final = T_final.block(0, 3, 3, 1);
-    Eigen::Vector3d t_init = T_init.block(0, 3, 3, 1);
-    Eigen::Vector3d t_error = t_final - t_init;
-    t_error[0] = std::abs(t_error[0]);
-    t_error[1] = std::abs(t_error[1]);
-    t_error[2] = std::abs(t_error[2]);
-    file << "T_" << calibrations_result_[i].to_frame << "_"
-         << calibrations_result_[i].from_frame << ":\n"
-         << "rpy error (deg): [" << utils::RadToDeg(rpy_error[0]) << ", "
-         << utils::RadToDeg(rpy_error[1]) << ", " << utils::RadToDeg(rpy_error[2])
-         << "]\n"
-         << "translation error (mm): [" << t_error[0] * 1000 << ", "
-         << t_error[1] * 1000 << ", " << t_error[2] * 1000 << "]\n\n";
+    file << CalibrationErrorsToString(calibrations_result_[i].transform,
+                                      calibrations_ground_truth_[i].transform,
+                                      calibrations_result_[i].from_frame,
+                                      calibrations_result_[i].to_frame);
   }
 
   // next print errors between initial calibrations and ground truth calibration
@@ -250,29 +235,10 @@ void CalibrationVerification::PrintCalibrationErrors() {
        << "Showing errors between:\n"
        << "initial calibrations and ground truth calibrations:\n\n";
   for (uint16_t i = 0; i < calibrations_result_.size(); i++) {
-    Eigen::Matrix4d T_final = calibrations_initial_[i].transform;
-    Eigen::Matrix4d T_init = calibrations_ground_truth_[i].transform;
-    Eigen::Matrix3d R_final = T_final.block(0, 0, 3, 3);
-    Eigen::Matrix3d R_init = T_init.block(0, 0, 3, 3);
-    Eigen::Vector3d rpy_final = R_final.eulerAngles(0, 1, 2);
-    Eigen::Vector3d rpy_init = R_init.eulerAngles(0, 1, 2);
-    Eigen::Vector3d rpy_error;
-    rpy_error[0] = utils::GetSmallestAngleErrorRad(rpy_final[0], rpy_init[0]);
-    rpy_error[1] = utils::GetSmallestAngleErrorRad(rpy_final[1], rpy_init[1]);
-    rpy_error[2] = utils::GetSmallestAngleErrorRad(rpy_final[2], rpy_init[2]);
-    Eigen::Vector3d t_final = T_final.block(0, 3, 3, 1);
-    Eigen::Vector3d t_init = T_init.block(0, 3, 3, 1);
-    Eigen::Vector3d t_error = t_final - t_init;
-    t_error[0] = std::abs(t_error[0]);
-    t_error[1] = std::abs(t_error[1]);
-    t_error[2] = std::abs(t_error[2]);
-    file << "T_" << calibrations_initial_[i].to_frame << "_"
-         << calibrations_initial_[i].from_frame << ":\n"
-         << "rpy error (deg): [" << utils::RadToDeg(rpy_error[0]) << ", "
-         << utils::RadToDeg(rpy_error[1]) << ", " << utils::RadToDeg(rpy_error[2])
-         << "]\n"
-         << "translation error (mm): [" << t_error[0] * 1000 << ", "
-         << t_error[1] * 1000 << ", " << t_error[2] * 1000 << "]\n\n";
+    file << CalibrationErrorsToString(calibrations_initial_[i].transform,
+                                      calibrations_ground_truth_[i].transform,
+                                      calibrations_initial_[i].from_frame,
+                                      calibrations_initial_[i].to_frame);
   }
 }
 
@@ -330,9 +296,7 @@ void CalibrationVerification::SaveLidarVisuals() {
     std::shared_ptr<LidarMeasurement> measurement;
     for (int meas_iter = 0; meas_iter < lidar_measurements_[lidar_iter].size();
          meas_iter++) {
-      if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) {
-        continue;
-      }
+      if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) { continue; }
       measurement = lidar_measurements_[lidar_iter][meas_iter];
       lookup_time_ = measurement->time_stamp;
       this->LoadLookupTree();
@@ -361,15 +325,13 @@ void CalibrationVerification::SaveLidarVisuals() {
       }
       this->SaveScans(scan_trans_est, scan_trans_opt, targets_combined,
                       current_save_path, counter);
-      if (counter == max_lidar_results_) {
-        return;
-      }
+      if (counter == max_lidar_results_) { return; }
     } // measurement iter
   }   // lidar iter
 }
 
 PointCloud::Ptr
-CalibrationVerification::GetLidarScanFromBag(const std::string &topic) {
+    CalibrationVerification::GetLidarScanFromBag(const std::string& topic) {
   ros::Duration time_window_half = ros::Duration(0.5);
   rosbag::View view(bag_, rosbag::TopicQuery(topic),
                     lookup_time_ - time_window_half,
@@ -389,11 +351,11 @@ CalibrationVerification::GetLidarScanFromBag(const std::string &topic) {
   throw std::runtime_error{"Cannot get lidar scan from bag."};
 }
 
-void CalibrationVerification::SaveScans(const PointCloud::Ptr &scan_est,
-                                        const PointCloud::Ptr &scan_opt,
-                                        const PointCloud::Ptr &targets,
-                                        const std::string &save_path,
-                                        const int &scan_count) {
+void CalibrationVerification::SaveScans(const PointCloud::Ptr& scan_est,
+                                        const PointCloud::Ptr& scan_opt,
+                                        const PointCloud::Ptr& targets,
+                                        const std::string& save_path,
+                                        const int& scan_count) {
   std::string save_path_full =
       save_path + "scan_" + std::to_string(scan_count + 1) + ".pcd";
   PointCloud::Ptr scan_est_cropped = boost::make_shared<PointCloud>();
@@ -422,7 +384,6 @@ void CalibrationVerification::GetLidarErrors() {
   // iterate over each lidar
   for (uint8_t lidar_iter = 0; lidar_iter < params_->lidar_params.size();
        lidar_iter++) {
-
     // get initial calibration and optimized calibration
     Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_true,
         TA_VICONBASE_SENSOR_opt;
@@ -459,9 +420,7 @@ void CalibrationVerification::GetLidarErrors() {
         lidar_errors_init, lidar_errors_true;
     for (int meas_iter = 0; meas_iter < lidar_measurements_[lidar_iter].size();
          meas_iter++) {
-      if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) {
-        continue;
-      }
+      if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) { continue; }
       measurement = lidar_measurements_[lidar_iter][meas_iter];
 
       T_SENSOR_TARGET_opt = TA_VICONBASE_SENSOR_opt.inverse().matrix() *
@@ -519,10 +478,9 @@ void CalibrationVerification::GetLidarErrors() {
 }
 
 std::vector<Eigen::Vector3d, AlignVec3d>
-CalibrationVerification::CalculateLidarErrors(
-    const PointCloud::Ptr &measured_keypoints,
-    const PointCloud::Ptr &estimated_keypoints) {
-
+    CalibrationVerification::CalculateLidarErrors(
+        const PointCloud::Ptr& measured_keypoints,
+        const PointCloud::Ptr& estimated_keypoints) {
   // get correspondences
   corr_est_.setInputSource(measured_keypoints);
   corr_est_.setInputTarget(estimated_keypoints);
@@ -591,10 +549,7 @@ void CalibrationVerification::SaveCameraVisuals() {
     std::shared_ptr<CameraMeasurement> measurement;
     for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
          meas_iter++) {
-
-      if (camera_measurements_[cam_iter][meas_iter] == nullptr) {
-        continue;
-      }
+      if (camera_measurements_[cam_iter][meas_iter] == nullptr) { continue; }
 
       measurement = camera_measurements_[cam_iter][meas_iter];
       lookup_time_ = measurement->time_stamp;
@@ -619,9 +574,7 @@ void CalibrationVerification::SaveCameraVisuals() {
                                                TA_VICONBASE_SENSOR_est.matrix(),
                                                cam_iter, cv::Scalar(0, 0, 255));
 
-      if (num_tgts_in_img_ == 0) {
-        continue;
-      }
+      if (num_tgts_in_img_ == 0) { continue; }
 
       counter++;
       final_image = this->ProjectTargetToImage(final_image, T_VICONBASE_TGTS,
@@ -639,15 +592,13 @@ void CalibrationVerification::SaveCameraVisuals() {
           current_save_path + "image_" + std::to_string(counter) + ".jpg";
       cv::imwrite(save_path, *final_image);
 
-      if (counter == max_image_results_) {
-        break;
-      }
+      if (counter == max_image_results_) { break; }
     } // measurement iter
   }   // camera iter
 }
 
 std::shared_ptr<cv::Mat>
-CalibrationVerification::GetImageFromBag(const std::string &topic) {
+    CalibrationVerification::GetImageFromBag(const std::string& topic) {
   ros::Duration time_window_half = ros::Duration(0.5);
   rosbag::View view(bag_, rosbag::TopicQuery(topic),
                     lookup_time_ - time_window_half,
@@ -667,11 +618,9 @@ CalibrationVerification::GetImageFromBag(const std::string &topic) {
 }
 
 void CalibrationVerification::GetCameraErrors() {
-
   // iterate over each camera
   for (uint8_t cam_iter = 0; cam_iter < params_->camera_params.size();
        cam_iter++) {
-
     // get initial calibration and optimized calibration
     Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_true,
         TA_VICONBASE_SENSOR_opt;
@@ -705,9 +654,7 @@ void CalibrationVerification::GetCameraErrors() {
         camera_errors_init, camera_errors_true;
     for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
          meas_iter++) {
-      if (camera_measurements_[cam_iter][meas_iter] == nullptr) {
-        continue;
-      }
+      if (camera_measurements_[cam_iter][meas_iter] == nullptr) { continue; }
       measurement = camera_measurements_[cam_iter][meas_iter];
 
       // convert 2d measured keypoints to 3d
@@ -756,11 +703,10 @@ void CalibrationVerification::GetCameraErrors() {
 }
 
 std::vector<Eigen::Vector2d, AlignVec2d>
-CalibrationVerification::CalculateCameraErrors(
-    const PointCloud::Ptr &measured_keypoints,
-    const Eigen::Matrix4d &T_SENSOR_TARGET, const int &target_id,
-    const int &camera_id) {
-
+    CalibrationVerification::CalculateCameraErrors(
+        const PointCloud::Ptr& measured_keypoints,
+        const Eigen::Matrix4d& T_SENSOR_TARGET, const int& target_id,
+        const int& camera_id) {
   // get estimated (optimization or initial) keypoint locations
   PointCloud::Ptr keypoints_target_frame;
   if (params_->target_params[target_id]->keypoints_camera.size() > 0) {
@@ -806,9 +752,9 @@ CalibrationVerification::CalculateCameraErrors(
 }
 
 std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
-    const std::shared_ptr<cv::Mat> &img_in,
-    const std::vector<Eigen::Affine3d, AlignAff3d> &T_VICONBASE_TGTS,
-    const Eigen::Matrix4d &T_VICONBASE_SENSOR, const int &cam_iter,
+    const std::shared_ptr<cv::Mat>& img_in,
+    const std::vector<Eigen::Affine3d, AlignAff3d>& T_VICONBASE_TGTS,
+    const Eigen::Matrix4d& T_VICONBASE_SENSOR, const int& cam_iter,
     cv::Scalar colour) {
   // create all objects we'll need
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected =
@@ -833,9 +779,7 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
         params_->camera_params[cam_iter]->camera_model->ProjectPoint(
             point_transformed.hnormalized());
 
-    if (!origin_projected.has_value()) {
-      continue;
-    }
+    if (!origin_projected.has_value()) { continue; }
 
     num_tgts_in_img_++;
 
@@ -858,9 +802,7 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
       }
     }
 
-    if (!show_target_outline_on_image_) {
-      return img_out;
-    }
+    if (!show_target_outline_on_image_) { return img_out; }
     // iterate through all target points
     pcl::PointCloud<pcl::PointXYZ>::Ptr target =
         params_->target_params[target_iter]->template_cloud;
@@ -900,9 +842,7 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     if (point1_projected.has_value() && point2_projected.has_value()) {
       distance = (point1_projected.value() - point2_projected.value()).norm();
       // for really small distances, set minimum
-      if (distance < 3) {
-        distance = 3;
-      }
+      if (distance < 3) { distance = 3; }
     }
 
     // keep only perimeter points
@@ -929,14 +869,12 @@ void CalibrationVerification::LoadLookupTree() {
   ros::Duration time_window_half(1); // Check two second time window
   ros::Time start_time = lookup_time_ - time_window_half;
   ros::Time time_zero(0, 0);
-  if (start_time <= time_zero) {
-    start_time = time_zero;
-  }
+  if (start_time <= time_zero) { start_time = time_zero; }
   ros::Time end_time = lookup_time_ + time_window_half;
   rosbag::View view(bag_, rosbag::TopicQuery("/tf"), start_time, end_time,
                     true);
   bool first_msg = true;
-  for (const auto &msg_instance : view) {
+  for (const auto& msg_instance : view) {
     auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
     if (tf_message != nullptr) {
       for (geometry_msgs::TransformStamped tf : tf_message->transforms) {

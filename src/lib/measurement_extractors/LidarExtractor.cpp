@@ -15,22 +15,24 @@ LidarExtractor::LidarExtractor() {
 }
 
 void LidarExtractor::SetLidarParams(
-    std::shared_ptr<vicon_calibration::LidarParams> &lidar_params) {
+    std::shared_ptr<vicon_calibration::LidarParams>& lidar_params) {
   lidar_params_ = lidar_params;
   lidar_params_set_ = true;
 }
 
 void LidarExtractor::SetTargetParams(
-    std::shared_ptr<vicon_calibration::TargetParams> &target_params) {
+    std::shared_ptr<vicon_calibration::TargetParams>& target_params) {
   target_params_ = target_params;
   target_params_set_ = true;
 }
 
-void LidarExtractor::SetShowMeasurements(const bool &show_measurements) {
+void LidarExtractor::SetShowMeasurements(const bool& show_measurements) {
   show_measurements_ = show_measurements;
 }
 
-bool LidarExtractor::GetShowMeasurements() { return show_measurements_; }
+bool LidarExtractor::GetShowMeasurements() {
+  return show_measurements_;
+}
 
 bool LidarExtractor::GetMeasurementValid() {
   if (!measurement_complete_) {
@@ -42,14 +44,14 @@ bool LidarExtractor::GetMeasurementValid() {
 }
 
 void LidarExtractor::ProcessMeasurement(
-    const Eigen::Matrix4d &T_LIDAR_TARGET_EST,
-    const PointCloud::Ptr &cloud_in) {
+    const Eigen::Matrix4d& T_LIDAR_TARGET_EST,
+    const PointCloud::Ptr& cloud_in) {
   scan_in_ = cloud_in;
   T_LIDAR_TARGET_EST_ = T_LIDAR_TARGET_EST;
   this->SetupVariables();
   this->CheckInputs();
   this->IsolatePoints();
-  this->GetKeypoints(); // implemented in derived class
+  this->GetKeypoints();          // implemented in derived class
   this->CheckMeasurementValid(); // implemented in derived class
   this->GetUserInput();
   this->OutputScans();
@@ -106,9 +108,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr LidarExtractor::GetMeasurement() {
 }
 
 void LidarExtractor::GetUserInput() {
-  if (!show_measurements_) {
-    return;
-  }
+  if (!show_measurements_) { return; }
   estimated_template_cloud_ = boost::make_shared<PointCloud>();
   pcl::transformPointCloud(*target_params_->template_cloud,
                            *estimated_template_cloud_,
@@ -156,7 +156,7 @@ void LidarExtractor::GetUserInput() {
     T_identity.setIdentity();
     scan_isolated_coloured = utils::ColorPointCloud(scan_isolated_, 255, 0, 0);
     this->AddColouredPointCloudToViewer(scan_isolated_coloured, "red_cloud",
-                                        T_identity);
+                                        T_identity, 3);
     this->AddPointCloudToViewer(scan_in_, "white_cloud", T_identity);
     this->ShowFailedMeasurement();
   }
@@ -164,8 +164,8 @@ void LidarExtractor::GetUserInput() {
 }
 
 void LidarExtractor::AddColouredPointCloudToViewer(
-    const PointCloudColor::Ptr &cloud, const std::string &cloud_name,
-    boost::optional<Eigen::MatrixXd &> T = boost::none, int point_size) {
+    const PointCloudColor::Ptr& cloud, const std::string& cloud_name,
+    boost::optional<Eigen::MatrixXd&> T = boost::none, int point_size) {
   if (cloud_name == "blue_cloud") {
     blue_cloud_ = cloud;
     blue_cloud_on_ = true;
@@ -190,9 +190,9 @@ void LidarExtractor::AddColouredPointCloudToViewer(
       pcl::visualization::PCL_VISUALIZER_POINT_SIZE, point_size, cloud_name);
 }
 
-void LidarExtractor::AddPointCloudToViewer(const PointCloud::Ptr &cloud,
-                                           const std::string &cloud_name,
-                                           const Eigen::Matrix4d &T,
+void LidarExtractor::AddPointCloudToViewer(const PointCloud::Ptr& cloud,
+                                           const std::string& cloud_name,
+                                           const Eigen::Matrix4d& T,
                                            int point_size) {
   if (cloud_name == "white_cloud") {
     white_cloud_ = cloud;
@@ -211,7 +211,7 @@ void LidarExtractor::AddPointCloudToViewer(const PointCloud::Ptr &cloud,
 }
 
 void LidarExtractor::ConfirmMeasurementKeyboardCallback(
-    const pcl::visualization::KeyboardEvent &event, void *viewer_void) {
+    const pcl::visualization::KeyboardEvent& event, void* viewer_void) {
   // check if key has been down for two consecutive spins
   if (viewer_key_down_ && event.keyDown()) {
     return;
@@ -271,15 +271,20 @@ void LidarExtractor::ShowFailedMeasurement() {
   T.matrix() = T_LIDAR_TARGET_EST_.cast<float>();
   Eigen::Vector3f translation = T.translation();
   Eigen::Quaternionf rotation(T.rotation());
-  double width = target_params_->crop_scan[0];
-  double height = target_params_->crop_scan[1];
-  double depth = target_params_->crop_scan[2];
-  pcl_viewer_->addCube(translation, rotation, width, height, depth);
-  pcl_viewer_->setRepresentationToWireframeForAllActors();
+  double width = 2*target_params_->crop_scan[0];
+  double height = 2*target_params_->crop_scan[1];
+  double depth = 2*target_params_->crop_scan[2];
+  pcl_viewer_->addCube(translation, rotation, width, height, depth,
+                       "bounding_box");
+  pcl_viewer_->setShapeRenderingProperties(
+      pcl::visualization::PCL_VISUALIZER_REPRESENTATION,
+      pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME,
+      "bounding_box");
   std::cout << "\nViewer Legend:\n"
             << "  Red   -> isolated scan\n"
             << "  White -> original scan\n"
-            << "  Box: cropbox input"
+            << "  Box: cropbox input\n"
+            << "Accept measurement? [y/n]\n"
             << "Press [c] to continue with other measurements\n"
             << "Press [s] to stop showing future measurements\n";
   while (!pcl_viewer_->wasStopped() && !close_viewer_) {
@@ -327,11 +332,12 @@ void LidarExtractor::ShowPassedMeasurement() {
 }
 
 void LidarExtractor::OutputScans() {
-  if (!output_scans_) {
-    return;
-  }
+  if (!output_scans_) { return; }
   std::string date_and_time =
       utils::ConvertTimeToDate(std::chrono::system_clock::now());
+  if(!boost::filesystem::exists(output_directory_)){
+    boost::filesystem::create_directory(output_directory_);  
+  }
   std::string save_dir = output_directory_ + date_and_time + "/";
   boost::filesystem::create_directory(save_dir);
   pcl::PCDWriter writer;

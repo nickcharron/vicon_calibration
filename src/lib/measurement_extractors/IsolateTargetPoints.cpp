@@ -10,7 +10,7 @@
 
 namespace vicon_calibration {
 
-void IsolateTargetPoints::SetConfig(const std::string &config_file) {
+void IsolateTargetPoints::SetConfig(const std::string& config_file) {
   config_file_ = config_file;
 }
 
@@ -33,22 +33,22 @@ void IsolateTargetPoints::LoadConfig() {
 }
 
 void IsolateTargetPoints::SetTransformEstimate(
-    const Eigen::MatrixXd &T_TARGET_LIDAR) {
+    const Eigen::MatrixXd& T_TARGET_LIDAR) {
   T_TARGET_LIDAR_ = T_TARGET_LIDAR;
   transform_estimate_set_ = true;
 }
 
-void IsolateTargetPoints::SetScan(const PointCloud::Ptr &scan_in) {
+void IsolateTargetPoints::SetScan(const PointCloud::Ptr& scan_in) {
   scan_in_ = scan_in;
 }
 
 void IsolateTargetPoints::SetTargetParams(
-    const std::shared_ptr<TargetParams> &target_params) {
+    const std::shared_ptr<TargetParams>& target_params) {
   target_params_ = target_params;
 }
 
 void IsolateTargetPoints::SetLidarParams(
-    const std::shared_ptr<LidarParams> &lidar_params) {
+    const std::shared_ptr<LidarParams>& lidar_params) {
   lidar_params_ = lidar_params;
 }
 
@@ -90,7 +90,8 @@ void IsolateTargetPoints::ClusterPoints() {
   Eigen::Vector3d translation = T_TARGET_LIDAR_.block(0, 3, 3, 1);
   double distance = translation.norm();
   double max_point_distance =
-      distance * tan(utils::DegToRad(lidar_params_->max_angular_resolution_deg));
+      distance *
+      tan(utils::DegToRad(lidar_params_->max_angular_resolution_deg));
 
   // create search tree
   pcl::search::KdTree<pcl::PointXYZ>::Ptr tree =
@@ -133,9 +134,7 @@ void IsolateTargetPoints::GetTargetCluster() {
     centroids.push_back(centroid);
   }
 
-  if (clusters.size() == 1) {
-    scan_isolated_ = clusters[0];
-  }
+  if (clusters.size() == 1) { scan_isolated_ = clusters[0]; }
 
   // get centroid of target if not already calculated
   if (target_params_->template_centroid.isZero()) {
@@ -145,52 +144,66 @@ void IsolateTargetPoints::GetTargetCluster() {
   }
 
   // transform target centroid to lidar frame
-  Eigen::Vector4d centroid_estimated = utils::InvertTransform(T_TARGET_LIDAR_) *
-                                       target_params_->template_centroid;
+  Eigen::Vector3d centroid_estimated =
+      (utils::InvertTransform(T_TARGET_LIDAR_) *
+       target_params_->template_centroid)
+          .hnormalized();
 
-  // calculate template size
-  if (target_params_->template_size == 0) {
-    target_params_->template_size =
-        CalculateMinimalSize(target_params_->template_cloud);
+  // calculate template dimensions in order of largest to smallest
+  if (target_params_->template_dimensions.isZero()) {
+    target_params_->template_dimensions =
+        CalculateMinimalDimensions(target_params_->template_cloud);
   }
 
   // iterate through clusters and calculate errors
   std::vector<double> distance_errors;
-  std::vector<double> size_errors;
   std::vector<double> distances;
-  std::vector<double> sizes;
+  std::vector<Eigen::Vector3d, AlignVec3d> dimension_errors;
+  std::vector<Eigen::Vector3d, AlignVec3d> dimensions;
   for (int i = 0; i < clusters.size(); i++) {
+    // calculate centroid distances and their errors
     double centroid_distance = centroids[i].norm();
-    double size = CalculateMinimalSize(clusters[i]);
     double distance_error =
-        std::abs(centroid_distance - centroid_estimated.hnormalized().norm());
-    double size_error = std::abs(size - target_params_->template_size);
+        std::abs(centroid_distance - centroid_estimated.norm());
     distance_errors.push_back(distance_error);
-    size_errors.push_back(size_error);
     distances.push_back(centroid_distance);
-    sizes.push_back(size);
+
+    // calculate dimensions and their errors
+    Eigen::Vector3d dims = CalculateMinimalDimensions(clusters[i]);
+    Eigen::Vector3d dims_error = Eigen::Vector3d(
+        (dims - target_params_->template_dimensions).array().abs());
+    dimension_errors.push_back(dims_error);
+    dimensions.push_back(dims);
   }
 
-  // normalize errors and calculate scores
+  // calculate scores (normalize by dividing by the true value)
   std::vector<double> scores;
   double best_score = std::numeric_limits<int>::max();
   int best_index = 0;
-  double max_distance_error =
-      *std::max_element(distance_errors.begin(), distance_errors.end());
-  double max_size_error =
-      *std::max_element(size_errors.begin(), size_errors.end());
-  double min_distance_error =
-      *std::min_element(distance_errors.begin(), distance_errors.end());
-  double min_size_error =
-      *std::min_element(size_errors.begin(), size_errors.end());
+
   for (int i = 0; i < clusters.size(); i++) {
-    double distance_error_norm = (distance_errors[i] - min_distance_error) /
-                                 (max_distance_error - min_distance_error);
-    double size_error_norm =
-        (size_errors[i] - min_size_error) / (max_size_error - min_size_error);
-    double score = isolator_size_weight_ * size_error_norm +
-                   isolator_distance_weight_ * distance_error_norm;
+    double distance_error_norm =
+        std::abs(distance_errors[i] / centroid_estimated.norm());
+    double dim1_norm = std::abs(dimension_errors[i][0] /
+                                target_params_->template_dimensions[0]);
+    double dim2_norm = std::abs(dimension_errors[i][1] /
+                                target_params_->template_dimensions[1]);
+    double dim3_norm = std::abs(dimension_errors[i][2] /
+                                target_params_->template_dimensions[2]);
+
+    double score;
+    if (target_params_->is_target_2d) {
+      score = isolator_size_weight_ / 2 * dim1_norm +
+              isolator_size_weight_ / 2 * dim2_norm +
+              isolator_distance_weight_ * distance_error_norm;
+    } else {
+      score = isolator_size_weight_ / 3 * dim1_norm +
+              isolator_size_weight_ / 3 * dim2_norm +
+              isolator_size_weight_ / 3 * dim3_norm +
+              isolator_distance_weight_ * distance_error_norm;
+    }
     scores.push_back(score);
+
     if (score < best_score) {
       best_score = score;
       best_index = i;
@@ -199,13 +212,20 @@ void IsolateTargetPoints::GetTargetCluster() {
 
   if (output_cluster_scores_) {
     std::cout << "Cluster scores:\n"
-              << "Template distance = "
-              << centroid_estimated.hnormalized().norm() << "\n"
-              << "Template size = " << target_params_->template_size << "\n"
-              << "Index | score | size | distance \n";
+              << "Template distance = " << std::setprecision(4)
+              << centroid_estimated.norm() << "\n"
+              << "Template dims = [" << std::setprecision(4)
+              << target_params_->template_dimensions[0] << ", "
+              << std::setprecision(4) << target_params_->template_dimensions[1]
+              << ", " << std::setprecision(4)
+              << target_params_->template_dimensions[2] << "]\n"
+              << "Index | score | distance | dim1 | dim2 | dim3 |\n";
     for (int i = 0; i < clusters.size(); i++) {
-      std::cout << i << " | " << scores[i] << " | " << sizes[i] << " | "
-                << distances[i] << "\n";
+      std::cout << i << " | " << std::setprecision(4) << scores[i] << " | "
+                << std::setprecision(4) << distances[i] << " | "
+                << std::setprecision(4) << dimensions[i][0] << " | "
+                << std::setprecision(4) << dimensions[i][1] << " | "
+                << std::setprecision(4) << dimensions[i][2] << "\n";
     }
     std::cout << "Top index: " << best_index << "\n";
   }
@@ -214,7 +234,9 @@ void IsolateTargetPoints::GetTargetCluster() {
   return;
 }
 
-PointCloud::Ptr IsolateTargetPoints::GetCroppedScan() { return scan_cropped_; }
+PointCloud::Ptr IsolateTargetPoints::GetCroppedScan() {
+  return scan_cropped_;
+}
 
 bool IsolateTargetPoints::CheckInputs() {
   if (scan_in_ == nullptr) {
@@ -249,7 +271,8 @@ void IsolateTargetPoints::CropScan() {
   cropper.Filter(*scan_in_, *scan_cropped_);
 }
 
-double IsolateTargetPoints::CalculateMinimalSize(const PointCloud::Ptr &cloud) {
+Eigen::Vector3d IsolateTargetPoints::CalculateMinimalDimensions(
+    const PointCloud::Ptr& cloud) {
   pcl::PCA<pcl::PointXYZ> pca;
   PointCloud proj;
   pca.setInputCloud(cloud);
@@ -259,16 +282,12 @@ double IsolateTargetPoints::CalculateMinimalSize(const PointCloud::Ptr &cloud) {
   pcl::PointXYZ proj_max;
   pcl::getMinMax3D(proj, proj_min, proj_max);
 
-  double dx = proj_max.x - proj_min.x;
-  double dy = proj_max.y - proj_min.y;
-  double dz = proj_max.z - proj_min.z;
-
-  if (target_params_->is_target_2d) {
-    double minimum = std::min(std::min(dx, dy), dz);
-    return dx * dy * dz / minimum;
-  } else {
-    return dx * dy * dz;
-  }
+  std::vector<double> dimensions{proj_max.x - proj_min.x,
+                                 proj_max.y - proj_min.y,
+                                 proj_max.z - proj_min.z};
+  std::sort(dimensions.begin(), dimensions.begin() + dimensions.size());
+  std::reverse(dimensions.begin(), dimensions.begin() + dimensions.size());
+  return Eigen::Vector3d(dimensions[0], dimensions[1], dimensions[2]);
 }
 
 } // namespace vicon_calibration

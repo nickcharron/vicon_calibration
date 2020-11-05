@@ -41,11 +41,8 @@ private:
 
   // This takes a point cloud, runs PCA to get principal components, then
   // projects the points into the new vector space with origin at the centroid
-  // Then it calculates the min and max in all 3 axes to get 3d dimensions.
-  // If the target is 2d, it returns the area, otherwise the volume
-  // This should result in the same volume calculation regardless of input cloud
-  // position and orientation. It's not quite the minimal but it's close
-  double CalculateMinimalSize(const PointCloud::Ptr &cloud);
+  // Then it calculates the dimensions in all 3 axes and stores them in increasing order
+  Eigen::Vector3d CalculateMinimalDimensions(const PointCloud::Ptr &cloud);
 
   // member variables
   PointCloud::Ptr scan_in_;

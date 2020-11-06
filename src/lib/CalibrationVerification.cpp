@@ -775,8 +775,8 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     point_target = Eigen::Vector4d(0, 0, 0, 1);
     point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                         T_VICONBASE_TARGET * point_target;
-    opt<Eigen::Vector2i> origin_projected =
-        params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+    opt<Eigen::Vector2d> origin_projected =
+        params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
             point_transformed.hnormalized());
 
     if (!origin_projected.has_value()) { continue; }
@@ -790,8 +790,8 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
       point_target = point.homogeneous();
       point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                           T_VICONBASE_TARGET * point_target;
-      opt<Eigen::Vector2i> point_projected =
-          params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+      opt<Eigen::Vector2d> point_projected =
+          params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
               point_transformed.hnormalized());
 
       if (point_projected.has_value()) {
@@ -810,8 +810,8 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
       point_target = utils::PCLPointToEigen(target->at(i)).homogeneous();
       point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                           T_VICONBASE_TARGET * point_target;
-      opt<Eigen::Vector2i> point_projected =
-          params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+      opt<Eigen::Vector2d> point_projected =
+          params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
               point_transformed.hnormalized());
 
       if (point_projected.has_value()) {
@@ -831,11 +831,11 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
         T_VICONBASE_TARGET.matrix();
     Eigen::Vector4d point1 = T_SENSOR_TARGET * Eigen::Vector4d(0, 0, 0, 1);
     Eigen::Vector4d point2 = T_SENSOR_TARGET * Eigen::Vector4d(0, 0, 0.005, 1);
-    opt<Eigen::Vector2i> point1_projected =
-        params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+    opt<Eigen::Vector2d> point1_projected =
+        params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
             point1.hnormalized());
-    opt<Eigen::Vector2i> point2_projected =
-        params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+    opt<Eigen::Vector2d> point2_projected =
+        params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
             point2.hnormalized());
 
     double distance = 3;

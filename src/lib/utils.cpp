@@ -225,10 +225,10 @@ cv::Mat DrawCoordinateFrame(
       y(y_trans(0), y_trans(1), y_trans(2)),
       z(z_trans(0), z_trans(1), z_trans(2));
 
-  opt<Eigen::Vector2i> start_pixel = camera_model->ProjectPoint(o);
-  opt<Eigen::Vector2i> end_pixel_x = camera_model->ProjectPoint(x);
-  opt<Eigen::Vector2i> end_pixel_y = camera_model->ProjectPoint(y);
-  opt<Eigen::Vector2i> end_pixel_z = camera_model->ProjectPoint(z);
+  opt<Eigen::Vector2d> start_pixel = camera_model->ProjectPointPrecise(o);
+  opt<Eigen::Vector2d> end_pixel_x = camera_model->ProjectPointPrecise(x);
+  opt<Eigen::Vector2d> end_pixel_y = camera_model->ProjectPointPrecise(y);
+  opt<Eigen::Vector2d> end_pixel_z = camera_model->ProjectPointPrecise(z);
 
   if (!start_pixel.has_value() || !end_pixel_x.has_value() ||
       !end_pixel_y.has_value() || !end_pixel_z.has_value()) {
@@ -269,8 +269,8 @@ cv::Mat ProjectPointsToImage(
   for (int i = 0; i < cloud->size(); i++) {
     point = utils::PCLPointToEigen(cloud->at(i)).homogeneous();
     point_transformed = T_IMAGE_CLOUD * point;
-    opt<Eigen::Vector2i> pixel =
-        camera_model->ProjectPoint(point_transformed.hnormalized());
+    opt<Eigen::Vector2d> pixel =
+        camera_model->ProjectPointPrecise(point_transformed.hnormalized());
     if (!pixel.has_value()) { continue; }
     cv::circle(img_out, cv::Point(pixel.value()[0], pixel.value()[1]), 2,
                cv::Scalar(0, 255, 0));

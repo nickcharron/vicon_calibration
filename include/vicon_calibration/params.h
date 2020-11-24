@@ -232,24 +232,34 @@ struct CalibrationResult {
   CalibrationResult() { transform = Eigen::MatrixXd(4, 4); }
 };
 
+struct CalibratorInputs {
+  std::string bag;
+  std::string initial_calibration;
+  std::string calibration_config;
+  std::string optimizer_config;
+  std::string target_config_path;
+  std::string target_data_path;
+  std::string camera_intrinsics_path;
+  std::string verification_config;
+  std::string output_directory;
+  bool show_camera_measurements;
+  bool show_lidar_measurements;
+};
+
 struct CalibratorConfig {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   std::string bag_file;
   std::string initial_calibration_file;
-  bool lookup_tf_calibrations{false};
-  bool using_simulation{false};
   bool show_camera_measurements{false};
   bool show_lidar_measurements{false};
   std::string vicon_baselink_frame;
   double time_steps;
-  bool run_verification{true};
   bool use_loop_closure_measurements{true};
-  Eigen::VectorXd initial_guess_perturbation; // for testing sim
   double min_target_motion{0.05};
   double min_target_rotation{5};
   double max_target_velocity{0.7};
   double start_delay{0};
-  std::string optimizer_type{"GTSAM"}; // Options: GTSAM, CERES
+  std::string optimizer_type{"CERES"}; // Options: GTSAM, CERES
   std::vector<std::shared_ptr<vicon_calibration::TargetParams>> target_params;
   std::vector<std::shared_ptr<vicon_calibration::CameraParams>> camera_params;
   std::vector<std::shared_ptr<vicon_calibration::LidarParams>> lidar_params;

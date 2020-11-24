@@ -14,6 +14,7 @@ add_library(${PROJECT_NAME}
   optimization/CeresOptimizer.cpp
   TfTree.cpp
   utils.cpp
+  gflags.cpp
   JsonTools.cpp
   CalibrationVerification.cpp
 )

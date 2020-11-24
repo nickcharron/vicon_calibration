@@ -8,29 +8,9 @@
 namespace vicon_calibration {
 
 void CeresOptimizer::LoadConfig() {
-  // get file path
-  std::string config_path;
-  if (inputs_.optimizer_config_path.empty()) {
-    config_path = utils::GetFilePathConfig("OptimizerConfig.json");
-    if (!boost::filesystem::exists(config_path)) {
-      LOG_ERROR("Cannot locate optimizer config file. No path given and "
-                "default path does not exist: %s",
-                config_path.c_str());
-      throw std::invalid_argument{"Cannot locate optimizer config file."};
-    }
-  } else {
-    config_path = inputs_.optimizer_config_path;
-    if (!boost::filesystem::exists(config_path)) {
-      LOG_ERROR(
-          "Cannot locate optimizer config file. Input path does not exist: %s",
-          config_path.c_str());
-      throw std::invalid_argument{"Invalid optimizer config file path."};
-    }
-  }
-
-  LOG_INFO("Loading Ceres Optimizer Config file: %s", config_path.c_str());
+  LOG_INFO("Loading Ceres Optimizer Config file: %s", inputs_.optimizer_config_path.c_str());
   nlohmann::json J;
-  std::ifstream file(config_path);
+  std::ifstream file(inputs_.optimizer_config_path);
   file >> J;
   LoadConfigCommon(J);
 

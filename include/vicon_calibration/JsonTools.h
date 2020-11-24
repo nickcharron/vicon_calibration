@@ -8,14 +8,11 @@ namespace vicon_calibration {
 class JsonTools {
 
 public:
-  /**
-   * @brief default constructor
-   */
-  JsonTools() = default;
+  JsonTools(const CalibratorInputs& inputs);
 
   ~JsonTools() = default;
 
-  std::shared_ptr<TargetParams> LoadTargetParams(const std::string &file_name);
+  std::shared_ptr<TargetParams> LoadTargetParams();
 
   std::shared_ptr<TargetParams> LoadTargetParams(const nlohmann::json &J_in);
 
@@ -23,10 +20,10 @@ public:
 
   std::shared_ptr<LidarParams> LoadLidarParams(const nlohmann::json &J_in);
 
-  std::shared_ptr<CalibratorConfig> LoadViconCalibratorParams(const std::string &file_name);
+  std::shared_ptr<CalibratorConfig> LoadViconCalibratorParams();
 
 private:
-
+  const CalibratorInputs inputs_;
 };
 
 } // end namespace vicon_calibration

@@ -73,9 +73,11 @@ void CreateTransforms() {
 
 TargetParamsVector GetTargetParams(const std::string& target_filename) {
   std::string config_file_location = GetFileLocationData(target_filename);
-  JsonTools jtools;
+  CalibratorInputs inputs;
+  inputs.target_config_path = config_file_location;
+  JsonTools jtools(inputs);
   std::shared_ptr<TargetParams> param_tmp = std::make_shared<TargetParams>();
-  param_tmp = jtools.LoadTargetParams(config_file_location);
+  param_tmp = jtools.LoadTargetParams();
   //   param_tmp->Print();
   TargetParamsVector params{param_tmp};
   return params;

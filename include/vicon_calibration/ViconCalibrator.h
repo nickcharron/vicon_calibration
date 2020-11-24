@@ -1,13 +1,14 @@
 #pragma once
 
 #include "vicon_calibration/TfTree.h"
-#include "vicon_calibration/optimization/Optimizer.h"
 #include "vicon_calibration/measurement_extractors/CylinderCameraExtractor.h"
 #include "vicon_calibration/measurement_extractors/CylinderLidarExtractor.h"
 #include "vicon_calibration/measurement_extractors/DiamondCameraExtractor.h"
 #include "vicon_calibration/measurement_extractors/DiamondLidarExtractor.h"
+#include "vicon_calibration/optimization/Optimizer.h"
 #include "vicon_calibration/params.h"
 #include "vicon_calibration/utils.h"
+
 #include <Eigen/Geometry>
 #include <opencv2/opencv.hpp>
 #include <ros/time.h>
@@ -23,7 +24,7 @@ public:
   /**
    * @brief default constructor
    */
-  ViconCalibrator() = default;
+  ViconCalibrator(const CalibratorInputs& inputs);
 
   /**
    * @brief default deconstructor
@@ -33,9 +34,7 @@ public:
   /**
    * @brief run calibration
    */
-  void RunCalibration(const std::string& config_file,
-                      bool show_lidar_measurements,
-                      bool show_camera_measurements);
+  void RunCalibration();
 
 private:
   /**
@@ -44,13 +43,15 @@ private:
    */
   void LoadEstimatedExtrinsics();
 
-  void LoadLookupTree();
+  void Setup();
 
-  void GetInitialCalibration(std::string& sensor_frame, SensorType type,
-                             uint8_t& sensor_id);
+  void GetMeasurements();
 
-  void GetInitialCalibrationPerturbed(std::string& sensor_frame,
-                                      SensorType type, uint8_t& sensor_id);
+  void LoadLookupTree(const ros::Time& lookup_time);
+
+  void GetInitialCalibrations();
+
+  void GetInitialCalibrationsPerturbed();
 
   /**
    * @brief get initial guess of where the targets are located at the current
@@ -60,7 +61,9 @@ private:
    * frame
    */
   std::vector<Eigen::Affine3d, AlignAff3d>
-      GetInitialGuess(std::string& sensor_frame);
+      GetInitialGuess(const ros::Time& lookup_time,
+                      const std::string& sensor_frame, SensorType type,
+                      int sensor_id);
 
   /**
    * @brief Compute the measurements from one lidar
@@ -86,26 +89,35 @@ private:
 
   void OutputMeasurementStats();
 
+  CalibrationResults Solve(const CalibrationResults& initial_calibrations);
+
+  const CalibratorInputs inputs_;
   std::shared_ptr<CalibratorConfig> params_;
   vicon_calibration::Counters counters_;
   std::string results_directory_;
   std::string config_file_path_;
   std::shared_ptr<LidarExtractor> lidar_extractor_;
   std::shared_ptr<CameraExtractor> camera_extractor_;
-  ros::Time lookup_time_, time_start_, time_end_;
+  ros::Time time_start_;
+  ros::Time time_end_;
   std::shared_ptr<TfTree> estimate_extrinsics_ = std::make_shared<TfTree>();
   std::shared_ptr<TfTree> lookup_tree_ = std::make_shared<TfTree>();
   LidarMeasurements lidar_measurements_;
   CameraMeasurements camera_measurements_;
   LoopClosureMeasurements loop_closure_measurements_;
-  CalibrationResults calibrations_result_;
   CalibrationResults calibrations_initial_;
-  CalibrationResults calibrations_perturbed_; // for testing with sim ONLY
   rosbag::Bag bag_;
-  std::shared_ptr<Optimizer> optimizer_;
-  Eigen::MatrixXd T_VICONBASE_SENSOR_ = Eigen::MatrixXd(4, 4);
-  Eigen::MatrixXd T_VICONBASE_SENSOR_pert_ = Eigen::MatrixXd(4, 4);
-  // Pert for testing simulation ONLY
+
+  // Simulation testing settings and Member variables
+  struct SimParams {
+    bool using_simulation{true};
+    bool perturb_measurements{false};
+    CalibrationResults calibrations_perturbed_;
+    double max_rot_error_deg{5};
+    double max_trans_error_m{0.03};
+    int num_trials{2};
+  };
+  SimParams sim_options;
 };
 
 } // end namespace vicon_calibration

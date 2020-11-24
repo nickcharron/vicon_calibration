@@ -27,14 +27,18 @@
 
 namespace vicon_calibration {
 
-void CalibrationVerification::LoadJSON(const std::string& file_name) {
+CalibrationVerification::CalibrationVerification(
+    const std::string& config_file_name, const std::string& output_directory)
+    : config_file_name_(config_file_name),
+      output_directory_(output_directory) {}
+
+void CalibrationVerification::LoadJSON() {
   LOG_INFO("Loading CalibrationVerification Config File: %s",
-           file_name.c_str());
+           config_file_name_.c_str());
   nlohmann::json J;
-  std::ifstream file(file_name);
+  std::ifstream file(config_file_name_);
   file >> J;
 
-  output_directory_ = J["output_directory"];
   max_image_results_ = J["max_image_results"];
   max_lidar_results_ = J["max_lidar_results"];
   max_pixel_cor_dist_ = J["max_pixel_cor_dist"];
@@ -55,9 +59,6 @@ void CalibrationVerification::CheckInputs() {
   if (!params_set_) {
     throw std::invalid_argument{"Calibrator Params Not Set."};
   }
-  if (!config_path_set_) {
-    throw std::invalid_argument{"Calibrator Config File Path Not Set."};
-  }
   if (!lidar_measurements_set_) {
     throw std::invalid_argument{"Lidar Measurements Not Set."};
   }
@@ -69,8 +70,7 @@ void CalibrationVerification::CheckInputs() {
 void CalibrationVerification::ProcessResults() {
   LOG_INFO("Processing calibration results.");
   this->CheckInputs();
-
-  this->LoadJSON(utils::GetFilePathConfig("CalibrationVerification.json"));
+  this->LoadJSON();
 
   // load bag file
   try {
@@ -83,7 +83,7 @@ void CalibrationVerification::ProcessResults() {
   this->PrintConfig();
   this->PrintCalibrations(calibrations_initial_, "initial_calibrations.txt");
   this->PrintCalibrations(calibrations_result_, "optimized_calibrations.txt");
-  if (params_->using_simulation && ground_truth_calib_set_) {
+  if (ground_truth_calib_set_) {
     this->PrintCalibrations(calibrations_ground_truth_,
                             "ground_truth_calibrations.txt");
   }
@@ -94,11 +94,6 @@ void CalibrationVerification::ProcessResults() {
   this->GetCameraErrors();
   this->PrintErrorsSummary();
   LOG_INFO("CalibrationVerification Complete.");
-}
-
-void CalibrationVerification::SetConfig(const std::string& calib_config) {
-  calibration_config_ = calib_config;
-  config_path_set_ = true;
 }
 
 void CalibrationVerification::SetInitialCalib(
@@ -217,7 +212,7 @@ void CalibrationVerification::PrintCalibrationErrors() {
         calibrations_result_[i].from_frame, calibrations_result_[i].to_frame);
   }
 
-  if (!params_->using_simulation) { return; }
+  if (!ground_truth_calib_set_) { return; }
 
   // next print errors between ground truth calibrations and optimized
   file << "---------------------------------------------------------\n\n"
@@ -387,7 +382,7 @@ void CalibrationVerification::GetLidarErrors() {
     // get initial calibration and optimized calibration
     Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_true,
         TA_VICONBASE_SENSOR_opt;
-    if (params_->using_simulation && ground_truth_calib_set_) {
+    if (ground_truth_calib_set_) {
       for (CalibrationResult calib : calibrations_ground_truth_) {
         if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
           TA_VICONBASE_SENSOR_true.matrix() = calib.transform;
@@ -459,7 +454,7 @@ void CalibrationVerification::GetLidarErrors() {
                                 lidar_errors_init.begin(),
                                 lidar_errors_init.end());
 
-      if (params_->using_simulation && ground_truth_calib_set_) {
+      if (ground_truth_calib_set_) {
         T_SENSOR_TARGET_true = TA_VICONBASE_SENSOR_true.inverse().matrix() *
                                measurement->T_VICONBASE_TARGET;
         pcl::transformPointCloud(*estimated_keypoints_target,
@@ -523,7 +518,7 @@ void CalibrationVerification::SaveCameraVisuals() {
     // get initial calibration and optimized calibration
     Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_opt,
         TA_VICONBASE_SENSOR_true;
-    if (params_->using_simulation && ground_truth_calib_set_) {
+    if (ground_truth_calib_set_) {
       for (CalibrationResult calib : calibrations_ground_truth_) {
         if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
           TA_VICONBASE_SENSOR_true.matrix() = calib.transform;
@@ -581,7 +576,7 @@ void CalibrationVerification::SaveCameraVisuals() {
                                                TA_VICONBASE_SENSOR_opt.matrix(),
                                                cam_iter, cv::Scalar(255, 0, 0));
 
-      if (params_->using_simulation && ground_truth_calib_set_) {
+      if (ground_truth_calib_set_) {
         final_image = this->ProjectTargetToImage(
             final_image, T_VICONBASE_TGTS, TA_VICONBASE_SENSOR_true.matrix(),
             cam_iter, cv::Scalar(0, 255, 0));
@@ -624,7 +619,7 @@ void CalibrationVerification::GetCameraErrors() {
     // get initial calibration and optimized calibration
     Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_true,
         TA_VICONBASE_SENSOR_opt;
-    if (params_->using_simulation && ground_truth_calib_set_) {
+    if (ground_truth_calib_set_) {
       for (CalibrationResult calib : calibrations_ground_truth_) {
         if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
           TA_VICONBASE_SENSOR_true.matrix() = calib.transform;
@@ -687,7 +682,7 @@ void CalibrationVerification::GetCameraErrors() {
                                  camera_errors_init.begin(),
                                  camera_errors_init.end());
 
-      if (params_->using_simulation && ground_truth_calib_set_) {
+      if (ground_truth_calib_set_) {
         T_SENSOR_TARGET_true = TA_VICONBASE_SENSOR_true.inverse().matrix() *
                                measurement->T_VICONBASE_TARGET;
         camera_errors_true = CalculateCameraErrors(
@@ -913,7 +908,7 @@ void CalibrationVerification::PrintErrorsSummary() {
        << "Average Error Norm (m): " << norms_averaged << "\n"
        << "Samples Used: " << lidar_errors_init_.size() << "\n";
 
-  if (params_->using_simulation && ground_truth_calib_set_) {
+  if (ground_truth_calib_set_) {
     norms_summed = 0;
     for (int i = 0; i < lidar_errors_true_.size(); i++) {
       norms_summed += lidar_errors_true_[i].norm();
@@ -949,7 +944,7 @@ void CalibrationVerification::PrintErrorsSummary() {
        << "Average Error Norm (pixels): " << norms_averaged << "\n"
        << "Samples Used: " << camera_errors_init_.size() << "\n";
 
-  if (params_->using_simulation && ground_truth_calib_set_) {
+  if (ground_truth_calib_set_) {
     norms_summed = 0;
     for (int i = 0; i < camera_errors_true_.size(); i++) {
       norms_summed += camera_errors_true_[i].norm();

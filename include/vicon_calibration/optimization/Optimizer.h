@@ -18,7 +18,7 @@ struct OptimizerInputs {
   CameraMeasurements camera_measurements;
   LoopClosureMeasurements loop_closure_measurements;
   CalibrationResults calibration_initials;
-  std::string optimizer_config_path{""};
+  std::string optimizer_config_path;
 };
 
 /**

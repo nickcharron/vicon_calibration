@@ -1,5 +1,4 @@
 {
-  "output_directory": "/home/nick/vicon_calibration_results/",
   "max_image_results": 50,
   "max_lidar_results": 2,
   "max_pixel_cor_dist": 500,

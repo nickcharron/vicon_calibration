@@ -10,6 +10,12 @@ double time_now(void) {
   return ((double)t.tv_sec + ((double)t.tv_usec) / 1000000.0);
 }
 
+double RandomNumber(const double& min, const double& max) {
+  double random =
+      static_cast<double>(std::rand()) / static_cast<double>(RAND_MAX);
+  return random * (max - min) + min;
+}
+
 double WrapToPi(double angle) {
   double wrapped_angle = WrapToTwoPi(angle + M_PI) - M_PI;
   return wrapped_angle;
@@ -437,6 +443,17 @@ void GetScreenResolution(int& horizontal, int& vertical) {
   Screen* s = DefaultScreenOfDisplay(d);
   horizontal = s->width;
   vertical = s->height;
+}
+
+Eigen::Matrix4d GetT_VICONBASE_SENSOR(const CalibrationResults& calibs,
+                                      SensorType type, uint8_t sensor_id,
+                                      bool& success) {
+  success = true;
+  for (CalibrationResult calib : calibs) {
+    if (calib.type == type && calib.sensor_id == sensor_id) { return calib.transform; }
+  }
+  success = false;
+  return Eigen::Matrix4d::Identity();
 }
 
 }} // namespace vicon_calibration::utils

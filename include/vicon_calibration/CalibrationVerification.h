@@ -12,7 +12,10 @@ namespace vicon_calibration {
 
 class CalibrationVerification {
 public:
-  void LoadJSON(const std::string& file_name = "CalibrationVerification.json");
+  CalibrationVerification(const std::string& config_file_name,
+                          const std::string& output_directory);
+
+  void LoadJSON();
 
   void CheckInputs();
 
@@ -74,9 +77,10 @@ private:
       std::vector<vicon_calibration::CalibrationResult>& calib,
       const std::string& file_name);
 
-  std::string CalibrationErrorsToString(
-      const Eigen::Matrix4d& T1, const Eigen::Matrix4d& T2,
-      const std::string& from_frame, const std::string& to_frame);
+  std::string CalibrationErrorsToString(const Eigen::Matrix4d& T1,
+                                        const Eigen::Matrix4d& T2,
+                                        const std::string& from_frame,
+                                        const std::string& to_frame);
 
   void PrintCalibrationErrors();
 
@@ -94,13 +98,17 @@ private:
   std::vector<double> template_downsample_size_{0.001, 0.001, 0.001};
 
   // member variables:
-  bool initial_calib_set_{false}, optimized_calib_set_{false},
-      ground_truth_calib_set_{false}, params_set_{false},
-      config_path_set_{false}, lidar_measurements_set_{false},
-      camera_measurements_set_{false}, show_target_outline_on_image_{true};
+  bool initial_calib_set_{false};
+  bool params_set_{false};
+  bool optimized_calib_set_{false};
+  bool ground_truth_calib_set_{false};
+  bool lidar_measurements_set_{false};
+  bool camera_measurements_set_{false};
+  bool show_target_outline_on_image_{true};
   int num_tgts_in_img_;
   std::shared_ptr<CalibratorConfig> params_;
   std::string output_directory_;
+  std::string config_file_name_;
   std::string calibration_config_;
   std::string date_and_time_;
   std::string results_directory_;

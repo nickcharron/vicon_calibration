@@ -23,7 +23,6 @@ Eigen::Matrix4d T_SCAN_TARGET1_TRUE, T_SCAN_TARGET1_EST_CONV,
     T_SCAN_TARGET1_EST_DIV, T_SCAN_TARGET2_TRUE, T_SCAN_TARGET2_EST_CONV,
     T_SCAN_TARGET2_EST_DIV;
 ros::Time transform_lookup_time;
-JsonTools json_loader;
 std::shared_ptr<TargetParams> target_params;
 std::shared_ptr<LidarParams> lidar_params;
 PointCloud::Ptr temp_cloud;
@@ -108,7 +107,10 @@ void LoadTransforms() {
 }
 
 void LoadTargetParams() {
-  target_params = json_loader.LoadTargetParams(target_config);
+  CalibratorInputs inputs;
+  inputs.target_config_path = target_config;
+  JsonTools json_loader(inputs);
+  target_params = json_loader.LoadTargetParams();
 
   // replace template with template from test data
   temp_cloud = boost::make_shared<PointCloud>();
@@ -126,7 +128,11 @@ void LoadLidarParams() {
 }
 
 void LoadTargetParamsRotated() {
-  target_params = json_loader.LoadTargetParams(target_config);
+  CalibratorInputs inputs;
+  inputs.target_config_path = target_config;
+  JsonTools json_loader(inputs);
+  target_params = json_loader.LoadTargetParams();
+  
   PointCloud::Ptr temp_cloud;
   temp_cloud = boost::make_shared<PointCloud>();
   if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_rot,

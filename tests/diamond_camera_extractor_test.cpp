@@ -24,9 +24,7 @@ bool is_setup{false};
 Eigen::Matrix4d T_SENSOR_TARGET, T_SENSOR_TARGET_PERT1, T_SENSOR_TARGET_PERT2;
 
 void SetUp() {
-  if(is_setup){
-    return;
-  }
+  if (is_setup) { return; }
   is_setup = true;
   diamond_extractor = std::make_shared<DiamondCameraExtractor>();
   image_path = utils::GetFilePathTestData("ig_f1_sim_dia.jpg");
@@ -56,12 +54,13 @@ void SetUp() {
   T_SENSOR_TARGET_PERT2 =
       utils::PerturbTransformDegM(T_SENSOR_TARGET, perturbation2);
 
-  PointCloud::Ptr template_cloud =
-      boost::make_shared<PointCloud>();
+  PointCloud::Ptr template_cloud = boost::make_shared<PointCloud>();
   pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path, *template_cloud);
 
-  JsonTools json_loader;
-  target_params = json_loader.LoadTargetParams(target_config_path);
+  CalibratorInputs inputs;
+  inputs.target_config_path = target_config_path;
+  JsonTools json_loader(inputs);
+  target_params = json_loader.LoadTargetParams();
   target_params->template_cloud = template_cloud;
 
   camera_params = std::make_shared<CameraParams>(intrinsic_path);

@@ -7,9 +7,9 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-#include <beam_calibration/CameraModel.h>
 #include "vicon_calibration/TfTree.h"
 #include "vicon_calibration/params.h"
+#include <beam_calibration/CameraModel.h>
 
 namespace vicon_calibration {
 
@@ -44,10 +44,14 @@ struct CalibrationResult;
 struct TargetParams;
 struct CameraParams;
 struct LidarParams;
+enum class SensorType;
+typedef std::vector<CalibrationResult> CalibrationResults;
 
 namespace utils {
 
 double time_now(void);
+
+double RandomNumber(const double& min, const double& max);
 
 /**
  * @Brief Wraps input angle to the interval [-PI, PI).
@@ -254,6 +258,10 @@ std::string GetFilePathTestClouds(const std::string& file_name);
 std::string GetFilePathTestBags(const std::string& file_name);
 
 void GetScreenResolution(int& horizontal, int& vertical);
+
+Eigen::Matrix4d GetT_VICONBASE_SENSOR(const CalibrationResults& calibs,
+                                      SensorType type, uint8_t sensor_id,
+                                      bool& success);
 
 } // namespace utils
 

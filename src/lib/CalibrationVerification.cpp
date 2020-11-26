@@ -28,9 +28,11 @@
 namespace vicon_calibration {
 
 CalibrationVerification::CalibrationVerification(
-    const std::string& config_file_name, const std::string& output_directory)
+    const std::string& config_file_name, const std::string& output_directory,
+    const std::string& calibration_config)
     : config_file_name_(config_file_name),
-      output_directory_(output_directory) {}
+      output_directory_(output_directory),
+      calibration_config_(calibration_config) {}
 
 void CalibrationVerification::LoadJSON() {
   LOG_INFO("Loading CalibrationVerification Config File: %s",

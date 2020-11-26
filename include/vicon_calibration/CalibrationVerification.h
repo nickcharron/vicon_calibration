@@ -13,7 +13,8 @@ namespace vicon_calibration {
 class CalibrationVerification {
 public:
   CalibrationVerification(const std::string& config_file_name,
-                          const std::string& output_directory);
+                          const std::string& output_directory,
+                          const std::string& calibration_config);
 
   void LoadJSON();
 

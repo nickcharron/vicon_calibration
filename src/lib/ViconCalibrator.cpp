@@ -169,8 +169,8 @@ void ViconCalibrator::GetInitialCalibrationsPerturbed() {
                                       sim_options.max_trans_error_m);
       double dr = utils::RandomNumber(-sim_options.max_rot_error_deg,
                                       sim_options.max_rot_error_deg);
-      perturbation[i] = dt;
-      perturbation[i + 3] = dr;
+      perturbation[i] = dr;
+      perturbation[i + 3] = dt;
     }
 
     // store as new transform
@@ -687,12 +687,13 @@ void ViconCalibrator::RunCalibration() {
   GetMeasurements();
 
   CalibrationVerification ver(inputs_.verification_config,
-                              inputs_.output_directory);
+                              inputs_.output_directory,
+                              inputs_.calibration_config);
   ver.SetParams(params_);
   ver.SetLidarMeasurements(lidar_measurements_);
   ver.SetCameraMeasurements(camera_measurements_);
 
-  if (!sim_options.using_simulation) {
+  if (sim_options.using_simulation) {
     ver.SetGroundTruthCalib(calibrations_initial_);
 
     for (int i = 0; i < sim_options.num_trials; i++) {

@@ -10,12 +10,13 @@ namespace vicon_calibration {
 
 JsonTools::JsonTools(const CalibratorInputs& inputs) : inputs_(inputs) {}
 
-std::shared_ptr<TargetParams> JsonTools::LoadTargetParams() {
+std::shared_ptr<TargetParams> JsonTools::LoadTargetParams(const std::string& target_config_full_path) {
   LOG_INFO("Loading Target Config File: %s",
-           inputs_.calibration_config.c_str());
+           target_config_full_path.c_str());
+           
   std::shared_ptr<TargetParams> params = std::make_shared<TargetParams>();
   nlohmann::json J_target;
-  std::ifstream file(inputs_.calibration_config);
+  std::ifstream file(target_config_full_path);
   file >> J_target;
 
   std::vector<double> vect1, vect2;
@@ -29,7 +30,7 @@ std::shared_ptr<TargetParams> JsonTools::LoadTargetParams() {
   params->crop_image = crop_image;
 
   // load template cloud
-  std::string template_name = J_target.at("template_cloud");
+  std::string template_name = J_target["template_cloud"];
   std::string template_cloud_path = inputs_.target_data_path + template_name;
   PointCloud::Ptr template_cloud = boost::make_shared<PointCloud>();
   if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path,
@@ -38,16 +39,16 @@ std::shared_ptr<TargetParams> JsonTools::LoadTargetParams() {
   }
   params->template_cloud = template_cloud;
 
-  params->is_target_2d = J_target.at("is_target_2d");
+  params->is_target_2d = J_target["is_target_2d"];
 
   for (const auto& keypoint : J_target["keypoints_lidar"]) {
     Eigen::Vector3d point;
-    point << keypoint.at("x"), keypoint.at("y"), keypoint.at("z");
+    point << keypoint["x"], keypoint["y"], keypoint["z"];
     params->keypoints_lidar.push_back(point);
   }
   for (const auto& keypoint : J_target["keypoints_camera"]) {
     Eigen::Vector3d point;
-    point << keypoint.at("x"), keypoint.at("y"), keypoint.at("z");
+    point << keypoint["x"], keypoint["y"], keypoint["z"];
     params->keypoints_camera.push_back(point);
   }
   return params;
@@ -60,8 +61,8 @@ std::shared_ptr<TargetParams>
       inputs_.target_config_path + target_config;
   std::shared_ptr<TargetParams> params =
       LoadTargetParams(target_config_full_path);
-  params->frame_id = J_in.at("frame_id");
-  params->extractor_type = J_in.at("extractor_type");
+  params->frame_id = J_in["frame_id"];
+  params->extractor_type = J_in["extractor_type"];
   params->target_config_path = target_config_full_path;
   return params;
 }
@@ -73,26 +74,26 @@ std::shared_ptr<CameraParams>
   if (!boost::filesystem::exists(intrinsics_filename)) {
     LOG_ERROR("Cannot find intrinsics filename in the data folder, or at "
               "absolute path %s",
-              J_in.at("intrinsics"));
+              J_in["intrinsics"]);
     throw std::invalid_argument{"Invalid intrinsics path."};
   }
   std::shared_ptr<CameraParams> params =
       std::make_shared<CameraParams>(intrinsics_filename);
-  params->topic = J_in.at("topic");
-  params->frame = J_in.at("frame");
+  params->topic = J_in["topic"];
+  params->frame = J_in["frame"];
   return params;
 }
 
 std::shared_ptr<LidarParams>
     JsonTools::LoadLidarParams(const nlohmann::json& J_in) {
   std::shared_ptr<LidarParams> params = std::make_shared<LidarParams>();
-  params->topic = J_in.at("topic");
-  params->frame = J_in.at("frame");
+  params->topic = J_in["topic"];
+  params->frame = J_in["frame"];
   params->max_angular_resolution_deg = J_in.at("max_angular_resolution_deg");
   return params;
 }
 
-// TODO: add try and catch blocks
+
 std::shared_ptr<CalibratorConfig>
     JsonTools::LoadViconCalibratorParams() {
   LOG_INFO("Loading ViconCalibrator Config File: %s", inputs_.calibration_config.c_str());
@@ -102,6 +103,7 @@ std::shared_ptr<CalibratorConfig>
 
   std::shared_ptr<CalibratorConfig> params =
       std::make_shared<CalibratorConfig>();
+
   params->min_target_motion = J["min_target_motion"];
   params->min_target_rotation = J["min_target_rotation"];
   params->max_target_velocity = J["max_target_velocity"];

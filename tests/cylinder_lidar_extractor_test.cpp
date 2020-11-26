@@ -110,7 +110,7 @@ void LoadTargetParams() {
   CalibratorInputs inputs;
   inputs.target_config_path = target_config;
   JsonTools json_loader(inputs);
-  target_params = json_loader.LoadTargetParams();
+  target_params = json_loader.LoadTargetParams(target_config);
 
   // replace template with template from test data
   temp_cloud = boost::make_shared<PointCloud>();
@@ -131,7 +131,7 @@ void LoadTargetParamsRotated() {
   CalibratorInputs inputs;
   inputs.target_config_path = target_config;
   JsonTools json_loader(inputs);
-  target_params = json_loader.LoadTargetParams();
+  target_params = json_loader.LoadTargetParams(target_config);
   
   PointCloud::Ptr temp_cloud;
   temp_cloud = boost::make_shared<PointCloud>();

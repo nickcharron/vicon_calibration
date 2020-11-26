@@ -54,11 +54,27 @@ bool ValidateJsonFileMustExist(const char* flagname, const std::string& value) {
   return false;
 }
 
-bool ValidateJsonFileMustExistOrNONE(const char* flagname, const std::string& value) {
-  if(value == "NONE"){
-    return true;
+bool ValidateJsonFileMustExistOrNONE(const char* flagname,
+                                     const std::string& value) {
+  if (value == "NONE") { return true; }
+
+  if (!boost::filesystem::exists(value)) {
+    printf("Invalid value for --%s: %s. File Does not exist.\n", flagname,
+           value.c_str());
+    return false;
   }
-  
+
+  std::string extension{".json"};
+  if (IsExtension(value, extension)) { return true; }
+  printf("Invalid value for --%s: %s. File extension must be %s.\n", flagname,
+         value.c_str(), extension.c_str());
+  return false;
+}
+
+bool ValidateJsonFileMustExistOrEmpty(const char* flagname,
+                                      const std::string& value) {
+  if (value == "") { return true; }
+
   if (!boost::filesystem::exists(value)) {
     printf("Invalid value for --%s: %s. File Does not exist.\n", flagname,
            value.c_str());

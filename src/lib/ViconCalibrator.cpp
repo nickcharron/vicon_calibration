@@ -392,15 +392,17 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
     }
 
     ros::Time time_current = img_msg->header.stamp;
+    
     if (time_current <= time_last + time_step) { continue; }
 
     current_image =
         cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::BGR8)->image;
     this->LoadLookupTree(time_current);
     time_last = time_current;
-    std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>
-        T_cam_tgts_estimated, T_viconbase_tgts, T_viconbase_tgts_before,
-        T_viconbase_tgts_after;
+    std::vector<Eigen::Affine3d, AlignAff3d> T_cam_tgts_estimated;
+    std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts;
+    std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts_before;
+    std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts_after;
     try {
       T_cam_tgts_estimated = GetInitialGuess(time_current, sensor_frame,
                                              SensorType::CAMERA, cam_iter);
@@ -430,6 +432,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
                    "json has missing/invalid transforms\n";
       continue;
     }
+
     for (int n = 0; n < T_cam_tgts_estimated.size(); n++) {
       counters_.total_camera++;
       if (T_cam_tgts_estimated_prev.size() > 0) {

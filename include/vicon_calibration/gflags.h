@@ -16,6 +16,8 @@ bool ValidateJsonFileMustExist(const char* flagname, const std::string& value);
 
 bool ValidateJsonFileMustExistOrNONE(const char* flagname, const std::string& value);
 
+bool ValidateJsonFileMustExistOrEmpty(const char* flagname, const std::string& value);
+
 bool ValidateMustBeJson(const char* flagname, const std::string& value);
 
 bool ValidateBagFileMustExist(const char* flagname, const std::string& value);

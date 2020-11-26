@@ -77,7 +77,7 @@ TargetParamsVector GetTargetParams(const std::string& target_filename) {
   inputs.target_config_path = config_file_location;
   JsonTools jtools(inputs);
   std::shared_ptr<TargetParams> param_tmp = std::make_shared<TargetParams>();
-  param_tmp = jtools.LoadTargetParams();
+  param_tmp = jtools.LoadTargetParams(config_file_location);
   //   param_tmp->Print();
   TargetParamsVector params{param_tmp};
   return params;

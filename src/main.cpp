@@ -4,8 +4,8 @@
 
 #include <vicon_calibration/gflags.h>
 
-std::string config_default_path_;
-std::string data_default_path_;
+std::string config_default_path_ = vicon_calibration::utils::GetFilePathConfig("");
+std::string data_default_path_ = vicon_calibration::utils::GetFilePathData("");
 
 DEFINE_string(bag, "", "Full path to bag file (Required).");
 DEFINE_validator(bag, &vicon_calibration::gflags::ValidateBagFileMustExist);
@@ -13,7 +13,7 @@ DEFINE_string(initial_calibration, "",
               "Full path to initial calibration config json. If empty, it will "
               "lookup the calbration from the /tf and /tf_static topics.");
 DEFINE_validator(initial_calibration,
-                 &vicon_calibration::gflags::ValidateJsonFileMustExist);
+                 &vicon_calibration::gflags::ValidateJsonFileMustExistOrEmpty);
 DEFINE_string(calibration_config,
               config_default_path_ + "ViconCalibratorConfig.json",
               "Full path to main config for calibrator.");
@@ -51,9 +51,6 @@ DEFINE_bool(show_lidar_measurements, false,
             "Set to true to show and accept/reject each lidar measurement.");
 
 int main(int argc, char** argv) {
-  config_default_path_ = vicon_calibration::utils::GetFilePathConfig("");
-  data_default_path_ = vicon_calibration::utils::GetFilePathData("");
-
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   vicon_calibration::CalibratorInputs inputs {

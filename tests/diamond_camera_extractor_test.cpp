@@ -60,7 +60,7 @@ void SetUp() {
   CalibratorInputs inputs;
   inputs.target_config_path = target_config_path;
   JsonTools json_loader(inputs);
-  target_params = json_loader.LoadTargetParams();
+  target_params = json_loader.LoadTargetParams(target_config_path);
   target_params->template_cloud = template_cloud;
 
   camera_params = std::make_shared<CameraParams>(intrinsic_path);

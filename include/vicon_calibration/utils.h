@@ -88,6 +88,16 @@ double GetSmallestAngleErrorDeg(double angle1, double angle2);
  */
 double GetSmallestAngleErrorRad(double angle1, double angle2);
 
+double CalculateTranslationErrorNorm(const Eigen::Vector3d& t1,
+                                     const Eigen::Vector3d& t2);
+
+double CalculateRotationError(const Eigen::Matrix3d& r1,
+                              const Eigen::Matrix3d& r2);
+
+double VectorAverage(const std::vector<double>& v);
+
+double VectorStdev(const std::vector<double>& v);
+
 /** Converts degrees to radians. */
 double DegToRad(double d);
 

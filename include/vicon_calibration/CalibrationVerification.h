@@ -12,6 +12,19 @@ namespace vicon_calibration {
 
 class CalibrationVerification {
 public:
+  struct Results {
+    int num_lidars;
+    int num_cameras;
+    int num_lidar_measurements;
+    int num_camera_measurements;
+    double lidar_average_point_errors;
+    double camera_average_reprojection_errors;
+    std::vector<double> calibration_translation_errors;
+    std::vector<double> calibration_rotation_errors;
+    std::vector<std::string> calibration_frames;
+    bool ground_truth_set{false};
+  };
+
   CalibrationVerification(const std::string& config_file_name,
                           const std::string& output_directory,
                           const std::string& calibration_config);
@@ -41,7 +54,9 @@ public:
       const std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>&
           camera_measurements);
 
-  void ProcessResults();
+  void ProcessResults(bool save_measurements = true);
+
+  Results GetSummary();
 
 private:
   void CreateDirectories();
@@ -121,6 +136,8 @@ private:
   double max_pixel_cor_dist_{500}; // in pixels
   double max_point_cor_dist_{0.3}; // in m
   double concave_hull_alpha_multiplier_{1.5};
+  Results results_;
+
   ros::Time lookup_time_;
   std::shared_ptr<vicon_calibration::TfTree> lookup_tree_ =
       std::make_shared<vicon_calibration::TfTree>();

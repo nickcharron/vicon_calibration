@@ -60,6 +60,37 @@ double GetSmallestAngleErrorRad(double angle1, double angle2) {
   }
 }
 
+double VectorStdev(const std::vector<double>& v) {
+  double sum = std::accumulate(v.begin(), v.end(), 0.0);
+  double mean = sum / v.size();
+
+  std::vector<double> diff(v.size());
+  std::transform(v.begin(), v.end(), diff.begin(),
+                 std::bind2nd(std::minus<double>(), mean));
+  double sq_sum =
+      std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
+  double stdev = std::sqrt(sq_sum / v.size());
+  return stdev;
+}
+
+double VectorAverage(const std::vector<double>& v) {
+  double sum = std::accumulate(v.begin(), v.end(), 0);
+  return sum / v.size();
+}
+
+double CalculateTranslationErrorNorm(const Eigen::Vector3d& t1,
+                                     const Eigen::Vector3d& t2) {
+  Eigen::Vector3d error = t1 - t2;
+  return error.norm();
+}
+
+double CalculateRotationError(const Eigen::Matrix3d& r1,
+                              const Eigen::Matrix3d& r2) {
+  double error_r1 = Eigen::AngleAxis<double>(r1).angle();
+  double error_r2 = Eigen::AngleAxis<double>(r2).angle();
+  return std::abs(error_r1 - error_r2);
+}
+
 Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd& M, const int& precision) {
   Eigen::MatrixXd Mround(M.rows(), M.cols());
   for (int i = 0; i < M.rows(); i++) {
@@ -450,7 +481,9 @@ Eigen::Matrix4d GetT_VICONBASE_SENSOR(const CalibrationResults& calibs,
                                       bool& success) {
   success = true;
   for (CalibrationResult calib : calibs) {
-    if (calib.type == type && calib.sensor_id == sensor_id) { return calib.transform; }
+    if (calib.type == type && calib.sensor_id == sensor_id) {
+      return calib.transform;
+    }
   }
   success = false;
   return Eigen::Matrix4d::Identity();

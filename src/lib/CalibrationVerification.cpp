@@ -69,7 +69,7 @@ void CalibrationVerification::CheckInputs() {
   }
 }
 
-void CalibrationVerification::ProcessResults() {
+void CalibrationVerification::ProcessResults(bool save_measurements) {
   LOG_INFO("Processing calibration results.");
   this->CheckInputs();
   this->LoadJSON();
@@ -90,12 +90,22 @@ void CalibrationVerification::ProcessResults() {
                             "ground_truth_calibrations.txt");
   }
   this->PrintCalibrationErrors();
-  this->SaveLidarVisuals();
+  if (save_measurements) {
+    this->SaveLidarVisuals();
+    this->SaveCameraVisuals();
+  }
   this->GetLidarErrors();
-  this->SaveCameraVisuals();
   this->GetCameraErrors();
   this->PrintErrorsSummary();
   LOG_INFO("CalibrationVerification Complete.");
+}
+
+CalibrationVerification::Results CalibrationVerification::GetSummary() {
+  if (!results_.ground_truth_set) {
+    LOG_WARN("Ground truth calibrations not set. Translation and rotations "
+             "errors are unavailable.");
+  }
+  return results_;
 }
 
 void CalibrationVerification::SetInitialCalib(
@@ -225,6 +235,21 @@ void CalibrationVerification::PrintCalibrationErrors() {
                                       calibrations_ground_truth_[i].transform,
                                       calibrations_result_[i].from_frame,
                                       calibrations_result_[i].to_frame);
+  }
+
+  // calculate results summary
+  results_.ground_truth_set = ground_truth_calib_set_;
+  results_.calibration_translation_errors.clear();
+  results_.calibration_rotation_errors.clear();
+  for (uint16_t i = 0; i < calibrations_result_.size(); i++) {
+    results_.calibration_translation_errors.push_back(
+        utils::CalculateTranslationErrorNorm(
+            calibrations_result_[i].transform.block(0, 3, 3, 1),
+            calibrations_ground_truth_[i].transform.block(0, 3, 3, 1)));
+    results_.calibration_rotation_errors.push_back(
+        utils::CalculateRotationError(
+            calibrations_result_[i].transform.block(0, 0, 3, 3),
+            calibrations_ground_truth_[i].transform.block(0, 0, 3, 3)));
   }
 
   // next print errors between initial calibrations and ground truth calibration
@@ -895,9 +920,15 @@ void CalibrationVerification::PrintErrorsSummary() {
     norms_summed += lidar_errors_opt_[i].norm();
   }
   norms_averaged = norms_summed / lidar_errors_opt_.size();
+
   file << "Outputting Error Statistics for Optimized Lidar Calibrations:\n"
        << "Average Error Norm (m): " << norms_averaged << "\n"
        << "Samples Used: " << lidar_errors_opt_.size() << "\n";
+
+  // save to results summary
+  results_.num_lidars = lidar_measurements_.size();
+  results_.num_lidar_measurements = lidar_errors_opt_.size();
+  results_.lidar_average_point_errors = norms_averaged;
 
   norms_summed = 0;
   for (int i = 0; i < lidar_errors_init_.size(); i++) {
@@ -934,6 +965,11 @@ void CalibrationVerification::PrintErrorsSummary() {
        << "Outputting Error Statistics for Optimized Camera Calibrations:\n"
        << "Average Error Norm (pixels): " << norms_averaged << "\n"
        << "Samples Used: " << camera_errors_opt_.size() << "\n";
+
+  // save to results summary
+  results_.num_cameras = camera_measurements_.size();
+  results_.num_camera_measurements = camera_errors_opt_.size();
+  results_.lidar_average_point_errors = norms_averaged;
 
   norms_summed = 0;
   for (int i = 0; i < camera_errors_init_.size(); i++) {

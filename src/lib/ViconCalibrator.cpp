@@ -392,7 +392,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
     }
 
     ros::Time time_current = img_msg->header.stamp;
-    
+
     if (time_current <= time_last + time_step) { continue; }
 
     current_image =
@@ -695,14 +695,51 @@ void ViconCalibrator::RunCalibration() {
 
   if (sim_options.using_simulation) {
     ver.SetGroundTruthCalib(calibrations_initial_);
-
+    std::vector<double> camera_reprojection_errors;
+    std::vector<double> lidar_average_point_errors;
+    std::vector<double> calibration_translation_errors;
+    std::vector<double> calibration_rotation_errors;
     for (int i = 0; i < sim_options.num_trials; i++) {
       GetInitialCalibrationsPerturbed();
       CalibrationResults results = Solve(sim_options.calibrations_perturbed_);
       ver.SetInitialCalib(sim_options.calibrations_perturbed_);
       ver.SetOptimizedCalib(results);
-      ver.ProcessResults();
+      ver.ProcessResults(i == 0); // save measurements for first iteration only
+      CalibrationVerification::Results summary = ver.GetSummary();
+      camera_reprojection_errors.push_back(
+          summary.camera_average_reprojection_errors);
+      lidar_average_point_errors.push_back(summary.lidar_average_point_errors);
+      calibration_translation_errors.push_back(
+          utils::VectorAverage(summary.calibration_translation_errors));
+      calibration_rotation_errors.push_back(
+          utils::VectorAverage(summary.calibration_rotation_errors));
     }
+    std::cout << "------------------------------------------------------\n"
+              << "Outputting Summary for Calibration Pertubation Trials:\n"
+              << std::setw(10) << "Description"
+              << "|" << std::setw(10) << "Mean"
+              << "|" << std::setw(10) << "Std"
+              << "\n"
+              << std::setw(10) << "Cam Rep. Error"
+              << "|" << std::setw(10)
+              << utils::VectorAverage(camera_reprojection_errors) << "|"
+              << std::setw(10) << utils::VectorStdev(camera_reprojection_errors)
+              << "\n"
+              << std::setw(10) << "Lid Pt. Error"
+              << "|" << std::setw(10)
+              << utils::VectorAverage(lidar_average_point_errors) << "|"
+              << std::setw(10) << utils::VectorStdev(lidar_average_point_errors)
+              << "\n"
+              << std::setw(10) << "Cal. Trans. Error"
+              << "|" << std::setw(10)
+              << utils::VectorAverage(calibration_translation_errors) << "|"
+              << std::setw(10)
+              << utils::VectorStdev(calibration_translation_errors) << "\n"
+              << std::setw(10) << "Cal. Trans. Error"
+              << "|" << std::setw(10)
+              << utils::VectorAverage(calibration_rotation_errors) << "|"
+              << std::setw(10)
+              << utils::VectorStdev(calibration_rotation_errors) << "\n";
   } else {
     CalibrationResults results = Solve(calibrations_initial_);
     utils::OutputCalibrations(calibrations_initial_,

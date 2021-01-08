@@ -22,33 +22,28 @@ public:
 private:
   void GetKeypoints() override;
 
-  void GetMeasuredPose();
-
-  void GetEstimatedPose();
-
   void CheckError();
 
-  void DrawContourAxis(std::shared_ptr<cv::Mat> &img_pointer,
-                       const cv::Point &p, const cv::Point &q,
-                       const cv::Scalar &colour, const float scale);
+  void GetEstimatedArea();
+
+  void DrawContourAxis(std::shared_ptr<cv::Mat>& img_pointer,
+                       const cv::Point& p, const cv::Point& q,
+                       const cv::Scalar& colour, const float scale);
+
+  void DisplayImagePair(const cv::Mat& img1, const cv::Mat& img2,
+                        const std::string& display_name,
+                        const std::string& output_text,
+                        const bool& allow_override);
 
   // params:
   cv::Scalar color_threshold_min_{0, 95, 0}; // Min BGR to threshold img for tgt
   cv::Scalar color_threshold_max_{20, 255, 20}; // Max BGR to thresh img for tgt
-  double dist_acceptance_criteria_{300}; // accept measurements if meas. vs.
-                                         // est. centers are less than this
-                                         // (in pixels)
-  double rot_acceptance_criteria_{0.5};  // accept measurements if meas. vs.
-                                         // est. angles are less than this (rad)
+  double area_error_allowance_{0.3}; // allowed area difference in percent
 
   // member variables:
-  double dist_err_;
-  double rot_err_;
   std::vector<cv::Point> target_contour_;
-  std::pair<cv::Point, double> target_pose_measured_;  // center/angle of
-                                                       // measured target
-  std::pair<cv::Point, double> target_pose_estimated_; // center/angle of est.
-                                                       // (projected) target
+  double area_expected_;
+  double area_detected_;
 };
 
 } // namespace vicon_calibration

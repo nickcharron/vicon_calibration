@@ -1,5 +1,7 @@
 #include "vicon_calibration/measurement_extractors/CylinderCameraExtractor.h"
 #include "vicon_calibration/utils.h"
+#include <pcl/surface/convex_hull.h>
+#include <pcl/surface/impl/convex_hull.hpp>
 
 namespace vicon_calibration {
 
@@ -26,21 +28,36 @@ void CylinderCameraExtractor::GetKeypoints() {
   size_t max_area_iter = 0;
   for (size_t i = 0; i < contours.size(); i++) {
     double area = cv::contourArea(contours[i]);
-    if (area > max_area && area < 1e5) {
+    if (area > max_area) {
       max_area = area;
       max_area_iter = i;
     }
   }
+  area_detected_ = max_area;
 
   if (max_area < 10) {
     LOG_INFO(
         "No target found in image. Try relaxing colour thresholding or check "
         "your initial calibration estimates");
     measurement_valid_ = false;
-    this->DisplayImage(
-        *image_in_, "Invalid Measurement",
-        "Showing original invalid image (no target found after thresholding)",
+
+    // draw contours on binary image
+    cv::cvtColor(image_binary, image_binary, cv::COLOR_GRAY2RGB);
+    cv::Mat bin_image_annotated = image_binary.clone();
+    for (int i = 0; i < contours.size(); i++) {
+      if (i == max_area_iter) { continue; }
+      cv::drawContours(bin_image_annotated, contours, i, cv::Scalar(0, 0, 255));
+    }
+    cv::drawContours(bin_image_annotated, contours, max_area_iter,
+                     cv::Scalar(255, 0, 0));
+
+    this->DisplayImagePair(
+        *image_in_, bin_image_annotated,
+        "Invalid Measurement (no target found after thresholding)",
+        "Showing original image (left) and thresholded image with contours "
+        "(right). All contours are in red, with the lagest one in blue.",
         false);
+
     return;
   }
   target_contour_ = contours[max_area_iter];
@@ -59,126 +76,53 @@ void CylinderCameraExtractor::GetKeypoints() {
     pixel.y = target_contour_[i].y;
     keypoints_measured_->points.push_back(pixel);
   }
-  this->GetMeasuredPose();
-  this->GetEstimatedPose();
+  this->GetEstimatedArea();
   this->CheckError();
 }
 
-// TODO: redo the error metrics to check for false measurements. I want to have
-//       3 error checks:
-//       1) check origin point is approximately the same spot.
-//       2) check that the angle is approximately equal to estimated
-//       3) check that area is approx. equal to the template projected area
-void CylinderCameraExtractor::GetMeasuredPose() {
-  // Construct a buffer used by the pca analysis
-  int sz = static_cast<int>(target_contour_.size());
-  cv::Mat data_pts = cv::Mat(sz, 2, CV_64F);
-  for (int i = 0; i < data_pts.rows; i++) {
-    data_pts.at<double>(i, 0) = target_contour_.at(i).x;
-    data_pts.at<double>(i, 1) = target_contour_.at(i).y;
-  }
-
-  // Perform PCA analysis
-  cv::PCA pca_analysis(data_pts, cv::Mat(), cv::PCA::DATA_AS_ROW);
-
-  // Store the center of the object
-  cv::Point cntr =
-      cv::Point(static_cast<int>(pca_analysis.mean.at<double>(0, 0)),
-                static_cast<int>(pca_analysis.mean.at<double>(0, 1)));
-
-  // Store the eigenvalues and eigenvectors
-  std::vector<cv::Point2d> eigen_vecs(2);
-  std::vector<double> eigen_val(2);
-  for (int i = 0; i < 2; i++) {
-    eigen_vecs[i] = cv::Point2d(pca_analysis.eigenvectors.at<double>(i, 0),
-                                pca_analysis.eigenvectors.at<double>(i, 1));
-    eigen_val[i] = pca_analysis.eigenvalues.at<double>(i);
-  }
-
-  cv::Point p1 =
-      cntr + 0.02 * cv::Point(static_cast<int>(eigen_vecs[0].x * eigen_val[0]),
-                              static_cast<int>(eigen_vecs[0].y * eigen_val[0]));
-  cv::Point p2 =
-      cntr - 0.02 * cv::Point(static_cast<int>(eigen_vecs[1].x * eigen_val[1]),
-                              static_cast<int>(eigen_vecs[1].y * eigen_val[1]));
-  double angle =
-      std::atan2(eigen_vecs[0].y, eigen_vecs[0].x); // orientation in radians
-  target_pose_measured_ = std::make_pair(cntr, angle);
-
-  // Draw the principal components
-  if (show_measurements_) {
-    cv::circle(*image_annotated_, cntr, 3, cv::Scalar(255, 0, 255), 2);
-    this->DrawContourAxis(image_annotated_, cntr, p1, cv::Scalar(0, 255, 0), 1);
-    this->DrawContourAxis(image_annotated_, cntr, p2, cv::Scalar(255, 255, 0),
-                          5);
-  }
-}
-
-void CylinderCameraExtractor::GetEstimatedPose() {
-  // first, we need to determine the height of the target. Assume coordinate
-  // frame is at the top of the template cloud.
-  double target_height = 0;
+void CylinderCameraExtractor::GetEstimatedArea() {
+  // project points
+  pcl::PointCloud<pcl::PointXYZ>::Ptr projected_points =
+      boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   for (PointCloud::iterator it = target_params_->template_cloud->begin();
        it != target_params_->template_cloud->end(); ++it) {
-    double z_coord = it->z;
-    if (z_coord > target_height) {
-      target_height = z_coord;
+    opt<Eigen::Vector2d> pix =
+        this->TargetPointToPixel(Eigen::Vector4d(it->x, it->y, it->z, 1));
+    if (pix.has_value()) {
+      pcl::PointXYZ point;
+      point.x = pix.value()[0];
+      point.y = pix.value()[1];
+      point.z = 0;
+      projected_points->points.push_back(point);
     }
   }
 
-  // project axis points to image
-  Eigen::Vector4d point_center(target_height / 2, 0, 0, 1);
-  Eigen::Vector4d point_origin(0, 0, 0, 1);
-  opt<Eigen::Vector2d> pixel_center = this->TargetPointToPixel(point_center);
-  opt<Eigen::Vector2d> pixel_origin = this->TargetPointToPixel(point_origin);
+  // calculate convex hull
+  pcl::PointCloud<pcl::PointXYZ> hull_points;
+  pcl::ConvexHull<pcl::PointXYZ> convex_hull;
+  convex_hull.setInputCloud(projected_points);
+  convex_hull.reconstruct(hull_points);
 
-  if (!pixel_center.has_value() || !pixel_origin.has_value()) {
-    measurement_valid_ = false;
+  // calculate area
+  double area = 0.0;
+  for (unsigned int i = 0; i < hull_points.points.size(); ++i) {
+    int j = (i + 1) % hull_points.points.size();
+    area += 0.5 * (hull_points.points[i].x * hull_points.points[j].y -
+                   hull_points.points[j].x * hull_points.points[i].y);
   }
-
-  // save center and angle
-  double angle =
-      std::atan2((pixel_origin.value()[1] - pixel_center.value()[1]),
-                 (pixel_origin.value()[0] - pixel_center.value()[0]));
-  cv::Point cv_point_center;
-  cv_point_center.x = pixel_center.value()[0];
-  cv_point_center.y = pixel_center.value()[1];
-  target_pose_estimated_ = std::make_pair(cv_point_center, angle);
+  area_expected_ = std::abs(area);
 }
 
 void CylinderCameraExtractor::CheckError() {
-  double x_m = target_pose_measured_.first.x;
-  double x_e = target_pose_estimated_.first.x;
-  double y_m = target_pose_measured_.first.y;
-  double y_e = target_pose_estimated_.first.y;
-  double theta_m = target_pose_measured_.second;
-  double theta_e = target_pose_estimated_.second;
-  dist_err_ = std::sqrt((x_m - x_e) * (x_m - x_e) + (y_m - y_e) * (y_m - y_e));
-  rot_err_ = theta_m - theta_e;
-  rot_err_ = std::abs(rot_err_);
-
-  // since the vector may be in the opposite direction:
-  if (rot_err_ > 1.5708) {
-    rot_err_ = rot_err_ - 3.14159;
-  }
-
-  if (dist_err_ > dist_acceptance_criteria_) {
+  double area_diff = std::abs(area_expected_ - area_detected_) / area_expected_;
+  if (area_diff > area_error_allowance_) {
     measurement_valid_ = false;
     if (show_measurements_) {
-      LOG_INFO("Measurement invalid because the measured distance error is "
-               "larger than the specified threshold. Distance error measured: "
-               "%.3f, threshold: %.3f",
-               dist_err_, dist_acceptance_criteria_);
-    }
-    return;
-  }
-  if (rot_err_ > rot_acceptance_criteria_) {
-    measurement_valid_ = false;
-    if (show_measurements_) {
-      LOG_INFO("Measurement invalid because the measured rotation error is "
-               "larger than the specified threshold. Rotation error measured: "
-               "%.3f, threshold: %.3f",
-               rot_err_, rot_acceptance_criteria_);
+      LOG_INFO("Measurement invalid because the difference between the "
+               "expected area and the detected area is too great. Area "
+               "Expected: %.3f, Area Detected: %.3f, Difference: "
+               "%.3f, Allowed: %.3f",
+               area_expected_, area_detected_, area_diff, area_error_allowance_);
     }
     return;
   }
@@ -186,8 +130,8 @@ void CylinderCameraExtractor::CheckError() {
 }
 
 void CylinderCameraExtractor::DrawContourAxis(
-    std::shared_ptr<cv::Mat> &img_pointer, const cv::Point &p,
-    const cv::Point &q, const cv::Scalar &colour, const float scale = 0.2) {
+    std::shared_ptr<cv::Mat>& img_pointer, const cv::Point& p,
+    const cv::Point& q, const cv::Scalar& colour, const float scale = 0.2) {
   cv::Point p_ = p;
   cv::Point q_ = q;
   double angle =
@@ -205,6 +149,71 @@ void CylinderCameraExtractor::DrawContourAxis(
   p_.x = (int)(q_.x + 9 * std::cos(angle - CV_PI / 4));
   p_.y = (int)(q_.y + 9 * std::sin(angle - CV_PI / 4));
   cv::line(*img_pointer, p, q, colour, 1, cv::LINE_AA);
+}
+
+void CylinderCameraExtractor::DisplayImagePair(const cv::Mat& img1,
+                                               const cv::Mat& img2,
+                                               const std::string& display_name,
+                                               const std::string& output_text,
+                                               const bool& allow_override) {
+  if (!show_measurements_) { return; }
+
+  cv::Mat img1_w_axes = utils::DrawCoordinateFrame(img1, T_CAMERA_TARGET_EST_,
+                                                   camera_params_->camera_model,
+                                                   axis_plot_scale_);
+
+  cv::Mat img2_w_axes = utils::DrawCoordinateFrame(img2, T_CAMERA_TARGET_EST_,
+                                                   camera_params_->camera_model,
+                                                   axis_plot_scale_);
+
+  cv::Mat combined_imgs;
+  cv::hconcat(img1_w_axes, img2_w_axes, combined_imgs);
+
+  if (allow_override) {
+    std::cout << output_text << std::endl
+              << "Press [c] to continue with default\n"
+              << "Press [y] to accept measurement\n"
+              << "Press [n] to reject measurement\n"
+              << "Press [s] to stop showing future measurements\n";
+    cv::namedWindow(display_name, cv::WINDOW_NORMAL);
+    cv::resizeWindow(display_name, combined_imgs.cols / 2,
+                     combined_imgs.rows / 2);
+    cv::imshow(display_name, combined_imgs);
+    auto key = 0;
+    while (key != 67 && key != 99 && key != 121 && key != 110 && key != 115) {
+      key = cv::waitKey();
+      if (key == 121) {
+        measurement_valid_ = true;
+        std::cout << "Accepted measurement.\n";
+      }
+      if (key == 110) {
+        measurement_valid_ = false;
+        std::cout << "Rejected measurement.\n";
+      }
+      if (key == 115) {
+        std::cout << "setting show measurements to false.\n";
+        this->SetShowMeasurements(false);
+      }
+    }
+  } else {
+    std::cout << output_text << std::endl
+              << "Press [c] to continue with default\n"
+              << "Press [s] to stop showing future measurements\n";
+    cv::namedWindow(display_name, cv::WINDOW_NORMAL);
+    cv::resizeWindow(display_name, combined_imgs.cols / 2,
+                     combined_imgs.rows / 2);
+    cv::imshow(display_name, combined_imgs);
+    auto key = 0;
+    while (key != 67 && key != 99 && key != 115) {
+      key = cv::waitKey();
+      if (key == 115) {
+        std::cout << "setting show measurements to false.\n";
+        this->SetShowMeasurements(false);
+      }
+    }
+  }
+
+  cv::destroyAllWindows();
 }
 
 } // namespace vicon_calibration

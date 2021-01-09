@@ -293,7 +293,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
     for (int n = 0; n < T_lidar_tgts_estimated.size(); n++) {
       counters_.total_lidar++;
       if (T_lidar_tgts_estimated_prev.size() > 0) {
-        if (!PassedMinTranslation(T_lidar_tgts_estimated_prev[n],
+        if (!PassedMinMotion(T_lidar_tgts_estimated_prev[n],
                                   T_lidar_tgts_estimated[n])) {
           counters_.lidar_rejected_still++;
           continue;
@@ -436,7 +436,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
     for (int n = 0; n < T_cam_tgts_estimated.size(); n++) {
       counters_.total_camera++;
       if (T_cam_tgts_estimated_prev.size() > 0) {
-        if (!PassedMinTranslation(T_cam_tgts_estimated_prev[n],
+        if (!PassedMinMotion(T_cam_tgts_estimated_prev[n],
                                   T_cam_tgts_estimated[n])) {
           counters_.camera_rejected_still++;
           continue;
@@ -549,26 +549,14 @@ void ViconCalibrator::GetLoopClosureMeasurements() {
            loop_closure_measurements_.size());
 }
 
-bool ViconCalibrator::PassedMinTranslation(const Eigen::Affine3d& TA_S_T_prev,
+bool ViconCalibrator::PassedMinMotion(const Eigen::Affine3d& TA_S_T_prev,
                                            const Eigen::Affine3d& TA_S_T_curr) {
-  Eigen::Vector3d error_t =
-      TA_S_T_curr.translation() - TA_S_T_prev.translation();
-  error_t[0] = std::abs(error_t[0]);
-  error_t[1] = std::abs(error_t[1]);
-  error_t[2] = std::abs(error_t[2]);
-  Eigen::Vector3d rpy_curr = TA_S_T_curr.rotation().eulerAngles(0, 1, 2);
-  Eigen::Vector3d rpy_prev = TA_S_T_prev.rotation().eulerAngles(0, 1, 2);
-  Eigen::Vector3d error_r;
-  error_r[0] = utils::GetSmallestAngleErrorRad(rpy_curr[0], rpy_prev[0]);
-  error_r[1] = utils::GetSmallestAngleErrorRad(rpy_curr[1], rpy_prev[1]);
-  error_r[2] = utils::GetSmallestAngleErrorRad(rpy_curr[2], rpy_prev[2]);
-  if (error_t[0] > params_->min_target_motion ||
-      error_t[1] > params_->min_target_motion ||
-      error_t[2] > params_->min_target_motion) {
+  double error_t =
+      (TA_S_T_curr.translation() - TA_S_T_prev.translation()).norm();
+  double error_r = utils::CalculateRotationError(TA_S_T_prev.rotation(), TA_S_T_curr.rotation());
+  if (error_t > params_->min_target_motion) {
     return true;
-  } else if (utils::RadToDeg(error_r[0]) > params_->min_target_rotation ||
-             utils::RadToDeg(error_r[1]) > params_->min_target_rotation ||
-             utils::RadToDeg(error_r[2]) > params_->min_target_rotation) {
+  } else if (error_r > params_->min_target_motion) {
     return true;
   } else {
     return false;
@@ -707,38 +695,36 @@ void ViconCalibrator::RunCalibration() {
       ver.ProcessResults(i == 0); // save measurements for first iteration only
       CalibrationVerification::Results summary = ver.GetSummary();
       camera_reprojection_errors.push_back(
-          summary.camera_average_reprojection_errors);
-      lidar_average_point_errors.push_back(summary.lidar_average_point_errors);
+          summary.camera_average_reprojection_errors_pixels);
+      lidar_average_point_errors.push_back(summary.lidar_average_point_errors_mm);
       calibration_translation_errors.push_back(
-          utils::VectorAverage(summary.calibration_translation_errors));
+          utils::VectorAverage(summary.calibration_translation_errors_mm));
       calibration_rotation_errors.push_back(
-          utils::VectorAverage(summary.calibration_rotation_errors));
+          utils::VectorAverage(summary.calibration_rotation_errors_deg));
     }
     std::cout << "------------------------------------------------------\n"
               << "Outputting Summary for Calibration Pertubation Trials:\n"
-              << std::setw(10) << "Description"
-              << "|" << std::setw(10) << "Mean"
-              << "|" << std::setw(10) << "Std"
+              << std::setw(25) << "Description" << std::setw(20) << "Mean"
+              << std::setw(20) << "Std"
               << "\n"
-              << std::setw(10) << "Cam Rep. Error"
-              << "|" << std::setw(10)
-              << utils::VectorAverage(camera_reprojection_errors) << "|"
-              << std::setw(10) << utils::VectorStdev(camera_reprojection_errors)
+              << std::setw(25) << "Cam Rep. Error (pixels)" << std::setw(20)
+              << utils::VectorAverage(camera_reprojection_errors)
+              << std::setw(20) << utils::VectorStdev(camera_reprojection_errors)
               << "\n"
-              << std::setw(10) << "Lid Pt. Error"
-              << "|" << std::setw(10)
-              << utils::VectorAverage(lidar_average_point_errors) << "|"
-              << std::setw(10) << utils::VectorStdev(lidar_average_point_errors)
-              << "\n"
-              << std::setw(10) << "Cal. Trans. Error"
-              << "|" << std::setw(10)
-              << utils::VectorAverage(calibration_translation_errors) << "|"
-              << std::setw(10)
+              << std::setw(25) << "Lid Pt. Error (mm)" << std::setw(20)
+              << std::setprecision(10)
+              << utils::VectorAverage(lidar_average_point_errors)
+              << std::setw(20) << std::setprecision(10)
+              << utils::VectorStdev(lidar_average_point_errors) << "\n"
+              << std::setw(25) << "Cal. Trans. Error (mm)" << std::setw(20)
+              << std::setprecision(10)
+              << utils::VectorAverage(calibration_translation_errors)
+              << std::setw(20) << std::setprecision(10)
               << utils::VectorStdev(calibration_translation_errors) << "\n"
-              << std::setw(10) << "Cal. Trans. Error"
-              << "|" << std::setw(10)
-              << utils::VectorAverage(calibration_rotation_errors) << "|"
-              << std::setw(10)
+              << std::setw(25) << "Cal. Rot. Error (deg)" << std::setw(20)
+              << std::setprecision(10)
+              << utils::VectorAverage(calibration_rotation_errors)
+              << std::setw(20) << std::setprecision(10)
               << utils::VectorStdev(calibration_rotation_errors) << "\n";
   } else {
     CalibrationResults results = Solve(calibrations_initial_);

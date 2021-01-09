@@ -98,6 +98,8 @@ double VectorAverage(const std::vector<double>& v);
 
 double VectorStdev(const std::vector<double>& v);
 
+std::string VectorToString(const std::vector<double>& v);
+
 /** Converts degrees to radians. */
 double DegToRad(double d);
 

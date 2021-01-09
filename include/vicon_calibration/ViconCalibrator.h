@@ -81,8 +81,8 @@ private:
 
   void SetCalibrationInitials();
 
-  bool PassedMinTranslation(const Eigen::Affine3d& TA_S_T_prev,
-                            const Eigen::Affine3d& TA_S_T_curr);
+  bool PassedMinMotion(const Eigen::Affine3d& TA_S_T_prev,
+                       const Eigen::Affine3d& TA_S_T_curr);
 
   bool PassedMaxVelocity(const Eigen::Affine3d& TA_S_T_before,
                          const Eigen::Affine3d& TA_S_T_after);
@@ -115,7 +115,7 @@ private:
     CalibrationResults calibrations_perturbed_;
     double max_rot_error_deg{5};
     double max_trans_error_m{0.03};
-    int num_trials{2};
+    int num_trials{30};
   };
   SimParams sim_options;
 };

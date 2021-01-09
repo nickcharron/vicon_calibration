@@ -74,8 +74,24 @@ double VectorStdev(const std::vector<double>& v) {
 }
 
 double VectorAverage(const std::vector<double>& v) {
-  double sum = std::accumulate(v.begin(), v.end(), 0);
-  return sum / v.size();
+  double sum = 0;
+  for (int i = 0; i < v.size(); i++){
+    double value = v[i];
+    sum+=value;
+  }
+  double avg = sum / v.size();
+  return avg;
+}
+
+std::string VectorToString(const std::vector<double>& v) {
+  std::string output = "[";
+  for (int i = 0; i < v.size(); i++){
+    double value = v[i];
+    output+=std::to_string(value);
+    output+=", ";
+  }
+  output.erase(output.end()-2, output.end());
+  return output+=" ]";
 }
 
 double CalculateTranslationErrorNorm(const Eigen::Vector3d& t1,

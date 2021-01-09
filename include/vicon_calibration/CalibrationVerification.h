@@ -17,10 +17,10 @@ public:
     int num_cameras;
     int num_lidar_measurements;
     int num_camera_measurements;
-    double lidar_average_point_errors;
-    double camera_average_reprojection_errors;
-    std::vector<double> calibration_translation_errors;
-    std::vector<double> calibration_rotation_errors;
+    double lidar_average_point_errors_mm;
+    double camera_average_reprojection_errors_pixels;
+    std::vector<double> calibration_translation_errors_mm;
+    std::vector<double> calibration_rotation_errors_deg;
     std::vector<std::string> calibration_frames;
     bool ground_truth_set{false};
   };

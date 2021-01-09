@@ -239,17 +239,17 @@ void CalibrationVerification::PrintCalibrationErrors() {
 
   // calculate results summary
   results_.ground_truth_set = ground_truth_calib_set_;
-  results_.calibration_translation_errors.clear();
-  results_.calibration_rotation_errors.clear();
+  results_.calibration_translation_errors_mm.clear();
+  results_.calibration_rotation_errors_deg.clear();
   for (uint16_t i = 0; i < calibrations_result_.size(); i++) {
-    results_.calibration_translation_errors.push_back(
-        utils::CalculateTranslationErrorNorm(
-            calibrations_result_[i].transform.block(0, 3, 3, 1),
-            calibrations_ground_truth_[i].transform.block(0, 3, 3, 1)));
-    results_.calibration_rotation_errors.push_back(
-        utils::CalculateRotationError(
+    results_.calibration_translation_errors_mm.push_back(
+        1000 * utils::CalculateTranslationErrorNorm(
+                   calibrations_result_[i].transform.block(0, 3, 3, 1),
+                   calibrations_ground_truth_[i].transform.block(0, 3, 3, 1)));
+    results_.calibration_rotation_errors_deg.push_back(
+        utils::RadToDeg(utils::CalculateRotationError(
             calibrations_result_[i].transform.block(0, 0, 3, 3),
-            calibrations_ground_truth_[i].transform.block(0, 0, 3, 3)));
+            calibrations_ground_truth_[i].transform.block(0, 0, 3, 3))));
   }
 
   // next print errors between initial calibrations and ground truth calibration
@@ -928,7 +928,7 @@ void CalibrationVerification::PrintErrorsSummary() {
   // save to results summary
   results_.num_lidars = lidar_measurements_.size();
   results_.num_lidar_measurements = lidar_errors_opt_.size();
-  results_.lidar_average_point_errors = norms_averaged;
+  results_.lidar_average_point_errors_mm = norms_averaged * 1000;
 
   norms_summed = 0;
   for (int i = 0; i < lidar_errors_init_.size(); i++) {
@@ -969,7 +969,7 @@ void CalibrationVerification::PrintErrorsSummary() {
   // save to results summary
   results_.num_cameras = camera_measurements_.size();
   results_.num_camera_measurements = camera_errors_opt_.size();
-  results_.lidar_average_point_errors = norms_averaged;
+  results_.camera_average_reprojection_errors_pixels = norms_averaged;
 
   norms_summed = 0;
   for (int i = 0; i < camera_errors_init_.size(); i++) {

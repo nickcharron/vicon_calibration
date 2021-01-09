@@ -30,7 +30,7 @@ Optimizer::Optimizer(const OptimizerInputs& inputs) {
       vox.setInputCloud(inputs_.target_params[i]->template_cloud);
       vox.filter(*downsampled_cloud);
       inputs_.target_params[i]->template_cloud = downsampled_cloud;
-    } 
+    }
   }
 }
 
@@ -588,6 +588,9 @@ void Optimizer::ViewCameraMeasurements(
   std::string shape_id = "correspondences";
   pcl_viewer_->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
                                                     *correspondences, shape_id);
+  pcl_viewer_->setBackgroundColor(optimizer_params_.viewer_backround_color[0],
+                                  optimizer_params_.viewer_backround_color[1],
+                                  optimizer_params_.viewer_backround_color[2]);
   pcl_viewer_->setShapeRenderingProperties(
       pcl::visualization::PCL_VISUALIZER_LINE_WIDTH,
       optimizer_params_.viz_corr_line_width, shape_id);
@@ -714,20 +717,10 @@ bool Optimizer::HasConverged(uint16_t iteration) {
                           inputs_.calibration_initials[i].sensor_id);
 
     // Check all DOFs to see if the change is greater than the tolerance
-    t_curr = T_curr.block(0, 3, 3, 1);
-    t_last = T_last.block(0, 3, 3, 1);
-    R_error =
-        utils::LieAlgebraToR(utils::RToLieAlgebra(T_curr.block(0, 0, 3, 3)) -
-                             utils::RToLieAlgebra(T_last.block(0, 0, 3, 3)));
-    rpy_error = R_error.eulerAngles(0, 1, 2).cast<double>();
-    rpy_error[0] = utils::RadToDeg(std::abs(utils::WrapToPi(rpy_error[0])));
-    rpy_error[1] = utils::RadToDeg(std::abs(utils::WrapToPi(rpy_error[1])));
-    rpy_error[2] = utils::RadToDeg(std::abs(utils::WrapToPi(rpy_error[2])));
-
-    t_error = t_curr - t_last;
-    t_error[0] = std::abs(t_error[0]);
-    t_error[1] = std::abs(t_error[1]);
-    t_error[2] = std::abs(t_error[2]);
+    double error_t_m =
+        (T_curr.block(0, 3, 3, 1) - T_last.block(0, 3, 3, 1)).norm();
+    double error_r_rad = utils::CalculateRotationError(
+        T_curr.block(0, 0, 3, 3), T_last.block(0, 0, 3, 3));
 
     if (optimizer_params_.output_errors) {
       // Output transforms:
@@ -738,23 +731,16 @@ bool Optimizer::HasConverged(uint16_t iteration) {
       utils::OutputTransformInformation(T_last, transform_name + "_current");
 
       // Output errors:
-      std::cout << "rotation error (deg): [" << rpy_error[0] << ", "
-                << rpy_error[1] << ", " << rpy_error[2] << "]\n"
-                << "rotation threshold (deg): ["
-                << optimizer_params_.error_tol[0] << ", "
-                << optimizer_params_.error_tol[1] << ", "
-                << optimizer_params_.error_tol[2] << "]\n"
-                << "translation error (m): [" << t_error[0] << ", "
-                << t_error[1] << ", " << t_error[2] << "]\n"
-                << "translation threshold (m): ["
-                << optimizer_params_.error_tol[3] << ", "
-                << optimizer_params_.error_tol[4] << ", "
-                << optimizer_params_.error_tol[5] << "]\n";
+      std::cout << "rotation error (deg): " << utils::RadToDeg(error_r_rad)
+                << "\n"
+                << "rotation threshold (deg): "
+                << utils::RadToDeg(optimizer_params_.error_tol[0]) << "\n"
+                << "translation error (m): " << error_t_m << "\n"
+                << "translation threshold (m): "
+                << optimizer_params_.error_tol[1] << "\n";
     }
-    for (int i = 0; i < 3; i++) {
-      if (rpy_error[i] > optimizer_params_.error_tol[i]) { return false; }
-      if (t_error[i] > optimizer_params_.error_tol[i + 3]) { return false; }
-    }
+    if (error_r_rad > optimizer_params_.error_tol[0]) { return false; }
+    if (error_t_m > optimizer_params_.error_tol[1]) { return false; }
   }
   return true;
 }

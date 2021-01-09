@@ -41,6 +41,7 @@ public:
   struct Params {
     int viz_point_size = 3;
     int viz_corr_line_width = 2;
+    std::vector<double> viewer_backround_color{1, 1, 1};
     uint16_t max_correspondence_iterations{40};
     bool show_camera_measurements{false};
     bool show_lidar_measurements{false};

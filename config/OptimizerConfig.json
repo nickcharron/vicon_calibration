@@ -13,7 +13,7 @@
   "match_centroids": true,
   "match_centroids_on_first_iter_only": false,
   "print_results_to_terminal": true,
-  "error_tol": [0.001, 0.001, 0.001, 0.0001, 0.0001, 0.0001],
+  "error_tol": [0.001, 0.0001],
   "image_noise": [20, 20],
   "lidar_noise": [0.02, 0.02, 0.02],
   "template_downsample_size": [0.003, 0.003, 0.003],

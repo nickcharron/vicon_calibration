@@ -101,7 +101,7 @@ void Optimizer::LoadConfigCommon(const nlohmann::json& J) {
 
   std::vector<double> tmp;
   for (const auto& val : J["error_tol"]) { tmp.push_back(val); }
-  if (tmp.size() != 6) {
+  if (tmp.size() != 2) {
     throw std::invalid_argument{
         "Invalid number of inputs to error_tol. Expecting 6."};
   }
@@ -718,7 +718,8 @@ bool Optimizer::HasConverged(uint16_t iteration) {
 
     // Check all DOFs to see if the change is greater than the tolerance
     double error_t_m =
-        (T_curr.block(0, 3, 3, 1) - T_last.block(0, 3, 3, 1)).norm();
+        (T_curr.block(0, 3, 3, 1) - 
+        T_last.block(0, 3, 3, 1)).norm();
     double error_r_rad = utils::CalculateRotationError(
         T_curr.block(0, 0, 3, 3), T_last.block(0, 0, 3, 3));
 

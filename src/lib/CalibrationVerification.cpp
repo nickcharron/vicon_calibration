@@ -273,8 +273,6 @@ void CalibrationVerification::PrintConfig() {
 }
 
 void CalibrationVerification::SaveLidarVisuals() {
-  std::vector<Eigen::Affine3d, AlignAff3d> T_VICONBASE_TGTS;
-
   // iterate over each lidar
   for (uint8_t lidar_iter = 0; lidar_iter < params_->lidar_params.size();
        lidar_iter++) {
@@ -306,30 +304,26 @@ void CalibrationVerification::SaveLidarVisuals() {
       }
     }
 
-    // Initialize all the clouds we will need
-    PointCloud::Ptr scan = boost::make_shared<PointCloud>();
-    PointCloud::Ptr scan_trans_est = boost::make_shared<PointCloud>();
-    PointCloud::Ptr scan_trans_opt = boost::make_shared<PointCloud>();
-    PointCloud::Ptr target = boost::make_shared<PointCloud>();
-    PointCloud::Ptr target_transformed = boost::make_shared<PointCloud>();
-    PointCloud::Ptr targets_combined = boost::make_shared<PointCloud>();
-
     // iterate through all measurements for this lidar
     std::shared_ptr<LidarMeasurement> measurement;
     for (int meas_iter = 0; meas_iter < lidar_measurements_[lidar_iter].size();
          meas_iter++) {
+      counter++;     
       if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) { continue; }
       measurement = lidar_measurements_[lidar_iter][meas_iter];
       lookup_time_ = measurement->time_stamp;
       this->LoadLookupTree();
 
       // load scan and transform to viconbase frame
-      scan = GetLidarScanFromBag(
+      PointCloud::Ptr scan = GetLidarScanFromBag(
           params_->lidar_params[measurement->lidar_id]->topic);
+      PointCloud::Ptr scan_trans_est = boost::make_shared<PointCloud>();
+      PointCloud::Ptr scan_trans_opt = boost::make_shared<PointCloud>();
       pcl::transformPointCloud(*scan, *scan_trans_est, TA_VICONBASE_SENSOR_est);
       pcl::transformPointCloud(*scan, *scan_trans_opt, TA_VICONBASE_SENSOR_opt);
 
       // load targets and transform to viconbase frame
+      std::vector<Eigen::Affine3d, AlignAff3d> T_VICONBASE_TGTS;
       try {
         T_VICONBASE_TGTS = utils::GetTargetLocation(
             params_->target_params, params_->vicon_baselink_frame, lookup_time_,
@@ -339,15 +333,17 @@ void CalibrationVerification::SaveLidarVisuals() {
         continue;
       }
 
+      PointCloud::Ptr targets_combined = boost::make_shared<PointCloud>();
       for (uint8_t n = 0; n < T_VICONBASE_TGTS.size(); n++) {
-        target = params_->target_params[n]->template_cloud;
+        const PointCloud::Ptr target = params_->target_params[n]->template_cloud;
+        PointCloud::Ptr target_transformed = boost::make_shared<PointCloud>();
         pcl::transformPointCloud(*target, *target_transformed,
                                  T_VICONBASE_TGTS[n]);
         *targets_combined = *targets_combined + *target_transformed;
       }
       this->SaveScans(scan_trans_est, scan_trans_opt, targets_combined,
                       current_save_path, counter);
-      if (counter == max_lidar_results_) { return; }
+      if (counter == max_lidar_results_) { continue; }
     } // measurement iter
   }   // lidar iter
 }
@@ -379,11 +375,11 @@ void CalibrationVerification::SaveScans(const PointCloud::Ptr& scan_est,
                                         const std::string& save_path,
                                         const int& scan_count) {
   std::string save_path_full =
-      save_path + "scan_" + std::to_string(scan_count + 1) + ".pcd";
+      save_path + "scan_" + std::to_string(scan_count) + ".pcd";
   PointCloud::Ptr scan_est_cropped = boost::make_shared<PointCloud>();
   PointCloud::Ptr scan_opt_cropped = boost::make_shared<PointCloud>();
   beam_filtering::CropBox cropper;
-  Eigen::Vector3f min{-6, -6, -6}, max{6, 6, 6};
+  Eigen::Vector3f min{-10, -10, -10}, max{10, 10, 10};
   cropper.SetMinVector(min);
   cropper.SetMaxVector(max);
   cropper.Filter(*scan_est, *scan_est_cropped);

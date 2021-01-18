@@ -1,6 +1,6 @@
 {
   "max_image_results": 50,
-  "max_lidar_results": 2,
+  "max_lidar_results": 5,
   "max_pixel_cor_dist": 500,
   "max_point_cor_dist": 1,
   "show_target_outline_on_image": true,

@@ -43,6 +43,8 @@ private:
    */
   void LoadEstimatedExtrinsics();
 
+  void GetTimeWindow();
+
   void Setup();
 
   void GetMeasurements();
@@ -52,6 +54,8 @@ private:
   void GetInitialCalibrations();
 
   void GetInitialCalibrationsPerturbed();
+
+  void RunVerification();
 
   /**
    * @brief get initial guess of where the targets are located at the current
@@ -110,7 +114,7 @@ private:
 
   // Simulation testing settings and Member variables
   struct SimParams {
-    bool using_simulation{true};
+    bool using_simulation{false};
     bool perturb_measurements{false};
     CalibrationResults calibrations_perturbed_;
     double max_rot_error_deg{5};

@@ -32,21 +32,7 @@
 namespace vicon_calibration {
 
 ViconCalibrator::ViconCalibrator(const CalibratorInputs& inputs)
-    : inputs_(inputs) {
-  try {
-    JsonTools json_loader(inputs_);
-    params_ = json_loader.LoadViconCalibratorParams();
-  } catch (nlohmann::detail::parse_error& ex) {
-    LOG_ERROR("Unable to load json config file: %s",
-              inputs.calibration_config.c_str());
-    LOG_ERROR("%s", ex.what());
-  }
-
-  params_->bag_file = inputs_.bag;
-  params_->initial_calibration_file = inputs_.initial_calibration;
-  params_->show_camera_measurements = inputs.show_camera_measurements;
-  params_->show_lidar_measurements = inputs.show_lidar_measurements;
-}
+    : inputs_(inputs) {}
 
 void ViconCalibrator::LoadEstimatedExtrinsics() {
   LOG_INFO("Loading estimated extrinsics");
@@ -60,6 +46,7 @@ void ViconCalibrator::LoadEstimatedExtrinsics() {
     }
     return;
   }
+
   // Look up all transforms from /tf_static topic
   rosbag::View view(bag_, rosbag::TopicQuery("/tf_static"), ros::TIME_MIN,
                     ros::TIME_MAX, true);
@@ -282,19 +269,14 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
             time_current + time_window_half, lookup_tree_);
       }
     } catch (const std::exception err) {
-      LOG_ERROR("%s", err.what());
-      std::cout << "Possible reasons for lookup error: \n"
-                << "- Start or End of bag could have message timing issues\n"
-                << "- Vicon messages not synchronized with robot's ROS time\n"
-                << "- Invalid initial calibrations, i.e. input transformations "
-                   "json has missing/invalid transforms\n";
+      LOG_WARN("Transform lookup failed for time: %.1f", time_current.toSec());
       continue;
     }
     for (int n = 0; n < T_lidar_tgts_estimated.size(); n++) {
       counters_.total_lidar++;
       if (T_lidar_tgts_estimated_prev.size() > 0) {
         if (!PassedMinMotion(T_lidar_tgts_estimated_prev[n],
-                                  T_lidar_tgts_estimated[n])) {
+                             T_lidar_tgts_estimated[n])) {
           counters_.lidar_rejected_still++;
           continue;
         }
@@ -325,9 +307,11 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
       }
       if (params_->show_lidar_measurements) {
         std::cout << "---------------------------------\n"
-                  << "Processing measurement for: L"
-                  << std::to_string(lidar_iter + 1) << ", T"
-                  << std::to_string(n + 1) << "\n";
+                  << "Processing measurement for: Lidar"
+                  << std::to_string(lidar_iter + 1) << ", Tgt"
+                  << std::to_string(n + 1) << "\n"
+                  << "Timestamp: " << std::setprecision(10)
+                  << time_current.toSec() << "\n";
       }
       lidar_extractor_->SetLidarParams(params_->lidar_params[lidar_iter]);
       lidar_extractor_->SetTargetParams(params_->target_params[n]);
@@ -357,6 +341,12 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
       current_measurement++;
     }
     T_lidar_tgts_estimated_prev = T_lidar_tgts_estimated;
+    if (counters_.lidar_accepted != 0 &&
+        counters_.lidar_accepted == params_->max_measurements) {
+      LOG_INFO("Stored %d measurements for lidar with frame id: %s",
+               valid_measurements, sensor_frame.c_str());
+      return;
+    }
   }
   LOG_INFO("Stored %d measurements for lidar with frame id: %s",
            valid_measurements, sensor_frame.c_str());
@@ -423,13 +413,8 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
             params_->target_params, params_->vicon_baselink_frame,
             time_current + time_window_half, lookup_tree_);
       }
-    } catch (const std::exception err) {
-      LOG_ERROR("%s", err.what());
-      std::cout << "Possible reasons for lookup error: \n"
-                << "- Start or End of bag could have message timing issues\n"
-                << "- Vicon messages not synchronized with robot's ROS time\n"
-                << "- Invalid initial calibrations, i.e. input transformations "
-                   "json has missing/invalid transforms\n";
+    } catch (...) {
+      LOG_WARN("Transform lookup failed for time: %.1f", time_current.toSec());
       continue;
     }
 
@@ -437,7 +422,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
       counters_.total_camera++;
       if (T_cam_tgts_estimated_prev.size() > 0) {
         if (!PassedMinMotion(T_cam_tgts_estimated_prev[n],
-                                  T_cam_tgts_estimated[n])) {
+                             T_cam_tgts_estimated[n])) {
           counters_.camera_rejected_still++;
           continue;
         }
@@ -465,9 +450,11 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
 
       if (params_->show_camera_measurements) {
         std::cout << "---------------------------------\n"
-                  << "Processing measurement for: C"
-                  << std::to_string(cam_iter + 1) << ", T"
-                  << std::to_string(n + 1) << "\n";
+                  << "Processing measurement for: Cam"
+                  << std::to_string(cam_iter + 1) << ", Tgt"
+                  << std::to_string(n + 1) << "\n"
+                  << "Timestamp: " << std::setprecision(10)
+                  << time_current.toSec() << "\n";
       }
       camera_extractor_->SetCameraParams(params_->camera_params[cam_iter]);
       camera_extractor_->SetTargetParams(params_->target_params[n]);
@@ -497,6 +484,12 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
       current_measurement++;
     }
     T_cam_tgts_estimated_prev = T_cam_tgts_estimated;
+    if (counters_.camera_accepted != 0 &&
+        counters_.camera_accepted == params_->max_measurements) {
+      LOG_INFO("Stored %d measurements for camera with frame id: %s",
+               valid_measurements, sensor_frame.c_str());
+      return;
+    }
   }
   LOG_INFO("Stored %d measurements for camera with frame id: %s",
            valid_measurements, sensor_frame.c_str());
@@ -550,10 +543,11 @@ void ViconCalibrator::GetLoopClosureMeasurements() {
 }
 
 bool ViconCalibrator::PassedMinMotion(const Eigen::Affine3d& TA_S_T_prev,
-                                           const Eigen::Affine3d& TA_S_T_curr) {
+                                      const Eigen::Affine3d& TA_S_T_curr) {
   double error_t =
       (TA_S_T_curr.translation() - TA_S_T_prev.translation()).norm();
-  double error_r = utils::CalculateRotationError(TA_S_T_prev.rotation(), TA_S_T_curr.rotation());
+  double error_r = utils::CalculateRotationError(TA_S_T_prev.rotation(),
+                                                 TA_S_T_curr.rotation());
   if (error_t > params_->min_target_motion) {
     return true;
   } else if (error_r > params_->min_target_motion) {
@@ -579,7 +573,75 @@ bool ViconCalibrator::PassedMaxVelocity(const Eigen::Affine3d& TA_S_T_before,
   }
 }
 
+void ViconCalibrator::GetTimeWindow() {
+  // get all measurement topics to query rosbag
+  std::vector<std::string> topics;
+  for (int i = 0; i < params_->lidar_params.size(); i++) {
+    topics.push_back(params_->lidar_params[i]->topic);
+  }
+  for (int i = 0; i < params_->camera_params.size(); i++) {
+    topics.push_back(params_->camera_params[i]->topic);
+  }
+
+  // get view with all measurement topics
+  rosbag::View view_tmp(bag_, rosbag::TopicQuery(topics), ros::TIME_MIN,
+                        ros::TIME_MAX, true);
+
+  // Get start time of measurements
+  boost::shared_ptr<sensor_msgs::PointCloud2> lid_msg;
+  boost::shared_ptr<sensor_msgs::Image> cam_msg;
+
+  ros::Time first_msg_time;
+  lid_msg = view_tmp.begin()->instantiate<sensor_msgs::PointCloud2>();
+  if (lid_msg != NULL) {
+    first_msg_time = lid_msg->header.stamp;
+  } else {
+    cam_msg = view_tmp.begin()->instantiate<sensor_msgs::Image>();
+    if (cam_msg == NULL) {
+      throw std::runtime_error{"Invalid topic message type."};
+    }
+    first_msg_time = cam_msg->header.stamp;
+  }
+
+  // Get end time of measurements
+  for (auto iter = view_tmp.begin(); iter != view_tmp.end(); iter++) {
+    lid_msg = iter->instantiate<sensor_msgs::PointCloud2>();
+    cam_msg = iter->instantiate<sensor_msgs::Image>();
+  }
+  ros::Time last_msg_time;
+  if (lid_msg != NULL) {
+    last_msg_time = lid_msg->header.stamp;
+  } else if (cam_msg != NULL) {
+    last_msg_time = cam_msg->header.stamp;
+  } else {
+    throw std::runtime_error{"Invalid topic message type."};
+  }
+
+  // check that bag time corresponds to measurement times
+  if (first_msg_time > view_tmp.getEndTime() ||
+      last_msg_time < view_tmp.getBeginTime()) {
+    LOG_ERROR("ROS time from bag does not align with measurement timestamps.");
+    std::cout << "view start time: " << std::setprecision(10)
+              << view_tmp.getBeginTime().toSec() << "\n"
+              << "view end time: " << std::setprecision(10)
+              << view_tmp.getEndTime().toSec() << "\n"
+              << "first measurement time: " << std::setprecision(10)
+              << first_msg_time.toSec() << "\n"
+              << "last measurement time: " << std::setprecision(10)
+              << last_msg_time.toSec() << "\n";
+    throw std::runtime_error{
+        "ROS time from bag does not align with message times."};
+  }
+
+  time_start_ = first_msg_time + ros::Duration(params_->crop_time[0]);
+  time_end_ = last_msg_time - ros::Duration(params_->crop_time[1]);
+}
+
 void ViconCalibrator::Setup() {
+  // Load Params
+  JsonTools json_loader(inputs_);
+  params_ = json_loader.LoadViconCalibratorParams();
+  
   counters_.reset();
 
   // load bag file
@@ -588,30 +650,25 @@ void ViconCalibrator::Setup() {
     bag_.open(params_->bag_file, rosbag::bagmode::Read);
   } catch (rosbag::BagException& ex) {
     LOG_ERROR("Bag exception : %s", ex.what());
+    throw std::runtime_error{"Unable to open bag."};
   }
 
-  // get length of bag to calculate the amount of measurements
-  rosbag::View view_tmp(bag_, ros::TIME_MIN, ros::TIME_MAX, true);
-  time_start_ = view_tmp.getBeginTime() + ros::Duration(params_->start_delay);
-  time_end_ = view_tmp.getEndTime();
-  ros::Duration bag_length = time_end_ - time_start_;
-  int num_measurements = std::floor(bag_length.toSec() / params_->time_steps);
+  this->GetTimeWindow();
 
   // initialize size of lidar measurement and camera measurement containers
-  int num_lidars = params_->lidar_params.size();
-  int num_cameras = params_->camera_params.size();
-  int num_tgts = params_->target_params.size();
-  int m = num_measurements * num_tgts;
+  ros::Duration bag_length = time_end_ - time_start_;
+  int num_measurements = std::floor(bag_length.toSec() / params_->time_steps);
+  int m = num_measurements * params_->target_params.size();
   std::vector<std::shared_ptr<LidarMeasurement>> lidar_init =
       std::vector<std::shared_ptr<LidarMeasurement>>(m, nullptr);
   std::vector<std::shared_ptr<CameraMeasurement>> camera_init =
       std::vector<std::shared_ptr<CameraMeasurement>>(m, nullptr);
   lidar_measurements_ =
-      std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>(num_lidars,
-                                                                  lidar_init);
+      std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>(
+          params_->lidar_params.size(), lidar_init);
   camera_measurements_ =
-      std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>(num_cameras,
-                                                                   camera_init);
+      std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>(
+          params_->camera_params.size(), camera_init);
 
   // Load extrinsics
   this->LoadEstimatedExtrinsics();
@@ -673,7 +730,11 @@ void ViconCalibrator::RunCalibration() {
   Setup();
   GetInitialCalibrations();
   GetMeasurements();
+  RunVerification();
+  return;
+}
 
+void ViconCalibrator::RunVerification(){
   CalibrationVerification ver(inputs_.verification_config,
                               inputs_.output_directory,
                               inputs_.calibration_config);
@@ -696,7 +757,8 @@ void ViconCalibrator::RunCalibration() {
       CalibrationVerification::Results summary = ver.GetSummary();
       camera_reprojection_errors.push_back(
           summary.camera_average_reprojection_errors_pixels);
-      lidar_average_point_errors.push_back(summary.lidar_average_point_errors_mm);
+      lidar_average_point_errors.push_back(
+          summary.lidar_average_point_errors_mm);
       calibration_translation_errors.push_back(
           utils::VectorAverage(summary.calibration_translation_errors_mm));
       calibration_rotation_errors.push_back(
@@ -738,9 +800,7 @@ void ViconCalibrator::RunCalibration() {
       ver.ProcessResults();
     }
   }
-  return;
 }
-
 void ViconCalibrator::OutputMeasurementStats() {
   std::cout << "------------------------------------------------------------\n"
             << "Outputing Measurement Statistics\n"

@@ -6,6 +6,8 @@
 #include <pcl/search/impl/search.hpp>
 #include <pcl/surface/concave_hull.h>
 
+// #include <pcl/io/pcd_io.h>
+
 namespace vicon_calibration {
 
 void DiamondLidarExtractor::GetKeypoints() {
@@ -28,11 +30,10 @@ void DiamondLidarExtractor::GetKeypoints() {
   // extract concave hull for template cloud and scan
   concave_hull.setInputCloud(scan_isolated_);
   concave_hull.reconstruct(*scan_hull);
-  concave_hull.setInputCloud(target_params_->template_cloud);
-  concave_hull.reconstruct(*template_hull);
+  // pcl::io::savePCDFileBinary("/home/nick/tmp/scan_hull.pcd", *scan_hull);
 
   icp.setInputSource(scan_hull);
-  icp.setInputTarget(template_hull);
+  icp.setInputTarget(target_params_->template_cloud);
   icp.align(*scan_registered,
             utils::InvertTransform(T_LIDAR_TARGET_EST_).cast<float>());
 

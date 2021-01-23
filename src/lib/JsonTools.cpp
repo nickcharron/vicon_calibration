@@ -10,10 +10,10 @@ namespace vicon_calibration {
 
 JsonTools::JsonTools(const CalibratorInputs& inputs) : inputs_(inputs) {}
 
-std::shared_ptr<TargetParams> JsonTools::LoadTargetParams(const std::string& target_config_full_path) {
-  LOG_INFO("Loading Target Config File: %s",
-           target_config_full_path.c_str());
-           
+std::shared_ptr<TargetParams>
+    JsonTools::LoadTargetParams(const std::string& target_config_full_path) {
+  LOG_INFO("Loading Target Config File: %s", target_config_full_path.c_str());
+
   std::shared_ptr<TargetParams> params = std::make_shared<TargetParams>();
   nlohmann::json J_target;
   std::ifstream file(target_config_full_path);
@@ -77,10 +77,8 @@ std::shared_ptr<CameraParams>
               J_in["intrinsics"]);
     throw std::invalid_argument{"Invalid intrinsics path."};
   }
-  std::shared_ptr<CameraParams> params =
-      std::make_shared<CameraParams>(intrinsics_filename);
-  params->topic = J_in["topic"];
-  params->frame = J_in["frame"];
+  std::shared_ptr<CameraParams> params = std::make_shared<CameraParams>(
+      intrinsics_filename, J_in["topic"], J_in["frame"]);
   return params;
 }
 
@@ -93,25 +91,34 @@ std::shared_ptr<LidarParams>
   return params;
 }
 
+std::shared_ptr<CalibratorConfig> JsonTools::LoadViconCalibratorParams() {
+  std::shared_ptr<CalibratorConfig> params =
+      std::make_shared<CalibratorConfig>();
 
-std::shared_ptr<CalibratorConfig>
-    JsonTools::LoadViconCalibratorParams() {
-  LOG_INFO("Loading ViconCalibrator Config File: %s", inputs_.calibration_config.c_str());
+  // Copy required input params to main params struct
+  params->bag_file = inputs_.bag;
+  params->initial_calibration_file = inputs_.initial_calibration;
+  params->show_camera_measurements = inputs_.show_camera_measurements;
+  params->show_lidar_measurements = inputs_.show_lidar_measurements;
+
+  LOG_INFO("Loading ViconCalibrator Config File: %s",
+           inputs_.calibration_config.c_str());
   nlohmann::json J;
   std::ifstream file(inputs_.calibration_config);
   file >> J;
-
-  std::shared_ptr<CalibratorConfig> params =
-      std::make_shared<CalibratorConfig>();
 
   params->min_target_motion = J["min_target_motion"];
   params->min_target_rotation = J["min_target_rotation"];
   params->max_target_velocity = J["max_target_velocity"];
   params->vicon_baselink_frame = J["vicon_baselink_frame"];
   params->time_steps = J["time_steps"];
+  params->max_measurements = J["max_measurements"];
   params->use_loop_closure_measurements = J["use_loop_closure_measurements"];
-  params->start_delay = J["start_delay"];
   params->optimizer_type = J["optimizer_type"];
+
+  std::vector<double> crop_time;
+  for (const auto& value : J["crop_time"]) { crop_time.push_back(value); }
+  params->crop_time = crop_time;
 
   int counter = 0;
   for (const auto& target : J["targets"]) {
@@ -129,6 +136,7 @@ std::shared_ptr<CalibratorConfig>
     params->lidar_params.push_back(lid_params);
   }
 
+  LOG_INFO("Successfully loaded calibrator parameters.");
   return params;
 }
 

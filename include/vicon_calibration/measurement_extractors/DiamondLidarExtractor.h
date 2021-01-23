@@ -27,7 +27,7 @@ private:
 
   double icp_transform_epsilon_{1e-8};
   double icp_euclidean_epsilon_{1e-2};
-  int icp_max_iterations_{80};
+  int icp_max_iterations_{50};
   double icp_max_correspondence_dist_{1};
   bool icp_enable_debug_{false};
   double concave_hull_alpha_{0.1};

@@ -55,12 +55,7 @@ struct CameraParams {
     intrinsics = intrinsics_path;
     topic = input_topic;
     frame = input_frame;
-    try {
-      camera_model = beam_calibration::CameraModel::Create(intrinsics);
-    } catch (nlohmann::detail::parse_error& ex) {
-      LOG_ERROR("Unable to load json config file: %s", intrinsics.c_str());
-      LOG_ERROR("%s", ex.what());
-    }
+    camera_model = beam_calibration::CameraModel::Create(intrinsics);
   };
   std::string topic;
   std::string frame;
@@ -254,11 +249,12 @@ struct CalibratorConfig {
   bool show_lidar_measurements{false};
   std::string vicon_baselink_frame;
   double time_steps;
+  int max_measurements{0};
   bool use_loop_closure_measurements{true};
   double min_target_motion{0.05};
   double min_target_rotation{5};
   double max_target_velocity{0.7};
-  double start_delay{0};
+  std::vector<double> crop_time{0,0};
   std::string optimizer_type{"CERES"}; // Options: GTSAM, CERES
   std::vector<std::shared_ptr<vicon_calibration::TargetParams>> target_params;
   std::vector<std::shared_ptr<vicon_calibration::CameraParams>> camera_params;

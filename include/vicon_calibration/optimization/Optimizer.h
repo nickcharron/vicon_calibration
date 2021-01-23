@@ -41,7 +41,7 @@ public:
   struct Params {
     int viz_point_size = 3;
     int viz_corr_line_width = 2;
-    std::vector<double> viewer_backround_color{1, 1, 1};
+    std::vector<double> viewer_backround_color{0, 0, 0};
     uint16_t max_correspondence_iterations{40};
     bool show_camera_measurements{false};
     bool show_lidar_measurements{false};
@@ -52,10 +52,9 @@ public:
     double max_pixel_cor_dist{500}; // in pixels
     double max_point_cor_dist{0.3}; // in m
     bool match_centroids{true};
-    bool match_centroids_on_first_iter_only{false};
+    bool match_centroids_on_first_iter_only{true};
     bool print_results_to_terminal{false};
-    std::vector<double> error_tol{0.0001, 0.0001, 0.0001,
-                                  0.0002, 0.0002, 0.0002};
+    std::vector<double> error_tol{0.0001, 0.0002};
     std::vector<double> image_noise{20, 20};
     std::vector<double> lidar_noise{0.02, 0.02, 0.02};
     std::vector<double> template_downsample_size{0.003, 0.003, 0.003};

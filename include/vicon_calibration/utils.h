@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sys/time.h>
+
 #include <Eigen/Geometry>
 #include <gtsam/geometry/Point2.h>
 #include <gtsam/geometry/Point3.h>
@@ -49,7 +51,38 @@ typedef std::vector<CalibrationResult> CalibrationResults;
 
 namespace utils {
 
-double time_now(void);
+/**
+ * @brief Simple timer object
+ */
+struct HighResolutionTimer {
+  HighResolutionTimer() : start_time(take_time_stamp()) {}
+
+  /**
+   * @brief Restart timer
+   */
+  void restart() { start_time = take_time_stamp(); }
+
+  /**
+   * @brief Return elapsed time in seconds.
+   * @return
+   */
+  double elapsed() const {
+    return double(take_time_stamp() - start_time) * 1e-9;
+  }
+
+  std::uint64_t elapsed_nanoseconds() const {
+    return take_time_stamp() - start_time;
+  }
+
+protected:
+  static std::uint64_t take_time_stamp() {
+    return std::uint64_t(
+        std::chrono::high_resolution_clock::now().time_since_epoch().count());
+  }
+
+private:
+  std::uint64_t start_time;
+};
 
 double RandomNumber(const double& min, const double& max);
 

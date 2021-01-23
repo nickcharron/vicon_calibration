@@ -656,6 +656,9 @@ void Optimizer::ViewLidarMeasurements(
   std::string shape_id = "correspondences";
   pcl_viewer_->addCorrespondences<pcl::PointXYZRGB>(c1_col, c2_col,
                                                     *correspondences, shape_id);
+  pcl_viewer_->setBackgroundColor(optimizer_params_.viewer_backround_color[0],
+                                  optimizer_params_.viewer_backround_color[1],
+                                  optimizer_params_.viewer_backround_color[2]);
   pcl_viewer_->setShapeRenderingProperties(
       pcl::visualization::PCL_VISUALIZER_LINE_WIDTH,
       optimizer_params_.viz_corr_line_width, shape_id);

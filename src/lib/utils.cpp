@@ -4,12 +4,6 @@
 
 namespace vicon_calibration { namespace utils {
 
-double time_now(void) {
-  struct timeval t;
-  gettimeofday(&t, NULL);
-  return ((double)t.tv_sec + ((double)t.tv_usec) / 1000000.0);
-}
-
 double RandomNumber(const double& min, const double& max) {
   double random =
       static_cast<double>(std::rand()) / static_cast<double>(RAND_MAX);

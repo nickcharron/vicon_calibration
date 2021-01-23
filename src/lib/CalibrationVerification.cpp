@@ -98,6 +98,7 @@ void CalibrationVerification::ProcessResults(bool save_measurements) {
   this->GetCameraErrors();
   this->PrintErrorsSummary();
   LOG_INFO("CalibrationVerification Complete.");
+  bag_.close();
 }
 
 CalibrationVerification::Results CalibrationVerification::GetSummary() {

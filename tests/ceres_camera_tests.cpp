@@ -111,7 +111,7 @@ TEST_CASE("Test camera optimization") {
   std::vector<bool> pixels_valid(points.size());
   for (int i = 0; i < points.size(); i++) {
     Eigen::Vector4d point_transformed = T_CV * T_VT * points[i];
-    opt<Eigen::Vector2d> pixel =
+    beam::opt<Eigen::Vector2d> pixel =
         camera_model->ProjectPointPrecise(point_transformed.hnormalized());
     if (pixel.has_value()) {
       pixels_valid[i] = true;
@@ -176,7 +176,7 @@ TEST_CASE("Test camera optimization") {
       Eigen::Vector3d point_transformed(P_C[0] + results_perfect_init[4],
                                         P_C[1] + results_perfect_init[5],
                                         P_C[2] + results_perfect_init[6]);
-      opt<Eigen::Vector2d> pixels_projected =
+      beam::opt<Eigen::Vector2d> pixels_projected =
           camera_model->ProjectPointPrecise(point_transformed);
       REQUIRE(pixels_projected.value().isApprox(pixels[i], 1e-5));
     }

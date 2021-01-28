@@ -8,7 +8,6 @@
 #include "vicon_calibration/utils.h"
 
 #include <Eigen/StdVector>
-#include <beam_utils/math.hpp>
 #include <boost/filesystem.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <fstream>

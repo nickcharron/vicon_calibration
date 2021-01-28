@@ -38,7 +38,7 @@ void CameraExtractor::ProcessMeasurement(
 
   // first check if target is in FOV of camera:
   Eigen::Vector4d point_origin{0, 0, 0, 1};
-  opt<Eigen::Vector2d> pixel_projected = this->TargetPointToPixel(point_origin);
+  beam::opt<Eigen::Vector2d> pixel_projected = this->TargetPointToPixel(point_origin);
 
   if (!pixel_projected.has_value()) {
     measurement_complete_ = true;
@@ -105,7 +105,7 @@ void CameraExtractor::CheckInputs() {
   }
 }
 
-opt<Eigen::Vector2d>
+beam::opt<Eigen::Vector2d>
 CameraExtractor::TargetPointToPixel(const Eigen::Vector4d &point) {
   Eigen::Vector4d transformed_point = T_CAMERA_TARGET_EST_ * point;
   return camera_params_->camera_model->ProjectPointPrecise(
@@ -123,7 +123,7 @@ void CameraExtractor::CropImage() {
     Eigen::Vector4d point_target{target_params_->template_cloud->at(iter).x,
                                  target_params_->template_cloud->at(iter).y,
                                  target_params_->template_cloud->at(iter).z, 1};
-    opt<Eigen::Vector2d> pixel = this->TargetPointToPixel(point_target);
+    beam::opt<Eigen::Vector2d> pixel = this->TargetPointToPixel(point_target);
     iter = iter + 5;
     if (!pixel.has_value()) {
       continue;

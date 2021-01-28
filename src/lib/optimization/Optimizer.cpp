@@ -5,6 +5,8 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/surface/concave_hull.h>
 
+#include <beam_utils/optional.h>
+
 namespace vicon_calibration {
 
 using namespace std::literals::chrono_literals;
@@ -229,7 +231,7 @@ void Optimizer::GetImageCorrespondences() {
 
       for (uint32_t i = 0; i < transformed_keypoints->size(); i++) {
         pcl::PointXYZ point_pcl = transformed_keypoints->at(i);
-        opt<Eigen::Vector2d> point_projected =
+        beam::opt<Eigen::Vector2d> point_projected =
             inputs_.camera_params[measurement->camera_id]
                 ->camera_model->ProjectPointPrecise(
                     utils::PCLPointToEigen(point_pcl));
@@ -461,7 +463,7 @@ void Optimizer::GetLoopClosureCorrespondences() {
       T_SENSOR_TARGET = utils::InvertTransform(T_VICONBASE_SENSOR) *
                         measurement->T_VICONBASE_TARGET;
       keypoint_transformed = T_SENSOR_TARGET * keypoint.homogeneous();
-      opt<Eigen::Vector2d> keypoint_projected =
+      beam::opt<Eigen::Vector2d> keypoint_projected =
           inputs_.camera_params[measurement->camera_id]
               ->camera_model->ProjectPointPrecise(
                   keypoint_transformed.hnormalized());

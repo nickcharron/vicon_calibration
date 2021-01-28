@@ -1,11 +1,13 @@
 #pragma once
 
-#include "vicon_calibration/params.h"
 #include <Eigen/Geometry>
-#include <beam_calibration/CameraModel.h>
 #include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+
+#include <beam_calibration/CameraModel.h>
+#include <beam_utils/optional.h>
+#include <vicon_calibration/params.h>
 
 namespace vicon_calibration {
 
@@ -56,7 +58,7 @@ protected:
 
   void CheckInputs();
 
-  opt<Eigen::Vector2d> TargetPointToPixel(const Eigen::Vector4d &point);
+  beam::opt<Eigen::Vector2d> TargetPointToPixel(const Eigen::Vector4d &point);
 
   // this projects all template cloud points into the image plane, gets the min
   // and max coordinates then adds a buffer based on the parameter "crop_image"

@@ -230,7 +230,7 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
 
   for (int i = 0; i < points.size(); i++) {
     Eigen::Vector4d point_transformed = T_CT * points[i];
-    opt<Eigen::Vector2d> pixel =
+    beam::opt<Eigen::Vector2d> pixel =
         camera_model->ProjectPointPrecise(point_transformed.hnormalized());
     if (pixel.has_value()) {
       pixels_valid[i] = true;

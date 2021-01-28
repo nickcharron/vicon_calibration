@@ -114,7 +114,7 @@ CameraMeasurements CreateCameraMeasurements(
     Eigen::Matrix4d T_CT = T_CV * _T_VT;
     for (Eigen::Vector3d P_TARGET : keypoint_in_tgt_frame) {
       Eigen::Vector3d P_CAMERA = (T_CT * P_TARGET.homogeneous()).hnormalized();
-      opt<Eigen::Vector2d> point_projected =
+      beam::opt<Eigen::Vector2d> point_projected =
           camera_params.camera_model->ProjectPointPrecise(P_CAMERA);
       if (point_projected.has_value()) {
         pixels->push_back(
@@ -372,7 +372,7 @@ TEST_CASE("Test with same data and not using Ceres Optimizer Class") {
         (T_CV * T_VT * P_TARGET.homogeneous()).hnormalized();
     Eigen::Vector3d P_CAMERA_pert =
         (T_CV_pert * T_VT * P_TARGET.homogeneous()).hnormalized();
-    opt<Eigen::Vector2d> pixels_true =
+    beam::opt<Eigen::Vector2d> pixels_true =
         camera_model->ProjectPointPrecise(P_CAMERA_perf);
     if (!pixels_true.has_value()) { continue; }
     std::unique_ptr<ceres::CostFunction> cost_function(

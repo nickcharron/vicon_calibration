@@ -1,6 +1,9 @@
 #include "vicon_calibration/utils.h"
+
 #include <X11/Xlib.h>
 #include <unsupported/Eigen/MatrixFunctions>
+
+#include <beam_utils/optional.h>
 
 namespace vicon_calibration { namespace utils {
 
@@ -69,9 +72,9 @@ double VectorStdev(const std::vector<double>& v) {
 
 double VectorAverage(const std::vector<double>& v) {
   double sum = 0;
-  for (int i = 0; i < v.size(); i++){
+  for (int i = 0; i < v.size(); i++) {
     double value = v[i];
-    sum+=value;
+    sum += value;
   }
   double avg = sum / v.size();
   return avg;
@@ -79,13 +82,13 @@ double VectorAverage(const std::vector<double>& v) {
 
 std::string VectorToString(const std::vector<double>& v) {
   std::string output = "[";
-  for (int i = 0; i < v.size(); i++){
+  for (int i = 0; i < v.size(); i++) {
     double value = v[i];
-    output+=std::to_string(value);
-    output+=", ";
+    output += std::to_string(value);
+    output += ", ";
   }
-  output.erase(output.end()-2, output.end());
-  return output+=" ]";
+  output.erase(output.end() - 2, output.end());
+  return output += " ]";
 }
 
 double CalculateTranslationErrorNorm(const Eigen::Vector3d& t1,
@@ -272,10 +275,10 @@ cv::Mat DrawCoordinateFrame(
       y(y_trans(0), y_trans(1), y_trans(2)),
       z(z_trans(0), z_trans(1), z_trans(2));
 
-  opt<Eigen::Vector2d> start_pixel = camera_model->ProjectPointPrecise(o);
-  opt<Eigen::Vector2d> end_pixel_x = camera_model->ProjectPointPrecise(x);
-  opt<Eigen::Vector2d> end_pixel_y = camera_model->ProjectPointPrecise(y);
-  opt<Eigen::Vector2d> end_pixel_z = camera_model->ProjectPointPrecise(z);
+  beam::opt<Eigen::Vector2d> start_pixel = camera_model->ProjectPointPrecise(o);
+  beam::opt<Eigen::Vector2d> end_pixel_x = camera_model->ProjectPointPrecise(x);
+  beam::opt<Eigen::Vector2d> end_pixel_y = camera_model->ProjectPointPrecise(y);
+  beam::opt<Eigen::Vector2d> end_pixel_z = camera_model->ProjectPointPrecise(z);
 
   if (!start_pixel.has_value() || !end_pixel_x.has_value() ||
       !end_pixel_y.has_value() || !end_pixel_z.has_value()) {
@@ -316,7 +319,7 @@ cv::Mat ProjectPointsToImage(
   for (int i = 0; i < cloud->size(); i++) {
     point = utils::PCLPointToEigen(cloud->at(i)).homogeneous();
     point_transformed = T_IMAGE_CLOUD * point;
-    opt<Eigen::Vector2d> pixel =
+    beam::opt<Eigen::Vector2d> pixel =
         camera_model->ProjectPointPrecise(point_transformed.hnormalized());
     if (!pixel.has_value()) { continue; }
     cv::circle(img_out, cv::Point(pixel.value()[0], pixel.value()[1]), 2,
@@ -337,7 +340,7 @@ boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>
   for (int i = 0; i < cloud->size(); i++) {
     point = utils::PCLPointToEigen(cloud->at(i));
     point_transformed = T * point.homogeneous();
-    opt<Eigen::Vector2d> pixel =
+    beam::opt<Eigen::Vector2d> pixel =
         camera_model->ProjectPointPrecise(point_transformed.hnormalized());
     if (!pixel.has_value()) { continue; }
     point_projected.x = pixel.value()[0];

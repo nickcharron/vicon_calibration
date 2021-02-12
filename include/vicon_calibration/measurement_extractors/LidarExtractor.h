@@ -15,6 +15,21 @@
 namespace vicon_calibration {
 
 /**
+ * @brief Class that inherits from pcl's icp with a function to access the
+ * final correspondences
+ */
+template <typename PointSource, typename PointTarget, typename Scalar = float>
+class IterativeClosestPointCustom
+    : public pcl::IterativeClosestPoint<PointSource, PointTarget, Scalar> {
+public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  pcl::CorrespondencesPtr getCorrespondencesPtr() {
+    return this->correspondences_;
+  }
+};
+
+/**
  * @brief Enum class for different types of camera extractors we can use
  */
 enum class LidarExtractorType { CYLINDER = 0, DIAMONDCORNERS, DIAMOND };

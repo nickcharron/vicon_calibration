@@ -14,7 +14,7 @@ void DiamondLidarExtractor::GetKeypoints() {
 
   // setup icp
   PointCloud::Ptr scan_registered = boost::make_shared<PointCloud>();
-  IterativeClosestPoint_Exposed icp;
+  IterativeClosestPointCustom<pcl::PointXYZ, pcl::PointXYZ> icp;
   icp.setTransformationEpsilon(icp_transform_epsilon_);
   icp.setEuclideanFitnessEpsilon(icp_euclidean_epsilon_);
   icp.setMaximumIterations(icp_max_iterations_);

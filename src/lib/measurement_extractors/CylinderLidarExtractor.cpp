@@ -32,15 +32,11 @@ void CylinderLidarExtractor::GetKeypoints() {
   T_LIDAR_TARGET_OPT_ =
       utils::InvertTransform(icp.getFinalTransformation().cast<double>());
 
-  // remove points with large correspondence distances
-  pcl::CorrespondencesPtr correspondences = icp.getCorrespondencesPtr();
-  for (uint32_t i = 0; i < correspondences->size(); i++) {
-    pcl::Correspondence corr_i = (*correspondences)[i];
-    int source_index_i = corr_i.index_query;
-    if (corr_i.distance < max_keypoint_distance_) {
-      pcl::PointXYZ point = scan_isolated_->points[source_index_i];
-      keypoints_measured_->points.push_back(point);
-    }
+  // get correspondences from ICP and store as keypoints
+  pcl::Correspondences correspondences = *icp.getCorrespondencesPtr();
+  for (pcl::Correspondence correspondence : correspondences) {
+    pcl::PointXYZ point = scan_isolated_->at(correspondence.index_query);
+    keypoints_measured_->push_back(point);
   }
 }
 
@@ -50,26 +46,12 @@ void CylinderLidarExtractor::CheckMeasurementValid() {
     return;
   }
 
-  pcl::KdTreeFLANN<pcl::PointXYZ> kd_tree;
-  PointCloud::Ptr template_transformed = boost::make_shared<PointCloud>();
-  pcl::transformPointCloud(*target_params_->template_cloud,
-                           *template_transformed,
-                           T_LIDAR_TARGET_OPT_.cast<float>());
-  kd_tree.setInputCloud(template_transformed);
-  for (pcl::PointCloud<pcl::PointXYZ>::iterator it =
-           keypoints_measured_->begin();
-       it != keypoints_measured_->end(); ++it) {
-    std::vector<int> pointIdxRadiusSearch;
-    std::vector<float> pointRadiusSquaredDistance;
-    int num_neighbors =
-        kd_tree.radiusSearch(*it, allowable_keypoint_error_,
-                             pointIdxRadiusSearch, pointRadiusSquaredDistance);
-    if (num_neighbors == 0) {
-      measurement_valid_ = false;
-      return;
-    }
+  if (keypoints_measured_->size() < min_num_keypoints_) {
+    measurement_valid_ = false;
+  } else {
+    measurement_valid_ = true;
   }
-  measurement_valid_ = true;
+
 }
 
 } // namespace vicon_calibration

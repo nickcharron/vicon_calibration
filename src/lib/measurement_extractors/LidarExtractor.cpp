@@ -266,24 +266,23 @@ void LidarExtractor::ConfirmMeasurementKeyboardCallback(
 }
 
 void LidarExtractor::ShowFailedMeasurement() {
-  // calculate cropbox cube
-  Eigen::Affine3f T;
-  T.matrix() = T_LIDAR_TARGET_EST_.cast<float>();
-  Eigen::Vector3f translation = T.translation();
-  Eigen::Quaternionf rotation(T.rotation());
-  double width = 2*target_params_->crop_scan[0];
-  double height = 2*target_params_->crop_scan[1];
-  double depth = 2*target_params_->crop_scan[2];
-  pcl_viewer_->addCube(translation, rotation, width, height, depth,
-                       "bounding_box");
-  pcl_viewer_->setShapeRenderingProperties(
-      pcl::visualization::PCL_VISUALIZER_REPRESENTATION,
-      pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME,
-      "bounding_box");
+  // // calculate cropbox cube
+  // Eigen::Matrix3d R = T_LIDAR_TARGET_EST_.block(0,0,3,3);
+  // Eigen::Vector3d t = T_LIDAR_TARGET_EST_.block(0,3,3,1);
+  // Eigen::Quaterniond q(R);
+  // double width = target_params_->crop_scan[1] - target_params_->crop_scan[0];
+  // double height = target_params_->crop_scan[3] - target_params_->crop_scan[2];
+  // double depth = target_params_->crop_scan[5] - target_params_->crop_scan[4];
+  // pcl_viewer_->addCube(t.cast<float>(), q.cast<float>(), width, height, depth,
+  //                      "bounding_box");
+  // pcl_viewer_->setShapeRenderingProperties(
+  //     pcl::visualization::PCL_VISUALIZER_REPRESENTATION,
+  //     pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME,
+  //     "bounding_box");
   std::cout << "\nViewer Legend:\n"
             << "  Red   -> isolated scan\n"
             << "  White -> original scan\n"
-            << "  Box: cropbox input\n"
+            // << "  Box: cropbox input\n"
             << "Accept measurement? [y/n]\n"
             << "Press [c] to continue with other measurements\n"
             << "Press [s] to stop showing future measurements\n";

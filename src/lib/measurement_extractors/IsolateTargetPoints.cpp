@@ -259,9 +259,12 @@ bool IsolateTargetPoints::CheckInputs() {
 void IsolateTargetPoints::CropScan() {
   scan_cropped_ = boost::make_shared<PointCloud>();
   beam_filtering::CropBox cropper;
-  Eigen::Vector3f min_vector, max_vector;
-  max_vector = target_params_->crop_scan.cast<float>();
-  min_vector = -max_vector;
+  Eigen::Vector3f min_vector;
+  min_vector << target_params_->crop_scan[0], target_params_->crop_scan[2],
+      target_params_->crop_scan[4];
+  Eigen::Vector3f max_vector;
+  max_vector << target_params_->crop_scan[1], target_params_->crop_scan[3],
+      target_params_->crop_scan[5];
   Eigen::Affine3f TA_TARGET_LIDAR;
   TA_TARGET_LIDAR.matrix() = T_TARGET_LIDAR_.cast<float>();
   cropper.SetMinVector(min_vector);

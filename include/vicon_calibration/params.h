@@ -83,8 +83,8 @@ struct TargetParams {
   std::string frame_id;
   std::string extractor_type;
   std::string target_config_path;
-  Eigen::VectorXd crop_scan;
-  Eigen::VectorXd crop_image;
+  Eigen::VectorXf crop_scan; // [min x, max x, min y, max y, min z, max z]
+  Eigen::VectorXd crop_image; // [ %u, %v]
   std::vector<Eigen::Vector3d, AlignVec3d> keypoints_lidar;
   std::vector<Eigen::Vector3d, AlignVec3d> keypoints_camera;
   PointCloud::Ptr template_cloud;
@@ -94,7 +94,7 @@ struct TargetParams {
   Eigen::VectorXd template_dimensions;
   TargetParams() {
     template_cloud = boost::make_shared<PointCloud>();
-    crop_scan = Eigen::VectorXd(3);
+    crop_scan = Eigen::VectorXf(6);
     crop_image = Eigen::VectorXd(2);
     template_centroid = Eigen::VectorXd(4);
     template_centroid.setZero();

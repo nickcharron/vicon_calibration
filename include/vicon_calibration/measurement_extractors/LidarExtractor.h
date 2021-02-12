@@ -17,7 +17,7 @@ namespace vicon_calibration {
 /**
  * @brief Enum class for different types of camera extractors we can use
  */
-enum class LidarExtractorType { CYLINDER = 0, DIAMOND };
+enum class LidarExtractorType { CYLINDER = 0, DIAMONDCORNERS, DIAMOND };
 
 /**
  * @brief Abstract class for LidarExtractor

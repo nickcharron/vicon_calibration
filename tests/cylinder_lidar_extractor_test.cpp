@@ -218,9 +218,9 @@ TEST_CASE("Test extracting cylinder target with and without diverged ICP "
   std::shared_ptr<TargetParams> div_target_params =
       std::make_shared<TargetParams>();
   *div_target_params = *target_params;
-  Eigen::Vector3d div_crop1(-0.05, -0.05, -0.05);
-  Eigen::Vector3d div_crop2(1, 1, 1);
-  Eigen::Vector3d good_crop(0.3, 0.3, 0.3);
+  Eigen::Vector3f div_crop1(-0.05, -0.05, -0.05);
+  Eigen::Vector3f div_crop2(1, 1, 1);
+  Eigen::Vector3f good_crop(0.3, 0.3, 0.3);
   div_target_params->crop_scan = div_crop1;
   std::shared_ptr<LidarExtractor> cyl_extractor = std::make_shared<CylinderLidarExtractor>();
   cyl_extractor->SetShowMeasurements(show_measurements);

@@ -3,6 +3,7 @@
 #include "vicon_calibration/CalibrationVerification.h"
 #include "vicon_calibration/JsonTools.h"
 #include "vicon_calibration/ViconCalibrator.h"
+#include "vicon_calibration/measurement_extractors/MeasurementExtractors.h"
 #include "vicon_calibration/optimization/CeresOptimizer.h"
 #include "vicon_calibration/params.h"
 #include "vicon_calibration/utils.h"
@@ -297,6 +298,9 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
       if (extractor_type == "CYLINDER") {
         lidar_extractor_ =
             std::make_shared<vicon_calibration::CylinderLidarExtractor>();
+      } else if (extractor_type == "DIAMONDCORNERS") {
+        lidar_extractor_ =
+            std::make_shared<vicon_calibration::DiamondCornersLidarExtractor>();
       } else if (extractor_type == "DIAMOND") {
         lidar_extractor_ =
             std::make_shared<vicon_calibration::DiamondLidarExtractor>();
@@ -640,7 +644,7 @@ void ViconCalibrator::Setup() {
   // Load Params
   JsonTools json_loader(inputs_);
   params_ = json_loader.LoadViconCalibratorParams();
-  
+
   counters_.reset();
 
   // load bag file
@@ -733,7 +737,7 @@ void ViconCalibrator::RunCalibration() {
   return;
 }
 
-void ViconCalibrator::RunVerification(){
+void ViconCalibrator::RunVerification() {
   CalibrationVerification ver(inputs_.verification_config,
                               inputs_.output_directory,
                               inputs_.calibration_config);

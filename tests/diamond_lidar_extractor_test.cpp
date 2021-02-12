@@ -217,9 +217,9 @@ TEST_CASE("Test extracting diamond target with and without diverged ICP "
   std::shared_ptr<TargetParams> conv_target_params =
       std::make_shared<TargetParams>();
   *conv_target_params = *target_params;
-  Eigen::Vector3d div_crop1(-0.3, -0.3, -0.3);
-  Eigen::Vector3d good_crop(0.4, 0.4, 0.4);
-  Eigen::Vector3d good_crop2(1, 1, 1);
+  Eigen::Vector3f div_crop1(-0.3, -0.3, -0.3);
+  Eigen::Vector3f good_crop(0.4, 0.4, 0.4);
+  Eigen::Vector3f good_crop2(1, 1, 1);
   div_target_params->crop_scan = div_crop1;
   std::shared_ptr<LidarExtractor> diamond_extractor =
       std::make_shared<DiamondLidarExtractor>();

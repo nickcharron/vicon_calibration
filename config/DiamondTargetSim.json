@@ -1,5 +1,5 @@
 {
-  "crop_scan": [1, 1, 1],
+  "crop_scan": [-1, 1, -1, 1, -1, 1],
   "crop_image": [0, 0],
   "template_cloud": "diamond_target_simulation.pcd",
   "is_target_2d": true,

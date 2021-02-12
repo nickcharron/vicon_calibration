@@ -1,5 +1,5 @@
 {
-  "crop_scan": [0.5, 0.3, 0.3],
+  "crop_scan": [-0.5, 0.5, -0.3, 0.3, -0.3, 0.3],
   "crop_image": [20, 20],
   "template_cloud": "",
   "keypoints_lidar": [],

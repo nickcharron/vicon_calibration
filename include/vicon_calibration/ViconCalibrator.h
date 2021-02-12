@@ -1,10 +1,8 @@
 #pragma once
 
 #include "vicon_calibration/TfTree.h"
-#include "vicon_calibration/measurement_extractors/CylinderCameraExtractor.h"
-#include "vicon_calibration/measurement_extractors/CylinderLidarExtractor.h"
-#include "vicon_calibration/measurement_extractors/DiamondCameraExtractor.h"
-#include "vicon_calibration/measurement_extractors/DiamondLidarExtractor.h"
+#include "vicon_calibration/measurement_extractors/CameraExtractor.h"
+#include "vicon_calibration/measurement_extractors/LidarExtractor.h"
 #include "vicon_calibration/optimization/Optimizer.h"
 #include "vicon_calibration/params.h"
 #include "vicon_calibration/utils.h"

@@ -125,7 +125,8 @@ void CylinderCameraExtractor::CheckError() {
                "expected area and the detected area is too great. Area "
                "Expected: %.3f, Area Detected: %.3f, Difference: "
                "%.3f, Allowed: %.3f",
-               area_expected_, area_detected_, area_diff, area_error_allowance_);
+               area_expected_, area_detected_, area_diff,
+               area_error_allowance_);
     }
     return;
   }
@@ -137,20 +138,21 @@ void CylinderCameraExtractor::DrawContourAxis(
     const cv::Point& q, const cv::Scalar& colour, const float scale = 0.2) {
   cv::Point p_ = p;
   cv::Point q_ = q;
-  double angle =
-      std::atan2((double)p_.y - q_.y, (double)p_.x - q_.x); // angle in radians
-  double hypotenuse = std::sqrt((double)(p_.y - q_.y) * (p_.y - q_.y) +
-                                (p_.x - q_.x) * (p_.x - q_.x));
+
+  float angle = std::atan2(p_.y - q_.y, p_.x - q_.x); // angle in radians
+  float hypotenuse =
+      std::sqrt((p_.y - q_.y) * (p_.y - q_.y) + (p_.x - q_.x) * (p_.x - q_.x));
+
   // Here we lengthen the arrow by a factor of scale
-  q_.x = (int)(p_.x - scale * hypotenuse * std::cos(angle));
-  q_.y = (int)(p_.y - scale * hypotenuse * std::sin(angle));
+  q_.x = static_cast<int>(p_.x - scale * hypotenuse * std::cos(angle));
+  q_.y = static_cast<int>(p_.y - scale * hypotenuse * std::sin(angle));
   cv::line(*img_pointer, p, q, colour, 1, cv::LINE_AA);
   // create the arrow hooks
-  p_.x = (int)(q_.x + 9 * std::cos(angle + CV_PI / 4));
-  p_.y = (int)(q_.y + 9 * std::sin(angle + CV_PI / 4));
+  p_.x = static_cast<int>(q_.x + 9 * std::cos(angle + CV_PI / 4));
+  p_.y = static_cast<int>(q_.y + 9 * std::sin(angle + CV_PI / 4));
   cv::line(*img_pointer, p, q, colour, 1, cv::LINE_AA);
-  p_.x = (int)(q_.x + 9 * std::cos(angle - CV_PI / 4));
-  p_.y = (int)(q_.y + 9 * std::sin(angle - CV_PI / 4));
+  p_.x = static_cast<int>(q_.x + 9 * std::cos(angle - CV_PI / 4));
+  p_.y = static_cast<int>(q_.y + 9 * std::sin(angle - CV_PI / 4));
   cv::line(*img_pointer, p, q, colour, 1, cv::LINE_AA);
 }
 

@@ -19,12 +19,22 @@ std::shared_ptr<TargetParams>
   std::ifstream file(target_config_full_path);
   file >> J_target;
 
-  std::vector<double> vect1, vect2;
+  std::vector<float> vect1;
   for (const auto& value : J_target["crop_scan"]) { vect1.push_back(value); }
-  Eigen::Vector3d crop_scan;
-  crop_scan << vect1[0], vect1[1], vect1[2];
+  Eigen::VectorXf crop_scan(6);
+  if (vect1.size() != 6) {
+    throw std::invalid_argument{
+        "Wrong number of inputs to crop_scan. Required: 6"};
+  }
+  crop_scan << vect1[0], vect1[1], vect1[2], vect1[3], vect1[4], vect1[5];
   params->crop_scan = crop_scan;
+
+  std::vector<double> vect2;
   for (const auto& value : J_target["crop_image"]) { vect2.push_back(value); }
+  if (vect2.size() != 2) {
+    throw std::invalid_argument{
+        "Wrong number of inputs to crop_image. Required: 2"};
+  }
   Eigen::Vector2d crop_image;
   crop_image << vect2[0], vect2[1];
   params->crop_image = crop_image;

@@ -1,10 +1,9 @@
-#include "vicon_calibration/measurement_extractors/CylinderCameraExtractor.h"
-#include "vicon_calibration/utils.h"
+#include <vicon_calibration/measurement_extractors/CylinderCameraExtractor.h>
 
 #include <pcl/surface/convex_hull.h>
 #include <pcl/surface/impl/convex_hull.hpp>
 
-#include <beam_utils/optional.h>
+#include <vicon_calibration/Utils.h>
 
 namespace vicon_calibration {
 
@@ -89,7 +88,7 @@ void CylinderCameraExtractor::GetEstimatedArea() {
       boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   for (PointCloud::iterator it = target_params_->template_cloud->begin();
        it != target_params_->template_cloud->end(); ++it) {
-    beam::opt<Eigen::Vector2d> pix =
+    opt<Eigen::Vector2d> pix =
         this->TargetPointToPixel(Eigen::Vector4d(it->x, it->y, it->z, 1));
     if (pix.has_value()) {
       pcl::PointXYZ point;

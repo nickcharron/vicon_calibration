@@ -1,4 +1,4 @@
-#include <vicon_calibration/gflags.h>
+#include <vicon_calibration/Gflags.h>
 
 #include <boost/filesystem.hpp>
 

@@ -1,14 +1,15 @@
-#include "vicon_calibration/optimization/CeresOptimizer.h"
+#include <vicon_calibration/optimization/CeresOptimizer.h>
 
 #include <boost/filesystem.hpp>
 
-#include "vicon_calibration/optimization/CeresCameraCostFunction.h"
-#include "vicon_calibration/optimization/CeresLidarCostFunction.h"
+#include <vicon_calibration/optimization/CeresCameraCostFunction.h>
+#include <vicon_calibration/optimization/CeresLidarCostFunction.h>
 
 namespace vicon_calibration {
 
 void CeresOptimizer::LoadConfig() {
-  LOG_INFO("Loading Ceres Optimizer Config file: %s", inputs_.optimizer_config_path.c_str());
+  LOG_INFO("Loading Ceres Optimizer Config file: %s",
+           inputs_.optimizer_config_path.c_str());
   nlohmann::json J;
   std::ifstream file(inputs_.optimizer_config_path);
   file >> J;
@@ -218,7 +219,8 @@ void CeresOptimizer::AddLidarMeasurements() {
               corr.target_point_index));
     }
     Eigen::Vector3d P_VICONBASE =
-        (measurement->T_VICONBASE_TARGET * P_TARGET.homogeneous()).hnormalized();
+        (measurement->T_VICONBASE_TARGET * P_TARGET.homogeneous())
+            .hnormalized();
 
     Eigen::Vector3d point_measured = utils::PCLPointToEigen(
         measurement->keypoints->at(corr.measured_point_index));

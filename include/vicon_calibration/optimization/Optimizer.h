@@ -1,10 +1,10 @@
 #pragma once
 
-#include "vicon_calibration/params.h"
-#include "vicon_calibration/utils.h"
-
 #include <pcl/registration/correspondence_estimation.h>
 #include <pcl/visualization/pcl_visualizer.h>
+
+#include <vicon_calibration/Params.h>
+#include <vicon_calibration/Utils.h>
 
 namespace vicon_calibration {
 

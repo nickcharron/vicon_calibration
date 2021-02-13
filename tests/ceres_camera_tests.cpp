@@ -7,8 +7,8 @@
 #include <ceres/solver.h>
 #include <ceres/types.h>
 
-#include "vicon_calibration/optimization/CeresCameraCostFunction.h"
-#include "vicon_calibration/utils.h"
+#include <vicon_calibration/optimization/CeresCameraCostFunction.h>
+#include <vicon_calibration/Utils.h>
 #include <beam_calibration/CameraModel.h>
 
 using namespace vicon_calibration;

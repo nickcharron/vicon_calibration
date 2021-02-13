@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vicon_calibration/utils.h"
+#include <vicon_calibration/Utils.h>
 
 #include <pcl/filters/extract_indices.h>
 
@@ -12,15 +12,15 @@ public:
 
   ~IsolateTargetPoints() = default;
 
-  void SetConfig(const std::string &config_file);
+  void SetConfig(const std::string& config_file);
 
-  void SetTransformEstimate(const Eigen::MatrixXd &T_TARGET_LIDAR);
+  void SetTransformEstimate(const Eigen::MatrixXd& T_TARGET_LIDAR);
 
-  void SetScan(const PointCloud::Ptr &scan_in);
+  void SetScan(const PointCloud::Ptr& scan_in);
 
-  void SetTargetParams(const std::shared_ptr<TargetParams> &target_params);
+  void SetTargetParams(const std::shared_ptr<TargetParams>& target_params);
 
-  void SetLidarParams(const std::shared_ptr<LidarParams> &lidar_params);
+  void SetLidarParams(const std::shared_ptr<LidarParams>& lidar_params);
 
   PointCloud::Ptr GetPoints();
 
@@ -41,8 +41,9 @@ private:
 
   // This takes a point cloud, runs PCA to get principal components, then
   // projects the points into the new vector space with origin at the centroid
-  // Then it calculates the dimensions in all 3 axes and stores them in increasing order
-  Eigen::Vector3d CalculateMinimalDimensions(const PointCloud::Ptr &cloud);
+  // Then it calculates the dimensions in all 3 axes and stores them in
+  // increasing order
+  Eigen::Vector3d CalculateMinimalDimensions(const PointCloud::Ptr& cloud);
 
   // member variables
   PointCloud::Ptr scan_in_;

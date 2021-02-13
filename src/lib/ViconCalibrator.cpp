@@ -1,19 +1,12 @@
+#include <fstream>
+#include <iostream>
+#include <string>
 #include <time.h>
-
-#include "vicon_calibration/CalibrationVerification.h"
-#include "vicon_calibration/JsonTools.h"
-#include "vicon_calibration/ViconCalibrator.h"
-#include "vicon_calibration/measurement_extractors/MeasurementExtractors.h"
-#include "vicon_calibration/optimization/CeresOptimizer.h"
-#include "vicon_calibration/params.h"
-#include "vicon_calibration/utils.h"
 
 #include <Eigen/StdVector>
 #include <boost/filesystem.hpp>
 #include <cv_bridge/cv_bridge.h>
-#include <fstream>
 #include <geometry_msgs/TransformStamped.h>
-#include <iostream>
 #include <nav_msgs/Odometry.h>
 #include <nlohmann/json.hpp>
 #include <pcl/io/pcd_io.h>
@@ -24,10 +17,17 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/image_encodings.h>
-#include <string>
 #include <tf2/buffer_core.h>
 #include <tf2_eigen/tf2_eigen.h>
 #include <tf2_msgs/TFMessage.h>
+
+#include <vicon_calibration/CalibrationVerification.h>
+#include <vicon_calibration/JsonTools.h>
+#include <vicon_calibration/Params.h>
+#include <vicon_calibration/Utils.h>
+#include <vicon_calibration/ViconCalibrator.h>
+#include <vicon_calibration/measurement_extractors/MeasurementExtractors.h>
+#include <vicon_calibration/optimization/CeresOptimizer.h>
 
 namespace vicon_calibration {
 

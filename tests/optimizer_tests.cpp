@@ -8,12 +8,12 @@
 #include <ceres/solver.h>
 #include <ceres/types.h>
 
-#include "vicon_calibration/JsonTools.h"
-#include "vicon_calibration/optimization/CeresCameraCostFunction.h"
-#include "vicon_calibration/optimization/CeresLidarCostFunction.h"
-#include "vicon_calibration/optimization/CeresOptimizer.h"
-#include "vicon_calibration/utils.h"
 #include <beam_calibration/CameraModel.h>
+#include <vicon_calibration/JsonTools.h>
+#include <vicon_calibration/optimization/CeresCameraCostFunction.h>
+#include <vicon_calibration/optimization/CeresLidarCostFunction.h>
+#include <vicon_calibration/optimization/CeresOptimizer.h>
+#include <vicon_calibration/Utils.h>
 
 using namespace vicon_calibration;
 
@@ -226,9 +226,8 @@ TEST_CASE("Test Ceres Optimizer With Perfect Initials") {
   CreateTransforms();
 
   // create measurements
-  TargetParamsVector target_params =
-  GetTargetParams("DiamondTargetSim.json"); CameraParamsVector camera_params
-  =
+  TargetParamsVector target_params = GetTargetParams("DiamondTargetSim.json");
+  CameraParamsVector camera_params =
       GetCameraParams("CamFactorIntrinsics.json");
   LidarMeasurements lidar_measurements =
       CreateLidarMeasurements(T_VL, T_VTs, *(target_params[0]));
@@ -305,10 +304,11 @@ TEST_CASE("Test Ceres Optimizer With Perturbed Initials") {
   CalibrationResults calibrations_result = optimizer->GetResults();
 
   // validate
-//   utils::OutputCalibrations(calibrations_initial,
-//                             "Initial Calibration Estimates:");
-//   utils::OutputCalibrations(calibrations_perturbed, "Pertubed Calibrations:");
-//   utils::OutputCalibrations(calibrations_result, "Optimized Calibrations:");
+  //   utils::OutputCalibrations(calibrations_initial,
+  //                             "Initial Calibration Estimates:");
+  //   utils::OutputCalibrations(calibrations_perturbed, "Pertubed
+  //   Calibrations:"); utils::OutputCalibrations(calibrations_result,
+  //   "Optimized Calibrations:");
 
   for (int i = 0; i < calibrations_result.size(); i++) {
     REQUIRE(calibrations_result[i].to_frame ==

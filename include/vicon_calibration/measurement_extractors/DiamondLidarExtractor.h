@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vicon_calibration/measurement_extractors/LidarExtractor.h"
+#include <vicon_calibration/measurement_extractors/LidarExtractor.h>
 
 namespace vicon_calibration {
 

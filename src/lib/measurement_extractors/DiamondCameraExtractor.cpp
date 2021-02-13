@@ -1,5 +1,6 @@
-#include "vicon_calibration/measurement_extractors/DiamondCameraExtractor.h"
-#include "vicon_calibration/utils.h"
+#include <vicon_calibration/measurement_extractors/DiamondCameraExtractor.h>
+
+#include <vicon_calibration/Utils.h>
 
 namespace vicon_calibration {
 

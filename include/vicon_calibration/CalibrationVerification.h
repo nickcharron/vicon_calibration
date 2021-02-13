@@ -1,12 +1,13 @@
 #pragma once
 
-#include "vicon_calibration/TfTree.h"
-#include "vicon_calibration/params.h"
-#include "vicon_calibration/utils.h"
 #include <Eigen/Geometry>
 #include <pcl/registration/correspondence_estimation.h>
 #include <ros/time.h>
 #include <rosbag/bag.h>
+
+#include <vicon_calibration/Params.h>
+#include <vicon_calibration/TfTree.h>
+#include <vicon_calibration/Utils.h>
 
 namespace vicon_calibration {
 

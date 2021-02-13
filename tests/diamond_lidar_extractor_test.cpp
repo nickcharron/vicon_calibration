@@ -1,19 +1,18 @@
 #define CATCH_CONFIG_MAIN
+
 #include <catch2/catch.hpp>
-
-#include "vicon_calibration/JsonTools.h"
-#include "vicon_calibration/TfTree.h"
-#include "vicon_calibration/measurement_extractors/DiamondLidarExtractor.h"
-#include "vicon_calibration/utils.h"
-
+#include <pcl/io/pcd_io.h>
+#include <pcl_conversions/pcl_conversions.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <tf2_eigen/tf2_eigen.h>
 #include <tf2_msgs/TFMessage.h>
 
-#include <pcl/io/pcd_io.h>
-#include <pcl_conversions/pcl_conversions.h>
+#include <vicon_calibration/JsonTools.h>
+#include <vicon_calibration/TfTree.h>
+#include <vicon_calibration/Utils.h>
+#include <vicon_calibration/measurement_extractors/DiamondLidarExtractor.h>
 
 using namespace vicon_calibration;
 
@@ -53,7 +52,7 @@ void LoadSimulatedCloud() {
   bag.open(bag_path, rosbag::bagmode::Read);
   rosbag::TopicQuery query = rosbag::TopicQuery("/m3d/aggregator/cloud");
   rosbag::View cloud_bag_view = {bag, query};
-  for (const auto &msg_instance : cloud_bag_view) {
+  for (const auto& msg_instance : cloud_bag_view) {
     auto cloud_message = msg_instance.instantiate<sensor_msgs::PointCloud2>();
     if (cloud_message != nullptr) {
       pcl::fromROSMsg(*cloud_message, *sim_cloud);
@@ -75,7 +74,7 @@ void LoadTransforms() {
 
   // Iterate over all message instances in our tf bag view
   std::cout << "Adding transforms" << std::endl;
-  for (const auto &msg_instance : tf_bag_view) {
+  for (const auto& msg_instance : tf_bag_view) {
     auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
     if (tf_message != nullptr) {
       for (geometry_msgs::TransformStamped tf : tf_message->transforms) {
@@ -85,10 +84,10 @@ void LoadTransforms() {
   }
   // Get transforms between targets and lidar and world and targets
   Eigen::Affine3d TA_SCAN_TARGET1_TRUE, TA_SCAN_TARGET2_TRUE;
-  TA_SCAN_TARGET1_TRUE = tf_tree.GetTransformEigen(m3d_link_frame, target1_frame,
-                                                  transform_lookup_time);
-  TA_SCAN_TARGET2_TRUE = tf_tree.GetTransformEigen(m3d_link_frame, target2_frame,
-                                                  transform_lookup_time);
+  TA_SCAN_TARGET1_TRUE = tf_tree.GetTransformEigen(
+      m3d_link_frame, target1_frame, transform_lookup_time);
+  TA_SCAN_TARGET2_TRUE = tf_tree.GetTransformEigen(
+      m3d_link_frame, target2_frame, transform_lookup_time);
   T_SCAN_TARGET1_TRUE = TA_SCAN_TARGET1_TRUE.matrix();
   T_SCAN_TARGET2_TRUE = TA_SCAN_TARGET2_TRUE.matrix();
 
@@ -138,14 +137,12 @@ void LoadTargetParamsRotated() {
 }
 
 void ConfirmMeasurementKeyboardCallback(
-    const pcl::visualization::KeyboardEvent &event, void *viewer_void) {
-  if (event.getKeySym() == "c" && event.keyDown()) {
-    close_viewer = true;
-  }
+    const pcl::visualization::KeyboardEvent& event, void* viewer_void) {
+  if (event.getKeySym() == "c" && event.keyDown()) { close_viewer = true; }
 }
 
-void AddPointCloudToViewer(PointCloud::Ptr cloud,
-                           std::string cloud_name, Eigen::Affine3d &T) {
+void AddPointCloudToViewer(PointCloud::Ptr cloud, std::string cloud_name,
+                           Eigen::Affine3d& T) {
   pcl_viewer->addPointCloud<pcl::PointXYZ>(cloud, cloud_name);
   pcl_viewer->addCoordinateSystem(1, T.cast<float>(), cloud_name + "frame");
   pcl::PointXYZ point;
@@ -167,8 +164,7 @@ TEST_CASE("Test diamond extractor with empty template cloud && empty scan") {
       std::make_shared<TargetParams>();
   *invalid_target_params = *target_params;
   boost::shared_ptr<PointCloud> null_cloud;
-  boost::shared_ptr<PointCloud> empty_cloud =
-      boost::make_shared<PointCloud>();
+  boost::shared_ptr<PointCloud> empty_cloud = boost::make_shared<PointCloud>();
   invalid_target_params->template_cloud = null_cloud;
   std::shared_ptr<LidarExtractor> diamond_extractor;
   diamond_extractor = std::make_shared<DiamondLidarExtractor>();

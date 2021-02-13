@@ -9,8 +9,8 @@
 #include <pcl/point_types.h>
 #include <ros/time.h>
 
-#include "vicon_calibration/utils.h"
 #include <beam_calibration/CameraModel.h>
+#include <vicon_calibration/Utils.h>
 
 namespace vicon_calibration {
 
@@ -83,7 +83,7 @@ struct TargetParams {
   std::string frame_id;
   std::string extractor_type;
   std::string target_config_path;
-  Eigen::VectorXf crop_scan; // [min x, max x, min y, max y, min z, max z]
+  Eigen::VectorXf crop_scan;  // [min x, max x, min y, max y, min z, max z]
   Eigen::VectorXd crop_image; // [ %u, %v]
   std::vector<Eigen::Vector3d, AlignVec3d> keypoints_lidar;
   std::vector<Eigen::Vector3d, AlignVec3d> keypoints_camera;
@@ -254,7 +254,7 @@ struct CalibratorConfig {
   double min_target_motion{0.05};
   double min_target_rotation{5};
   double max_target_velocity{0.7};
-  std::vector<double> crop_time{0,0};
+  std::vector<double> crop_time{0, 0};
   std::string optimizer_type{"CERES"}; // Options: GTSAM, CERES
   std::vector<std::shared_ptr<vicon_calibration::TargetParams>> target_params;
   std::vector<std::shared_ptr<vicon_calibration::CameraParams>> camera_params;

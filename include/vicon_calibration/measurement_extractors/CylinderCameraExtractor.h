@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vicon_calibration/measurement_extractors/CameraExtractor.h"
+#include <vicon_calibration/measurement_extractors/CameraExtractor.h>
 
 namespace vicon_calibration {
 class CylinderCameraExtractor : public CameraExtractor {

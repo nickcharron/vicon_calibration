@@ -1,7 +1,8 @@
 #pragma once
 
-#include "vicon_calibration/params.h"
 #include <nlohmann/json.hpp>
+
+#include <vicon_calibration/Params.h>
 
 namespace vicon_calibration {
 

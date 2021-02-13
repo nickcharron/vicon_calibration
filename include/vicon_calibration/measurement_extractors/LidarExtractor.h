@@ -1,16 +1,14 @@
 #pragma once
 
-
-#include <optional>
 #include <Eigen/Geometry>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
-#include "vicon_calibration/params.h"
-#include "vicon_calibration/utils.h"
-#include "vicon_calibration/measurement_extractors/IsolateTargetPoints.h"
+#include <vicon_calibration/Params.h>
+#include <vicon_calibration/Utils.h>
+#include <vicon_calibration/measurement_extractors/IsolateTargetPoints.h>
 
 namespace vicon_calibration {
 

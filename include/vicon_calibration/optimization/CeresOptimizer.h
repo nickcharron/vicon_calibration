@@ -1,13 +1,13 @@
 #pragma once
 
-#include "vicon_calibration/optimization/Optimizer.h"
-#include "vicon_calibration/params.h"
-#include "vicon_calibration/utils.h"
-
 #include <ceres/ceres.h>
 #include <ceres/loss_function.h>
 #include <ceres/solver.h>
 #include <ceres/types.h>
+
+#include <vicon_calibration/Params.h>
+#include <vicon_calibration/Utils.h>
+#include <vicon_calibration/optimization/Optimizer.h>
 
 namespace vicon_calibration {
 

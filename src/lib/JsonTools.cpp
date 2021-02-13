@@ -1,10 +1,11 @@
-#include "vicon_calibration/JsonTools.h"
-#include "vicon_calibration/utils.h"
+#include <vicon_calibration/JsonTools.h>
 
 #include <boost/filesystem.hpp>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+
+#include <vicon_calibration/Utils.h>
 
 namespace vicon_calibration {
 

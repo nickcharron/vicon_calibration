@@ -1,14 +1,15 @@
 #define CATCH_CONFIG_MAIN
 
-#include "vicon_calibration/JsonTools.h"
-#include "vicon_calibration/measurement_extractors/DiamondCameraExtractor.h"
-#include "vicon_calibration/utils.h"
-
 #include <catch2/catch.hpp>
 #include <opencv2/opencv.hpp>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+
+
+#include <vicon_calibration/JsonTools.h>
+#include <vicon_calibration/measurement_extractors/DiamondCameraExtractor.h>
+#include <vicon_calibration/Utils.h>
 
 using namespace vicon_calibration;
 

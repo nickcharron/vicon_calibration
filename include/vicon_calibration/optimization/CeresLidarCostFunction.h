@@ -24,7 +24,7 @@ struct CeresLidarCostFunction {
     residuals[0] = point_detected_.cast<T>()[0] - P_LIDAR[0];
     residuals[1] = point_detected_.cast<T>()[1] - P_LIDAR[1];
     residuals[2] = point_detected_.cast<T>()[2] - P_LIDAR[2];
-    
+
     return true;
   }
 

@@ -1,11 +1,10 @@
-#include "vicon_calibration/measurement_extractors/DiamondLidarExtractor.h"
+#include <vicon_calibration/measurement_extractors/DiamondLidarExtractor.h>
 
 #include <math.h>
 
+#include <pcl/io/pcd_io.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/search/impl/search.hpp>
-
-#include <pcl/io/pcd_io.h>
 
 namespace vicon_calibration {
 

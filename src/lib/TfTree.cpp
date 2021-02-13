@@ -1,8 +1,11 @@
-#include "vicon_calibration/TfTree.h"
-#include "vicon_calibration/utils.h"
+#include <vicon_calibration/TfTree.h>
+
 #include <fstream>
 #include <iostream>
+
 #include <tf2_eigen/tf2_eigen.h>
+
+#include <vicon_calibration/Utils.h>
 
 using json = nlohmann::json;
 

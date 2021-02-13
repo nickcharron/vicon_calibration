@@ -1,19 +1,18 @@
 #define CATCH_CONFIG_MAIN
+
 #include <catch2/catch.hpp>
-
-#include "vicon_calibration/measurement_extractors/CylinderLidarExtractor.h"
-#include "vicon_calibration/TfTree.h"
-#include "vicon_calibration/utils.h"
-#include "vicon_calibration/JsonTools.h"
-
+#include <pcl/io/pcd_io.h>
+#include <pcl_conversions/pcl_conversions.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <tf2_eigen/tf2_eigen.h>
 #include <tf2_msgs/TFMessage.h>
 
-#include <pcl/io/pcd_io.h>
-#include <pcl_conversions/pcl_conversions.h>
+#include <vicon_calibration/JsonTools.h>
+#include <vicon_calibration/TfTree.h>
+#include <vicon_calibration/measurement_extractors/CylinderLidarExtractor.h>
+#include <vicon_calibration/Utils.h>
 
 using namespace vicon_calibration;
 
@@ -42,9 +41,10 @@ void FileSetup() {
   bag_path = utils::GetFilePathTestBags("roben_simulation.bag");
   target_config = utils::GetFilePathTestData("CylinderTarget.json");
   template_cloud = utils::GetFilePathTestClouds("cylinder_target.pcd");
-  template_cloud_rot = utils::GetFilePathTestClouds("cylinder_target_rotated.pcd");
-  if(show_measurements){
-      pcl_viewer = boost::make_shared<pcl::visualization::PCLVisualizer>();
+  template_cloud_rot =
+      utils::GetFilePathTestClouds("cylinder_target_rotated.pcd");
+  if (show_measurements) {
+    pcl_viewer = boost::make_shared<pcl::visualization::PCLVisualizer>();
   }
 }
 
@@ -54,7 +54,7 @@ void LoadSimulatedCloud() {
   bag.open(bag_path, rosbag::bagmode::Read);
   rosbag::TopicQuery query = rosbag::TopicQuery("/m3d/aggregator/cloud");
   rosbag::View cloud_bag_view = {bag, query};
-  for (const auto &msg_instance : cloud_bag_view) {
+  for (const auto& msg_instance : cloud_bag_view) {
     auto cloud_message = msg_instance.instantiate<sensor_msgs::PointCloud2>();
     if (cloud_message != nullptr) {
       pcl::fromROSMsg(*cloud_message, *sim_cloud);
@@ -76,7 +76,7 @@ void LoadTransforms() {
 
   // Iterate over all message instances in our tf bag view
   std::cout << "Adding transforms" << std::endl;
-  for (const auto &msg_instance : tf_bag_view) {
+  for (const auto& msg_instance : tf_bag_view) {
     auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
     if (tf_message != nullptr) {
       for (geometry_msgs::TransformStamped tf : tf_message->transforms) {
@@ -86,10 +86,10 @@ void LoadTransforms() {
   }
   // Get transforms between targets and lidar and world and targets
   Eigen::Affine3d TA_SCAN_TARGET1_TRUE, TA_SCAN_TARGET2_TRUE;
-  TA_SCAN_TARGET1_TRUE = tf_tree.GetTransformEigen(m3d_link_frame, target1_frame,
-                                                  transform_lookup_time);
-  TA_SCAN_TARGET2_TRUE = tf_tree.GetTransformEigen(m3d_link_frame, target2_frame,
-                                                  transform_lookup_time);
+  TA_SCAN_TARGET1_TRUE = tf_tree.GetTransformEigen(
+      m3d_link_frame, target1_frame, transform_lookup_time);
+  TA_SCAN_TARGET2_TRUE = tf_tree.GetTransformEigen(
+      m3d_link_frame, target2_frame, transform_lookup_time);
   T_SCAN_TARGET1_TRUE = TA_SCAN_TARGET1_TRUE.matrix();
   T_SCAN_TARGET2_TRUE = TA_SCAN_TARGET2_TRUE.matrix();
 
@@ -114,8 +114,7 @@ void LoadTargetParams() {
 
   // replace template with template from test data
   temp_cloud = boost::make_shared<PointCloud>();
-  if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud, *temp_cloud) ==
-      -1) {
+  if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud, *temp_cloud) == -1) {
     PCL_ERROR("Couldn't read file %s \n", template_cloud.c_str());
   }
   target_params->template_cloud = temp_cloud;
@@ -132,25 +131,23 @@ void LoadTargetParamsRotated() {
   inputs.target_config_path = target_config;
   JsonTools json_loader(inputs);
   target_params = json_loader.LoadTargetParams(target_config);
-  
+
   PointCloud::Ptr temp_cloud;
   temp_cloud = boost::make_shared<PointCloud>();
-  if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_rot,
-                                          *temp_cloud) == -1) {
+  if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_rot, *temp_cloud) ==
+      -1) {
     PCL_ERROR("Couldn't read file %s \n", template_cloud_rot.c_str());
   }
   target_params->template_cloud = temp_cloud;
 }
 
 void ConfirmMeasurementKeyboardCallback(
-    const pcl::visualization::KeyboardEvent &event, void *viewer_void) {
-  if (event.getKeySym() == "c" && event.keyDown()) {
-    close_viewer = true;
-  }
+    const pcl::visualization::KeyboardEvent& event, void* viewer_void) {
+  if (event.getKeySym() == "c" && event.keyDown()) { close_viewer = true; }
 }
 
-void AddPointCloudToViewer(PointCloud::Ptr cloud,
-                           std::string cloud_name, Eigen::Affine3d &T) {
+void AddPointCloudToViewer(PointCloud::Ptr cloud, std::string cloud_name,
+                           Eigen::Affine3d& T) {
   pcl_viewer->addPointCloud<pcl::PointXYZ>(cloud, cloud_name);
   pcl_viewer->addCoordinateSystem(1, T.cast<float>(), cloud_name + "frame");
   pcl::PointXYZ point;
@@ -188,8 +185,8 @@ TEST_CASE("Test cylinder extractor with empty template cloud && empty scan") {
   cyl_extractor->SetTargetParams(target_params);
   REQUIRE_THROWS(
       cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, null_cloud));
-  REQUIRE_THROWS(cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE,
-                                                 empty_cloud));
+  REQUIRE_THROWS(
+      cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, empty_cloud));
 }
 
 TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
@@ -222,7 +219,8 @@ TEST_CASE("Test extracting cylinder target with and without diverged ICP "
   Eigen::Vector3f div_crop2(1, 1, 1);
   Eigen::Vector3f good_crop(0.3, 0.3, 0.3);
   div_target_params->crop_scan = div_crop1;
-  std::shared_ptr<LidarExtractor> cyl_extractor = std::make_shared<CylinderLidarExtractor>();
+  std::shared_ptr<LidarExtractor> cyl_extractor =
+      std::make_shared<CylinderLidarExtractor>();
   cyl_extractor->SetShowMeasurements(show_measurements);
   cyl_extractor->SetLidarParams(lidar_params);
   cyl_extractor->SetTargetParams(div_target_params);

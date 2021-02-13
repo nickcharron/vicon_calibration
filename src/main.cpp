@@ -1,10 +1,10 @@
-#include "vicon_calibration/ViconCalibrator.h"
-
 #include <gflags/gflags.h>
 
-#include <vicon_calibration/gflags.h>
+#include <vicon_calibration/Gflags.h>
+#include <vicon_calibration/ViconCalibrator.h>
 
-std::string config_default_path_ = vicon_calibration::utils::GetFilePathConfig("");
+std::string config_default_path_ =
+    vicon_calibration::utils::GetFilePathConfig("");
 std::string data_default_path_ = vicon_calibration::utils::GetFilePathData("");
 
 DEFINE_string(bag, "", "Full path to bag file (Required).");
@@ -53,18 +53,18 @@ DEFINE_bool(show_lidar_measurements, false,
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  vicon_calibration::CalibratorInputs inputs {
-    .bag = FLAGS_bag, .initial_calibration = FLAGS_initial_calibration,
-    .calibration_config = FLAGS_calibration_config,
-    .optimizer_config = FLAGS_optimizer_config,
-    .target_config_path = FLAGS_target_config_path,
-    .target_data_path = FLAGS_target_data_path,
-    .camera_intrinsics_path = FLAGS_camera_intrinsics_path,
-    .verification_config = FLAGS_verification_config,
-    .output_directory = FLAGS_output_directory,
-    .show_camera_measurements = FLAGS_show_camera_measurements,
-    .show_lidar_measurements = FLAGS_show_lidar_measurements
-  };
+  vicon_calibration::CalibratorInputs inputs{
+      .bag = FLAGS_bag,
+      .initial_calibration = FLAGS_initial_calibration,
+      .calibration_config = FLAGS_calibration_config,
+      .optimizer_config = FLAGS_optimizer_config,
+      .target_config_path = FLAGS_target_config_path,
+      .target_data_path = FLAGS_target_data_path,
+      .camera_intrinsics_path = FLAGS_camera_intrinsics_path,
+      .verification_config = FLAGS_verification_config,
+      .output_directory = FLAGS_output_directory,
+      .show_camera_measurements = FLAGS_show_camera_measurements,
+      .show_lidar_measurements = FLAGS_show_lidar_measurements};
 
   vicon_calibration::ViconCalibrator calibrator(inputs);
   calibrator.RunCalibration();

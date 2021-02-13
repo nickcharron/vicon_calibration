@@ -1,11 +1,10 @@
-#include "vicon_calibration/optimization/Optimizer.h"
+#include <vicon_calibration/optimization/Optimizer.h>
 
 #include <algorithm>
 #include <fstream>
+
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/surface/concave_hull.h>
-
-#include <beam_utils/optional.h>
 
 namespace vicon_calibration {
 
@@ -723,8 +722,7 @@ bool Optimizer::HasConverged(uint16_t iteration) {
 
     // Check all DOFs to see if the change is greater than the tolerance
     double error_t_m =
-        (T_curr.block(0, 3, 3, 1) - 
-        T_last.block(0, 3, 3, 1)).norm();
+        (T_curr.block(0, 3, 3, 1) - T_last.block(0, 3, 3, 1)).norm();
     double error_r_rad = utils::CalculateRotationError(
         T_curr.block(0, 0, 3, 3), T_last.block(0, 0, 3, 3));
 

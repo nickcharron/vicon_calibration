@@ -1,16 +1,16 @@
 #pragma once
 
-#include "vicon_calibration/TfTree.h"
-#include "vicon_calibration/measurement_extractors/CameraExtractor.h"
-#include "vicon_calibration/measurement_extractors/LidarExtractor.h"
-#include "vicon_calibration/optimization/Optimizer.h"
-#include "vicon_calibration/params.h"
-#include "vicon_calibration/utils.h"
-
 #include <Eigen/Geometry>
 #include <opencv2/opencv.hpp>
 #include <ros/time.h>
 #include <rosbag/bag.h>
+
+#include <vicon_calibration/TfTree.h>
+#include <vicon_calibration/measurement_extractors/CameraExtractor.h>
+#include <vicon_calibration/measurement_extractors/LidarExtractor.h>
+#include <vicon_calibration/optimization/Optimizer.h>
+#include <vicon_calibration/Params.h>
+#include <vicon_calibration/Utils.h>
 
 namespace vicon_calibration {
 

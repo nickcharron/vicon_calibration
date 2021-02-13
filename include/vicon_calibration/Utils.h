@@ -3,15 +3,18 @@
 #include <sys/time.h>
 
 #include <Eigen/Geometry>
+#include <boost/none_t.hpp>
+#include <boost/optional.hpp>
+#include <boost/optional/optional_io.hpp>
 #include <gtsam/geometry/Point2.h>
 #include <gtsam/geometry/Point3.h>
 #include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-#include "vicon_calibration/TfTree.h"
-#include "vicon_calibration/params.h"
 #include <beam_calibration/CameraModel.h>
+#include <vicon_calibration/Params.h>
+#include <vicon_calibration/TfTree.h>
 
 namespace vicon_calibration {
 
@@ -48,6 +51,9 @@ struct CameraParams;
 struct LidarParams;
 enum class SensorType;
 typedef std::vector<CalibrationResult> CalibrationResults;
+
+template <class T>
+using opt = beam::optional<T>;
 
 namespace utils {
 

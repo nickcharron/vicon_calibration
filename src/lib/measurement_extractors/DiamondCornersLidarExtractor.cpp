@@ -1,4 +1,4 @@
-#include "vicon_calibration/measurement_extractors/DiamondCornersLidarExtractor.h"
+#include <vicon_calibration/measurement_extractors/DiamondCornersLidarExtractor.h>
 
 #include <math.h>
 

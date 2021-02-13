@@ -1,22 +1,10 @@
-#include "vicon_calibration/CalibrationVerification.h"
-#include "beam_filtering/CropBox.h"
-#include "vicon_calibration/measurement_extractors/CylinderCameraExtractor.h"
-#include "vicon_calibration/measurement_extractors/CylinderLidarExtractor.h"
-#include "vicon_calibration/measurement_extractors/DiamondCameraExtractor.h"
-#include "vicon_calibration/measurement_extractors/DiamondLidarExtractor.h"
+#include <vicon_calibration/CalibrationVerification.h>
+
 #include <fstream>
 #include <iostream>
 
-// ROS headers
 #include <cv_bridge/cv_bridge.h>
 #include <nlohmann/json.hpp>
-#include <rosbag/view.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <sensor_msgs/image_encodings.h>
-#include <tf2_msgs/TFMessage.h>
-
-// PCL specific headers
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
@@ -24,6 +12,17 @@
 #include <pcl/point_types.h>
 #include <pcl/surface/concave_hull.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <rosbag/view.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/image_encodings.h>
+#include <tf2_msgs/TFMessage.h>
+
+#include <beam_filtering/CropBox.h>
+#include <vicon_calibration/measurement_extractors/CylinderCameraExtractor.h>
+#include <vicon_calibration/measurement_extractors/CylinderLidarExtractor.h>
+#include <vicon_calibration/measurement_extractors/DiamondCameraExtractor.h>
+#include <vicon_calibration/measurement_extractors/DiamondLidarExtractor.h>
 
 namespace vicon_calibration {
 
@@ -309,7 +308,7 @@ void CalibrationVerification::SaveLidarVisuals() {
     std::shared_ptr<LidarMeasurement> measurement;
     for (int meas_iter = 0; meas_iter < lidar_measurements_[lidar_iter].size();
          meas_iter++) {
-      counter++;     
+      counter++;
       if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) { continue; }
       measurement = lidar_measurements_[lidar_iter][meas_iter];
       lookup_time_ = measurement->time_stamp;
@@ -336,7 +335,8 @@ void CalibrationVerification::SaveLidarVisuals() {
 
       PointCloud::Ptr targets_combined = boost::make_shared<PointCloud>();
       for (uint8_t n = 0; n < T_VICONBASE_TGTS.size(); n++) {
-        const PointCloud::Ptr target = params_->target_params[n]->template_cloud;
+        const PointCloud::Ptr target =
+            params_->target_params[n]->template_cloud;
         PointCloud::Ptr target_transformed = boost::make_shared<PointCloud>();
         pcl::transformPointCloud(*target, *target_transformed,
                                  T_VICONBASE_TGTS[n]);

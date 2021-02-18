@@ -17,6 +17,7 @@ add_library(${PROJECT_NAME}
   Utils.cpp
   Gflags.cpp
   JsonTools.cpp
+  Visualizer.cpp
   CalibrationVerification.cpp
 )
 target_compile_options(${PROJECT_NAME}

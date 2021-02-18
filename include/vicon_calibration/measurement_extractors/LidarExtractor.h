@@ -8,7 +8,10 @@
 
 #include <vicon_calibration/Params.h>
 #include <vicon_calibration/Utils.h>
+#include <vicon_calibration/Visualizer.h>
 #include <vicon_calibration/measurement_extractors/IsolateTargetPoints.h>
+
+static bool show_measurements_default{false};
 
 namespace vicon_calibration {
 
@@ -39,7 +42,11 @@ class LidarExtractor {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  LidarExtractor(); // ADD INITIALIZATION OF POINTERS
+  LidarExtractor(
+      const std::shared_ptr<vicon_calibration::LidarParams>& lidar_params,
+      const std::shared_ptr<vicon_calibration::TargetParams>& target_params,
+      const bool& show_measurements,
+      const std::shared_ptr<Visualizer> pcl_viewer);
 
   virtual ~LidarExtractor() = default;
 
@@ -53,18 +60,9 @@ public:
    */
   virtual LidarExtractorType GetType() const = 0;
 
-  void
-  SetLidarParams(std::shared_ptr<vicon_calibration::LidarParams> &lidar_params);
-
-  void SetTargetParams(
-      std::shared_ptr<vicon_calibration::TargetParams> &target_params);
-
-  void SetShowMeasurements(const bool &show_measurements);
-
-  bool GetShowMeasurements();
-
-  void ProcessMeasurement(const Eigen::Matrix4d &T_LIDAR_TARGET_EST,
-                          const PointCloud::Ptr &cloud_in);
+  void ProcessMeasurement(const Eigen::Matrix4d& T_LIDAR_TARGET_EST,
+                          const PointCloud::Ptr& cloud_in,
+                          bool& show_measurements = show_measurements_default);
 
   bool GetMeasurementValid();
 
@@ -90,23 +88,6 @@ protected:
   // if enabled, show result to user and let them accept or decline
   void GetUserInput();
 
-  void AddColouredPointCloudToViewer(const PointCloudColor::Ptr &cloud,
-                                     const std::string &cloud_name,
-                                     boost::optional<Eigen::MatrixXd &> T,
-                                     int point_size = 1);
-
-  void AddPointCloudToViewer(const PointCloud::Ptr &cloud,
-                             const std::string &cloud_name,
-                             const Eigen::Matrix4d &T,
-                             int point_size = 1);
-
-  void ConfirmMeasurementKeyboardCallback(
-      const pcl::visualization::KeyboardEvent &event, void *viewer_void);
-
-  void ShowFailedMeasurement();
-
-  void ShowPassedMeasurement();
-
   void OutputScans();
 
   // member variables
@@ -117,19 +98,12 @@ protected:
   PointCloud::Ptr measured_template_cloud_;
   Eigen::MatrixXd T_LIDAR_TARGET_EST_ = Eigen::MatrixXd(4, 4);
   Eigen::MatrixXd T_LIDAR_TARGET_OPT_ = Eigen::MatrixXd(4, 4);
-  pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
+  std::shared_ptr<Visualizer> pcl_viewer_;
   PointCloud::Ptr keypoints_measured_;
   bool measurement_valid_{true};
   bool measurement_complete_{false};
   bool target_params_set_{false};
   bool lidar_params_set_{false};
-  bool close_viewer_{false};
-  bool white_cloud_on_ = true;
-  bool blue_cloud_on_ = true;
-  bool green_cloud_on_ = true;
-  bool viewer_key_down_ = false;
-  PointCloudColor::Ptr blue_cloud_, green_cloud_;
-  PointCloud::Ptr white_cloud_;
 
   // params:
   std::shared_ptr<vicon_calibration::LidarParams> lidar_params_;
@@ -139,7 +113,6 @@ protected:
   double allowable_keypoint_error_{0.03};
   bool output_scans_{false};
   std::string output_directory_{"/home/nick/tmp/"};
-
 };
 
 } // namespace vicon_calibration

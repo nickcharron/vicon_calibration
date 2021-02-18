@@ -11,8 +11,9 @@
 
 #include <vicon_calibration/JsonTools.h>
 #include <vicon_calibration/TfTree.h>
-#include <vicon_calibration/measurement_extractors/CylinderLidarExtractor.h>
 #include <vicon_calibration/Utils.h>
+#include <vicon_calibration/Visualizer.h>
+#include <vicon_calibration/measurement_extractors/CylinderLidarExtractor.h>
 
 using namespace vicon_calibration;
 
@@ -25,15 +26,16 @@ ros::Time transform_lookup_time;
 std::shared_ptr<TargetParams> target_params;
 std::shared_ptr<LidarParams> lidar_params;
 PointCloud::Ptr temp_cloud;
-boost::shared_ptr<pcl::visualization::PCLVisualizer> pcl_viewer;
 PointCloud::Ptr sim_cloud;
 bool close_viewer{false};
-bool show_measurements{false};
+bool show_measurements{false}; // Set this to view measurements
+bool setup_called{false};
 Eigen::VectorXd T_perturb_small = Eigen::VectorXd(6);
 Eigen::VectorXd T_perturb_large = Eigen::VectorXd(6);
 std::string m3d_link_frame = "m3d_link";
 std::string target1_frame = "vicon/target4/target4";
 std::string target2_frame = "vicon/target6/target6";
+std::shared_ptr<Visualizer> pcl_viewer;
 
 using namespace std::literals::chrono_literals;
 
@@ -43,9 +45,6 @@ void FileSetup() {
   template_cloud = utils::GetFilePathTestClouds("cylinder_target.pcd");
   template_cloud_rot =
       utils::GetFilePathTestClouds("cylinder_target_rotated.pcd");
-  if (show_measurements) {
-    pcl_viewer = boost::make_shared<pcl::visualization::PCLVisualizer>();
-  }
 }
 
 void LoadSimulatedCloud() {
@@ -141,48 +140,39 @@ void LoadTargetParamsRotated() {
   target_params->template_cloud = temp_cloud;
 }
 
-void ConfirmMeasurementKeyboardCallback(
-    const pcl::visualization::KeyboardEvent& event, void* viewer_void) {
-  if (event.getKeySym() == "c" && event.keyDown()) { close_viewer = true; }
-}
-
-void AddPointCloudToViewer(PointCloud::Ptr cloud, std::string cloud_name,
-                           Eigen::Affine3d& T) {
-  pcl_viewer->addPointCloud<pcl::PointXYZ>(cloud, cloud_name);
-  pcl_viewer->addCoordinateSystem(1, T.cast<float>(), cloud_name + "frame");
-  pcl::PointXYZ point;
-  point.x = T.translation()(0);
-  point.y = T.translation()(1);
-  point.z = T.translation()(2);
-  pcl_viewer->addText3D(cloud_name + " ", point, 0.05, 0.05, 0.05);
-  pcl_viewer->setPointCloudRenderingProperties(
-      pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, cloud_name);
-}
-
-TEST_CASE("Test cylinder extractor with empty template cloud && empty scan") {
+void Setup() {
+  if (setup_called) { return; }
+  if (show_measurements) {
+    pcl_viewer = std::make_shared<Visualizer>("CylTestVis");
+  }
   FileSetup();
   LoadTransforms();
   LoadSimulatedCloud();
   LoadTargetParams();
   LoadLidarParams();
+  setup_called = true;
+}
+
+TEST_CASE("Test cylinder extractor with empty template cloud && empty scan") {
+  Setup();
+
   std::shared_ptr<TargetParams> invalid_target_params =
-      std::make_shared<TargetParams>();
-  *invalid_target_params = *target_params;
+      std::make_shared<TargetParams>(*target_params);
   boost::shared_ptr<PointCloud> null_cloud;
   boost::shared_ptr<PointCloud> empty_cloud = boost::make_shared<PointCloud>();
   invalid_target_params->template_cloud = null_cloud;
   std::shared_ptr<LidarExtractor> cyl_extractor;
-  cyl_extractor = std::make_shared<CylinderLidarExtractor>();
-  cyl_extractor->SetShowMeasurements(show_measurements);
-  cyl_extractor->SetLidarParams(lidar_params);
-  cyl_extractor->SetTargetParams(invalid_target_params);
+  cyl_extractor = std::make_shared<CylinderLidarExtractor>(
+      lidar_params, invalid_target_params, show_measurements, pcl_viewer);
   REQUIRE_THROWS(
       cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud));
   invalid_target_params->template_cloud = empty_cloud;
-  cyl_extractor->SetTargetParams(invalid_target_params);
+  cyl_extractor = std::make_shared<CylinderLidarExtractor>(
+      lidar_params, invalid_target_params, show_measurements, pcl_viewer);
   REQUIRE_THROWS(
       cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud));
-  cyl_extractor->SetTargetParams(target_params);
+  cyl_extractor = std::make_shared<CylinderLidarExtractor>(
+      lidar_params, target_params, show_measurements, pcl_viewer);
   REQUIRE_THROWS(
       cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, null_cloud));
   REQUIRE_THROWS(
@@ -190,15 +180,14 @@ TEST_CASE("Test cylinder extractor with empty template cloud && empty scan") {
 }
 
 TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
+  Setup();
   Eigen::Affine3d TA_INVALID1;
   Eigen::Matrix4d T_INVALID2, T_INVALID3;
   T_INVALID3.setIdentity();
   T_INVALID3(3, 0) = 1;
-  std::shared_ptr<LidarExtractor> cyl_extractor;
-  cyl_extractor = std::make_shared<CylinderLidarExtractor>();
-  cyl_extractor->SetShowMeasurements(show_measurements);
-  cyl_extractor->SetLidarParams(lidar_params);
-  cyl_extractor->SetTargetParams(target_params);
+  std::shared_ptr<LidarExtractor> cyl_extractor =
+      std::make_shared<CylinderLidarExtractor>(lidar_params, target_params,
+                                               show_measurements, pcl_viewer);
   REQUIRE_THROWS(
       cyl_extractor->ProcessMeasurement(TA_INVALID1.matrix(), sim_cloud));
   REQUIRE_THROWS(cyl_extractor->ProcessMeasurement(T_INVALID2, sim_cloud));
@@ -207,23 +196,22 @@ TEST_CASE("Test extracting cylinder with invalid transformation matrix") {
 
 TEST_CASE("Test extracting cylinder target with and without diverged ICP "
           "registration") {
-  // FileSetup();
-  // LoadTransforms();
-  // LoadSimulatedCloud();
-  // LoadTargetParams();
-  // LoadLidarParams();
+  Setup();
   std::shared_ptr<TargetParams> div_target_params =
       std::make_shared<TargetParams>();
   *div_target_params = *target_params;
-  Eigen::Vector3f div_crop1(-0.05, -0.05, -0.05);
-  Eigen::Vector3f div_crop2(1, 1, 1);
-  Eigen::Vector3f good_crop(0.3, 0.3, 0.3);
+  Eigen::VectorXf div_crop1(6);
+  div_crop1 << 0.05, -0.05, 0.05, -0.05, 0.05, -0.05;
+  Eigen::VectorXf div_crop2(6);
+  div_crop2 << -1, 1, -1, 1, -1, 1;
+  Eigen::VectorXf good_crop(6);
+  good_crop << -0.3, 0.3, -0.3, 0.3, -0.3, 0.3;
   div_target_params->crop_scan = div_crop1;
+
   std::shared_ptr<LidarExtractor> cyl_extractor =
-      std::make_shared<CylinderLidarExtractor>();
-  cyl_extractor->SetShowMeasurements(show_measurements);
-  cyl_extractor->SetLidarParams(lidar_params);
-  cyl_extractor->SetTargetParams(div_target_params);
+      std::make_shared<CylinderLidarExtractor>(lidar_params, div_target_params,
+                                               show_measurements, pcl_viewer);
+
   REQUIRE_THROWS(cyl_extractor->GetMeasurementValid());
   cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud);
   REQUIRE(cyl_extractor->GetMeasurementValid() == false);
@@ -245,56 +233,42 @@ TEST_CASE("Test extracting cylinder target with and without diverged ICP "
   REQUIRE(cyl_extractor->GetMeasurementValid() == false);
 }
 
-/* need to view these results, can't automate the test
+// need to view these results, can't automate the test
 TEST_CASE("Test best correspondence estimation") {
-  // FileSetup();
-  // LoadTransforms();
-  // LoadSimulatedCloud();
-  // LoadTargetParams();
-  // LoadLidarParams();
-  Eigen::Affine3d T_identity;
-  T_identity.setIdentity();
-  std::shared_ptr<LidarExtractor> cyl_extractor;
-  cyl_extractor = std::make_shared<CylinderLidarExtractor>();
+  if (!show_measurements) { return; }
+  Setup();
+
   std::shared_ptr<TargetParams> target_params2 =
-std::make_shared<TargetParams>(); target_params2 =
-target_params; Eigen::Vector3d div_crop(0.5, 0.2, 0.2);
+      std::make_shared<TargetParams>();
+  target_params2 = std::make_shared<TargetParams>(*target_params);
+  Eigen::VectorXf div_crop(6);
+  div_crop << -0.5, 0.5, -0.2, 0.2, -0.2, 0.2;
   target_params2->crop_scan = div_crop;
-  cyl_extractor->SetShowMeasurements(true);
-  cyl_extractor->SetLidarParams(lidar_params);
-  cyl_extractor->SetTargetParams(target_params2);
+
+  std::shared_ptr<LidarExtractor> cyl_extractor =
+      std::make_shared<CylinderLidarExtractor>(lidar_params, target_params2,
+                                               show_measurements, pcl_viewer);
+
   boost::shared_ptr<PointCloud> keypoints1, keypoints2;
 
   // view keypoints 1
   cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud);
   keypoints1 = cyl_extractor->GetMeasurement();
-  //pcl_viewer = boost::make_shared<pcl::visualization::PCLVisualizer>();
-  AddPointCloudToViewer(keypoints1, "keypoints1", T_identity);
-  while (!pcl_viewer->wasStopped() && !close_viewer) {
-    pcl_viewer->spinOnce(10);
-    pcl_viewer->registerKeyboardCallback(&ConfirmMeasurementKeyboardCallback);
-    std::this_thread::sleep_for(10ms);
-  }
-  pcl_viewer->removeAllPointClouds();
-  pcl_viewer->close();
-  pcl_viewer->resetStoppedFlag();
+  pcl_viewer->AddPointCloudToViewer(keypoints1, "keypoints1",
+                                    Eigen::Vector3i(255, 0, 0), 5);
+  pcl_viewer->DisplayClouds();
 
   // view keypoints 2
   // can't run these both at the same time
-  // Eigen::Vector3d div_crop2(0.7, 0.5, 0.5);
-  // target_params2->crop_scan = div_crop2;
-  // cyl_extractor->SetTargetParams(target_params2);
-  // cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST, sim_cloud);
-  // keypoints2 = cyl_extractor->GetMeasurement();
-  // pcl_viewer = boost::make_shared<pcl::visualization::PCLVisualizer>();
-  // AddPointCloudToViewer(keypoints2, "keypoints2", T_identity);
-  // while (!pcl_viewer->wasStopped() && !close_viewer) {
-  //   pcl_viewer->spinOnce(10);
-  // pcl_viewer->registerKeyboardCallback(&ConfirmMeasurementKeyboardCallback);
-  //   std::this_thread::sleep_for(10ms);
-  // }
-  // pcl_viewer->removeAllPointClouds();
-  // pcl_viewer->close();
-  // pcl_viewer->resetStoppedFlag();
+  Eigen::VectorXf div_crop2(6);
+  div_crop2 << -0.7, 0.7, -0.5, 0.5, -0.5, 0.5;
+  target_params2->crop_scan = div_crop2;
+
+  cyl_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST_CONV, sim_cloud);
+  keypoints2 = cyl_extractor->GetMeasurement();
+
+  pcl_viewer->AddPointCloudToViewer(keypoints2, "keypoints2",
+                                    Eigen::Vector3i(0, 255, 0), 5);
+  pcl_viewer->DisplayClouds();
 }
-*/
+//

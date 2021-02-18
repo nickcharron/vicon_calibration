@@ -1,13 +1,13 @@
 #pragma once
 
-#include <atomic>
-#include <chrono>
+// #include <atomic>
+// #include <chrono>
 #include <cstdint>
 #include <fstream>
 #include <math.h>
-#include <mutex>
-#include <string>
-#include <thread>
+// #include <mutex>
+// #include <string>
+// #include <thread>
 
 #include <boost/make_shared.hpp>
 #include <nlohmann/json.hpp>
@@ -21,151 +21,100 @@
 #include <pcl/registration/correspondence_estimation.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
-namespace beam {
+#include <beam_utils/pointclouds.h>
+
+static bool stop_visualizer_flag_set_default{false};
+
+namespace vicon_calibration {
+
+using col_handler =
+    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>;
 
 /**
- * @brief Interactive visualizer class to display point clouds and
- * correspondences Note: to use:
+ * @brief Interactive visualizer class to display point clouds. It also allows
+ * you to toggle on/off the first three clouds added to the visualizer. Note: to
+ * use:
  * 1. create visualizer instance
- * 2. call startVis()
- * 3. call desired displayClouds() version
- * 4. call endVis()
+ * 2. call AddPointCloudToViewer (either by adding new clouds or replacing existing)
+ * 3. call DisplayClouds() to view them in viewer
+ * 4. call ClearPointClouds (unless replacing them later)
  */
 class Visualizer {
 public:
+  // struct to contain cloud information
+  struct CloudInfo {
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
+    std::string id;
+    int point_size;
+    bool cloud_on;
+    Eigen::Matrix4f T;
+
+    Eigen::Affine3f Affine() {
+      Eigen::Affine3f TA;
+      TA.matrix() = T.cast<float>();
+      return TA;
+    }
+
+    CloudInfo(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& _cloud,
+              const std::string& _id, int _point_size,
+              const Eigen::Matrix4f& _T = Eigen::Matrix4f::Identity(),
+              bool _cloud_on = true)
+        : cloud(_cloud),
+          id(_id),
+          point_size(_point_size),
+          cloud_on(_cloud_on),
+          T(_T) {}
+  };
+
   /**
    * @brief Constructor
-   * @param name_ display name
+   * @param display_name display name
    */
-  Visualizer(const std::string name_);
+  Visualizer(const std::string display_name);
 
   /**
    * @brief Empty destructor
    */
   ~Visualizer();
 
-  /**
-   * @brief Starts visualizer in a new thread
-   * @param coord_size size of the coordinate axes to display
-   */
-  void startVis(uint16_t coord_size = 100);
+  void AddPointCloudToViewer(
+      const PointCloudPtr& cloud, const std::string& cloud_name,
+      const Eigen::Vector3i& rgb_color, int point_size,
+      const Eigen::Matrix4f& T = Eigen::Matrix4f::Identity());
 
-  /**
-   * @brief Ends visualizer thread
-   * @todo get display window to close when called, currently hangs until end of
-   * program
-   */
-  void endVis();
+  void AddPointCloudToViewer(
+      int cloud_iter, const PointCloudPtr& cloud, const std::string& cloud_name,
+      const Eigen::Vector3i& rgb_color, int point_size,
+      const Eigen::Matrix4f& T = Eigen::Matrix4f::Identity());
 
-  /**
-   * @brief Method to display one point cloud
-   * @param cloud_ point cloud to display
-   * @param id_ unique cloud id for display
-   */
-  void displayClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_,
-                     std::string id_);
+  void ClearPointClouds();
 
   /**
    * @brief Method to display n clouds, cloud and id vectors must be the same
    * length, ids must be unique
-   * @param clouds_ point clouds to display
-   * @param ids_ unique cloud ids for display
+   * @param stop_visualizer_flag_set use this if the client program wants to
+   * know if the user selected to stop showing visualization.
+   * @return measurement_valid
    */
-  void displayClouds(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> clouds_,
-                     std::vector<std::string> ids_);
-
-  /**
-   * @brief Method to display two point clouds
-   * @param cloud1_ point cloud to display
-   * @param cloud2_ point cloud to display
-   * @param id1_ unique cloud id for display
-   * @param id2_ unique cloud id for display
-   */
-  void displayClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud1_,
-                     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud2_,
-                     std::string id1_, std::string id2_);
-
-  /**
-   * @brief Method to display three point clouds
-   * @param cloud1_ point cloud to display
-   * @param cloud2_ point cloud to display
-   * @param cloud3_ point cloud to display
-   * @param id1_ unique cloud id for display
-   * @param id2_ unique cloud id for display
-   * @param id3_ unique cloud id for display
-   */
-  void displayClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud1_,
-                     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud2_,
-                     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud3_,
-                     std::string id1_, std::string id2_, std::string id3_);
-
-  /**
-   * @brief Method to display four point clouds
-   * @param cloud1_ point cloud to display
-   * @param cloud2_ point cloud to display
-   * @param cloud3_ point cloud to display
-   * @param cloud4_ point cloud to display
-   * @param id1_ unique cloud id for display
-   * @param id2_ unique cloud id for display
-   * @param id3_ unique cloud id for display
-   * @param id4_ unique cloud id for display
-   */
-  void displayClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud1_,
-                     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud2_,
-                     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud3_,
-                     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud4_,
-                     std::string id1_, std::string id2_, std::string id3_,
-                     std::string id4_);
-
-  /**
-   * @brief Method to display an image cloud, projected cloud and
-   * correspondences
-   * @param image_cloud_ labelled image point cloud
-   * @param projected_cloud_ projected CAD point cloud
-   * @param corrs_ correspondences between projected point cloud and labelled
-   * image cloud
-   * @param id_image_ unique cloud id for display
-   * @param id_projected_ unique cloud id for display
-   */
-  void displayClouds(pcl::PointCloud<pcl::PointXYZ>::Ptr image_cloud_,
-                     pcl::PointCloud<pcl::PointXYZ>::Ptr projected_cloud_,
-                     pcl::CorrespondencesConstPtr corrs_, std::string id_image_,
-                     std::string id_projected_);
-
-  /**
-   * @brief Method to display an image cloud, CAD cloud, projected cloud and
-   * correspondences
-   * @param image_cloud_ labelled image point cloud
-   * @param CAD_cloud_ CAD cloud
-   * @param projected_cloud_ projected CAD point cloud
-   * @param corrs_ correspondences between projected point cloud and labelled
-   * image cloud
-   * @param id_image_ unique cloud id for display
-   * @param id_CAD_ unique cloud id for display
-   * @param id_projected_ unique cloud id for display
-   */
-  void displayClouds(pcl::PointCloud<pcl::PointXYZ>::ConstPtr image_cloud_,
-                     pcl::PointCloud<pcl::PointXYZ>::Ptr CAD_cloud_,
-                     pcl::PointCloud<pcl::PointXYZ>::Ptr projected_cloud_,
-                     pcl::CorrespondencesConstPtr corrs_, std::string id_image_,
-                     std::string id_CAD_, std::string id_projected_);
+  bool DisplayClouds(
+      bool& stop_visualizer_flag_set = stop_visualizer_flag_set_default);
 
 private:
-  pcl::visualization::PCLVisualizer::Ptr point_cloud_display;
-  std::thread vis_thread;
-
-  // mutex for the point_cloud_display object, held by the main thread when
-  // updating the visualization params
-  std::mutex mtx;
-
-  std::string display_name;
-
-  std::atomic_flag continueFlag = ATOMIC_FLAG_INIT;
-  bool display1_called, display2_called, display3_called, display4_called,
-      display5_called, display6_called, displayv_called;
-
   // vis thread method in which the visualizer spins
-  void spin();
+  void Spin();
+
+  // setup keypoint inputs
+  void ConfirmMeasurementKeyboardCallback(
+      const pcl::visualization::KeyboardEvent& event, void* viewer_void);
+
+  pcl::visualization::PCLVisualizer::Ptr point_cloud_display_;
+  std::vector<CloudInfo> clouds_;
+  std::string display_name_;
+  bool stop_visualizer_flag_{false};
+  bool measurement_valid_{true};
+  bool close_viewer_{false};
+  bool viewer_key_down_{false};
+  std::vector<int> background_col_{0,0,0};
 };
 
-} // namespace beam
+} // namespace vicon_calibration

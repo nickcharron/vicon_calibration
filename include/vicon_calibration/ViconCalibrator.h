@@ -109,6 +109,7 @@ private:
   LoopClosureMeasurements loop_closure_measurements_;
   CalibrationResults calibrations_initial_;
   rosbag::Bag bag_;
+  std::shared_ptr<Visualizer> pcl_viewer_;
 
   // Simulation testing settings and Member variables
   struct SimParams {

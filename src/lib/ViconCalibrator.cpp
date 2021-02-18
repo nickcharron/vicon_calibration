@@ -297,13 +297,19 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
       //       This increases extensibility
       if (extractor_type == "CYLINDER") {
         lidar_extractor_ =
-            std::make_shared<vicon_calibration::CylinderLidarExtractor>();
+            std::make_shared<vicon_calibration::CylinderLidarExtractor>(
+                params_->lidar_params[lidar_iter], params_->target_params[n],
+                params_->show_lidar_measurements, pcl_viewer_);
       } else if (extractor_type == "DIAMONDCORNERS") {
         lidar_extractor_ =
-            std::make_shared<vicon_calibration::DiamondCornersLidarExtractor>();
+            std::make_shared<vicon_calibration::DiamondCornersLidarExtractor>(
+                params_->lidar_params[lidar_iter], params_->target_params[n],
+                params_->show_lidar_measurements, pcl_viewer_);
       } else if (extractor_type == "DIAMOND") {
         lidar_extractor_ =
-            std::make_shared<vicon_calibration::DiamondLidarExtractor>();
+            std::make_shared<vicon_calibration::DiamondLidarExtractor>(
+                params_->lidar_params[lidar_iter], params_->target_params[n],
+                params_->show_lidar_measurements, pcl_viewer_);
       } else {
         throw std::invalid_argument{
             "Invalid extractor type. Options: CYLINDER, DIAMOND"};
@@ -316,13 +322,10 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
                   << "Timestamp: " << std::setprecision(10)
                   << time_current.toSec() << "\n";
       }
-      lidar_extractor_->SetLidarParams(params_->lidar_params[lidar_iter]);
-      lidar_extractor_->SetTargetParams(params_->target_params[n]);
-      lidar_extractor_->SetShowMeasurements(params_->show_lidar_measurements);
       lidar_extractor_->ProcessMeasurement(T_lidar_tgts_estimated[n].matrix(),
-                                           cloud);
-      params_->show_lidar_measurements =
-          lidar_extractor_->GetShowMeasurements();
+                                           cloud,
+                                           params_->show_lidar_measurements);
+
       if (lidar_extractor_->GetMeasurementValid()) {
         counters_.lidar_accepted++;
         valid_measurements++;
@@ -678,12 +681,20 @@ void ViconCalibrator::Setup() {
 }
 
 void ViconCalibrator::GetMeasurements() {
+  // setup visualizer
+  if (params_->show_lidar_measurements) {
+    pcl_viewer_ = std::make_shared<Visualizer>("LidarMeasurementVis");
+  }
+
   // loop through each lidar, get measurements and solve problem
   LOG_INFO("Loading lidar measurements.");
   for (uint8_t lidar_iter = 0; lidar_iter < params_->lidar_params.size();
        lidar_iter++) {
     this->GetLidarMeasurements(lidar_iter);
   }
+
+  // close visualizer
+  if (params_->show_lidar_measurements) { pcl_viewer_ = nullptr; }
 
   // loop through each camera, get measurements and solve problem
   LOG_INFO("Loading camera measurements.");

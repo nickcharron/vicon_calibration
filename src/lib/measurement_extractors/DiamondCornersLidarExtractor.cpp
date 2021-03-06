@@ -3,7 +3,6 @@
 #include <math.h>
 
 #include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/search/impl/search.hpp>
 // #include <pcl/io/pcd_io.h>
 
 namespace vicon_calibration {

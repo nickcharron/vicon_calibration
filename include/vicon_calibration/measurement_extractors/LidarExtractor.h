@@ -4,6 +4,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
+#include <pcl/search/impl/search.hpp>
 #include <pcl/visualization/pcl_visualizer.h>
 
 #include <vicon_calibration/Params.h>

@@ -58,7 +58,7 @@ Using ground truth calibrations:
 ```
 cd /path_to/vicon_calibration/
 
-./build/vicon_calibration_main -bag ~/datasets/vicon_calibration/simulation/DiamondTargetDataset_EXAMPLE.bag -calibration_config ./config/ViconCalibrationConfigDiamond_EXAMPLE.json -initial_calibration ./data/initial_calibration_EXAMPLE.json -output_directory ~/tmp/ -show_camera_measurements=true -show_lidar_measurements=true
+./build/vicon_calibration_main -bag ~/datasets/vicon_calibration/simulation/DiamondTargetDataset_EXAMPLE.bag -calibration_config ./config/ViconCalibrationConfigDiamond_EXAMPLE.json -output_directory ~/tmp/ -show_camera_measurements=true -show_lidar_measurements=true
 
 ```
 
@@ -66,6 +66,7 @@ Using perturbed calibrations from a json extrinsics file:
 
 ```
 cd /path_to/vicon_calibration
+./build/vicon_calibration_main -bag ~/datasets/vicon_calibration/simulation/DiamondTargetDataset_EXAMPLE.bag -calibration_config ./config/ViconCalibrationConfigDiamond_EXAMPLE.json -initial_calibration ./data/initial_calibration_EXAMPLE.json -output_directory ~/tmp/ -show_camera_measurements=true -show_lidar_measurements=true
 
 ```
 

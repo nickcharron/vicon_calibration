@@ -26,7 +26,7 @@ void Visualizer::AddPointCloudToViewer(const PointCloudPtr& cloud,
                                        const Eigen::Vector3i& rgb_color,
                                        int point_size,
                                        const Eigen::Matrix4f& T) {
-  PointCloudColPtr cloud_col =
+  PointCloudColorPtr cloud_col =
       utils::ColorPointCloud(cloud, rgb_color[0], rgb_color[1], rgb_color[2]);
   clouds_.emplace_back(cloud_col, cloud_name, point_size, T);
 }
@@ -41,7 +41,7 @@ void Visualizer::AddPointCloudToViewer(int cloud_iter,
     throw std::invalid_argument{"cloud iter greater than number of clouds."};
   }
 
-  PointCloudColPtr cloud_col =
+  PointCloudColorPtr cloud_col =
       utils::ColorPointCloud(cloud, rgb_color[0], rgb_color[1], rgb_color[2]);
   clouds_[cloud_iter] = CloudInfo(cloud_col, cloud_name, point_size, T);
 }

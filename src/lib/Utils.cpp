@@ -260,7 +260,7 @@ std::vector<double>
 
 cv::Mat DrawCoordinateFrame(
     const cv::Mat& img_in, const Eigen::MatrixXd& T_cam_frame,
-    const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
+    const std::shared_ptr<vicon_calibration::CameraModel>& camera_model,
     const double& scale) {
   cv::Mat img_out;
   img_out = img_in.clone();
@@ -310,7 +310,7 @@ cv::Mat DrawCoordinateFrame(
 cv::Mat ProjectPointsToImage(
     const cv::Mat& img, boost::shared_ptr<PointCloud>& cloud,
     const Eigen::MatrixXd& T_IMAGE_CLOUD,
-    std::shared_ptr<beam_calibration::CameraModel>& camera_model) {
+    std::shared_ptr<CameraModel>& camera_model) {
   cv::Mat img_out;
   img_out = img.clone();
   Eigen::Vector4d point(0, 0, 0, 1);
@@ -329,7 +329,7 @@ cv::Mat ProjectPointsToImage(
 
 boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>
     ProjectPoints(boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
-                  std::shared_ptr<beam_calibration::CameraModel>& camera_model,
+                  std::shared_ptr<CameraModel>& camera_model,
                   const Eigen::Matrix4d& T) {
   Eigen::Vector3d point(0, 0, 0);
   Eigen::Vector4d point_transformed(0, 0, 0, 1);

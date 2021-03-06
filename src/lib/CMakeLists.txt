@@ -2,7 +2,10 @@ SET(CMAKE_CXX_STANDARD 17)
 
 # Core library
 add_library(${PROJECT_NAME}
-  ViconCalibrator.cpp
+  camera_models/CameraModel.cpp
+  camera_models/DoubleSphere.cpp
+  camera_models/KannalaBrandt.cpp
+  camera_models/Radtan.cpp
   measurement_extractors/CameraExtractor.cpp
   measurement_extractors/LidarExtractor.cpp
   measurement_extractors/CylinderCameraExtractor.cpp
@@ -18,6 +21,8 @@ add_library(${PROJECT_NAME}
   Gflags.cpp
   JsonTools.cpp
   Visualizer.cpp
+  CropBox.cpp
+  ViconCalibrator.cpp
   CalibrationVerification.cpp
 )
 target_compile_options(${PROJECT_NAME}
@@ -29,13 +34,7 @@ target_include_directories(${PROJECT_NAME}
     ../../include
 )
 target_link_libraries(${PROJECT_NAME}
-  catkin::catkin
-  OpenCV::OpenCV
-  PCL::PCL
-  beam::utils
-  beam::calibration
-  beam::filtering
-  gtsam
+  ${catkin_LIBRARIES}
   ceres
   nlohmann_json::nlohmann_json
   ${rosbag_LIBRARIES}

@@ -18,7 +18,7 @@
 #include <sensor_msgs/image_encodings.h>
 #include <tf2_msgs/TFMessage.h>
 
-#include <beam_filtering/CropBox.h>
+#include <vicon_calibration/CropBox.h>
 #include <vicon_calibration/measurement_extractors/CylinderCameraExtractor.h>
 #include <vicon_calibration/measurement_extractors/CylinderLidarExtractor.h>
 #include <vicon_calibration/measurement_extractors/DiamondCameraExtractor.h>
@@ -379,7 +379,7 @@ void CalibrationVerification::SaveScans(const PointCloud::Ptr& scan_est,
       save_path + "scan_" + std::to_string(scan_count) + ".pcd";
   PointCloud::Ptr scan_est_cropped = boost::make_shared<PointCloud>();
   PointCloud::Ptr scan_opt_cropped = boost::make_shared<PointCloud>();
-  beam_filtering::CropBox cropper;
+  CropBox cropper;
   Eigen::Vector3f min{-10, -10, -10}, max{10, 10, 10};
   cropper.SetMinVector(min);
   cropper.SetMaxVector(max);
@@ -794,7 +794,7 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     point_target = Eigen::Vector4d(0, 0, 0, 1);
     point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                         T_VICONBASE_TARGET * point_target;
-    beam::opt<Eigen::Vector2d> origin_projected =
+    opt<Eigen::Vector2d> origin_projected =
         params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
             point_transformed.hnormalized());
 
@@ -809,7 +809,7 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
       point_target = point.homogeneous();
       point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                           T_VICONBASE_TARGET * point_target;
-      beam::opt<Eigen::Vector2d> point_projected =
+      opt<Eigen::Vector2d> point_projected =
           params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
               point_transformed.hnormalized());
 
@@ -829,7 +829,7 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
       point_target = utils::PCLPointToEigen(target->at(i)).homogeneous();
       point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                           T_VICONBASE_TARGET * point_target;
-      beam::opt<Eigen::Vector2d> point_projected =
+      opt<Eigen::Vector2d> point_projected =
           params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
               point_transformed.hnormalized());
 
@@ -850,10 +850,10 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
         T_VICONBASE_TARGET.matrix();
     Eigen::Vector4d point1 = T_SENSOR_TARGET * Eigen::Vector4d(0, 0, 0, 1);
     Eigen::Vector4d point2 = T_SENSOR_TARGET * Eigen::Vector4d(0, 0, 0.005, 1);
-    beam::opt<Eigen::Vector2d> point1_projected =
+    opt<Eigen::Vector2d> point1_projected =
         params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
             point1.hnormalized());
-    beam::opt<Eigen::Vector2d> point2_projected =
+    opt<Eigen::Vector2d> point2_projected =
         params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
             point2.hnormalized());
 

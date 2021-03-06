@@ -2,12 +2,11 @@
 
 #include <unordered_map>
 
+#include <Eigen/Dense>
 #include <geometry_msgs/TransformStamped.h>
 #include <nlohmann/json.hpp>
 #include <tf2/buffer_core.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-
-#include <beam_utils/math.h>
 
 namespace vicon_calibration {
 

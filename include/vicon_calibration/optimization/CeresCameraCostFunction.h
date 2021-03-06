@@ -1,16 +1,17 @@
 #include <ceres/autodiff_cost_function.h>
 #include <ceres/rotation.h>
 
-#include <beam_calibration/CameraModel.h>
+#include <vicon_calibration/camera_models/CameraModel.h>
+#include <vicon_calibration/Optional.h>
 
 struct CameraProjectionFunctor {
   CameraProjectionFunctor(
-      const std::shared_ptr<beam_calibration::CameraModel>& camera_model)
+      const std::shared_ptr<vicon_calibration::CameraModel>& camera_model)
       : camera_model_(camera_model) {}
 
   bool operator()(const double* P, double* pixel) const {
     Eigen::Vector3d P_CAMERA_eig{P[0], P[1], P[2]};
-    beam::opt<Eigen::Vector2d> pixel_projected =
+    vicon_calibration::opt<Eigen::Vector2d> pixel_projected =
         camera_model_->ProjectPointPrecise(P_CAMERA_eig);
     if (!pixel_projected.has_value()) { return false; }
     pixel[0] = pixel_projected.value()[0];
@@ -18,13 +19,13 @@ struct CameraProjectionFunctor {
     return true;
   }
 
-  std::shared_ptr<beam_calibration::CameraModel> camera_model_;
+  std::shared_ptr<vicon_calibration::CameraModel> camera_model_;
 };
 
 struct CeresCameraCostFunction {
   CeresCameraCostFunction(
       Eigen::Vector2d pixel_detected, Eigen::Vector3d P_VICONBASE,
-      std::shared_ptr<beam_calibration::CameraModel> camera_model)
+      std::shared_ptr<vicon_calibration::CameraModel> camera_model)
       : pixel_detected_(pixel_detected),
         P_VICONBASE_(P_VICONBASE),
         camera_model_(camera_model) {
@@ -62,7 +63,7 @@ struct CeresCameraCostFunction {
   // the client code.
   static ceres::CostFunction* Create(
       const Eigen::Vector2d pixel_detected, const Eigen::Vector3d P_VICONBASE,
-      const std::shared_ptr<beam_calibration::CameraModel> camera_model) {
+      const std::shared_ptr<vicon_calibration::CameraModel> camera_model) {
     return (new ceres::AutoDiffCostFunction<CeresCameraCostFunction, 2, 7>(
         new CeresCameraCostFunction(pixel_detected, P_VICONBASE,
                                     camera_model)));
@@ -70,6 +71,6 @@ struct CeresCameraCostFunction {
 
   Eigen::Vector2d pixel_detected_;
   Eigen::Vector3d P_VICONBASE_;
-  std::shared_ptr<beam_calibration::CameraModel> camera_model_;
+  std::shared_ptr<vicon_calibration::CameraModel> camera_model_;
   std::unique_ptr<ceres::CostFunctionToFunctor<2, 3>> compute_projection;
 };

@@ -1,13 +1,8 @@
 #pragma once
 
-// #include <atomic>
-// #include <chrono>
 #include <cstdint>
 #include <fstream>
 #include <math.h>
-// #include <mutex>
-// #include <string>
-// #include <thread>
 
 #include <boost/make_shared.hpp>
 #include <nlohmann/json.hpp>
@@ -21,7 +16,7 @@
 #include <pcl/registration/correspondence_estimation.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
-#include <beam_utils/pointclouds.h>
+#include <vicon_calibration/Aliases.h>
 
 static bool stop_visualizer_flag_set_default{false};
 

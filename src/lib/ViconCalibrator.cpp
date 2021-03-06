@@ -195,7 +195,7 @@ std::vector<Eigen::Affine3d, AlignAff3d>
     if (!success) {
       LOG_ERROR(
           "Unable to find calibration with sensor type %d, and sensor id %d",
-          type, sensor_id);
+          static_cast<int>(type), static_cast<int>(sensor_id));
       throw std::runtime_error{"Unable to find calibration."};
     }
 
@@ -732,7 +732,7 @@ CalibrationResults
     optimizer = std::make_shared<CeresOptimizer>(optimizer_inputs);
   } else {
     optimizer = std::make_shared<CeresOptimizer>(optimizer_inputs);
-    LOG_WARN("Invalid optimizer_type parameter. Options: GTSAM, CERES. Using "
+    LOG_WARN("Invalid optimizer_type parameter. Options: CERES. Using "
              "default: CERES");
   }
 

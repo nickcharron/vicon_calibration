@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <thread>
 
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/surface/concave_hull.h>
@@ -13,11 +14,11 @@ using namespace std::literals::chrono_literals;
 Optimizer::Optimizer(const OptimizerInputs& inputs) {
   inputs_ = inputs;
   LOG_INFO("Added measurements for %d lidar(s)",
-           inputs_.lidar_measurements.size());
+           static_cast<int>(inputs_.lidar_measurements.size()));
   LOG_INFO("Added measurements for %d camera(s)",
-           inputs_.camera_measurements.size());
+           static_cast<int>(inputs_.camera_measurements.size()));
   LOG_INFO("Added %d loop closure measurements",
-           inputs_.loop_closure_measurements.size());
+           static_cast<int>(inputs_.loop_closure_measurements.size()));
 
   // Downsample template cloud
   pcl::VoxelGrid<pcl::PointXYZ> vox;
@@ -230,7 +231,7 @@ void Optimizer::GetImageCorrespondences() {
 
       for (uint32_t i = 0; i < transformed_keypoints->size(); i++) {
         pcl::PointXYZ point_pcl = transformed_keypoints->at(i);
-        beam::opt<Eigen::Vector2d> point_projected =
+        opt<Eigen::Vector2d> point_projected =
             inputs_.camera_params[measurement->camera_id]
                 ->camera_model->ProjectPointPrecise(
                     utils::PCLPointToEigen(point_pcl));
@@ -407,7 +408,6 @@ void Optimizer::GetLoopClosureCorrespondences() {
   Eigen::Vector4d keypoint_transformed;
   Eigen::Vector2d keypoint_projected;
   Eigen::Vector3d keypoint_projected_3d;
-  gtsam::Key key;
   std::shared_ptr<LoopClosureMeasurement> measurement;
   if (optimizer_params_.show_loop_closure_correspondences && !stop_all_vis_) {
     LOG_INFO("Showing lidar-camera loop closure measurement correspondences");
@@ -462,7 +462,7 @@ void Optimizer::GetLoopClosureCorrespondences() {
       T_SENSOR_TARGET = utils::InvertTransform(T_VICONBASE_SENSOR) *
                         measurement->T_VICONBASE_TARGET;
       keypoint_transformed = T_SENSOR_TARGET * keypoint.homogeneous();
-      beam::opt<Eigen::Vector2d> keypoint_projected =
+      opt<Eigen::Vector2d> keypoint_projected =
           inputs_.camera_params[measurement->camera_id]
               ->camera_model->ProjectPointPrecise(
                   keypoint_transformed.hnormalized());
@@ -536,7 +536,7 @@ void Optimizer::GetLoopClosureCorrespondences() {
     }
   }
   LOG_INFO("Added %d lidar-camera correspondences",
-           lidar_camera_correspondences_.size());
+           static_cast<int>(lidar_camera_correspondences_.size()));
 }
 
 PointCloud::Ptr Optimizer::MatchCentroids(const PointCloud::Ptr& source_cloud,

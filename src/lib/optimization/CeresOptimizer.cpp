@@ -15,20 +15,20 @@ void CeresOptimizer::LoadConfig() {
   file >> J;
   LoadConfigCommon(J);
 
-  // get gtsam optimizer specific params
-  nlohmann::json J_gtsam = J.at("ceres_options");
+  // get ceres optimizer specific params
+  nlohmann::json J_ceres = J.at("ceres_options");
   ceres_solver_options_.minimizer_progress_to_stdout =
-      J_gtsam.at("minimizer_progress_to_stdout");
+      J_ceres.at("minimizer_progress_to_stdout");
   ;
-  ceres_params_.max_num_iterations = J_gtsam.at("max_num_iterations");
+  ceres_params_.max_num_iterations = J_ceres.at("max_num_iterations");
   ceres_params_.max_solver_time_in_seconds =
-      J_gtsam.at("max_solver_time_in_seconds");
-  ceres_params_.function_tolerance = J_gtsam.at("function_tolerance");
-  ceres_params_.gradient_tolerance = J_gtsam.at("gradient_tolerance");
-  ceres_params_.parameter_tolerance = J_gtsam.at("parameter_tolerance");
-  ceres_params_.loss_function = J_gtsam.at("loss_function");
-  ceres_params_.linear_solver_type = J_gtsam.at("linear_solver_type");
-  ceres_params_.preconditioner_type = J_gtsam.at("preconditioner_type");
+      J_ceres.at("max_solver_time_in_seconds");
+  ceres_params_.function_tolerance = J_ceres.at("function_tolerance");
+  ceres_params_.gradient_tolerance = J_ceres.at("gradient_tolerance");
+  ceres_params_.parameter_tolerance = J_ceres.at("parameter_tolerance");
+  ceres_params_.loss_function = J_ceres.at("loss_function");
+  ceres_params_.linear_solver_type = J_ceres.at("linear_solver_type");
+  ceres_params_.preconditioner_type = J_ceres.at("preconditioner_type");
 }
 
 void CeresOptimizer::SetupProblem() {

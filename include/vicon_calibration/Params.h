@@ -1,24 +1,18 @@
 #pragma once
 
 #include <Eigen/Geometry>
-#include <gtsam/geometry/Point2.h>
-#include <gtsam/geometry/Point3.h>
 #include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <ros/time.h>
+#include <boost/make_shared.hpp>
 
-#include <beam_calibration/CameraModel.h>
+#include <vicon_calibration/Aliases.h>
+#include <vicon_calibration/camera_models/CameraModel.h>
 #include <vicon_calibration/Utils.h>
 
 namespace vicon_calibration {
-
-typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
-typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudColor;
-typedef Eigen::aligned_allocator<Eigen::Vector3d> AlignVec3d;
-typedef Eigen::aligned_allocator<Eigen::Vector2d> AlignVec2d;
-typedef Eigen::aligned_allocator<Eigen::Affine3d> AlignAff3d;
 
 inline std::string
     TransformMatrixToQuaternionAndTranslationStr(const Eigen::Matrix4d& T) {
@@ -55,12 +49,12 @@ struct CameraParams {
     intrinsics = intrinsics_path;
     topic = input_topic;
     frame = input_frame;
-    camera_model = beam_calibration::CameraModel::Create(intrinsics);
+    camera_model = CameraModel::Create(intrinsics);
   };
   std::string topic;
   std::string frame;
   std::string intrinsics;
-  std::shared_ptr<beam_calibration::CameraModel> camera_model;
+  std::shared_ptr<CameraModel> camera_model;
   void Print() {
     std::cout << "----------------------------------\n"
               << "Printing camera params for frame: " << frame << "\n"
@@ -255,7 +249,7 @@ struct CalibratorConfig {
   double min_target_rotation{5};
   double max_target_velocity{0.7};
   std::vector<double> crop_time{0, 0};
-  std::string optimizer_type{"CERES"}; // Options: GTSAM, CERES
+  std::string optimizer_type{"CERES"}; // Options: CERES
   std::vector<std::shared_ptr<vicon_calibration::TargetParams>> target_params;
   std::vector<std::shared_ptr<vicon_calibration::CameraParams>> camera_params;
   std::vector<std::shared_ptr<vicon_calibration::LidarParams>> lidar_params;

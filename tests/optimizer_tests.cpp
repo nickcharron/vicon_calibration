@@ -8,7 +8,7 @@
 #include <ceres/solver.h>
 #include <ceres/types.h>
 
-#include <beam_calibration/CameraModel.h>
+#include <vicon_calibration/camera_models/CameraModels.h>
 #include <vicon_calibration/JsonTools.h>
 #include <vicon_calibration/optimization/CeresCameraCostFunction.h>
 #include <vicon_calibration/optimization/CeresLidarCostFunction.h>
@@ -114,7 +114,7 @@ CameraMeasurements CreateCameraMeasurements(
     Eigen::Matrix4d T_CT = T_CV * _T_VT;
     for (Eigen::Vector3d P_TARGET : keypoint_in_tgt_frame) {
       Eigen::Vector3d P_CAMERA = (T_CT * P_TARGET.homogeneous()).hnormalized();
-      beam::opt<Eigen::Vector2d> point_projected =
+      vicon_calibration::opt<Eigen::Vector2d> point_projected =
           camera_params.camera_model->ProjectPointPrecise(P_CAMERA);
       if (point_projected.has_value()) {
         pixels->push_back(
@@ -363,7 +363,7 @@ TEST_CASE("Test with same data and not using Ceres Optimizer Class") {
                              se3_parameterization_.get());
 
   // get camera measurements and add cost functions
-  std::shared_ptr<beam_calibration::CameraModel> camera_model =
+  std::shared_ptr<vicon_calibration::CameraModel> camera_model =
       camera_params[0]->camera_model;
   for (int i = 0; i < target_params[0]->keypoints_camera.size(); i++) {
     Eigen::Vector3d P_TARGET = target_params[0]->keypoints_camera[i];
@@ -372,7 +372,7 @@ TEST_CASE("Test with same data and not using Ceres Optimizer Class") {
         (T_CV * T_VT * P_TARGET.homogeneous()).hnormalized();
     Eigen::Vector3d P_CAMERA_pert =
         (T_CV_pert * T_VT * P_TARGET.homogeneous()).hnormalized();
-    beam::opt<Eigen::Vector2d> pixels_true =
+    vicon_calibration::opt<Eigen::Vector2d> pixels_true =
         camera_model->ProjectPointPrecise(P_CAMERA_perf);
     if (!pixels_true.has_value()) { continue; }
     std::unique_ptr<ceres::CostFunction> cost_function(

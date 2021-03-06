@@ -4,8 +4,6 @@
 
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/search/impl/search.hpp>
-#include <pcl/surface/concave_hull.h>
-
 // #include <pcl/io/pcd_io.h>
 
 namespace vicon_calibration {
@@ -20,28 +18,16 @@ void DiamondCornersLidarExtractor::GetKeypoints() {
   icp.setEuclideanFitnessEpsilon(icp_euclidean_epsilon_);
   icp.setMaximumIterations(icp_max_iterations_);
   icp.setMaxCorrespondenceDistance(icp_max_correspondence_dist_);
+  // // pcl::io::savePCDFileBinary("/home/nick/tmp/scan_hull.pcd", *scan_hull);
 
-  // setup concave hull extractor
-  PointCloud::Ptr scan_hull = boost::make_shared<PointCloud>();
-  PointCloud::Ptr template_hull = boost::make_shared<PointCloud>();
-  pcl::ConcaveHull<pcl::PointXYZ> concave_hull;
-  concave_hull.setAlpha(concave_hull_alpha_);
-
-  // extract concave hull for template cloud and scan
-  concave_hull.setInputCloud(scan_isolated_);
-  concave_hull.reconstruct(*scan_hull);
-  // pcl::io::savePCDFileBinary("/home/nick/tmp/scan_hull.pcd", *scan_hull);
-
-  icp.setInputSource(scan_hull);
+  icp.setInputSource(scan_isolated_);
   icp.setInputTarget(target_params_->template_cloud);
   icp.align(*scan_registered,
             utils::InvertTransform(T_LIDAR_TARGET_EST_).cast<float>());
 
   if (!icp.hasConverged()) {
     measurement_valid_ = false;
-    if (show_measurements_) {
-      std::cout << "ICP failed." << std::endl;
-    }
+    if (show_measurements_) { std::cout << "ICP failed." << std::endl; }
     T_LIDAR_TARGET_OPT_ = T_LIDAR_TARGET_EST_;
   } else {
     measurement_valid_ = true;
@@ -60,9 +46,7 @@ void DiamondCornersLidarExtractor::GetKeypoints() {
 }
 
 void DiamondCornersLidarExtractor::CheckMeasurementValid() {
-  if(!measurement_valid_){
-    return;
-  }
+  if (!measurement_valid_) { return; }
 
   pcl::KdTreeFLANN<pcl::PointXYZ> kd_tree;
   PointCloud::Ptr template_transformed = boost::make_shared<PointCloud>();

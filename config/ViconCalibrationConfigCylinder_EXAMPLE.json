@@ -1,0 +1,27 @@
+{
+  "min_target_motion": 0.1,
+  "min_target_rotation": 20,
+  "max_target_velocity": 0.7,
+  "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
+  "time_steps": 1,
+  "use_loop_closure_measurements": false,
+  "crop_time": [0,0],
+  "max_measurements": 30,
+  "optimizer_type": "CERES",
+  "targets":[
+    {"frame_id": "vicon/target1/target1",
+     "extractor_type": "CYLINDER",
+     "target_config": "CylinderTarget_EXAMPLE.json"
+    }
+  ],
+  "camera_params": [
+    {"topic": "/camera/image_raw",
+      "frame": "camera_link",
+      "intrinsics": "intrinsics_EXAMPLE.json"}
+  ],
+  "lidar_params":[
+    {"topic": "/velodyne_points",
+      "frame": "velodyne_link",
+      "max_angular_resolution_deg": 2}
+  ]
+}

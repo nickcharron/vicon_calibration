@@ -5,6 +5,6 @@
   "max_point_cor_dist": 1,
   "show_target_outline_on_image": false,
   "concave_hull_alpha_multiplier": 5,
-  "keypoint_circle_diameter": 2,
+  "keypoint_circle_diameter": 4,
   "outline_circle_diameter": 2
 }

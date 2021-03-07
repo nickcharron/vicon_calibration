@@ -32,9 +32,16 @@ target_compile_options(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME}
   PUBLIC
     ../../include
+    ${EIGEN3_INCLUDE_DIRS}
+    ${PCL_INCLUDE_DIRS}
+    ${catkin_INCLUDE_DIRS}
+    ${OpenCV_INCLUDE_DIRS}
 )
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
+  ${EIGEN3_LIBRARIES}
+  ${OpenCV_LIBS}
+  ${PCL_LIBRARIES}
   ceres
   nlohmann_json::nlohmann_json
   ${rosbag_LIBRARIES}

@@ -85,7 +85,7 @@ std::shared_ptr<CameraParams>
   if (!boost::filesystem::exists(intrinsics_filename)) {
     LOG_ERROR("Cannot find intrinsics filename in the data folder, or at "
               "absolute path %s",
-              J_in["intrinsics"]);
+              J_in["intrinsics"].dump().c_str());
     throw std::invalid_argument{"Invalid intrinsics path."};
   }
   std::shared_ptr<CameraParams> params = std::make_shared<CameraParams>(

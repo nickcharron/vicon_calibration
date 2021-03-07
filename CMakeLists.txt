@@ -3,28 +3,25 @@ project(vicon_calibration)
 
 SET(CMAKE_CXX_STANDARD 17)
 
+find_package(catkin REQUIRED COMPONENTS
+  roscpp
+  geometry_msgs
+  nav_msgs
+  sensor_msgs
+  std_msgs
+  tf
+)
+
 find_package(gflags REQUIRED)
+find_package(rosbag REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PCL 1.8 REQUIRED)
-find_package(beam REQUIRED utils calibration filtering)
+find_package(OpenCV REQUIRED)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(Catch2 REQUIRED)
 find_package(Ceres REQUIRED)
-
-set(catkin_deps roscpp rosbag geometry_msgs nav_msgs sensor_msgs std_msgs tf)
-find_package(catkin REQUIRED ${catkin_deps})
-
-include_directories(
-  include
-  ${catkin_INCLUDE_DIRS}
-  ${Boost_INCLUDE_DIR}
-  ${OpenCV_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIRS}
-  ${PCL_INCLUDE_DIRS}
-)
-
 
 ################## Add the core library ##################
 add_subdirectory(src/lib)
@@ -38,9 +35,6 @@ add_executable(${PROJECT_NAME}_main
 target_link_libraries(${PROJECT_NAME}_main
   ${PROJECT_NAME}
   gflags
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  ${PCL_LIBRARIES}
 )
 
 ################## tools ##################
@@ -62,9 +56,6 @@ target_include_directories(${PROJECT_NAME}_tests_cylinder_lidar_extractor
 
 target_link_libraries(${PROJECT_NAME}_tests_cylinder_lidar_extractor
   ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${OpenCV_LIBRARIES}
   Catch2::Catch2
 )
 
@@ -80,9 +71,6 @@ target_include_directories(${PROJECT_NAME}_tests_cylinder_camera_extractor
 
 target_link_libraries(${PROJECT_NAME}_tests_cylinder_camera_extractor
   ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  ${PCL_LIBRARIES}
   Catch2::Catch2
 )
 
@@ -98,9 +86,6 @@ target_include_directories(${PROJECT_NAME}_tests_diamond_camera_extractor
 
 target_link_libraries(${PROJECT_NAME}_tests_diamond_camera_extractor
   ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  ${PCL_LIBRARIES}
   Catch2::Catch2
 )
 
@@ -116,9 +101,6 @@ target_include_directories(${PROJECT_NAME}_tests_diamond_lidar_extractor
 
 target_link_libraries(${PROJECT_NAME}_tests_diamond_lidar_extractor
   ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${OpenCV_LIBRARIES}
   Catch2::Catch2
 )
 
@@ -134,10 +116,6 @@ target_include_directories(${PROJECT_NAME}_tests_ceres_camera_tests
 
 target_link_libraries(${PROJECT_NAME}_tests_ceres_camera_tests
   ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ceres
   Catch2::Catch2
 )
 
@@ -153,10 +131,6 @@ target_include_directories(${PROJECT_NAME}_tests_ceres_lidar_tests
 
 target_link_libraries(${PROJECT_NAME}_tests_ceres_lidar_tests
   ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  ceres
   Catch2::Catch2
 )
 
@@ -172,10 +146,6 @@ target_include_directories(${PROJECT_NAME}_tests_optimizer_tests
 
 target_link_libraries(${PROJECT_NAME}_tests_optimizer_tests
   ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ceres
   Catch2::Catch2
 )
 #############################

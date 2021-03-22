@@ -1,29 +1,22 @@
 #pragma once
 
 #include <sys/time.h>
+#include <chrono>
 
 #include <Eigen/Geometry>
 #include <boost/none_t.hpp>
 #include <boost/optional.hpp>
 #include <boost/optional/optional_io.hpp>
-#include <gtsam/geometry/Point2.h>
-#include <gtsam/geometry/Point3.h>
 #include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-#include <beam_calibration/CameraModel.h>
+#include <vicon_calibration/Aliases.h>
 #include <vicon_calibration/Params.h>
 #include <vicon_calibration/TfTree.h>
+#include <vicon_calibration/camera_models/CameraModel.h>
 
 namespace vicon_calibration {
-
-typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
-typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudColor;
-typedef Eigen::aligned_allocator<Eigen::Vector3d> AlignVec3d;
-typedef Eigen::aligned_allocator<Eigen::Vector2d> AlignVec2d;
-typedef Eigen::aligned_allocator<Eigen::Affine3d> AlignAff3d;
-typedef Eigen::aligned_allocator<Eigen::Matrix4d> AlignMat4d;
 
 #ifndef FILENAME
 #  define FILENAME                                                             \
@@ -51,9 +44,6 @@ struct CameraParams;
 struct LidarParams;
 enum class SensorType;
 typedef std::vector<CalibrationResult> CalibrationResults;
-
-template <class T>
-using opt = beam::optional<T>;
 
 namespace utils {
 
@@ -196,20 +186,20 @@ Eigen::Matrix4d
 std::vector<double>
     TransformMatrixToQuaternionAndTranslation(const Eigen::Matrix4d& T);
 
-cv::Mat DrawCoordinateFrame(
-    const cv::Mat& img_in, const Eigen::MatrixXd& T_cam_frame,
-    const std::shared_ptr<beam_calibration::CameraModel>& camera_model,
-    const double& scale);
+cv::Mat DrawCoordinateFrame(const cv::Mat& img_in,
+                            const Eigen::MatrixXd& T_cam_frame,
+                            const std::shared_ptr<CameraModel>& camera_model,
+                            const double& scale);
 
 cv::Mat ProjectPointsToImage(
     const cv::Mat& img,
     boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
     const Eigen::MatrixXd& T_IMAGE_CLOUD,
-    std::shared_ptr<beam_calibration::CameraModel>& camera_model);
+    std::shared_ptr<CameraModel>& camera_model);
 
 boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>
     ProjectPoints(boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
-                  std::shared_ptr<beam_calibration::CameraModel>& camera_model,
+                  std::shared_ptr<CameraModel>& camera_model,
                   const Eigen::Matrix4d& T);
 
 PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr& cloud, const int& r,
@@ -246,22 +236,6 @@ inline pcl::PointXY EigenPixelToPCL(const Eigen::Vector2d& pt_in) {
   pt_out.x = pt_in[0];
   pt_out.y = pt_in[1];
   return pt_out;
-}
-
-inline gtsam::Point3 EigenPointToGTSAM(const Eigen::Vector3d& pt_in) {
-  return gtsam::Point3(pt_in[0], pt_in[1], pt_in[2]);
-}
-
-inline gtsam::Point2 EigenPixelToGTSAM(const Eigen::Vector2d& pt_in) {
-  return gtsam::Point2(pt_in[0], pt_in[1]);
-}
-
-inline gtsam::Point3 PCLPointToGTSAM(const pcl::PointXYZ& pt_in) {
-  return gtsam::Point3(pt_in.x, pt_in.y, pt_in.z);
-}
-
-inline gtsam::Point2 PCLPixelToGTSAM(const pcl::PointXY& pt_in) {
-  return gtsam::Point2(pt_in.x, pt_in.y);
 }
 
 std::string

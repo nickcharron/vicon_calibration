@@ -9,7 +9,7 @@
 
 #include <vicon_calibration/optimization/CeresCameraCostFunction.h>
 #include <vicon_calibration/Utils.h>
-#include <beam_calibration/CameraModel.h>
+#include <vicon_calibration/camera_models/CameraModels.h>
 
 using namespace vicon_calibration;
 
@@ -91,8 +91,8 @@ TEST_CASE("Test camera optimization") {
   // // Create intrinsics
   std::string camera_model_location =
       GetFileLocationData("CamFactorIntrinsics.json");
-  std::shared_ptr<beam_calibration::CameraModel> camera_model =
-      beam_calibration::CameraModel::Create(camera_model_location);
+  std::shared_ptr<vicon_calibration::CameraModel> camera_model =
+      vicon_calibration::CameraModel::Create(camera_model_location);
 
   // Create Transforms
   Eigen::Matrix4d T_VC =
@@ -111,7 +111,7 @@ TEST_CASE("Test camera optimization") {
   std::vector<bool> pixels_valid(points.size());
   for (int i = 0; i < points.size(); i++) {
     Eigen::Vector4d point_transformed = T_CV * T_VT * points[i];
-    beam::opt<Eigen::Vector2d> pixel =
+    vicon_calibration::opt<Eigen::Vector2d> pixel =
         camera_model->ProjectPointPrecise(point_transformed.hnormalized());
     if (pixel.has_value()) {
       pixels_valid[i] = true;
@@ -176,7 +176,7 @@ TEST_CASE("Test camera optimization") {
       Eigen::Vector3d point_transformed(P_C[0] + results_perfect_init[4],
                                         P_C[1] + results_perfect_init[5],
                                         P_C[2] + results_perfect_init[6]);
-      beam::opt<Eigen::Vector2d> pixels_projected =
+      vicon_calibration::opt<Eigen::Vector2d> pixels_projected =
           camera_model->ProjectPointPrecise(point_transformed);
       REQUIRE(pixels_projected.value().isApprox(pixels[i], 1e-5));
     }

@@ -2,7 +2,7 @@
 
 #include <pcl/io/pcd_io.h>
 
-#include <beam_filtering/CropBox.h>
+#include <vicon_calibration/CropBox.h>
 
 namespace vicon_calibration {
 
@@ -184,7 +184,7 @@ void LidarExtractor::OutputScans() {
   pcl::PCDWriter writer;
   // crop scan in
   PointCloud scan_in2;
-  beam_filtering::CropBox cropper;
+  CropBox cropper;
   Eigen::Vector3f min_vector(-7, -7, -7), max_vector(7, 7, 7);
   cropper.SetMinVector(min_vector);
   cropper.SetMaxVector(max_vector);
@@ -218,7 +218,7 @@ void LidarExtractor::OutputScans() {
     writer.write(save_dir + "cluster" + std::to_string(i) + ".pcd",
                  *clusters[i]);
   }
-  LOG_INFO("Saved %d clusters.", clusters.size());
+  LOG_INFO("Saved %d clusters.", static_cast<int>(clusters.size()));
 }
 
 } // namespace vicon_calibration

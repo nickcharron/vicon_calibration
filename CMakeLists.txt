@@ -18,7 +18,7 @@ find_package(cv_bridge REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PCL 1.8 REQUIRED)
-find_package(beam REQUIRED utils calibration filtering)
+find_package(OpenCV REQUIRED)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(Catch2 REQUIRED)
 find_package(Ceres REQUIRED)
@@ -57,8 +57,6 @@ target_include_directories(${PROJECT_NAME}_tests_cylinder_lidar_extractor
 target_link_libraries(${PROJECT_NAME}_tests_cylinder_lidar_extractor
   ${PROJECT_NAME}
   Catch2::Catch2
-  beam::utils
-  beam::filtering
 )
 
 ### TEST2 ###
@@ -89,7 +87,6 @@ target_include_directories(${PROJECT_NAME}_tests_diamond_camera_extractor
 target_link_libraries(${PROJECT_NAME}_tests_diamond_camera_extractor
   ${PROJECT_NAME}
   Catch2::Catch2
-  beam::calibration
 )
 
 ### TEST4 ###
@@ -105,8 +102,6 @@ target_include_directories(${PROJECT_NAME}_tests_diamond_lidar_extractor
 target_link_libraries(${PROJECT_NAME}_tests_diamond_lidar_extractor
   ${PROJECT_NAME}
   Catch2::Catch2
-  beam::utils
-  beam::filtering
 )
 
 ### TEST5 ###
@@ -122,7 +117,6 @@ target_include_directories(${PROJECT_NAME}_tests_ceres_camera_tests
 target_link_libraries(${PROJECT_NAME}_tests_ceres_camera_tests
   ${PROJECT_NAME}
   Catch2::Catch2
-  beam::calibration
 )
 
 ### TEST6 ###
@@ -153,6 +147,5 @@ target_include_directories(${PROJECT_NAME}_tests_optimizer_tests
 target_link_libraries(${PROJECT_NAME}_tests_optimizer_tests
   ${PROJECT_NAME}
   Catch2::Catch2
-  beam::calibration
 )
 #############################

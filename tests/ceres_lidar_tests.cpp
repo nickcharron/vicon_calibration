@@ -199,8 +199,8 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
   camera_model_location.erase(camera_model_location.end() - 22,
                               camera_model_location.end());
   camera_model_location += "data/CamFactorIntrinsics.json";
-  std::shared_ptr<beam_calibration::CameraModel> camera_model =
-      beam_calibration::CameraModel::Create(camera_model_location);
+  std::shared_ptr<vicon_calibration::CameraModel> camera_model =
+      vicon_calibration::CameraModel::Create(camera_model_location);
 
   // Create Transforms
   Eigen::Matrix4d T_VC = Eigen::Matrix4d::Identity();
@@ -230,7 +230,7 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
 
   for (int i = 0; i < points.size(); i++) {
     Eigen::Vector4d point_transformed = T_CT * points[i];
-    beam::opt<Eigen::Vector2d> pixel =
+    vicon_calibration::opt<Eigen::Vector2d> pixel =
         camera_model->ProjectPointPrecise(point_transformed.hnormalized());
     if (pixel.has_value()) {
       pixels_valid[i] = true;

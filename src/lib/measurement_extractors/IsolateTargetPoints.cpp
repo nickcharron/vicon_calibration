@@ -7,7 +7,7 @@
 #include <pcl/kdtree/kdtree.h>
 #include <pcl/segmentation/extract_clusters.h>
 
-#include <beam_filtering/CropBox.h>
+#include <vicon_calibration/CropBox.h>
 
 namespace vicon_calibration {
 
@@ -259,7 +259,7 @@ bool IsolateTargetPoints::CheckInputs() {
 
 void IsolateTargetPoints::CropScan() {
   scan_cropped_ = boost::make_shared<PointCloud>();
-  beam_filtering::CropBox cropper;
+  CropBox cropper;
   Eigen::Vector3f min_vector;
   min_vector << target_params_->crop_scan[0], target_params_->crop_scan[2],
       target_params_->crop_scan[4];

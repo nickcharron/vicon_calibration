@@ -5,7 +5,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-#include <beam_calibration/CameraModel.h>
+#include <vicon_calibration/camera_models/CameraModel.h>
 #include <vicon_calibration/Params.h>
 
 namespace vicon_calibration {

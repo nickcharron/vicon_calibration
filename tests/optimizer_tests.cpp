@@ -108,7 +108,7 @@ CameraMeasurements CreateCameraMeasurements(
     measurement.target_frame = "TARGET";
     measurement.time_stamp = ros::Time(0, 0);
     pcl::PointCloud<pcl::PointXY>::Ptr pixels =
-        boost::make_shared<pcl::PointCloud<pcl::PointXY>>();
+        std::make_shared<pcl::PointCloud<pcl::PointXY>>();
     std::vector<Eigen::Vector3d, AlignVec3d> keypoint_in_tgt_frame =
         target_params.keypoints_camera;
     Eigen::Matrix4d T_CT = T_CV * _T_VT;
@@ -148,7 +148,7 @@ LidarMeasurements CreateLidarMeasurements(
     measurement.time_stamp = ros::Time(0, 0);
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr measured_points =
-        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+        std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
     std::vector<Eigen::Vector3d, AlignVec3d> keypoint_in_tgt_frame =
         target_params.keypoints_lidar;
     Eigen::Matrix4d T_LT = T_LV * _T_VT;

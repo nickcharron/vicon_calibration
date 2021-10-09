@@ -2,7 +2,6 @@
 
 #include <catch2/catch.hpp>
 #include <pcl/io/pcd_io.h>
-#include <pcl_conversions/pcl_conversions.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include <sensor_msgs/PointCloud2.h>
@@ -12,6 +11,7 @@
 #include <vicon_calibration/JsonTools.h>
 #include <vicon_calibration/TfTree.h>
 #include <vicon_calibration/Utils.h>
+#include <vicon_calibration/PclConversions.h>
 #include <vicon_calibration/measurement_extractors/DiamondLidarExtractor.h>
 
 using namespace vicon_calibration;
@@ -45,7 +45,7 @@ void FileSetup() {
 }
 
 void LoadSimulatedCloud() {
-  sim_cloud = boost::make_shared<PointCloud>();
+  sim_cloud = std::make_shared<PointCloud>();
   rosbag::Bag bag;
   bag.open(bag_path, rosbag::bagmode::Read);
   rosbag::TopicQuery query = rosbag::TopicQuery("/m3d/aggregator/cloud");
@@ -53,7 +53,7 @@ void LoadSimulatedCloud() {
   for (const auto& msg_instance : cloud_bag_view) {
     auto cloud_message = msg_instance.instantiate<sensor_msgs::PointCloud2>();
     if (cloud_message != nullptr) {
-      pcl::fromROSMsg(*cloud_message, *sim_cloud);
+      pcl_conversions::toPCL(*cloud_message, *sim_cloud);
       transform_lookup_time = cloud_message->header.stamp;
     }
   }
@@ -107,7 +107,7 @@ void LoadTargetParams() {
   target_params = json_loader.LoadTargetParams(target_config);
 
   // replace template with template from test data
-  temp_cloud = boost::make_shared<PointCloud>();
+  temp_cloud = std::make_shared<PointCloud>();
   if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud, *temp_cloud) == -1) {
     PCL_ERROR("Couldn't read file %s \n", template_cloud.c_str());
   }
@@ -126,7 +126,7 @@ void LoadTargetParamsRotated() {
   JsonTools json_loader(inputs);
   target_params = json_loader.LoadTargetParams(target_config);
   PointCloud::Ptr temp_cloud;
-  temp_cloud = boost::make_shared<PointCloud>();
+  temp_cloud = std::make_shared<PointCloud>();
   if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_rot, *temp_cloud) ==
       -1) {
     PCL_ERROR("Couldn't read file %s \n", template_cloud_rot.c_str());
@@ -151,8 +151,8 @@ TEST_CASE("Test diamond extractor with empty template cloud && empty scan") {
   Setup();
   std::shared_ptr<TargetParams> invalid_target_params =
       std::make_shared<TargetParams>(*target_params);
-  boost::shared_ptr<PointCloud> null_cloud;
-  boost::shared_ptr<PointCloud> empty_cloud = boost::make_shared<PointCloud>();
+  std::shared_ptr<PointCloud> null_cloud;
+  std::shared_ptr<PointCloud> empty_cloud = std::make_shared<PointCloud>();
   invalid_target_params->template_cloud = null_cloud;
 
   std::shared_ptr<LidarExtractor> diamond_extractor =
@@ -247,7 +247,7 @@ TEST_CASE("Test best correspondence estimation") {
 
   // view keypoints 1
   diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud);
-  boost::shared_ptr<PointCloud> keypoints1 =
+  std::shared_ptr<PointCloud> keypoints1 =
       diamond_extractor->GetMeasurement();
   pcl_viewer->AddPointCloudToViewer(keypoints1, "keypoints1",
                                     Eigen::Vector3i(255, 0, 0), 5);
@@ -258,7 +258,7 @@ TEST_CASE("Test best correspondence estimation") {
   div_crop2 << -0.7, 0.7, -0.5, 0.5, -0.5, 0.5;
   target_params2->crop_scan = div_crop2;
   diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST_CONV, sim_cloud);
-  boost::shared_ptr<PointCloud> keypoints2 =
+  std::shared_ptr<PointCloud> keypoints2 =
       diamond_extractor->GetMeasurement();
   pcl_viewer->AddPointCloudToViewer(keypoints2, "keypoints2",
                                     Eigen::Vector3i(0, 255, 0), 5);

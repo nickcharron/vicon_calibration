@@ -80,12 +80,12 @@ protected:
 
   void ViewLidarMeasurements(
       const PointCloud::Ptr& c1, const PointCloud::Ptr& c2,
-      const boost::shared_ptr<pcl::Correspondences>& correspondences,
+      const std::shared_ptr<pcl::Correspondences>& correspondences,
       const std::string& c1_name, const std::string& c2_name);
 
   void ViewCameraMeasurements(
       const PointCloud::Ptr& c1, const PointCloud::Ptr& c2,
-      const boost::shared_ptr<pcl::Correspondences>& correspondences,
+      const std::shared_ptr<pcl::Correspondences>& correspondences,
       const std::string& c1_name, const std::string& c2_name);
 
   void ConfirmMeasurementKeyboardCallback(

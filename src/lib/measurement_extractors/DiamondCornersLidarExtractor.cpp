@@ -11,7 +11,7 @@ void DiamondCornersLidarExtractor::GetKeypoints() {
   measurement_valid_ = true;
 
   // setup icp
-  PointCloud::Ptr scan_registered = boost::make_shared<PointCloud>();
+  PointCloud::Ptr scan_registered = std::make_shared<PointCloud>();
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
   icp.setTransformationEpsilon(icp_transform_epsilon_);
   icp.setEuclideanFitnessEpsilon(icp_euclidean_epsilon_);
@@ -48,7 +48,7 @@ void DiamondCornersLidarExtractor::CheckMeasurementValid() {
   if (!measurement_valid_) { return; }
 
   pcl::KdTreeFLANN<pcl::PointXYZ> kd_tree;
-  PointCloud::Ptr template_transformed = boost::make_shared<PointCloud>();
+  PointCloud::Ptr template_transformed = std::make_shared<PointCloud>();
   pcl::transformPointCloud(*target_params_->template_cloud,
                            *template_transformed,
                            T_LIDAR_TARGET_OPT_.cast<float>());

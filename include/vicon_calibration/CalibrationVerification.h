@@ -154,8 +154,8 @@ private:
       camera_measurements_;
   pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
       corr_est_;
-  boost::shared_ptr<pcl::Correspondences> correspondences_ =
-      boost::make_shared<pcl::Correspondences>();
+  std::shared_ptr<pcl::Correspondences> correspondences_ =
+      std::make_shared<pcl::Correspondences>();
 };
 
 } // end namespace vicon_calibration

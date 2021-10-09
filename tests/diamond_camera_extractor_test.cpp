@@ -55,7 +55,7 @@ void SetUp() {
   T_SENSOR_TARGET_PERT2 =
       utils::PerturbTransformDegM(T_SENSOR_TARGET, perturbation2);
 
-  PointCloud::Ptr template_cloud = boost::make_shared<PointCloud>();
+  PointCloud::Ptr template_cloud = std::make_shared<PointCloud>();
   pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path, *template_cloud);
 
   CalibratorInputs inputs;

@@ -43,7 +43,7 @@ void SetUp() {
   T_SENSOR_TARGET.block(0, 0, 3, 3) = R;
   TA_SENSOR_TARGET.matrix() = T_SENSOR_TARGET;
 
-  PointCloud::Ptr template_cloud = boost::make_shared<PointCloud>();
+  PointCloud::Ptr template_cloud = std::make_shared<PointCloud>();
   pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path, *template_cloud);
 
   CalibratorInputs inputs;

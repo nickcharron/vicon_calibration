@@ -11,7 +11,7 @@ namespace vicon_calibration {
 Visualizer::Visualizer(const std::string display_name)
     : display_name_(display_name) {
   point_cloud_display_ =
-      boost::make_shared<pcl::visualization::PCLVisualizer>(display_name_);
+      std::make_shared<pcl::visualization::PCLVisualizer>(display_name_);
   point_cloud_display_->setBackgroundColor(
       background_col_[0], background_col_[1], background_col_[2]);
   point_cloud_display_->initCameraParameters();

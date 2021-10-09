@@ -87,7 +87,7 @@ struct TargetParams {
   Eigen::VectorXd template_centroid;
   Eigen::VectorXd template_dimensions;
   TargetParams() {
-    template_cloud = boost::make_shared<PointCloud>();
+    template_cloud = std::make_shared<PointCloud>();
     crop_scan = Eigen::VectorXf(6);
     crop_image = Eigen::VectorXd(2);
     template_centroid = Eigen::VectorXd(4);
@@ -122,7 +122,7 @@ struct LidarMeasurement {
   ros::Time time_stamp;
   LidarMeasurement() {
     T_VICONBASE_TARGET = Eigen::MatrixXd(4, 4);
-    keypoints = boost::make_shared<PointCloud>();
+    keypoints = std::make_shared<PointCloud>();
   }
   void Print() {
     std::cout << "----------------------------------------------\n"
@@ -175,7 +175,7 @@ struct LoopClosureMeasurement {
   std::string target_frame;
   LoopClosureMeasurement() {
     T_VICONBASE_TARGET = Eigen::MatrixXd(4, 4);
-    keypoints_camera = boost::make_shared<pcl::PointCloud<pcl::PointXY>>();
+    keypoints_camera = std::make_shared<pcl::PointCloud<pcl::PointXY>>();
   }
   void Print() {
     std::cout << "----------------------------------------------\n"

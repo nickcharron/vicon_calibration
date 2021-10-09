@@ -3,15 +3,11 @@
 #include <fstream>
 #include <iostream>
 
-#include <cv_bridge/cv_bridge.h>
 #include <nlohmann/json.hpp>
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
 #include <pcl/surface/concave_hull.h>
-#include <pcl_conversions/pcl_conversions.h>
 #include <rosbag/view.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
@@ -19,6 +15,7 @@
 #include <tf2_msgs/TFMessage.h>
 
 #include <vicon_calibration/CropBox.h>
+#include <vicon_calibration/PclConversions.h>
 #include <vicon_calibration/measurement_extractors/CylinderCameraExtractor.h>
 #include <vicon_calibration/measurement_extractors/CylinderLidarExtractor.h>
 #include <vicon_calibration/measurement_extractors/DiamondCameraExtractor.h>
@@ -102,8 +99,9 @@ void CalibrationVerification::ProcessResults(bool save_measurements) {
 
 CalibrationVerification::Results CalibrationVerification::GetSummary() {
   if (!results_.ground_truth_set) {
-    LOG_WARN("Ground truth calibrations not set. Translation and rotations "
-             "errors are unavailable.");
+    LOG_WARN(
+        "Ground truth calibrations not set. Translation and rotations "
+        "errors are unavailable.");
   }
   return results_;
 }
@@ -138,8 +136,8 @@ void CalibrationVerification::SetParams(
   vox.setLeafSize(template_downsample_size_[0], template_downsample_size_[1],
                   template_downsample_size_[2]);
   for (int i = 0; i < params_->target_params.size(); i++) {
-    boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> downsampled_cloud =
-        boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+    std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> downsampled_cloud =
+        std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
     vox.setInputCloud(params_->target_params[i]->template_cloud);
     vox.filter(*downsampled_cloud);
     params_->target_params[i]->template_cloud = downsampled_cloud;
@@ -224,7 +222,9 @@ void CalibrationVerification::PrintCalibrationErrors() {
         calibrations_result_[i].from_frame, calibrations_result_[i].to_frame);
   }
 
-  if (!ground_truth_calib_set_) { return; }
+  if (!ground_truth_calib_set_) {
+    return;
+  }
 
   // next print errors between ground truth calibrations and optimized
   file << "---------------------------------------------------------\n\n"
@@ -309,7 +309,9 @@ void CalibrationVerification::SaveLidarVisuals() {
     for (int meas_iter = 0; meas_iter < lidar_measurements_[lidar_iter].size();
          meas_iter++) {
       counter++;
-      if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) { continue; }
+      if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) {
+        continue;
+      }
       measurement = lidar_measurements_[lidar_iter][meas_iter];
       lookup_time_ = measurement->time_stamp;
       this->LoadLookupTree();
@@ -317,8 +319,8 @@ void CalibrationVerification::SaveLidarVisuals() {
       // load scan and transform to viconbase frame
       PointCloud::Ptr scan = GetLidarScanFromBag(
           params_->lidar_params[measurement->lidar_id]->topic);
-      PointCloud::Ptr scan_trans_est = boost::make_shared<PointCloud>();
-      PointCloud::Ptr scan_trans_opt = boost::make_shared<PointCloud>();
+      PointCloud::Ptr scan_trans_est = std::make_shared<PointCloud>();
+      PointCloud::Ptr scan_trans_opt = std::make_shared<PointCloud>();
       pcl::transformPointCloud(*scan, *scan_trans_est, TA_VICONBASE_SENSOR_est);
       pcl::transformPointCloud(*scan, *scan_trans_opt, TA_VICONBASE_SENSOR_opt);
 
@@ -333,32 +335,33 @@ void CalibrationVerification::SaveLidarVisuals() {
         continue;
       }
 
-      PointCloud::Ptr targets_combined = boost::make_shared<PointCloud>();
+      PointCloud::Ptr targets_combined = std::make_shared<PointCloud>();
       for (uint8_t n = 0; n < T_VICONBASE_TGTS.size(); n++) {
         const PointCloud::Ptr target =
             params_->target_params[n]->template_cloud;
-        PointCloud::Ptr target_transformed = boost::make_shared<PointCloud>();
+        PointCloud::Ptr target_transformed = std::make_shared<PointCloud>();
         pcl::transformPointCloud(*target, *target_transformed,
                                  T_VICONBASE_TGTS[n]);
         *targets_combined = *targets_combined + *target_transformed;
       }
       this->SaveScans(scan_trans_est, scan_trans_opt, targets_combined,
                       current_save_path, counter);
-      if (counter == max_lidar_results_) { continue; }
-    } // measurement iter
-  }   // lidar iter
+      if (counter == max_lidar_results_) {
+        continue;
+      }
+    }  // measurement iter
+  }    // lidar iter
 }
 
-PointCloud::Ptr
-    CalibrationVerification::GetLidarScanFromBag(const std::string& topic) {
+PointCloud::Ptr CalibrationVerification::GetLidarScanFromBag(
+    const std::string& topic) {
   ros::Duration time_window_half = ros::Duration(0.5);
   rosbag::View view(bag_, rosbag::TopicQuery(topic),
                     lookup_time_ - time_window_half,
                     lookup_time_ + time_window_half, true);
   boost::shared_ptr<sensor_msgs::PointCloud2> lidar_msg;
-  pcl::PCLPointCloud2::Ptr cloud_pc2 =
-      boost::make_shared<pcl::PCLPointCloud2>();
-  PointCloud::Ptr scan = boost::make_shared<PointCloud>();
+  pcl::PCLPointCloud2::Ptr cloud_pc2 = std::make_shared<pcl::PCLPointCloud2>();
+  PointCloud::Ptr scan = std::make_shared<PointCloud>();
   for (auto iter = view.begin(); iter != view.end(); iter++) {
     lidar_msg = iter->instantiate<sensor_msgs::PointCloud2>();
     if (lidar_msg->header.stamp >= lookup_time_) {
@@ -377,8 +380,8 @@ void CalibrationVerification::SaveScans(const PointCloud::Ptr& scan_est,
                                         const int& scan_count) {
   std::string save_path_full =
       save_path + "scan_" + std::to_string(scan_count) + ".pcd";
-  PointCloud::Ptr scan_est_cropped = boost::make_shared<PointCloud>();
-  PointCloud::Ptr scan_opt_cropped = boost::make_shared<PointCloud>();
+  PointCloud::Ptr scan_est_cropped = std::make_shared<PointCloud>();
+  PointCloud::Ptr scan_opt_cropped = std::make_shared<PointCloud>();
   CropBox cropper;
   Eigen::Vector3f min{-10, -10, -10}, max{10, 10, 10};
   cropper.SetMinVector(min);
@@ -386,7 +389,7 @@ void CalibrationVerification::SaveScans(const PointCloud::Ptr& scan_est,
   cropper.Filter(*scan_est, *scan_est_cropped);
   cropper.Filter(*scan_opt, *scan_opt_cropped);
 
-  PointCloudColor::Ptr cloud_combined = boost::make_shared<PointCloudColor>();
+  PointCloudColor::Ptr cloud_combined = std::make_shared<PointCloudColor>();
   PointCloudColor::Ptr scan_est_colored =
       utils::ColorPointCloud(scan_est_cropped, 255, 0, 0);
   PointCloudColor::Ptr scan_opt_colored =
@@ -430,16 +433,18 @@ void CalibrationVerification::GetLidarErrors() {
     // iterate through all measurements for this lidar
     std::shared_ptr<LidarMeasurement> measurement;
     PointCloud::Ptr measured_keypoints, estimated_keypoints_target;
-    PointCloud::Ptr estimated_keypoints_est = boost::make_shared<PointCloud>();
-    PointCloud::Ptr estimated_keypoints_opt = boost::make_shared<PointCloud>();
-    PointCloud::Ptr estimated_keypoints_true = boost::make_shared<PointCloud>();
+    PointCloud::Ptr estimated_keypoints_est = std::make_shared<PointCloud>();
+    PointCloud::Ptr estimated_keypoints_opt = std::make_shared<PointCloud>();
+    PointCloud::Ptr estimated_keypoints_true = std::make_shared<PointCloud>();
     Eigen::Matrix4d T_SENSOR_TARGET_opt, T_SENSOR_TARGET_est,
         T_SENSOR_TARGET_true;
     std::vector<Eigen::Vector3d, AlignVec3d> lidar_errors_opt,
         lidar_errors_init, lidar_errors_true;
     for (int meas_iter = 0; meas_iter < lidar_measurements_[lidar_iter].size();
          meas_iter++) {
-      if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) { continue; }
+      if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) {
+        continue;
+      }
       measurement = lidar_measurements_[lidar_iter][meas_iter];
 
       T_SENSOR_TARGET_opt = TA_VICONBASE_SENSOR_opt.inverse().matrix() *
@@ -450,7 +455,7 @@ void CalibrationVerification::GetLidarErrors() {
       // get estimated keypoints given calibrations
       if (params_->target_params[measurement->target_id]
               ->keypoints_lidar.size() > 0) {
-        estimated_keypoints_target = boost::make_shared<PointCloud>();
+        estimated_keypoints_target = std::make_shared<PointCloud>();
         for (Eigen::Vector3d keypoint :
              params_->target_params[measurement->target_id]->keypoints_lidar) {
           estimated_keypoints_target->push_back(
@@ -492,14 +497,14 @@ void CalibrationVerification::GetLidarErrors() {
                                   lidar_errors_true.end());
       }
 
-    } // measurement iter
-  }   // lidar iter
+    }  // measurement iter
+  }    // lidar iter
 }
 
 std::vector<Eigen::Vector3d, AlignVec3d>
-    CalibrationVerification::CalculateLidarErrors(
-        const PointCloud::Ptr& measured_keypoints,
-        const PointCloud::Ptr& estimated_keypoints) {
+CalibrationVerification::CalculateLidarErrors(
+    const PointCloud::Ptr& measured_keypoints,
+    const PointCloud::Ptr& estimated_keypoints) {
   // get correspondences
   corr_est_.setInputSource(measured_keypoints);
   corr_est_.setInputTarget(estimated_keypoints);
@@ -568,7 +573,9 @@ void CalibrationVerification::SaveCameraVisuals() {
     std::shared_ptr<CameraMeasurement> measurement;
     for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
          meas_iter++) {
-      if (camera_measurements_[cam_iter][meas_iter] == nullptr) { continue; }
+      if (camera_measurements_[cam_iter][meas_iter] == nullptr) {
+        continue;
+      }
 
       measurement = camera_measurements_[cam_iter][meas_iter];
       lookup_time_ = measurement->time_stamp;
@@ -593,7 +600,9 @@ void CalibrationVerification::SaveCameraVisuals() {
                                                TA_VICONBASE_SENSOR_est.matrix(),
                                                cam_iter, cv::Scalar(0, 0, 255));
 
-      if (num_tgts_in_img_ == 0) { continue; }
+      if (num_tgts_in_img_ == 0) {
+        continue;
+      }
 
       counter++;
       final_image = this->ProjectTargetToImage(final_image, T_VICONBASE_TGTS,
@@ -611,13 +620,15 @@ void CalibrationVerification::SaveCameraVisuals() {
           current_save_path + "image_" + std::to_string(counter) + ".jpg";
       cv::imwrite(save_path, *final_image);
 
-      if (counter == max_image_results_) { break; }
-    } // measurement iter
-  }   // camera iter
+      if (counter == max_image_results_) {
+        break;
+      }
+    }  // measurement iter
+  }    // camera iter
 }
 
-std::shared_ptr<cv::Mat>
-    CalibrationVerification::GetImageFromBag(const std::string& topic) {
+std::shared_ptr<cv::Mat> CalibrationVerification::GetImageFromBag(
+    const std::string& topic) {
   ros::Duration time_window_half = ros::Duration(0.5);
   rosbag::View view(bag_, rosbag::TopicQuery(topic),
                     lookup_time_ - time_window_half,
@@ -627,9 +638,7 @@ std::shared_ptr<cv::Mat>
   for (auto iter = view.begin(); iter != view.end(); iter++) {
     image_msg = iter->instantiate<sensor_msgs::Image>();
     if (image_msg->header.stamp >= lookup_time_) {
-      *image =
-          cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::BGR8)
-              ->image;
+      *image = utils::RosImgToMat(*image_msg);
       return image;
     }
   }
@@ -673,11 +682,13 @@ void CalibrationVerification::GetCameraErrors() {
         camera_errors_init, camera_errors_true;
     for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
          meas_iter++) {
-      if (camera_measurements_[cam_iter][meas_iter] == nullptr) { continue; }
+      if (camera_measurements_[cam_iter][meas_iter] == nullptr) {
+        continue;
+      }
       measurement = camera_measurements_[cam_iter][meas_iter];
 
       // convert 2d measured keypoints to 3d
-      PointCloud::Ptr measured_keypoints_3d = boost::make_shared<PointCloud>();
+      PointCloud::Ptr measured_keypoints_3d = std::make_shared<PointCloud>();
       pcl::PointCloud<pcl::PointXY>::Ptr measured_keypoints_2d =
           measurement->keypoints;
       pcl::PointXYZ point3d{0, 0, 0};
@@ -717,19 +728,19 @@ void CalibrationVerification::GetCameraErrors() {
                                    camera_errors_true.begin(),
                                    camera_errors_true.end());
       }
-    } // measurement iter
-  }   // camera iter
+    }  // measurement iter
+  }    // camera iter
 }
 
 std::vector<Eigen::Vector2d, AlignVec2d>
-    CalibrationVerification::CalculateCameraErrors(
-        const PointCloud::Ptr& measured_keypoints,
-        const Eigen::Matrix4d& T_SENSOR_TARGET, const int& target_id,
-        const int& camera_id) {
+CalibrationVerification::CalculateCameraErrors(
+    const PointCloud::Ptr& measured_keypoints,
+    const Eigen::Matrix4d& T_SENSOR_TARGET, const int& target_id,
+    const int& camera_id) {
   // get estimated (optimization or initial) keypoint locations
   PointCloud::Ptr keypoints_target_frame;
   if (params_->target_params[target_id]->keypoints_camera.size() > 0) {
-    keypoints_target_frame = boost::make_shared<PointCloud>();
+    keypoints_target_frame = std::make_shared<PointCloud>();
     for (Eigen::Vector3d keypoint :
          params_->target_params[target_id]->keypoints_camera) {
       keypoints_target_frame->push_back(utils::EigenPointToPCL(keypoint));
@@ -746,8 +757,8 @@ std::vector<Eigen::Vector2d, AlignVec2d>
   // get correspondences
   pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
       corr_est;
-  boost::shared_ptr<pcl::Correspondences> correspondences =
-      boost::make_shared<pcl::Correspondences>();
+  std::shared_ptr<pcl::Correspondences> correspondences =
+      std::make_shared<pcl::Correspondences>();
   corr_est.setInputSource(measured_keypoints);
   corr_est.setInputTarget(keypoints_projected);
   corr_est.determineCorrespondences(*correspondences, max_pixel_cor_dist_);
@@ -777,7 +788,7 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     cv::Scalar colour) {
   // create all objects we'll need
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected =
-      boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+      std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   Eigen::Vector4d point_transformed;
   Eigen::Vector4d point_target;
   pcl::PointXYZ point_pcl_projected;
@@ -798,7 +809,9 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
         params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
             point_transformed.hnormalized());
 
-    if (!origin_projected.has_value()) { continue; }
+    if (!origin_projected.has_value()) {
+      continue;
+    }
 
     num_tgts_in_img_++;
 
@@ -821,7 +834,9 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
       }
     }
 
-    if (!show_target_outline_on_image_) { return img_out; }
+    if (!show_target_outline_on_image_) {
+      return img_out;
+    }
     // iterate through all target points
     pcl::PointCloud<pcl::PointXYZ>::Ptr target =
         params_->target_params[target_iter]->template_cloud;
@@ -861,7 +876,9 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     if (point1_projected.has_value() && point2_projected.has_value()) {
       distance = (point1_projected.value() - point2_projected.value()).norm();
       // for really small distances, set minimum
-      if (distance < 3) { distance = 3; }
+      if (distance < 3) {
+        distance = 3;
+      }
     }
 
     // keep only perimeter points
@@ -885,10 +902,12 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
 
 void CalibrationVerification::LoadLookupTree() {
   lookup_tree_->Clear();
-  ros::Duration time_window_half(1); // Check two second time window
+  ros::Duration time_window_half(1);  // Check two second time window
   ros::Time start_time = lookup_time_ - time_window_half;
   ros::Time time_zero(0, 0);
-  if (start_time <= time_zero) { start_time = time_zero; }
+  if (start_time <= time_zero) {
+    start_time = time_zero;
+  }
   ros::Time end_time = lookup_time_ + time_window_half;
   rosbag::View view(bag_, rosbag::TopicQuery("/tf"), start_time, end_time,
                     true);
@@ -994,4 +1013,4 @@ void CalibrationVerification::PrintErrorsSummary() {
   }
 }
 
-} // end namespace vicon_calibration
+}  // end namespace vicon_calibration

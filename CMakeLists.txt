@@ -14,13 +14,11 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(gflags REQUIRED)
 find_package(rosbag REQUIRED)
-find_package(cv_bridge REQUIRED)
 find_package(Boost REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(PCL 1.8 REQUIRED)
+find_package(PCL 1.11.1 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(nlohmann_json 3.2.0 REQUIRED)
-find_package(Catch2 REQUIRED)
 find_package(Ceres REQUIRED)
 
 ################## Add the core library ##################
@@ -43,109 +41,113 @@ add_executable(${PROJECT_NAME}_generate_checkerboard_keypoints
 )
 
 ################## tests ##################
+if(CATKIN_ENABLE_TESTING)
+  find_package(Catch2 REQUIRED)
 
-### TEST1 ###
-add_executable(${PROJECT_NAME}_tests_cylinder_lidar_extractor
-  tests/cylinder_lidar_extractor_test.cpp
-)
+  ### TEST1 ###
+  add_executable(${PROJECT_NAME}_tests_cylinder_lidar_extractor
+    tests/cylinder_lidar_extractor_test.cpp
+  )
 
-target_include_directories(${PROJECT_NAME}_tests_cylinder_lidar_extractor
-  PUBLIC
-    include
-)
+  target_include_directories(${PROJECT_NAME}_tests_cylinder_lidar_extractor
+    PUBLIC
+      include
+  )
 
-target_link_libraries(${PROJECT_NAME}_tests_cylinder_lidar_extractor
-  ${PROJECT_NAME}
-  Catch2::Catch2
-)
+  target_link_libraries(${PROJECT_NAME}_tests_cylinder_lidar_extractor
+    ${PROJECT_NAME}
+    Catch2::Catch2
+  )
 
-### TEST2 ###
-add_executable(${PROJECT_NAME}_tests_cylinder_camera_extractor
-  tests/cylinder_camera_extractor_test.cpp
-)
+  ### TEST2 ###
+  add_executable(${PROJECT_NAME}_tests_cylinder_camera_extractor
+    tests/cylinder_camera_extractor_test.cpp
+  )
 
-target_include_directories(${PROJECT_NAME}_tests_cylinder_camera_extractor
-  PUBLIC
-    include
-)
+  target_include_directories(${PROJECT_NAME}_tests_cylinder_camera_extractor
+    PUBLIC
+      include
+  )
 
-target_link_libraries(${PROJECT_NAME}_tests_cylinder_camera_extractor
-  ${PROJECT_NAME}
-  Catch2::Catch2
-)
+  target_link_libraries(${PROJECT_NAME}_tests_cylinder_camera_extractor
+    ${PROJECT_NAME}
+    Catch2::Catch2
+  )
 
-### TEST3 ###
-add_executable(${PROJECT_NAME}_tests_diamond_camera_extractor
-  tests/diamond_camera_extractor_test.cpp
-)
+  ### TEST3 ###
+  add_executable(${PROJECT_NAME}_tests_diamond_camera_extractor
+    tests/diamond_camera_extractor_test.cpp
+  )
 
-target_include_directories(${PROJECT_NAME}_tests_diamond_camera_extractor
-  PUBLIC
-    include
-)
+  target_include_directories(${PROJECT_NAME}_tests_diamond_camera_extractor
+    PUBLIC
+      include
+  )
 
-target_link_libraries(${PROJECT_NAME}_tests_diamond_camera_extractor
-  ${PROJECT_NAME}
-  Catch2::Catch2
-)
+  target_link_libraries(${PROJECT_NAME}_tests_diamond_camera_extractor
+    ${PROJECT_NAME}
+    Catch2::Catch2
+  )
 
-### TEST4 ###
-add_executable(${PROJECT_NAME}_tests_diamond_lidar_extractor
-  tests/diamond_lidar_extractor_test.cpp
-)
+  ### TEST4 ###
+  add_executable(${PROJECT_NAME}_tests_diamond_lidar_extractor
+    tests/diamond_lidar_extractor_test.cpp
+  )
 
-target_include_directories(${PROJECT_NAME}_tests_diamond_lidar_extractor
-  PUBLIC
-    include
-)
+  target_include_directories(${PROJECT_NAME}_tests_diamond_lidar_extractor
+    PUBLIC
+      include
+  )
 
-target_link_libraries(${PROJECT_NAME}_tests_diamond_lidar_extractor
-  ${PROJECT_NAME}
-  Catch2::Catch2
-)
+  target_link_libraries(${PROJECT_NAME}_tests_diamond_lidar_extractor
+    ${PROJECT_NAME}
+    Catch2::Catch2
+  )
 
-### TEST5 ###
-add_executable(${PROJECT_NAME}_tests_ceres_camera_tests
-  tests/ceres_camera_tests.cpp
-)
+  ### TEST5 ###
+  add_executable(${PROJECT_NAME}_tests_ceres_camera_tests
+    tests/ceres_camera_tests.cpp
+  )
 
-target_include_directories(${PROJECT_NAME}_tests_ceres_camera_tests
-  PUBLIC
-    include
-)
+  target_include_directories(${PROJECT_NAME}_tests_ceres_camera_tests
+    PUBLIC
+      include
+  )
 
-target_link_libraries(${PROJECT_NAME}_tests_ceres_camera_tests
-  ${PROJECT_NAME}
-  Catch2::Catch2
-)
+  target_link_libraries(${PROJECT_NAME}_tests_ceres_camera_tests
+    ${PROJECT_NAME}
+    Catch2::Catch2
+  )
 
-### TEST6 ###
-add_executable(${PROJECT_NAME}_tests_ceres_lidar_tests
-  tests/ceres_lidar_tests.cpp
-)
+  ### TEST6 ###
+  add_executable(${PROJECT_NAME}_tests_ceres_lidar_tests
+    tests/ceres_lidar_tests.cpp
+  )
 
-target_include_directories(${PROJECT_NAME}_tests_ceres_lidar_tests
-  PUBLIC
-    include
-)
+  target_include_directories(${PROJECT_NAME}_tests_ceres_lidar_tests
+    PUBLIC
+      include
+  )
 
-target_link_libraries(${PROJECT_NAME}_tests_ceres_lidar_tests
-  ${PROJECT_NAME}
-  Catch2::Catch2
-)
+  target_link_libraries(${PROJECT_NAME}_tests_ceres_lidar_tests
+    ${PROJECT_NAME}
+    Catch2::Catch2
+  )
 
-### TEST8 ###
-add_executable(${PROJECT_NAME}_tests_optimizer_tests
-  tests/optimizer_tests.cpp
-)
+  ### TEST8 ###
+  add_executable(${PROJECT_NAME}_tests_optimizer_tests
+    tests/optimizer_tests.cpp
+  )
 
-target_include_directories(${PROJECT_NAME}_tests_optimizer_tests
-  PUBLIC
-    include
-)
+  target_include_directories(${PROJECT_NAME}_tests_optimizer_tests
+    PUBLIC
+      include
+  )
 
-target_link_libraries(${PROJECT_NAME}_tests_optimizer_tests
-  ${PROJECT_NAME}
-  Catch2::Catch2
-)
+  target_link_libraries(${PROJECT_NAME}_tests_optimizer_tests
+    ${PROJECT_NAME}
+    Catch2::Catch2
+  )
+
+endif()
 #############################

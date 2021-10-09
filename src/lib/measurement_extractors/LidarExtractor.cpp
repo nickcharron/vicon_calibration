@@ -14,7 +14,7 @@ LidarExtractor::LidarExtractor(
       target_params_(target_params),
       pcl_viewer_(pcl_viewer),
       show_measurements_(show_measurements) {
-  keypoints_measured_ = boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  keypoints_measured_ = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS);
   LOG_ERROR("Initialized LidarExtractor");
 }
@@ -101,7 +101,7 @@ void LidarExtractor::GetUserInput() {
   std::cout << "TEST: show_measurements_: " << show_measurements_ << "\n";
   if (!show_measurements_) { return; }
 
-  estimated_template_cloud_ = boost::make_shared<PointCloud>();
+  estimated_template_cloud_ = std::make_shared<PointCloud>();
   pcl::transformPointCloud(*target_params_->template_cloud,
                            *estimated_template_cloud_,
                            T_LIDAR_TARGET_EST_.cast<float>());
@@ -110,7 +110,7 @@ void LidarExtractor::GetUserInput() {
 
   if (measurement_valid_) {
     std::cout << "Measurement Valid\n";
-    measured_template_cloud_ = boost::make_shared<PointCloud>();
+    measured_template_cloud_ = std::make_shared<PointCloud>();
     pcl::transformPointCloud(*target_params_->template_cloud,
                              *measured_template_cloud_,
                              T_LIDAR_TARGET_OPT_.cast<float>());

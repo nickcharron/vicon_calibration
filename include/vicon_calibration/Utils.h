@@ -10,6 +10,7 @@
 #include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <sensor_msgs/Image.h>
 
 #include <vicon_calibration/Aliases.h>
 #include <vicon_calibration/Params.h>
@@ -19,22 +20,21 @@
 namespace vicon_calibration {
 
 #ifndef FILENAME
-#  define FILENAME                                                             \
-    (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#define FILENAME \
+  (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #endif
 
 #ifndef LOG_ERROR
-#  define LOG_ERROR(M, ...)                                                    \
-    fprintf(stderr, "[ERROR] [%s:%d] " M "\n", FILENAME, __LINE__,             \
-            ##__VA_ARGS__)
+#define LOG_ERROR(M, ...) \
+  fprintf(stderr, "[ERROR] [%s:%d] " M "\n", FILENAME, __LINE__, ##__VA_ARGS__)
 #endif
 
 #ifndef LOG_INFO
-#  define LOG_INFO(M, ...) fprintf(stdout, "[INFO] " M "\n", ##__VA_ARGS__)
+#define LOG_INFO(M, ...) fprintf(stdout, "[INFO] " M "\n", ##__VA_ARGS__)
 #endif
 
 #ifndef LOG_WARN
-#  define LOG_WARN(M, ...) fprintf(stdout, "[WARNING] " M "\n", ##__VA_ARGS__)
+#define LOG_WARN(M, ...) fprintf(stdout, "[WARNING] " M "\n", ##__VA_ARGS__)
 #endif
 
 // Forward declarations
@@ -70,13 +70,13 @@ struct HighResolutionTimer {
     return take_time_stamp() - start_time;
   }
 
-protected:
+ protected:
   static std::uint64_t take_time_stamp() {
     return std::uint64_t(
         std::chrono::high_resolution_clock::now().time_since_epoch().count());
   }
 
-private:
+ private:
   std::uint64_t start_time;
 };
 
@@ -179,12 +179,12 @@ Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d& eps);
 
 Eigen::Matrix4d InvertTransform(const Eigen::MatrixXd& T);
 
-Eigen::Matrix4d
-    QuaternionAndTranslationToTransformMatrix(const std::vector<double>& pose);
+Eigen::Matrix4d QuaternionAndTranslationToTransformMatrix(
+    const std::vector<double>& pose);
 
 // [qw qx qy qz tx ty tx]
-std::vector<double>
-    TransformMatrixToQuaternionAndTranslation(const Eigen::Matrix4d& T);
+std::vector<double> TransformMatrixToQuaternionAndTranslation(
+    const Eigen::Matrix4d& T);
 
 cv::Mat DrawCoordinateFrame(const cv::Mat& img_in,
                             const Eigen::MatrixXd& T_cam_frame,
@@ -192,15 +192,13 @@ cv::Mat DrawCoordinateFrame(const cv::Mat& img_in,
                             const double& scale);
 
 cv::Mat ProjectPointsToImage(
-    const cv::Mat& img,
-    boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
+    const cv::Mat& img, std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
     const Eigen::MatrixXd& T_IMAGE_CLOUD,
     std::shared_ptr<CameraModel>& camera_model);
 
-boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>
-    ProjectPoints(boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
-                  std::shared_ptr<CameraModel>& camera_model,
-                  const Eigen::Matrix4d& T);
+std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> ProjectPoints(
+    std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
+    std::shared_ptr<CameraModel>& camera_model, const Eigen::Matrix4d& T);
 
 PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr& cloud, const int& r,
                                      const int& g, const int& b);
@@ -238,8 +236,8 @@ inline pcl::PointXY EigenPixelToPCL(const Eigen::Vector2d& pt_in) {
   return pt_out;
 }
 
-std::string
-    ConvertTimeToDate(const std::chrono::system_clock::time_point& time_);
+std::string ConvertTimeToDate(
+    const std::chrono::system_clock::time_point& time_);
 
 std::vector<Eigen::Affine3d, AlignAff3d> GetTargetLocation(
     const std::vector<std::shared_ptr<vicon_calibration::TargetParams>>&
@@ -288,6 +286,30 @@ Eigen::Matrix4d GetT_VICONBASE_SENSOR(const CalibrationResults& calibs,
                                       SensorType type, uint8_t sensor_id,
                                       bool& success);
 
-} // namespace utils
+int DepthStrToInt(const std::string depth);
 
-} // namespace vicon_calibration
+int GetCvType(const std::string& encoding);
+
+/**
+ * @brief Converts a ROS Image to a cv::Mat by sharing the data or changing
+ * its endianness if needed
+ * @param source ros image message
+ * @return cv::Mat of image
+ */
+cv::Mat RosImgToMat(const sensor_msgs::Image& source);
+
+/**
+ * @brief Converts a cv::Mat to a ROS Image
+ * @param source cv mat image to convert
+ * @param header ros header for the new image
+ * @param encoding Image encoding ("mono8", "bgr8", etc.) See:
+ * http://docs.ros.org/en/jade/api/sensor_msgs/html/namespacesensor__msgs_1_1image__encodings.html
+ * @return ros image
+ */
+sensor_msgs::Image MatToRosImg(const cv::Mat source,
+                               const std_msgs::Header& header,
+                               const std::string& encoding);
+
+}  // namespace utils
+
+}  // namespace vicon_calibration

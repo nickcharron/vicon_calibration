@@ -85,7 +85,7 @@ void CylinderCameraExtractor::GetKeypoints() {
 void CylinderCameraExtractor::GetEstimatedArea() {
   // project points
   pcl::PointCloud<pcl::PointXYZ>::Ptr projected_points =
-      boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+      std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   for (PointCloud::iterator it = target_params_->template_cloud->begin();
        it != target_params_->template_cloud->end(); ++it) {
     opt<Eigen::Vector2d> pix =

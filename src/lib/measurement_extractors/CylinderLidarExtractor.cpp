@@ -7,7 +7,7 @@ namespace vicon_calibration {
 void CylinderLidarExtractor::GetKeypoints() {
   measurement_valid_ = true;
   
-  PointCloud::Ptr scan_registered = boost::make_shared<PointCloud>();
+  PointCloud::Ptr scan_registered = std::make_shared<PointCloud>();
   IterativeClosestPointCustom<pcl::PointXYZ, pcl::PointXYZ> icp;
   icp.setTransformationEpsilon(icp_transform_epsilon_);
   icp.setEuclideanFitnessEpsilon(icp_euclidean_epsilon_);

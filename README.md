@@ -4,7 +4,24 @@ Package to perform extrinsic calibration of any number of lidar/cameras (with or
 
 See paper: COMING SOON....
 
-## Building:
+## Installing
+
+### Install Dependencies:
+
+The following is a dependencies are required to build this repo:
+
+1. PCL: minimum version 1.11.1
+2. gflags: 
+3. ROS: tested on kinetic and melodic
+4. Opencv: default version installed with ROS should be fine
+5. nlohmann_json: minimum version 
+6. Ceres: minimum version 1.14.0
+
+For simplicity, we have created an install script for installing these dependencies. To install any missing dependencies listed above, source the dependencies_install.bash and then call upon install functions for each missing dependency. 
+
+For testing, catch2 is used, but testing needs to be enabled using -DCATKIN_ENABLE_TESTING=1. A function has been created in the install script to install catch2.
+
+### Build:
 
 ```
 git clone https://github.com/nickcharron/vicon_calibration.git

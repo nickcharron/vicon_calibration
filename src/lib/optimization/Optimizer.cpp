@@ -27,8 +27,8 @@ Optimizer::Optimizer(const OptimizerInputs& inputs) {
                   optimizer_params_.template_downsample_size[2]);
   for (int i = 0; i < inputs_.target_params.size(); i++) {
     if (inputs_.target_params[i]->template_cloud->size() > 0) {
-      boost::shared_ptr<PointCloud> downsampled_cloud =
-          boost::make_shared<PointCloud>();
+      std::shared_ptr<PointCloud> downsampled_cloud =
+          std::make_shared<PointCloud>();
       vox.setInputCloud(inputs_.target_params[i]->template_cloud);
       vox.filter(*downsampled_cloud);
       inputs_.target_params[i]->template_cloud = downsampled_cloud;
@@ -138,7 +138,7 @@ void Optimizer::ResetViewer() {
   if (optimizer_params_.show_camera_measurements ||
       optimizer_params_.show_lidar_measurements ||
       optimizer_params_.show_loop_closure_correspondences) {
-    pcl_viewer_ = boost::make_shared<pcl::visualization::PCLVisualizer>();
+    pcl_viewer_ = std::make_shared<pcl::visualization::PCLVisualizer>();
   }
 }
 
@@ -189,7 +189,7 @@ void Optimizer::GetImageCorrespondences() {
                      measurement->T_VICONBASE_TARGET;
 
       // convert measurement to 3D (set z to 0)
-      PointCloud::Ptr measurement_3d = boost::make_shared<PointCloud>();
+      PointCloud::Ptr measurement_3d = std::make_shared<PointCloud>();
       pcl::PointXYZ point;
       for (pcl::PointCloud<pcl::PointXY>::iterator it =
                measurement->keypoints->begin();
@@ -209,8 +209,8 @@ void Optimizer::GetImageCorrespondences() {
       }
 
       // get point cloud of projected keypoints
-      PointCloud::Ptr projected_keypoints = boost::make_shared<PointCloud>();
-      PointCloud::Ptr transformed_keypoints = boost::make_shared<PointCloud>();
+      PointCloud::Ptr projected_keypoints = std::make_shared<PointCloud>();
+      PointCloud::Ptr transformed_keypoints = std::make_shared<PointCloud>();
       if (use_target_keypoints) {
         // use keypoints specified in json
         Eigen::Vector4d keypoint_transformed;
@@ -240,17 +240,17 @@ void Optimizer::GetImageCorrespondences() {
             point_projected.value()[0], point_projected.value()[1], 0));
       }
 
-      boost::shared_ptr<pcl::Correspondences> correspondences =
-          boost::make_shared<pcl::Correspondences>();
+      std::shared_ptr<pcl::Correspondences> correspondences =
+          std::make_shared<pcl::Correspondences>();
       pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
           corr_est;
 
       if (optimizer_params_.extract_image_target_perimeter &&
           !use_target_keypoints) {
         // keep only perimeter points
-        PointCloud::Ptr hull_cloud = boost::make_shared<PointCloud>();
+        PointCloud::Ptr hull_cloud = std::make_shared<PointCloud>();
         pcl::PointIndices::Ptr hull_point_correspondences =
-            boost::make_shared<pcl::PointIndices>();
+            std::make_shared<pcl::PointIndices>();
         pcl::ConcaveHull<pcl::PointXYZ> concave_hull;
         concave_hull.setInputCloud(projected_keypoints);
         concave_hull.setAlpha(optimizer_params_.concave_hull_alpha);
@@ -268,8 +268,8 @@ void Optimizer::GetImageCorrespondences() {
         }
 
         // get correspondences
-        boost::shared_ptr<pcl::Correspondences> correspondences_tmp =
-            boost::make_shared<pcl::Correspondences>();
+        std::shared_ptr<pcl::Correspondences> correspondences_tmp =
+            std::make_shared<pcl::Correspondences>();
         corr_est.setInputSource(measurement_3d);
         corr_est.setInputTarget(transformed_keypoints_temp);
         corr_est.determineCorrespondences(*correspondences_tmp,
@@ -345,7 +345,7 @@ void Optimizer::GetLidarCorrespondences() {
 
       // Check keypoints to see if we want to find correspondences between
       // keypoints or between all target points
-      PointCloud::Ptr transformed_keypoints = boost::make_shared<PointCloud>();
+      PointCloud::Ptr transformed_keypoints = std::make_shared<PointCloud>();
       if (inputs_.target_params[measurement->target_id]
               ->keypoints_lidar.size() > 0) {
         // use keypoints specified in json
@@ -377,8 +377,8 @@ void Optimizer::GetLidarCorrespondences() {
       // get correspondences
       pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
           corr_est;
-      boost::shared_ptr<pcl::Correspondences> correspondences =
-          boost::make_shared<pcl::Correspondences>();
+      std::shared_ptr<pcl::Correspondences> correspondences =
+          std::make_shared<pcl::Correspondences>();
       corr_est.setInputSource(measurement->keypoints);
       corr_est.setInputTarget(transformed_keypoints_temp);
       corr_est.determineCorrespondences(*correspondences,
@@ -419,7 +419,7 @@ void Optimizer::GetLoopClosureCorrespondences() {
 
     // Transform lidar target keypoints to lidar frame
     PointCloud::Ptr estimated_lidar_keypoints =
-        boost::make_shared<PointCloud>();
+        std::make_shared<PointCloud>();
     for (Eigen::Vector3d keypoint :
          inputs_.target_params[measurement->target_id]->keypoints_lidar) {
       // get transform from target to lidar
@@ -444,8 +444,8 @@ void Optimizer::GetLoopClosureCorrespondences() {
     // Get lidar correspondences
     pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
         lidar_corr_est;
-    boost::shared_ptr<pcl::Correspondences> lidar_correspondences =
-        boost::make_shared<pcl::Correspondences>();
+    std::shared_ptr<pcl::Correspondences> lidar_correspondences =
+        std::make_shared<pcl::Correspondences>();
     lidar_corr_est.setInputSource(measurement->keypoints_lidar);
     lidar_corr_est.setInputTarget(transformed_keypoints_temp);
     lidar_corr_est.determineCorrespondences(
@@ -453,7 +453,7 @@ void Optimizer::GetLoopClosureCorrespondences() {
 
     // Transform camera target keypoints to camera frame and project to image
     PointCloud::Ptr estimated_camera_keypoints =
-        boost::make_shared<PointCloud>();
+        std::make_shared<PointCloud>();
     for (Eigen::Vector3d keypoint :
          inputs_.target_params[measurement->target_id]->keypoints_camera) {
       // get transform from target to camera
@@ -474,7 +474,7 @@ void Optimizer::GetLoopClosureCorrespondences() {
     }
 
     // convert measurement to 3D (set z to 0)
-    PointCloud::Ptr camera_measurement_3d = boost::make_shared<PointCloud>();
+    PointCloud::Ptr camera_measurement_3d = std::make_shared<PointCloud>();
     pcl::PointXYZ point;
     for (pcl::PointCloud<pcl::PointXY>::iterator it =
              measurement->keypoints_camera->begin();
@@ -496,8 +496,8 @@ void Optimizer::GetLoopClosureCorrespondences() {
     // Get camera correspondences
     pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
         camera_corr_est;
-    boost::shared_ptr<pcl::Correspondences> camera_correspondences =
-        boost::make_shared<pcl::Correspondences>();
+    std::shared_ptr<pcl::Correspondences> camera_correspondences =
+        std::make_shared<pcl::Correspondences>();
     camera_corr_est.setInputSource(camera_measurement_3d);
     camera_corr_est.setInputTarget(transformed_keypoints_temp);
     camera_corr_est.determineCorrespondences(
@@ -541,7 +541,7 @@ void Optimizer::GetLoopClosureCorrespondences() {
 
 PointCloud::Ptr Optimizer::MatchCentroids(const PointCloud::Ptr& source_cloud,
                                           const PointCloud::Ptr& target_cloud) {
-  PointCloud::Ptr target_translated = boost::make_shared<PointCloud>();
+  PointCloud::Ptr target_translated = std::make_shared<PointCloud>();
   Eigen::Vector4d source_centroid, target_centroid;
   pcl::compute3DCentroid(*source_cloud, source_centroid);
   pcl::compute3DCentroid(*target_cloud, target_centroid);
@@ -556,10 +556,10 @@ PointCloud::Ptr Optimizer::MatchCentroids(const PointCloud::Ptr& source_cloud,
 
 void Optimizer::ViewCameraMeasurements(
     const PointCloud::Ptr& c1, const PointCloud::Ptr& c2,
-    const boost::shared_ptr<pcl::Correspondences>& correspondences,
+    const std::shared_ptr<pcl::Correspondences>& correspondences,
     const std::string& c1_name, const std::string& c2_name) {
-  PointCloudColor::Ptr c1_col = boost::make_shared<PointCloudColor>();
-  PointCloudColor::Ptr c2_col = boost::make_shared<PointCloudColor>();
+  PointCloudColor::Ptr c1_col = std::make_shared<PointCloudColor>();
+  PointCloudColor::Ptr c2_col = std::make_shared<PointCloudColor>();
   uint32_t rgb1 = (static_cast<uint32_t>(255) << 16 |
                    static_cast<uint32_t>(0) << 8 | static_cast<uint32_t>(0));
   uint32_t rgb2 = (static_cast<uint32_t>(0) << 16 |
@@ -623,10 +623,10 @@ void Optimizer::ViewCameraMeasurements(
 
 void Optimizer::ViewLidarMeasurements(
     const PointCloud::Ptr& c1, const PointCloud::Ptr& c2,
-    const boost::shared_ptr<pcl::Correspondences>& correspondences,
+    const std::shared_ptr<pcl::Correspondences>& correspondences,
     const std::string& c1_name, const std::string& c2_name) {
-  PointCloudColor::Ptr c1_col = boost::make_shared<PointCloudColor>();
-  PointCloudColor::Ptr c2_col = boost::make_shared<PointCloudColor>();
+  PointCloudColor::Ptr c1_col = std::make_shared<PointCloudColor>();
+  PointCloudColor::Ptr c2_col = std::make_shared<PointCloudColor>();
 
   uint32_t rgb1 = (static_cast<uint32_t>(255) << 16 |
                    static_cast<uint32_t>(0) << 8 | static_cast<uint32_t>(0));

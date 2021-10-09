@@ -76,9 +76,9 @@ std::vector<PointCloud::Ptr> IsolateTargetPoints::GetClusters() {
   extract.setInputCloud(scan_cropped_);
   for (pcl::PointIndices indices : cluster_indices_) {
     Eigen::Vector4d centroid;
-    boost::shared_ptr<pcl::PointIndices> indices_ptr =
-        boost::make_shared<pcl::PointIndices>(indices);
-    PointCloud::Ptr cluster = boost::make_shared<PointCloud>();
+    std::shared_ptr<pcl::PointIndices> indices_ptr =
+        std::make_shared<pcl::PointIndices>(indices);
+    PointCloud::Ptr cluster = std::make_shared<PointCloud>();
     extract.setIndices(indices_ptr);
     extract.filter(*cluster);
     clusters.push_back(cluster);
@@ -96,7 +96,7 @@ void IsolateTargetPoints::ClusterPoints() {
 
   // create search tree
   pcl::search::KdTree<pcl::PointXYZ>::Ptr tree =
-      boost::make_shared<pcl::search::KdTree<pcl::PointXYZ>>();
+      std::make_shared<pcl::search::KdTree<pcl::PointXYZ>>();
   tree->setInputCloud(scan_cropped_);
 
   // perform clustering
@@ -125,9 +125,9 @@ void IsolateTargetPoints::GetTargetCluster() {
   extract.setInputCloud(scan_cropped_);
   for (pcl::PointIndices indices : cluster_indices_) {
     Eigen::Vector4d centroid;
-    boost::shared_ptr<pcl::PointIndices> indices_ptr =
-        boost::make_shared<pcl::PointIndices>(indices);
-    PointCloud::Ptr cluster = boost::make_shared<PointCloud>();
+    std::shared_ptr<pcl::PointIndices> indices_ptr =
+        std::make_shared<pcl::PointIndices>(indices);
+    PointCloud::Ptr cluster = std::make_shared<PointCloud>();
     extract.setIndices(indices_ptr);
     extract.filter(*cluster);
     pcl::compute3DCentroid(*cluster, centroid);
@@ -258,7 +258,7 @@ bool IsolateTargetPoints::CheckInputs() {
 }
 
 void IsolateTargetPoints::CropScan() {
-  scan_cropped_ = boost::make_shared<PointCloud>();
+  scan_cropped_ = std::make_shared<PointCloud>();
   CropBox cropper;
   Eigen::Vector3f min_vector;
   min_vector << target_params_->crop_scan[0], target_params_->crop_scan[2],

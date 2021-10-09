@@ -43,7 +43,7 @@ std::shared_ptr<TargetParams>
   // load template cloud
   std::string template_name = J_target["template_cloud"];
   std::string template_cloud_path = inputs_.target_data_path + template_name;
-  PointCloud::Ptr template_cloud = boost::make_shared<PointCloud>();
+  PointCloud::Ptr template_cloud = std::make_shared<PointCloud>();
   if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path,
                                           *template_cloud) == -1) {
     LOG_ERROR("Couldn't read template file: %s\n", template_cloud_path.c_str());

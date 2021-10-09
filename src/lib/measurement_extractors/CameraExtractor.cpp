@@ -7,7 +7,7 @@
 namespace vicon_calibration {
 
 CameraExtractor::CameraExtractor() {
-  keypoints_measured_ = boost::make_shared<pcl::PointCloud<pcl::PointXY>>();
+  keypoints_measured_ = std::make_shared<pcl::PointCloud<pcl::PointXY>>();
 }
 
 void CameraExtractor::SetCameraParams(

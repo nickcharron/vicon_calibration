@@ -10,7 +10,6 @@
 #include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <nlohmann/json.hpp>
-#include <pcl/io/pcd_io.h>
 #include <rosbag/view.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>

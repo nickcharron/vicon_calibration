@@ -51,7 +51,7 @@ DEFINE_bool(show_lidar_measurements, false,
             "Set to true to show and accept/reject each lidar measurement.");
 
 int main(int argc, char** argv) {
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  ::gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   vicon_calibration::CalibratorInputs inputs{
       .bag = FLAGS_bag,

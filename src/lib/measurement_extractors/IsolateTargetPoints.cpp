@@ -22,15 +22,23 @@ void IsolateTargetPoints::LoadConfig() {
   }
 
   nlohmann::json J;
-  std::ifstream file(config_file_);
-  file >> J;
-  crop_scan_ = J.at("crop_scan");
-  isolator_size_weight_ = J.at("isolator_size_weight");
-  isolator_distance_weight_ = J.at("isolator_distance_weight");
-  clustering_multiplier_ = J.at("clustering_multiplier");
-  min_cluster_size_ = J.at("min_cluster_size");
-  max_cluster_size_ = J.at("max_cluster_size");
-  output_cluster_scores_ = J.at("output_cluster_scores");
+  if (!utils::ReadJson(config_file_, J)) {
+    LOG_ERROR("Using default params.");
+    return;
+  }
+
+  try {
+    crop_scan_ = J.at("crop_scan");
+    isolator_size_weight_ = J.at("isolator_size_weight");
+    isolator_distance_weight_ = J.at("isolator_distance_weight");
+    clustering_multiplier_ = J.at("clustering_multiplier");
+    min_cluster_size_ = J.at("min_cluster_size");
+    max_cluster_size_ = J.at("max_cluster_size");
+    output_cluster_scores_ = J.at("output_cluster_scores");
+  } catch (const nlohmann::json::exception& e) {
+    LOG_ERROR("Cannot load json, one or more missing parameters. Error: %s",
+              e.what());
+  }
 }
 
 void IsolateTargetPoints::SetTransformEstimate(
@@ -67,8 +75,9 @@ PointCloud::Ptr IsolateTargetPoints::GetPoints() {
 std::vector<PointCloud::Ptr> IsolateTargetPoints::GetClusters() {
   std::vector<PointCloud::Ptr> clusters;
   if (cluster_indices_.size() == 0) {
-    LOG_ERROR("No target clusters, make sure IsolateTargetPoints::GetPoints() "
-              "has been called.");
+    LOG_ERROR(
+        "No target clusters, make sure IsolateTargetPoints::GetPoints() "
+        "has been called.");
     return clusters;
   }
 
@@ -111,8 +120,9 @@ void IsolateTargetPoints::ClusterPoints() {
 
 void IsolateTargetPoints::GetTargetCluster() {
   if (cluster_indices_.size() == 0) {
-    LOG_INFO("Euclidiean clustering failed, using cropped scan. Try relax "
-             "thresholding parameters");
+    LOG_INFO(
+        "Euclidiean clustering failed, using cropped scan. Try relax "
+        "thresholding parameters");
     scan_isolated_ = scan_cropped_;
     return;
   }
@@ -135,7 +145,9 @@ void IsolateTargetPoints::GetTargetCluster() {
     centroids.push_back(centroid);
   }
 
-  if (clusters.size() == 1) { scan_isolated_ = clusters[0]; }
+  if (clusters.size() == 1) {
+    scan_isolated_ = clusters[0];
+  }
 
   // get centroid of target if not already calculated
   if (target_params_->template_centroid.isZero()) {
@@ -235,9 +247,7 @@ void IsolateTargetPoints::GetTargetCluster() {
   return;
 }
 
-PointCloud::Ptr IsolateTargetPoints::GetCroppedScan() {
-  return scan_cropped_;
-}
+PointCloud::Ptr IsolateTargetPoints::GetCroppedScan() { return scan_cropped_; }
 
 bool IsolateTargetPoints::CheckInputs() {
   if (scan_in_ == nullptr) {
@@ -294,4 +304,4 @@ Eigen::Vector3d IsolateTargetPoints::CalculateMinimalDimensions(
   return Eigen::Vector3d(dimensions[0], dimensions[1], dimensions[2]);
 }
 
-} // namespace vicon_calibration
+}  // namespace vicon_calibration

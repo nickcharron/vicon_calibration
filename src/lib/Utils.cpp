@@ -654,5 +654,61 @@ sensor_msgs::Image MatToRosImg(const cv::Mat source,
   return ros_image;
 }
 
+bool HasExtension(const std::string& input, const std::string& extension) {
+  // get extension
+  std::string extension_found = boost::filesystem::extension(input);
+
+  // convert both to lowercase
+  std::string extension_search_lowercase = extension;
+  std::for_each(extension_search_lowercase.begin(),
+                extension_search_lowercase.end(),
+                [](char& c) { c = ::tolower(c); });
+  std::string extension_found_lowercase = extension_found;
+  std::for_each(extension_found_lowercase.begin(),
+                extension_found_lowercase.end(),
+                [](char& c) { c = ::tolower(c); });
+
+  return extension_found_lowercase == extension_search_lowercase;
+}
+
+bool ReadJson(const std::string& filename, nlohmann::json& J,
+              JsonReadErrorType& error_type, bool output_error) {
+  // check file exists
+  if (!boost::filesystem::exists(filename)) {
+    if (output_error) {
+      LOG_ERROR("CheckJson failed - Json file does not exist. Input: %s",
+                filename.c_str());
+    }
+    error_type = JsonReadErrorType::MISSING;
+    return false;
+  }
+
+  // check for correct file extension
+  if (!HasExtension(filename, ".json")) {
+    if (output_error) {
+      LOG_ERROR("CheckJson failed - Invalid file extension. Input: %s",
+                filename.c_str());
+    }
+    error_type = JsonReadErrorType::FILETYPE;
+    return false;
+  }
+
+  // load json and check that it's not empty
+  std::ifstream file(filename);
+  file >> J;
+
+  if (J.empty()) {
+    if (output_error) {
+      LOG_ERROR("CheckJson failed - Json file is empty. Input: %s",
+                filename.c_str());
+    }
+    error_type = JsonReadErrorType::EMPTY;
+    return false;
+  }
+
+  error_type = JsonReadErrorType::NONE;
+  return true;
+}
+
 }  // namespace utils
 }  // namespace vicon_calibration

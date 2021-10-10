@@ -10,25 +10,33 @@ namespace vicon_calibration {
 void CeresOptimizer::LoadConfig() {
   LOG_INFO("Loading Ceres Optimizer Config file: %s",
            inputs_.optimizer_config_path.c_str());
+
   nlohmann::json J;
-  std::ifstream file(inputs_.optimizer_config_path);
-  file >> J;
+  if (!utils::ReadJson(inputs_.optimizer_config_path, J)) {
+    LOG_ERROR("Using default ceres optimizer params.");
+    return;
+  }
+
   LoadConfigCommon(J);
 
   // get ceres optimizer specific params
-  nlohmann::json J_ceres = J.at("ceres_options");
-  ceres_solver_options_.minimizer_progress_to_stdout =
-      J_ceres.at("minimizer_progress_to_stdout");
-  ;
-  ceres_params_.max_num_iterations = J_ceres.at("max_num_iterations");
-  ceres_params_.max_solver_time_in_seconds =
-      J_ceres.at("max_solver_time_in_seconds");
-  ceres_params_.function_tolerance = J_ceres.at("function_tolerance");
-  ceres_params_.gradient_tolerance = J_ceres.at("gradient_tolerance");
-  ceres_params_.parameter_tolerance = J_ceres.at("parameter_tolerance");
-  ceres_params_.loss_function = J_ceres.at("loss_function");
-  ceres_params_.linear_solver_type = J_ceres.at("linear_solver_type");
-  ceres_params_.preconditioner_type = J_ceres.at("preconditioner_type");
+  try {
+    nlohmann::json J_ceres = J.at("ceres_options");
+    ceres_solver_options_.minimizer_progress_to_stdout =
+        J_ceres.at("minimizer_progress_to_stdout");
+    ceres_params_.max_num_iterations = J_ceres.at("max_num_iterations");
+    ceres_params_.max_solver_time_in_seconds =
+        J_ceres.at("max_solver_time_in_seconds");
+    ceres_params_.function_tolerance = J_ceres.at("function_tolerance");
+    ceres_params_.gradient_tolerance = J_ceres.at("gradient_tolerance");
+    ceres_params_.parameter_tolerance = J_ceres.at("parameter_tolerance");
+    ceres_params_.loss_function = J_ceres.at("loss_function");
+    ceres_params_.linear_solver_type = J_ceres.at("linear_solver_type");
+    ceres_params_.preconditioner_type = J_ceres.at("preconditioner_type");
+  } catch (const nlohmann::json::exception& e) {
+    LOG_ERROR("Cannot load json, one or more missing parameters. Error: %s",
+              e.what());
+  }
 }
 
 void CeresOptimizer::SetupProblem() {
@@ -56,8 +64,9 @@ void CeresOptimizer::SetupProblem() {
   } else if (ceres_params_.linear_solver_type == "SPARSE_NORMAL_CHOLESKY") {
     ceres_solver_options_.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
   } else {
-    LOG_ERROR("Invalid linear_solver_type, Options: SPARSE_SCHUR, DENSE_SCHUR, "
-              "SPARSE_NORMAL_CHOLESKY. Using default: SPARSE_SCHUR");
+    LOG_ERROR(
+        "Invalid linear_solver_type, Options: SPARSE_SCHUR, DENSE_SCHUR, "
+        "SPARSE_NORMAL_CHOLESKY. Using default: SPARSE_SCHUR");
     ceres_solver_options_.linear_solver_type = ceres::SPARSE_SCHUR;
   }
   if (ceres_params_.preconditioner_type == "IDENTITY") {
@@ -67,8 +76,9 @@ void CeresOptimizer::SetupProblem() {
   } else if (ceres_params_.preconditioner_type == "SCHUR_JACOBI") {
     ceres_solver_options_.preconditioner_type = ceres::SCHUR_JACOBI;
   } else {
-    LOG_ERROR("Invalid preconditioner_type, Options: IDENTITY, JACOBI, "
-              "SCHUR_JACOBI. Using default: SCHUR_JACOBI");
+    LOG_ERROR(
+        "Invalid preconditioner_type, Options: IDENTITY, JACOBI, "
+        "SCHUR_JACOBI. Using default: SCHUR_JACOBI");
     ceres_solver_options_.preconditioner_type = ceres::SCHUR_JACOBI;
   }
 
@@ -82,8 +92,9 @@ void CeresOptimizer::SetupProblem() {
   } else if (ceres_params_.loss_function == "NULL") {
     loss_function_ = std::unique_ptr<ceres::LossFunction>(nullptr);
   } else {
-    LOG_ERROR("Invalid preconditioner_type, Options: HUBER, CAUCHY, NULL. "
-              "Using default: HUBER");
+    LOG_ERROR(
+        "Invalid preconditioner_type, Options: HUBER, CAUCHY, NULL. "
+        "Using default: HUBER");
     loss_function_ =
         std::unique_ptr<ceres::LossFunction>(new ceres::HuberLoss(1.0));
   }
@@ -137,7 +148,9 @@ int CeresOptimizer::GetSensorIndex(SensorType type, int id) {
   for (uint32_t i = 0; i < inputs_.calibration_initials.size(); i++) {
     vicon_calibration::CalibrationResult calib =
         inputs_.calibration_initials[i];
-    if (calib.type == type && calib.sensor_id == id) { return i; }
+    if (calib.type == type && calib.sensor_id == id) {
+      return i;
+    }
   }
   throw std::runtime_error{"Queried sensor type and ID not found."};
   return 0;
@@ -287,4 +300,4 @@ void CeresOptimizer::UpdateInitials() {
   previous_iteration_results_ = results_;
 }
 
-} // end namespace vicon_calibration
+}  // end namespace vicon_calibration

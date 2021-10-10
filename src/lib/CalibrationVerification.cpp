@@ -3,10 +3,8 @@
 #include <fstream>
 #include <iostream>
 
-#include <nlohmann/json.hpp>
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
-#include <pcl/io/pcd_io.h>
 #include <pcl/surface/concave_hull.h>
 #include <rosbag/view.h>
 #include <sensor_msgs/Image.h>
@@ -15,6 +13,7 @@
 #include <tf2_msgs/TFMessage.h>
 
 #include <vicon_calibration/CropBox.h>
+#include <vicon_calibration/Utils.h>
 #include <vicon_calibration/PclConversions.h>
 #include <vicon_calibration/measurement_extractors/CylinderCameraExtractor.h>
 #include <vicon_calibration/measurement_extractors/CylinderLidarExtractor.h>
@@ -34,17 +33,24 @@ void CalibrationVerification::LoadJSON() {
   LOG_INFO("Loading CalibrationVerification Config File: %s",
            config_file_name_.c_str());
   nlohmann::json J;
-  std::ifstream file(config_file_name_);
-  file >> J;
+  if (!utils::ReadJson(config_file_name_, J)) {
+    LOG_ERROR("Using default calibration verification params.");
+    return;
+  }
 
-  max_image_results_ = J["max_image_results"];
-  max_lidar_results_ = J["max_lidar_results"];
-  max_pixel_cor_dist_ = J["max_pixel_cor_dist"];
-  max_point_cor_dist_ = J["max_point_cor_dist"];
-  concave_hull_alpha_multiplier_ = J["concave_hull_alpha_multiplier"];
-  show_target_outline_on_image_ = J["show_target_outline_on_image"];
-  keypoint_circle_diameter_ = J["keypoint_circle_diameter"];
-  outline_circle_diameter_ = J["outline_circle_diameter"];
+  try {
+    max_image_results_ = J["max_image_results"];
+    max_lidar_results_ = J["max_lidar_results"];
+    max_pixel_cor_dist_ = J["max_pixel_cor_dist"];
+    max_point_cor_dist_ = J["max_point_cor_dist"];
+    concave_hull_alpha_multiplier_ = J["concave_hull_alpha_multiplier"];
+    show_target_outline_on_image_ = J["show_target_outline_on_image"];
+    keypoint_circle_diameter_ = J["keypoint_circle_diameter"];
+    outline_circle_diameter_ = J["outline_circle_diameter"];
+  } catch (const nlohmann::json::exception& e) {
+    LOG_ERROR("Cannot load json, one or more missing parameters. Error: %s",
+              e.what());
+  }
 }
 
 void CalibrationVerification::CheckInputs() {

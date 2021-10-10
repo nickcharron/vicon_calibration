@@ -39,6 +39,18 @@ target_link_libraries(${PROJECT_NAME}_main
 add_executable(${PROJECT_NAME}_generate_checkerboard_keypoints
   src/tools/generate_checkerboard_keypoints.cpp
 )
+target_link_libraries(${PROJECT_NAME}_generate_checkerboard_keypoints
+  ${PROJECT_NAME}
+  gflags
+)
+
+add_executable(${PROJECT_NAME}_generate_checkerboard_template
+  src/tools/generate_checkerboard_template.cpp
+)
+target_link_libraries(${PROJECT_NAME}_generate_checkerboard_template
+  ${PROJECT_NAME}
+  gflags
+)
 
 ################## tests ##################
 if(CATKIN_ENABLE_TESTING)

@@ -2,7 +2,6 @@
 
 #include <math.h>
 
-#include <pcl/io/pcd_io.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/search/impl/search.hpp>
 

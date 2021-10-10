@@ -10,6 +10,8 @@
 #include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/io/ply_io.h>
 #include <sensor_msgs/Image.h>
 
 #include <vicon_calibration/Aliases.h>
@@ -36,6 +38,8 @@ namespace vicon_calibration {
 #ifndef LOG_WARN
 #define LOG_WARN(M, ...) fprintf(stdout, "[WARNING] " M "\n", ##__VA_ARGS__)
 #endif
+
+static std::string _string_tmp;
 
 // Forward declarations
 struct CalibrationResult;
@@ -309,6 +313,131 @@ cv::Mat RosImgToMat(const sensor_msgs::Image& source);
 sensor_msgs::Image MatToRosImg(const cv::Mat source,
                                const std_msgs::Header& header,
                                const std::string& encoding);
+
+enum PointCloudFileType { PCDBINARY, PCDASCII, PLYBINARY, PLYASCII };
+
+/** Map for storing string input */
+static std::map<std::string, PointCloudFileType> PointCloudFileTypeStringMap = {
+    {"PCDBINARY", PointCloudFileType::PCDBINARY},
+    {"PCDASCII", PointCloudFileType::PCDASCII},
+    {"PLYBINARY", PointCloudFileType::PLYBINARY},
+    {"PLYASCII", PointCloudFileType::PLYASCII}};
+
+/** Map for storing file extension with each type of point cloud file */
+static std::map<PointCloudFileType, std::string>
+    PointCloudFileTypeExtensionMap = {{PointCloudFileType::PCDBINARY, ".pcd"},
+                                      {PointCloudFileType::PCDASCII, ".pcd"},
+                                      {PointCloudFileType::PLYBINARY, ".ply"},
+                                      {PointCloudFileType::PLYASCII, ".ply"}};
+
+/** function for listing types of PointCloud files */
+inline std::string GetPointCloudFileTypes() {
+  std::string types;
+  for (auto it = PointCloudFileTypeStringMap.begin();
+       it != PointCloudFileTypeStringMap.end(); it++) {
+    types += it->first;
+    types += ", ";
+  }
+  types.erase(types.end() - 2, types.end());
+  return types;
+}
+
+bool HasExtension(const std::string& input, const std::string& extension);
+
+/**
+ * @brief function for saving PCD point clouds. Using the regular pcl i/o will
+ * throw exceptions if the point clouds are empty, but we don't always want
+ * this. This is a wrapper around the pcl save functions to avoid that and save
+ * different types of file
+ * @param filename full path to file
+ * @param input_cloud
+ * @param file_type enum class for point cloud file type
+ * @param error_type string with the resulting error if save was unsuccessful
+ * @return true if successful
+ */
+template <class PointT>
+inline bool
+    SavePointCloud(const std::string& filename,
+                   const pcl::PointCloud<PointT>& cloud,
+                   PointCloudFileType file_type = PointCloudFileType::PCDBINARY,
+                   std::string& error_type = _string_tmp) {
+  // check extension
+  std::string extension_should_be = PointCloudFileTypeExtensionMap[file_type];
+  if (!HasExtension(filename, extension_should_be)) {
+    error_type = "Invalid file extension. Input file: " + filename +
+                 " . Extension should be: " + extension_should_be;
+    return false;
+  }
+
+  // check path exists
+  boost::filesystem::path path(filename);
+  if (!boost::filesystem::exists(path.parent_path())) {
+    error_type =
+        "File path parent directory does not exist. Input file: " + filename;
+    return false;
+  }
+
+  // check pointcloud isn't empty
+  if (cloud.size() == 0) {
+    error_type = "Empty point cloud.";
+    return false;
+  }
+
+  // try to save cloud
+  pcl::PLYWriter writer;
+  try {
+    switch (file_type) {
+      case PointCloudFileType::PCDASCII:
+        pcl::io::savePCDFileASCII(filename, cloud);
+        break;
+      case PointCloudFileType::PCDBINARY:
+        pcl::io::savePCDFileBinary(filename, cloud);
+        break;
+      case PointCloudFileType::PLYASCII:
+        writer.write<PointT>(filename, cloud, false);
+        break;
+      case PointCloudFileType::PLYBINARY:
+        writer.write<PointT>(filename, cloud, true);
+        break;
+    }
+  } catch (pcl::PCLException& e) {
+    error_type = "Exception throw by pcl: " + std::string(e.detailedMessage());
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * @brief enum class for storing error types for the CheckJson function.
+ *
+ *  NONE: no error
+ *  MISSING: file does not exist
+ *  FILETYPE: file extension is not .json
+ *  EMPTY: json file is empty
+ *
+ */
+enum JsonReadErrorType { NONE, FILETYPE, MISSING, EMPTY };
+
+static JsonReadErrorType tmp_json_read_error_type_ = JsonReadErrorType::NONE;
+
+/**
+ * @brief reads a json and does some checks:
+ *
+ *  1. Check that file exists
+ *  2. Check that file has the .json extension
+ *  3. Check the json is not null
+ *
+ * @param filename full path to json
+ * @param J reference to json to fill
+ * @param error_type optional reference to enum class of error type
+ * @param output_error optional bool to set if you want this function to output
+ * the error type
+ * @return true if passed
+ */
+bool ReadJson(const std::string& filename, nlohmann::json& J,
+              JsonReadErrorType& error_type = tmp_json_read_error_type_,
+              bool output_error = true);
 
 }  // namespace utils
 

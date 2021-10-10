@@ -1,7 +1,6 @@
 #define CATCH_CONFIG_MAIN
 
 #include <catch2/catch.hpp>
-#include <pcl/io/pcd_io.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include <sensor_msgs/PointCloud2.h>

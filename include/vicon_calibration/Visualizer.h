@@ -4,7 +4,6 @@
 #include <fstream>
 #include <math.h>
 
-#include <boost/make_shared.hpp>
 #include <nlohmann/json.hpp>
 #include <pcl/common/common_headers.h>
 #include <pcl/common/transforms.h>

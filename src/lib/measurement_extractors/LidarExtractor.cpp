@@ -1,7 +1,5 @@
 #include <vicon_calibration/measurement_extractors/LidarExtractor.h>
 
-#include <pcl/io/pcd_io.h>
-
 #include <vicon_calibration/CropBox.h>
 
 namespace vicon_calibration {

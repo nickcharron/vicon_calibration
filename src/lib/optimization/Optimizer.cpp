@@ -81,57 +81,64 @@ CalibrationResults Optimizer::GetResults() {
 }
 
 void Optimizer::LoadConfigCommon(const nlohmann::json& J) {
-  optimizer_params_.viz_point_size = J.at("viz_point_size");
-  optimizer_params_.viz_corr_line_width = J.at("viz_corr_line_width");
-  optimizer_params_.max_correspondence_iterations =
-      J.at("max_correspondence_iterations");
-  optimizer_params_.show_camera_measurements = J.at("show_camera_measurements");
-  optimizer_params_.show_lidar_measurements = J.at("show_lidar_measurements");
-  optimizer_params_.show_loop_closure_correspondences =
-      J.at("show_loop_closure_correspondences");
-  optimizer_params_.extract_image_target_perimeter =
-      J.at("extract_image_target_perimeter");
-  optimizer_params_.output_errors = J.at("output_errors");
-  optimizer_params_.concave_hull_alpha = J.at("concave_hull_alpha");
-  optimizer_params_.max_pixel_cor_dist = J.at("max_pixel_cor_dist");
-  optimizer_params_.max_point_cor_dist = J.at("max_point_cor_dist");
-  optimizer_params_.match_centroids = J.at("match_centroids");
-  optimizer_params_.match_centroids_on_first_iter_only =
-      J.at("match_centroids_on_first_iter_only");
-  optimizer_params_.print_results_to_terminal =
-      J.at("print_results_to_terminal");
+  try {
+    optimizer_params_.viz_point_size = J.at("viz_point_size");
+    optimizer_params_.viz_corr_line_width = J.at("viz_corr_line_width");
+    optimizer_params_.max_correspondence_iterations =
+        J.at("max_correspondence_iterations");
+    optimizer_params_.show_camera_measurements =
+        J.at("show_camera_measurements");
+    optimizer_params_.show_lidar_measurements = J.at("show_lidar_measurements");
+    optimizer_params_.show_loop_closure_correspondences =
+        J.at("show_loop_closure_correspondences");
+    optimizer_params_.extract_image_target_perimeter =
+        J.at("extract_image_target_perimeter");
+    optimizer_params_.output_errors = J.at("output_errors");
+    optimizer_params_.concave_hull_alpha = J.at("concave_hull_alpha");
+    optimizer_params_.max_pixel_cor_dist = J.at("max_pixel_cor_dist");
+    optimizer_params_.max_point_cor_dist = J.at("max_point_cor_dist");
+    optimizer_params_.match_centroids = J.at("match_centroids");
+    optimizer_params_.match_centroids_on_first_iter_only =
+        J.at("match_centroids_on_first_iter_only");
+    optimizer_params_.print_results_to_terminal =
+        J.at("print_results_to_terminal");
 
-  std::vector<double> tmp;
-  for (const auto& val : J["error_tol"]) { tmp.push_back(val); }
-  if (tmp.size() != 2) {
+    std::vector<double> error_tol_tmp = J["error_tol"];
+    optimizer_params_.error_tol = error_tol_tmp;
+
+    std::vector<double> image_noise_tmp = J["image_noise"];
+    optimizer_params_.image_noise = image_noise_tmp;
+
+    std::vector<double> lidar_noise_tmp = J["lidar_noise"];
+    optimizer_params_.lidar_noise = lidar_noise_tmp;
+
+    std::vector<double> template_downsample_size_tmp =
+        J["template_downsample_size"];
+    optimizer_params_.template_downsample_size = template_downsample_size_tmp;
+  } catch (const nlohmann::json::exception& e) {
+    LOG_ERROR("Cannot load json, one or more missing parameters. Error: %s",
+              e.what());
+  }
+
+  if (optimizer_params_.error_tol.size() != 2) {
     throw std::invalid_argument{
         "Invalid number of inputs to error_tol. Expecting 6."};
   }
-  optimizer_params_.error_tol = tmp;
-  tmp.clear();
 
-  for (const auto& val : J["image_noise"]) { tmp.push_back(val); }
-  if (tmp.size() != 2) {
+  if (optimizer_params_.image_noise.size() != 2) {
     throw std::invalid_argument{
         "Invalid number of inputs to image_noise. Expecting 2."};
   }
-  optimizer_params_.image_noise = tmp;
-  tmp.clear();
 
-  for (const auto& val : J["lidar_noise"]) { tmp.push_back(val); }
-  if (tmp.size() != 3) {
+  if (optimizer_params_.lidar_noise.size() != 3) {
     throw std::invalid_argument{
         "Invalid number of inputs to lidar_noise. Expecting 3."};
   }
-  optimizer_params_.lidar_noise = tmp;
-  tmp.clear();
 
-  for (const auto& val : J["template_downsample_size"]) { tmp.push_back(val); }
-  if (tmp.size() != 3) {
+  if (optimizer_params_.template_downsample_size.size() != 3) {
     throw std::invalid_argument{
         "Invalid number of inputs to template_downsample_size. Expecting 3."};
   }
-  optimizer_params_.template_downsample_size = tmp;
 }
 
 void Optimizer::ResetViewer() {
@@ -235,7 +242,9 @@ void Optimizer::GetImageCorrespondences() {
             inputs_.camera_params[measurement->camera_id]
                 ->camera_model->ProjectPointPrecise(
                     utils::PCLPointToEigen(point_pcl));
-        if (!point_projected.has_value()) { continue; }
+        if (!point_projected.has_value()) {
+          continue;
+        }
         projected_keypoints->push_back(pcl::PointXYZ(
             point_projected.value()[0], point_projected.value()[1], 0));
       }
@@ -418,8 +427,7 @@ void Optimizer::GetLoopClosureCorrespondences() {
     measurement = inputs_.loop_closure_measurements[meas_iter];
 
     // Transform lidar target keypoints to lidar frame
-    PointCloud::Ptr estimated_lidar_keypoints =
-        std::make_shared<PointCloud>();
+    PointCloud::Ptr estimated_lidar_keypoints = std::make_shared<PointCloud>();
     for (Eigen::Vector3d keypoint :
          inputs_.target_params[measurement->target_id]->keypoints_lidar) {
       // get transform from target to lidar
@@ -452,8 +460,7 @@ void Optimizer::GetLoopClosureCorrespondences() {
         *lidar_correspondences, optimizer_params_.max_point_cor_dist);
 
     // Transform camera target keypoints to camera frame and project to image
-    PointCloud::Ptr estimated_camera_keypoints =
-        std::make_shared<PointCloud>();
+    PointCloud::Ptr estimated_camera_keypoints = std::make_shared<PointCloud>();
     for (Eigen::Vector3d keypoint :
          inputs_.target_params[measurement->target_id]->keypoints_camera) {
       // get transform from target to camera
@@ -466,7 +473,9 @@ void Optimizer::GetLoopClosureCorrespondences() {
           inputs_.camera_params[measurement->camera_id]
               ->camera_model->ProjectPointPrecise(
                   keypoint_transformed.hnormalized());
-      if (!keypoint_projected.has_value()) { continue; }
+      if (!keypoint_projected.has_value()) {
+        continue;
+      }
       keypoint_projected_3d = Eigen::Vector3d(keypoint_projected.value()[0],
                                               keypoint_projected.value()[1], 0);
       estimated_camera_keypoints->push_back(
@@ -743,10 +752,14 @@ bool Optimizer::HasConverged(uint16_t iteration) {
                 << "translation threshold (m): "
                 << optimizer_params_.error_tol[1] << "\n";
     }
-    if (error_r_rad > optimizer_params_.error_tol[0]) { return false; }
-    if (error_t_m > optimizer_params_.error_tol[1]) { return false; }
+    if (error_r_rad > optimizer_params_.error_tol[0]) {
+      return false;
+    }
+    if (error_t_m > optimizer_params_.error_tol[1]) {
+      return false;
+    }
   }
   return true;
 }
 
-} // end namespace vicon_calibration
+}  // end namespace vicon_calibration

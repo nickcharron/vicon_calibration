@@ -7,67 +7,58 @@
 
 #include <vicon_calibration/Utils.h>
 
-using json = nlohmann::json;
-
 namespace vicon_calibration {
 
 void TfTree::LoadJSON(const std::string &file_location) {
   LOG_INFO("Loading file: %s", file_location.c_str());
 
-  json J;
-  int calibration_counter = 0, value_counter = 0;
-  std::string type, date, method, to_frame, from_frame;
-  Eigen::Matrix4d T;
-  Eigen::Affine3d TA;
-
-  std::ifstream file(file_location);
-  file >> J;
-
-  type = J["type"];
-  date = J["date"];
-  method = J["method"];
-
-  if (type != "extrinsic_calibration") {
-    LOG_ERROR("Attempting to create TfTree with invalid json type. Type: %s",
-              type.c_str());
-    throw std::invalid_argument{
-        "Attempting to create TfTree with invalid json type"};
+  nlohmann::json J;
+  if (!utils::ReadJson(file_location, J)) {
+    LOG_ERROR("Using default calibration verification params.");
     return;
+  }
+
+  std::string date;
+  std::vector<std::vector<double>> Ts;
+  std::vector<std::string> to_frames;
+  std::vector<std::string> from_frames;
+  try {
+    date = J["date"];
+    for (const auto &calibration : J["calibrations"]) {
+      to_frames.push_back(calibration["to_frame"]);
+      from_frames.push_back(calibration["from_frame"]);
+      std::vector<double> T = calibration["transform"];
+      Ts.push_back(T);
+    }
+  } catch (const nlohmann::json::exception &e) {
+    LOG_ERROR("Cannot load json, one or more missing parameters. Error: %s",
+              e.what());
   }
 
   SetCalibrationDate(date);
 
-  LOG_INFO("Type: %s", type.c_str());
-  LOG_INFO("Date: %s", date.c_str());
-  LOG_INFO("Method: %s", method.c_str());
-
-  for (const auto &calibration : J["calibrations"]) {
-    calibration_counter++;
-    value_counter = 0;
-    int i = 0, j = 0;
-
-    to_frame = calibration["to_frame"];
-    from_frame = calibration["from_frame"];
-
-    for (const auto &value : calibration["transform"]) {
-      value_counter++;
-      T(i, j) = value.get<double>();
-      if (j == 3) {
-        i++;
-        j = 0;
-      } else {
-        j++;
-      }
-    }
-    if (value_counter != 16) {
+  for (size_t n = 0; n < Ts.size(); n++) {
+    const auto &T_vec = Ts.at(n);
+    if (T_vec.size() != 16) {
       LOG_ERROR("Invalid transform matrix in .json file.");
       throw std::invalid_argument{"Invalid transform matrix in .json file."};
-      return;
     }
-    TA.matrix() = T;
-    this->AddTransform(TA, to_frame, from_frame);
+
+    Eigen::Matrix4d T;
+    for (int i = 0; i < 4; i++) {
+      for (int j = 0; j < 4; j++) {
+        T(i, j) = T_vec.at(4 * i + j);
+      }
+    }
+    if (!utils::IsTransformationMatrix(T)) {
+      LOG_ERROR("Invalid transform matrix in .json file.");
+      throw std::invalid_argument{"Invalid transform matrix in .json file."};
+    }
+
+    AddTransform(Eigen::Affine3d(T), to_frames.at(n), from_frames.at(n));
   }
-  LOG_INFO("Saved %d transforms", calibration_counter);
+
+  LOG_INFO("Saved %d transforms", Ts.size());
 }
 
 void TfTree::AddTransform(const Eigen::Affine3d &T, const std::string &to_frame,
@@ -110,16 +101,14 @@ Eigen::Affine3d TfTree::GetTransformEigen(const std::string &to_frame,
   return this->ROSToEigen(T_ROS);
 }
 
-geometry_msgs::TransformStamped
-TfTree::GetTransformROS(const std::string &to_frame,
-                        const std::string &from_frame,
-                        const ros::Time &lookup_time) {
+geometry_msgs::TransformStamped TfTree::GetTransformROS(
+    const std::string &to_frame, const std::string &from_frame,
+    const ros::Time &lookup_time) {
   return this->LookupTransform(to_frame, from_frame, lookup_time);
 }
 
-geometry_msgs::TransformStamped
-TfTree::GetTransformROS(const std::string &to_frame,
-                        const std::string &from_frame) {
+geometry_msgs::TransformStamped TfTree::GetTransformROS(
+    const std::string &to_frame, const std::string &from_frame) {
   return this->LookupTransform(to_frame, from_frame, this->start_time);
 }
 
@@ -143,10 +132,9 @@ void TfTree::Clear() {
   is_calibration_date_set_ = false;
 }
 
-geometry_msgs::TransformStamped
-TfTree::LookupTransform(const std::string &to_frame,
-                        const std::string &from_frame,
-                        const ros::Time &time_stamp) {
+geometry_msgs::TransformStamped TfTree::LookupTransform(
+    const std::string &to_frame, const std::string &from_frame,
+    const ros::Time &time_stamp) {
   geometry_msgs::TransformStamped T_ROS;
   std::string transform_error;
   bool can_transform =
@@ -155,17 +143,18 @@ TfTree::LookupTransform(const std::string &to_frame,
   if (can_transform) {
     T_ROS = Tree_.lookupTransform(to_frame, from_frame, time_stamp);
   } else {
-    LOG_ERROR("Cannot look up transform from frame %s to %s. Transform Error "
-              "Message: %s",
-              from_frame.c_str(), to_frame.c_str(), transform_error.c_str());
+    LOG_ERROR(
+        "Cannot look up transform from frame %s to %s. Transform Error "
+        "Message: %s",
+        from_frame.c_str(), to_frame.c_str(), transform_error.c_str());
     throw std::runtime_error{"Cannot look up transform."};
   }
   return T_ROS;
 }
 
-geometry_msgs::TransformStamped
-TfTree::EigenToROS(const Eigen::Affine3d &T, const std::string &to_frame,
-                   const std::string &from_frame, const ros::Time &time_stamp) {
+geometry_msgs::TransformStamped TfTree::EigenToROS(
+    const Eigen::Affine3d &T, const std::string &to_frame,
+    const std::string &from_frame, const ros::Time &time_stamp) {
   if (!utils::IsTransformationMatrix(T.matrix())) {
     LOG_ERROR("Invalid transformation matrix input");
     throw std::runtime_error{"Invalid transformation matrix"};
@@ -178,8 +167,8 @@ TfTree::EigenToROS(const Eigen::Affine3d &T, const std::string &to_frame,
   return T_ROS;
 }
 
-Eigen::Affine3d
-TfTree::ROSToEigen(const geometry_msgs::TransformStamped T_ROS) {
+Eigen::Affine3d TfTree::ROSToEigen(
+    const geometry_msgs::TransformStamped T_ROS) {
   return tf2::transformToEigen(T_ROS);
 }
 
@@ -310,12 +299,11 @@ void TfTree::InsertFrame(const std::string &to_frame,
   } else {
     for (auto child_frame : it->second) {
       // transform already exists. Return.
-      if (child_frame == to_frame)
-        return;
+      if (child_frame == to_frame) return;
     }
     // from_frame already exists in the map, insert to_frame at the back
     frames_[from_frame].push_back(to_frame);
   }
 }
 
-} // namespace vicon_calibration
+}  // namespace vicon_calibration

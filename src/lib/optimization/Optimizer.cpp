@@ -17,8 +17,6 @@ Optimizer::Optimizer(const OptimizerInputs& inputs) {
            static_cast<int>(inputs_.lidar_measurements.size()));
   LOG_INFO("Added measurements for %d camera(s)",
            static_cast<int>(inputs_.camera_measurements.size()));
-  LOG_INFO("Added %d loop closure measurements",
-           static_cast<int>(inputs_.loop_closure_measurements.size()));
 
   // Downsample template cloud
   pcl::VoxelGrid<pcl::PointXYZ> vox;
@@ -50,14 +48,12 @@ void Optimizer::Solve() {
     Reset();
     GetImageCorrespondences();
     GetLidarCorrespondences();
-    GetLoopClosureCorrespondences();
     if (optimizer_params_.match_centroids_on_first_iter_only &&
         iteration == 1) {
       optimizer_params_.match_centroids = false;
     }
     AddImageMeasurements();
     AddLidarMeasurements();
-    AddLidarCameraMeasurements();
     Optimize();
     converged = HasConverged(iteration);
     UpdateInitials();
@@ -89,8 +85,6 @@ void Optimizer::LoadConfigCommon(const nlohmann::json& J) {
     optimizer_params_.show_camera_measurements =
         J.at("show_camera_measurements");
     optimizer_params_.show_lidar_measurements = J.at("show_lidar_measurements");
-    optimizer_params_.show_loop_closure_correspondences =
-        J.at("show_loop_closure_correspondences");
     optimizer_params_.extract_image_target_perimeter =
         J.at("extract_image_target_perimeter");
     optimizer_params_.output_errors = J.at("output_errors");
@@ -143,8 +137,7 @@ void Optimizer::LoadConfigCommon(const nlohmann::json& J) {
 
 void Optimizer::ResetViewer() {
   if (optimizer_params_.show_camera_measurements ||
-      optimizer_params_.show_lidar_measurements ||
-      optimizer_params_.show_loop_closure_correspondences) {
+      optimizer_params_.show_lidar_measurements) {
     pcl_viewer_ = std::make_shared<pcl::visualization::PCLVisualizer>();
   }
 }
@@ -410,142 +403,6 @@ void Optimizer::GetLidarCorrespondences() {
     }
   }
   LOG_INFO("Added %d lidar correspondences.", counter);
-}
-
-void Optimizer::GetLoopClosureCorrespondences() {
-  Eigen::Matrix4d T_SENSOR_TARGET, T_VICONBASE_SENSOR;
-  Eigen::Vector4d keypoint_transformed;
-  Eigen::Vector2d keypoint_projected;
-  Eigen::Vector3d keypoint_projected_3d;
-  std::shared_ptr<LoopClosureMeasurement> measurement;
-  if (optimizer_params_.show_loop_closure_correspondences && !stop_all_vis_) {
-    LOG_INFO("Showing lidar-camera loop closure measurement correspondences");
-  }
-
-  for (int meas_iter = 0; meas_iter < inputs_.loop_closure_measurements.size();
-       meas_iter++) {
-    measurement = inputs_.loop_closure_measurements[meas_iter];
-
-    // Transform lidar target keypoints to lidar frame
-    PointCloud::Ptr estimated_lidar_keypoints = std::make_shared<PointCloud>();
-    for (Eigen::Vector3d keypoint :
-         inputs_.target_params[measurement->target_id]->keypoints_lidar) {
-      // get transform from target to lidar
-      T_VICONBASE_SENSOR =
-          GetUpdatedInitialPose(SensorType::LIDAR, measurement->lidar_id);
-      T_SENSOR_TARGET = utils::InvertTransform(T_VICONBASE_SENSOR) *
-                        measurement->T_VICONBASE_TARGET;
-      keypoint_transformed = T_SENSOR_TARGET * keypoint.homogeneous();
-      estimated_lidar_keypoints->push_back(
-          utils::EigenPointToPCL(keypoint_transformed.hnormalized()));
-    }
-
-    // calculate centroids and translate target to match
-    PointCloud::Ptr transformed_keypoints_temp;
-    if (optimizer_params_.match_centroids) {
-      transformed_keypoints_temp = MatchCentroids(measurement->keypoints_lidar,
-                                                  estimated_lidar_keypoints);
-    } else {
-      transformed_keypoints_temp = estimated_lidar_keypoints;
-    }
-
-    // Get lidar correspondences
-    pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
-        lidar_corr_est;
-    std::shared_ptr<pcl::Correspondences> lidar_correspondences =
-        std::make_shared<pcl::Correspondences>();
-    lidar_corr_est.setInputSource(measurement->keypoints_lidar);
-    lidar_corr_est.setInputTarget(transformed_keypoints_temp);
-    lidar_corr_est.determineCorrespondences(
-        *lidar_correspondences, optimizer_params_.max_point_cor_dist);
-
-    // Transform camera target keypoints to camera frame and project to image
-    PointCloud::Ptr estimated_camera_keypoints = std::make_shared<PointCloud>();
-    for (Eigen::Vector3d keypoint :
-         inputs_.target_params[measurement->target_id]->keypoints_camera) {
-      // get transform from target to camera
-      T_VICONBASE_SENSOR =
-          GetUpdatedInitialPose(SensorType::CAMERA, measurement->camera_id);
-      T_SENSOR_TARGET = utils::InvertTransform(T_VICONBASE_SENSOR) *
-                        measurement->T_VICONBASE_TARGET;
-      keypoint_transformed = T_SENSOR_TARGET * keypoint.homogeneous();
-      opt<Eigen::Vector2d> keypoint_projected =
-          inputs_.camera_params[measurement->camera_id]
-              ->camera_model->ProjectPointPrecise(
-                  keypoint_transformed.hnormalized());
-      if (!keypoint_projected.has_value()) {
-        continue;
-      }
-      keypoint_projected_3d = Eigen::Vector3d(keypoint_projected.value()[0],
-                                              keypoint_projected.value()[1], 0);
-      estimated_camera_keypoints->push_back(
-          utils::EigenPointToPCL(keypoint_projected_3d));
-    }
-
-    // convert measurement to 3D (set z to 0)
-    PointCloud::Ptr camera_measurement_3d = std::make_shared<PointCloud>();
-    pcl::PointXYZ point;
-    for (pcl::PointCloud<pcl::PointXY>::iterator it =
-             measurement->keypoints_camera->begin();
-         it != measurement->keypoints_camera->end(); ++it) {
-      point.x = it->x;
-      point.y = it->y;
-      point.z = 0;
-      camera_measurement_3d->push_back(point);
-    }
-
-    // calculate centroids and translate target to match
-    if (optimizer_params_.match_centroids) {
-      transformed_keypoints_temp =
-          MatchCentroids(camera_measurement_3d, estimated_camera_keypoints);
-    } else {
-      transformed_keypoints_temp = estimated_camera_keypoints;
-    }
-
-    // Get camera correspondences
-    pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
-        camera_corr_est;
-    std::shared_ptr<pcl::Correspondences> camera_correspondences =
-        std::make_shared<pcl::Correspondences>();
-    camera_corr_est.setInputSource(camera_measurement_3d);
-    camera_corr_est.setInputTarget(transformed_keypoints_temp);
-    camera_corr_est.determineCorrespondences(
-        *camera_correspondences, optimizer_params_.max_pixel_cor_dist);
-
-    // create correspondence and add to list
-    uint32_t num_corr = std::min<uint16_t>(camera_correspondences->size(),
-                                           lidar_correspondences->size());
-    LoopCorrespondence corr;
-    for (uint32_t i = 0; i < num_corr; i++) {
-      corr.camera_target_point_index =
-          camera_correspondences->at(i).index_match;
-      corr.camera_measurement_point_index =
-          camera_correspondences->at(i).index_query;
-      corr.lidar_target_point_index = lidar_correspondences->at(i).index_match;
-      corr.lidar_measurement_point_index =
-          lidar_correspondences->at(i).index_query;
-      corr.camera_id = measurement->camera_id;
-      corr.lidar_id = measurement->lidar_id;
-      corr.measurement_index = meas_iter;
-      corr.target_id = measurement->target_id;
-      lidar_camera_correspondences_.push_back(corr);
-    }
-
-    if (optimizer_params_.show_loop_closure_correspondences && !stop_all_vis_) {
-      this->ViewLidarMeasurements(
-          measurement->keypoints_lidar, estimated_lidar_keypoints,
-          lidar_correspondences, "measured lidar keypoints",
-          "estimated lidar keypoints");
-    }
-    if (optimizer_params_.show_loop_closure_correspondences && !stop_all_vis_) {
-      this->ViewCameraMeasurements(
-          camera_measurement_3d, estimated_camera_keypoints,
-          camera_correspondences, "measured camera points",
-          "projected camera points");
-    }
-  }
-  LOG_INFO("Added %d lidar-camera correspondences",
-           static_cast<int>(lidar_camera_correspondences_.size()));
 }
 
 PointCloud::Ptr Optimizer::MatchCentroids(const PointCloud::Ptr& source_cloud,

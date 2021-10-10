@@ -244,7 +244,6 @@ struct CalibratorConfig {
   std::string vicon_baselink_frame;
   double time_steps;
   int max_measurements{0};
-  bool use_loop_closure_measurements{true};
   double min_target_motion{0.05};
   double min_target_rotation{5};
   double max_target_velocity{0.7};

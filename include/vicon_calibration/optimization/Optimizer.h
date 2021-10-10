@@ -16,7 +16,6 @@ struct OptimizerInputs {
   CameraParamsVector camera_params;
   LidarMeasurements lidar_measurements;
   CameraMeasurements camera_measurements;
-  LoopClosureMeasurements loop_closure_measurements;
   CalibrationResults calibration_initials;
   std::string optimizer_config_path;
 };
@@ -45,7 +44,6 @@ public:
     uint16_t max_correspondence_iterations{40};
     bool show_camera_measurements{false};
     bool show_lidar_measurements{false};
-    bool show_loop_closure_correspondences{false};
     bool extract_image_target_perimeter{true};
     bool output_errors{false};
     double concave_hull_alpha{10};
@@ -72,8 +70,6 @@ protected:
   void GetImageCorrespondences();
 
   void GetLidarCorrespondences();
-
-  void GetLoopClosureCorrespondences();
 
   PointCloud::Ptr MatchCentroids(const PointCloud::Ptr& source_cloud,
                                  const PointCloud::Ptr& target_cloud);
@@ -105,8 +101,6 @@ protected:
 
   virtual void AddLidarMeasurements() = 0;
 
-  virtual void AddLidarCameraMeasurements() = 0;
-
   virtual void Optimize() = 0;
 
   virtual void UpdateInitials() = 0;
@@ -116,7 +110,6 @@ protected:
   std::vector<CalibrationResult> calibration_results_;
   std::vector<Correspondence> camera_correspondences_;
   std::vector<Correspondence> lidar_correspondences_;
-  std::vector<LoopCorrespondence> lidar_camera_correspondences_;
   pcl::visualization::PCLVisualizer::Ptr pcl_viewer_;
   bool close_viewer_{false};
   bool skip_to_next_iteration_{false};

@@ -16,8 +16,8 @@ std::shared_ptr<TargetParams> JsonTools::LoadTargetParams(
   nlohmann::json J_target;
 
   if (!utils::ReadJson(target_config_full_path, J_target)) {
-    LOG_ERROR("Using default calibration verification params.");
-    return params;
+    LOG_ERROR("Could not load target config, exiting.");
+    throw std::runtime_error{"Could not load target config."};
   }
 
   std::vector<float> vect1;
@@ -162,7 +162,6 @@ std::shared_ptr<CalibratorConfig> JsonTools::LoadViconCalibratorParams() {
     params->vicon_baselink_frame = J["vicon_baselink_frame"];
     params->time_steps = J["time_steps"];
     params->max_measurements = J["max_measurements"];
-    params->use_loop_closure_measurements = J["use_loop_closure_measurements"];
     params->optimizer_type = J["optimizer_type"];
 
     std::vector<double> crop_time;

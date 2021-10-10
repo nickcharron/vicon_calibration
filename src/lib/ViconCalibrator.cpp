@@ -506,53 +506,6 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
            valid_measurements, sensor_frame.c_str());
 }
 
-// TODO: add loop closure measurements for cam to cam and lidar to lidar
-void ViconCalibrator::GetLoopClosureMeasurements() {
-  LOG_INFO("Determining lidar-camera loop closure measurements.");
-  std::shared_ptr<LoopClosureMeasurement> measurement;
-  for (int cam_iter = 0; cam_iter < camera_measurements_.size(); cam_iter++) {
-    for (int lid_iter = 0; lid_iter < lidar_measurements_.size(); lid_iter++) {
-      for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
-           meas_iter++) {
-        // save loop closure measurement only if that measurement was
-        // successful for the camera and lidar at that timepoint, and that the
-        // target has distinct features (e.g., diamond target)
-        // TODO: add ^this criteria to the DOCS
-        if (camera_measurements_[cam_iter][meas_iter] == nullptr ||
-            lidar_measurements_[lid_iter][meas_iter] == nullptr) {
-          continue;
-        }
-        int tgt_id = camera_measurements_[cam_iter][meas_iter]->target_id;
-        if (params_->target_params[tgt_id]->keypoints_lidar.size() > 0 &&
-            params_->target_params[tgt_id]->keypoints_camera.size() > 0) {
-          measurement = std::make_shared<LoopClosureMeasurement>();
-          measurement->keypoints_camera =
-              camera_measurements_[cam_iter][meas_iter]->keypoints;
-          measurement->keypoints_lidar =
-              lidar_measurements_[lid_iter][meas_iter]->keypoints;
-          measurement->T_VICONBASE_TARGET =
-              camera_measurements_[cam_iter][meas_iter]->T_VICONBASE_TARGET;
-          measurement->camera_id =
-              camera_measurements_[cam_iter][meas_iter]->camera_id;
-          measurement->lidar_id =
-              lidar_measurements_[lid_iter][meas_iter]->lidar_id;
-          measurement->target_id =
-              camera_measurements_[cam_iter][meas_iter]->target_id;
-          measurement->camera_frame =
-              camera_measurements_[cam_iter][meas_iter]->camera_frame;
-          measurement->lidar_frame =
-              lidar_measurements_[lid_iter][meas_iter]->lidar_frame;
-          measurement->target_frame =
-              camera_measurements_[cam_iter][meas_iter]->target_frame;
-          loop_closure_measurements_.push_back(measurement);
-        }
-      }
-    }
-  }
-  LOG_INFO("Saved %d lidar-camera loop closure measurements.",
-           loop_closure_measurements_.size());
-}
-
 bool ViconCalibrator::PassedMinMotion(const Eigen::Affine3d& TA_S_T_prev,
                                       const Eigen::Affine3d& TA_S_T_curr) {
   double error_t =
@@ -712,10 +665,6 @@ void ViconCalibrator::GetMeasurements() {
 
   this->OutputMeasurementStats();
 
-  if (params_->use_loop_closure_measurements) {
-    this->GetLoopClosureMeasurements();
-  }
-
   bag_.close();
 }
 
@@ -726,7 +675,6 @@ CalibrationResults ViconCalibrator::Solve(
       .camera_params = params_->camera_params,
       .lidar_measurements = lidar_measurements_,
       .camera_measurements = camera_measurements_,
-      .loop_closure_measurements = loop_closure_measurements_,
       .calibration_initials = initial_calibrations,
       .optimizer_config_path = inputs_.optimizer_config};
 
@@ -824,6 +772,7 @@ void ViconCalibrator::RunVerification() {
     }
   }
 }
+
 void ViconCalibrator::OutputMeasurementStats() {
   std::cout << "------------------------------------------------------------\n"
             << "Outputing Measurement Statistics\n"

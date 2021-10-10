@@ -140,7 +140,6 @@ void CeresOptimizer::Reset() {
   }
   camera_correspondences_.clear();
   lidar_correspondences_.clear();
-  lidar_camera_correspondences_.clear();
   SetupProblem();
 }
 
@@ -245,43 +244,6 @@ void CeresOptimizer::AddLidarMeasurements() {
                                &(results_[sensor_index][0]));
   }
   LOG_INFO("Added %d lidar measurements.", counter);
-}
-
-void CeresOptimizer::AddLidarCameraMeasurements() {
-  LOG_ERROR("Lidar-Camera cost functions not implemented for Ceres solver.");
-  // LOG_INFO("Setting lidar-camera factors");
-  // gtsam::Vector2 noise_vec;
-  // noise_vec << 10, 10;
-  // gtsam::noiseModel::Diagonal::shared_ptr noiseModel =
-  //     gtsam::noiseModel::Diagonal::Sigmas(noise_vec);
-  // gtsam::Key lidar_key, camera_key;
-  // Eigen::Vector3d point_detected, P_T_li, P_T_ci;
-  // int counter = 0;
-  // for (LoopCorrespondence corr : lidar_camera_correspondences_) {
-  //   counter++;
-  //   lidar_key = gtsam::Symbol('L', corr.lidar_id);
-  //   camera_key = gtsam::Symbol('C', corr.camera_id);
-
-  //   // get measured point/pixel expressed in sensor frame
-  //   Eigen::Vector2d pixel_detected = utils::PCLPixelToEigen(
-  //       inputs_.loop_closure_measurements[corr.measurement_index]
-  //           ->keypoints_camera->at(corr.camera_measurement_point_index));
-  //   point_detected = utils::PCLPointToEigen(
-  //       inputs_.loop_closure_measurements[corr.measurement_index]
-  //           ->keypoints_lidar->at(corr.lidar_measurement_point_index));
-
-  //   // get corresponding target points expressed in target frames
-  //   P_T_ci = inputs_.target_params[corr.target_id]
-  //                ->keypoints_camera[corr.camera_target_point_index];
-  //   P_T_li = inputs_.target_params[corr.target_id]
-  //                ->keypoints_lidar[corr.lidar_target_point_index];
-
-  //   graph_.emplace_shared<CameraLidarFactor>(
-  //       lidar_key, camera_key, pixel_detected, point_detected, P_T_ci,
-  //       P_T_li, inputs_.camera_params[corr.camera_id]->camera_model,
-  //       noiseModel);
-  // }
-  // LOG_INFO("Added %d lidar-camera factors.", counter);
 }
 
 void CeresOptimizer::Optimize() {

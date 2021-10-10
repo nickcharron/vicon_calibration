@@ -57,8 +57,6 @@ private:
 
   void AddLidarMeasurements() override;
 
-  void AddLidarCameraMeasurements() override;
-
   void Optimize() override;
 
   void UpdateInitials() override;

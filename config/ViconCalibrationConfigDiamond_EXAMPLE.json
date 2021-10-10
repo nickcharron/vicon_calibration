@@ -4,7 +4,6 @@
   "max_target_velocity": 0.7,
   "vicon_baselink_frame": "vicon/robot/robot",
   "time_steps": 1,
-  "use_loop_closure_measurements": false,
   "crop_time": [0,0],
   "max_measurements": 5,
   "optimizer_type": "CERES",

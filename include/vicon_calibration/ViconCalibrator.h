@@ -79,8 +79,6 @@ private:
    */
   void GetCameraMeasurements(uint8_t& cam_iter);
 
-  void GetLoopClosureMeasurements();
-
   void SetCalibrationInitials();
 
   bool PassedMinMotion(const Eigen::Affine3d& TA_S_T_prev,
@@ -106,7 +104,6 @@ private:
   std::shared_ptr<TfTree> lookup_tree_ = std::make_shared<TfTree>();
   LidarMeasurements lidar_measurements_;
   CameraMeasurements camera_measurements_;
-  LoopClosureMeasurements loop_closure_measurements_;
   CalibrationResults calibrations_initial_;
   rosbag::Bag bag_;
   std::shared_ptr<Visualizer> pcl_viewer_;

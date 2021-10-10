@@ -74,7 +74,7 @@ We have two example datasets and config files that you can use to get used to th
 
 These are simulation datasets, so we have ground truth calibrations which are published to /tf in the rosbags. Therefore, you can run the executable with a perfect initial guess, or use the provided "perturbed" extrinsics.
 
-[Download Datasets Here:](https://drive.google.com/drive/folders/1tm6Q_wE2ImMpY3HndD5Z7I0uglf7OpFQ?usp=sharing)
+[Download Datasets Here](https://drive.google.com/drive/folders/1tm6Q_wE2ImMpY3HndD5Z7I0uglf7OpFQ?usp=sharing)
 
 ### Running Diamond Target Dataset:
 
@@ -82,7 +82,6 @@ Using ground truth calibrations:
 
 ```
 cd /path_to/vicon_calibration/
-
 ./build/vicon_calibration_main -bag /path_to_dataset/DiamondTargetDataset_EXAMPLE.bag -calibration_config ./config/ViconCalibrationConfigDiamond_EXAMPLE.json -output_directory . -show_camera_measurements=true -show_lidar_measurements=true
 
 ```

@@ -111,7 +111,8 @@ void CeresOptimizer::AddImageMeasurements() {
             pixel, P_VICONBASE,
             inputs_.camera_params[camera_index]->camera_model));
 
-    problem_->AddResidualBlock(cost_function.release(), loss_function_.get(),
+    problem_->AddResidualBlock(cost_function.release(),
+                               ceres_params_.LossFunction().get(),
                                &(results_[sensor_index][0]));
   }
   LOG_INFO("Added %d image measurements.", counter);
@@ -147,7 +148,8 @@ void CeresOptimizer::AddLidarMeasurements() {
     std::unique_ptr<ceres::CostFunction> cost_function(
         CeresLidarCostFunction::Create(point_measured, P_VICONBASE));
 
-    problem_->AddResidualBlock(cost_function.release(), loss_function_.get(),
+    problem_->AddResidualBlock(cost_function.release(),
+                               ceres_params_.LossFunction().get(),
                                &(results_[sensor_index][0]));
   }
   LOG_INFO("Added %d lidar measurements.", counter);
@@ -159,12 +161,15 @@ void CeresOptimizer::Optimize() {
   // std::cout << "TEST5.0\n";
   // auto p = problem_.get();
   // std::cout << "TEST5.1\n";
-  // auto o = ceres_params_.SolverOptions(); 
+  // auto o = ceres_params_.SolverOptions();
   // std::cout << "TEST5.1A\n";
-  // std::cout << "NumParameterBlocks: " << problem_->NumParameterBlocks() << "\n";
-  // std::cout << "NumParameters: " << problem_->NumParameters() << "\n";
-  // std::cout << "NumResidualBlocks: " << problem_->NumResidualBlocks() << "\n";
-  // std::cout << "NumResiduals: " << problem_->NumResiduals() << "\n";
+  std::cout << "NumParameterBlocks: " << problem_->NumParameterBlocks() << "\n";
+  std::cout << "NumParameters: " << problem_->NumParameters() << "\n";
+  std::cout << "NumResidualBlocks: " << problem_->NumResidualBlocks() << "\n";
+  std::cout << "NumResiduals: " << problem_->NumResiduals() << "\n";
+  // std::cout << "NumEffectiveParameters(): " <<
+  // problem_->NumEffectiveParameters() << "\n";
+
   // auto s = &ceres_summary_;
   // std::cout << "TEST5.1B\n";
   // ceres::Solve(o, p, s);

@@ -14,7 +14,6 @@ LidarExtractor::LidarExtractor(
       show_measurements_(show_measurements) {
   keypoints_measured_ = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS);
-  LOG_ERROR("Initialized LidarExtractor");
 }
 
 bool LidarExtractor::GetMeasurementValid() {
@@ -29,27 +28,17 @@ bool LidarExtractor::GetMeasurementValid() {
 void LidarExtractor::ProcessMeasurement(
     const Eigen::Matrix4d& T_LIDAR_TARGET_EST, const PointCloud::Ptr& cloud_in,
     bool& show_measurements) {
-  LOG_ERROR("ProcessMeasurement called");
   scan_in_ = cloud_in;
   T_LIDAR_TARGET_EST_ = T_LIDAR_TARGET_EST;
-  LOG_ERROR("Setting up variables");
-  this->SetupVariables();
-  LOG_ERROR("Checking inputs");
-  this->CheckInputs();
-  LOG_ERROR("Isolating points");
-  this->IsolatePoints();
-  LOG_ERROR("Getting keypoints");
-  this->GetKeypoints();          // implemented in derived class
-  LOG_ERROR("Checking measurement valid");
-  this->CheckMeasurementValid(); // implemented in derived class
-  LOG_ERROR("Getting user input");
-  this->GetUserInput();
-  LOG_ERROR("Outputting scans");
-  this->OutputScans();
-  LOG_ERROR("Setting flags");
+  SetupVariables();
+  CheckInputs();
+  IsolatePoints();
+  GetKeypoints();          // implemented in derived class
+  CheckMeasurementValid(); // implemented in derived class
+  GetUserInput();
+  OutputScans();
   measurement_complete_ = true;
   show_measurements = show_measurements_;
-  LOG_ERROR("Done processing measurement");
 }
 
 void LidarExtractor::SetupVariables() {
@@ -96,7 +85,6 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr LidarExtractor::GetMeasurement() {
 }
 
 void LidarExtractor::GetUserInput() {
-  std::cout << "TEST: show_measurements_: " << show_measurements_ << "\n";
   if (!show_measurements_) { return; }
 
   estimated_template_cloud_ = std::make_shared<PointCloud>();

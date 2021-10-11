@@ -44,8 +44,6 @@ private:
   std::vector<std::vector<double>> results_;
   std::vector<std::vector<double>> previous_iteration_results_;
   std::vector<std::vector<double>> initials_;
-  std::unique_ptr<ceres::LossFunction> loss_function_;
-  std::unique_ptr<ceres::LocalParameterization> se3_parameterization_;
   std::shared_ptr<ceres::Problem> problem_;
   CeresParams ceres_params_;
   ceres::Solver::Summary ceres_summary_;

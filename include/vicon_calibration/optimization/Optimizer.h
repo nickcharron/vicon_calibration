@@ -18,6 +18,7 @@ struct OptimizerInputs {
   CameraMeasurements camera_measurements;
   CalibrationResults calibration_initials;
   std::string optimizer_config_path;
+  std::string ceres_config_path;
 };
 
 /**
@@ -59,8 +60,6 @@ public:
   };
 
 protected:
-  virtual void LoadConfig() = 0;
-
   void LoadConfigCommon(const nlohmann::json& J);
 
   void ResetViewer();

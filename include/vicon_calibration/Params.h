@@ -226,6 +226,7 @@ struct CalibratorInputs {
   std::string initial_calibration;
   std::string calibration_config;
   std::string optimizer_config;
+  std::string ceres_config;
   std::string target_config_path;
   std::string target_data_path;
   std::string camera_intrinsics_path;

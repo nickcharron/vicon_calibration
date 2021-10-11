@@ -11,8 +11,19 @@ namespace vicon_calibration {
 
 using namespace std::literals::chrono_literals;
 
-Optimizer::Optimizer(const OptimizerInputs& inputs) {
-  inputs_ = inputs;
+Optimizer::Optimizer(const OptimizerInputs& inputs) : inputs_(inputs) {
+  LOG_INFO("Loading Optimizer Config file: %s",
+           inputs_.optimizer_config_path.c_str());
+
+  nlohmann::json J;
+  if (!utils::ReadJson(inputs_.optimizer_config_path, J)) {
+    LOG_ERROR("Using default ceres optimizer params.");
+    return;
+  }
+
+  LoadConfigCommon(J);
+
+  
   LOG_INFO("Added measurements for %d lidar(s)",
            static_cast<int>(inputs_.lidar_measurements.size()));
   LOG_INFO("Added measurements for %d camera(s)",
@@ -35,7 +46,6 @@ Optimizer::Optimizer(const OptimizerInputs& inputs) {
 }
 
 void Optimizer::Solve() {
-  LoadConfig();
   ResetViewer();
   CheckInputs();
   AddInitials();

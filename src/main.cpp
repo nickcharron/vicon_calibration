@@ -20,9 +20,13 @@ DEFINE_string(calibration_config,
 DEFINE_validator(calibration_config,
                  &vicon_calibration::gflags::ValidateJsonFileMustExist);
 DEFINE_string(optimizer_config, config_default_path_ + "OptimizerConfig.json",
-              "Full path to optimizer config json.");
+              "Full path to optimizer config json. If left empty, it will use OptimizerConfig.json in the default config path.");
 DEFINE_validator(optimizer_config,
                  &vicon_calibration::gflags::ValidateJsonFileMustExist);
+DEFINE_string(ceres_config, config_default_path_ + "CeresConfig.json",
+              "Full path to optimizer config json. If left empty, it will use OptimizerConfig.json in the default config path.");
+DEFINE_validator(ceres_config,
+                 &vicon_calibration::gflags::ValidateJsonFileMustExist);                 
 DEFINE_string(verification_config,
               config_default_path_ + "CalibrationVerification.json",
               "Full path to verification config json. If set to NONE, it will "
@@ -58,6 +62,7 @@ int main(int argc, char** argv) {
       .initial_calibration = FLAGS_initial_calibration,
       .calibration_config = FLAGS_calibration_config,
       .optimizer_config = FLAGS_optimizer_config,
+      .ceres_config = FLAGS_ceres_config,
       .target_config_path = FLAGS_target_config_path,
       .target_data_path = FLAGS_target_data_path,
       .camera_intrinsics_path = FLAGS_camera_intrinsics_path,

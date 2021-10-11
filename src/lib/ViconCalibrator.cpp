@@ -701,11 +701,12 @@ void ViconCalibrator::RunCalibration() {
   Setup();
   GetInitialCalibrations();
   GetMeasurements();
-  RunVerification();
+  CalibrationResults results = Solve(calibrations_initial_);
+  // RunVerification(results);
   return;
 }
 
-void ViconCalibrator::RunVerification() {
+void ViconCalibrator::RunVerification(const CalibrationResults& results) {
   CalibrationVerification ver(inputs_.verification_config,
                               inputs_.output_directory,
                               inputs_.calibration_config);
@@ -760,7 +761,6 @@ void ViconCalibrator::RunVerification() {
               << std::setw(20) << std::setprecision(10)
               << utils::VectorStdev(calibration_rotation_errors) << "\n";
   } else {
-    CalibrationResults results = Solve(calibrations_initial_);
     utils::OutputCalibrations(calibrations_initial_,
                               "Initial Calibration Estimates:");
     utils::OutputCalibrations(results, "Optimized Calibrations:");

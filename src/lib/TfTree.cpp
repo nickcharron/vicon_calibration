@@ -37,7 +37,9 @@ void TfTree::LoadJSON(const std::string &file_location) {
 
   SetCalibrationDate(date);
 
-  for (size_t n = 0; n < Ts.size(); n++) {
+  int num_poses = Ts.size();
+
+  for (int n = 0; n < num_poses; n++) {
     const auto &T_vec = Ts.at(n);
     if (T_vec.size() != 16) {
       LOG_ERROR("Invalid transform matrix in .json file.");
@@ -58,7 +60,7 @@ void TfTree::LoadJSON(const std::string &file_location) {
     AddTransform(Eigen::Affine3d(T), to_frames.at(n), from_frames.at(n));
   }
 
-  LOG_INFO("Saved %d transforms", Ts.size());
+  LOG_INFO("Saved %d transforms", num_poses);
 }
 
 void TfTree::AddTransform(const Eigen::Affine3d &T, const std::string &to_frame,

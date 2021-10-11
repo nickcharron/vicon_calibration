@@ -7,110 +7,17 @@
 
 namespace vicon_calibration {
 
-void CeresOptimizer::LoadConfig() {
-  LOG_INFO("Loading Ceres Optimizer Config file: %s",
-           inputs_.optimizer_config_path.c_str());
-
-  nlohmann::json J;
-  if (!utils::ReadJson(inputs_.optimizer_config_path, J)) {
-    LOG_ERROR("Using default ceres optimizer params.");
-    return;
-  }
-
-  LoadConfigCommon(J);
-
-  // get ceres optimizer specific params
-  try {
-    nlohmann::json J_ceres = J.at("ceres_options");
-    ceres_solver_options_.minimizer_progress_to_stdout =
-        J_ceres.at("minimizer_progress_to_stdout");
-    ceres_params_.max_num_iterations = J_ceres.at("max_num_iterations");
-    ceres_params_.max_solver_time_in_seconds =
-        J_ceres.at("max_solver_time_in_seconds");
-    ceres_params_.function_tolerance = J_ceres.at("function_tolerance");
-    ceres_params_.gradient_tolerance = J_ceres.at("gradient_tolerance");
-    ceres_params_.parameter_tolerance = J_ceres.at("parameter_tolerance");
-    ceres_params_.loss_function = J_ceres.at("loss_function");
-    ceres_params_.linear_solver_type = J_ceres.at("linear_solver_type");
-    ceres_params_.preconditioner_type = J_ceres.at("preconditioner_type");
-  } catch (const nlohmann::json::exception& e) {
-    LOG_ERROR("Cannot load json, one or more missing parameters. Error: %s",
-              e.what());
-  }
-}
+CeresOptimizer::CeresOptimizer(const OptimizerInputs& inputs)
+    : Optimizer(inputs), ceres_params_(inputs.ceres_config_path) {}
 
 void CeresOptimizer::SetupProblem() {
   // set ceres problem options
-  ceres_problem_options_.loss_function_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
-  ceres_problem_options_.local_parameterization_ownership =
-      ceres::DO_NOT_TAKE_OWNERSHIP;
-
-  problem_ = std::make_shared<ceres::Problem>(ceres_problem_options_);
-
-  // set ceres solver params
-  ceres_solver_options_.minimizer_progress_to_stdout =
-      ceres_params_.minimizer_progress_to_stdout;
-  ceres_solver_options_.max_num_iterations = ceres_params_.max_num_iterations;
-  ceres_solver_options_.max_solver_time_in_seconds =
-      ceres_params_.max_solver_time_in_seconds;
-  ceres_solver_options_.function_tolerance = ceres_params_.function_tolerance;
-  ceres_solver_options_.gradient_tolerance = ceres_params_.gradient_tolerance;
-  ceres_solver_options_.parameter_tolerance = ceres_params_.parameter_tolerance;
-
-  if (ceres_params_.linear_solver_type == "SPARSE_SCHUR") {
-    ceres_solver_options_.linear_solver_type = ceres::SPARSE_SCHUR;
-  } else if (ceres_params_.linear_solver_type == "DENSE_SCHUR") {
-    ceres_solver_options_.linear_solver_type = ceres::DENSE_SCHUR;
-  } else if (ceres_params_.linear_solver_type == "SPARSE_NORMAL_CHOLESKY") {
-    ceres_solver_options_.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-  } else {
-    LOG_ERROR(
-        "Invalid linear_solver_type, Options: SPARSE_SCHUR, DENSE_SCHUR, "
-        "SPARSE_NORMAL_CHOLESKY. Using default: SPARSE_SCHUR");
-    ceres_solver_options_.linear_solver_type = ceres::SPARSE_SCHUR;
-  }
-  if (ceres_params_.preconditioner_type == "IDENTITY") {
-    ceres_solver_options_.preconditioner_type = ceres::IDENTITY;
-  } else if (ceres_params_.preconditioner_type == "JACOBI") {
-    ceres_solver_options_.preconditioner_type = ceres::JACOBI;
-  } else if (ceres_params_.preconditioner_type == "SCHUR_JACOBI") {
-    ceres_solver_options_.preconditioner_type = ceres::SCHUR_JACOBI;
-  } else {
-    LOG_ERROR(
-        "Invalid preconditioner_type, Options: IDENTITY, JACOBI, "
-        "SCHUR_JACOBI. Using default: SCHUR_JACOBI");
-    ceres_solver_options_.preconditioner_type = ceres::SCHUR_JACOBI;
-  }
-
-  // set loss function
-  if (ceres_params_.loss_function == "HUBER") {
-    loss_function_ =
-        std::unique_ptr<ceres::LossFunction>(new ceres::HuberLoss(1.0));
-  } else if (ceres_params_.loss_function == "CAUCHY") {
-    loss_function_ =
-        std::unique_ptr<ceres::LossFunction>(new ceres::CauchyLoss(1.0));
-  } else if (ceres_params_.loss_function == "NULL") {
-    loss_function_ = std::unique_ptr<ceres::LossFunction>(nullptr);
-  } else {
-    LOG_ERROR(
-        "Invalid preconditioner_type, Options: HUBER, CAUCHY, NULL. "
-        "Using default: HUBER");
-    loss_function_ =
-        std::unique_ptr<ceres::LossFunction>(new ceres::HuberLoss(1.0));
-  }
-
-  // set local parameterization
-  std::unique_ptr<ceres::LocalParameterization> quat_parameterization(
-      new ceres::QuaternionParameterization());
-  std::unique_ptr<ceres::LocalParameterization> identity_parameterization(
-      new ceres::IdentityParameterization(3));
-  se3_parameterization_ = std::unique_ptr<ceres::LocalParameterization>(
-      new ceres::ProductParameterization(quat_parameterization.release(),
-                                         identity_parameterization.release()));
+  problem_ = std::make_shared<ceres::Problem>(ceres_params_.ProblemOptions());
 
   for (int i = 0; i < results_.size(); i++) {
-    problem_->AddParameterBlock(&(results_[i][0]), 7,
-                                se3_parameterization_.get());
+    problem_->AddParameterBlock(
+        &(results_[i][0]), 7,
+        ceres_params_.SE3QuatTransLocalParametrization().get());
   }
 }
 
@@ -211,7 +118,7 @@ void CeresOptimizer::AddImageMeasurements() {
 }
 
 void CeresOptimizer::AddLidarMeasurements() {
-  LOG_INFO("Setting lidar factors");
+  LOG_INFO("Setting lidar measurements");
   int counter = 0;
   for (vicon_calibration::Correspondence corr : lidar_correspondences_) {
     counter++;
@@ -248,11 +155,26 @@ void CeresOptimizer::AddLidarMeasurements() {
 
 void CeresOptimizer::Optimize() {
   LOG_INFO("Optimizing Ceres Problem");
-  ceres::Solve(ceres_solver_options_, problem_.get(), &ceres_summary_);
+  // auto p = problem_.get();
+  // std::cout << "TEST5.0\n";
+  // auto p = problem_.get();
+  // std::cout << "TEST5.1\n";
+  // auto o = ceres_params_.SolverOptions(); 
+  // std::cout << "TEST5.1A\n";
+  // std::cout << "NumParameterBlocks: " << problem_->NumParameterBlocks() << "\n";
+  // std::cout << "NumParameters: " << problem_->NumParameters() << "\n";
+  // std::cout << "NumResidualBlocks: " << problem_->NumResidualBlocks() << "\n";
+  // std::cout << "NumResiduals: " << problem_->NumResiduals() << "\n";
+  // auto s = &ceres_summary_;
+  // std::cout << "TEST5.1B\n";
+  // ceres::Solve(o, p, s);
+  ceres::Solve(ceres_params_.SolverOptions(), problem_.get(), &ceres_summary_);
+  // std::cout << "TEST5.2\n";
   if (optimizer_params_.print_results_to_terminal) {
     std::string report = ceres_summary_.FullReport();
     std::cout << report << "\n";
   }
+  // std::cout << "TEST5.3\n";
   LOG_INFO("Done.");
 }
 

@@ -53,7 +53,7 @@ private:
 
   void GetInitialCalibrationsPerturbed();
 
-  void RunVerification();
+  void RunVerification(const CalibrationResults& results);
 
   /**
    * @brief get initial guess of where the targets are located at the current

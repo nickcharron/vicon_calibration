@@ -1,14 +1,12 @@
 #pragma once
 
 #include <Eigen/Geometry>
-#include <nlohmann/json.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <sys/time.h>
 
 namespace vicon_calibration {
 
-using json = nlohmann::json;
 using PointCloud = pcl::PointCloud<pcl::PointXYZ>;
 using PointCloudPtr = PointCloud::Ptr;
 using PointCloudColor = pcl::PointCloud<pcl::PointXYZRGB>;

@@ -110,7 +110,7 @@ bool CameraModel::PixelInImage(const Eigen::Vector2d& pixel) {
 
 void CameraModel::LoadJSON(const std::string& file_location) {
   // load file
-  json J;
+  nlohmann::json J;
   std::ifstream file(file_location);
   file >> J;
   // get string repr of class type
@@ -163,7 +163,7 @@ void CameraModel::WriteJSON(const std::string& file_location,
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   std::string cur_date = std::string(std::ctime(&date));
   // load file
-  json J;
+  nlohmann::json J;
   J["date"] = cur_date;
   if (method.empty()) {
     J["method"] = std::string("unkown");

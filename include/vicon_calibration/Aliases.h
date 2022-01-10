@@ -11,9 +11,12 @@ using PointCloud = pcl::PointCloud<pcl::PointXYZ>;
 using PointCloudPtr = PointCloud::Ptr;
 using PointCloudColor = pcl::PointCloud<pcl::PointXYZRGB>;
 using PointCloudColorPtr = PointCloudColor::Ptr;
-using AlignVec3d = Eigen::aligned_allocator<Eigen::Vector3d>;
-using AlignVec2d = Eigen::aligned_allocator<Eigen::Vector2d>;
-using AlignAff3d = Eigen::aligned_allocator<Eigen::Affine3d>;
-using AlignMat4d = Eigen::aligned_allocator<Eigen::Matrix4d>;
+
+typedef Eigen::aligned_allocator<Eigen::Vector4d> AlignVec4d;
+typedef Eigen::aligned_allocator<Eigen::Vector3d> AlignVec3d;
+typedef Eigen::aligned_allocator<Eigen::Vector2d> AlignVec2d;
+typedef Eigen::aligned_allocator<Eigen::Matrix3d> AlignMat3d;
+typedef Eigen::aligned_allocator<Eigen::Matrix4d> AlignMat4d;
+typedef Eigen::aligned_allocator<Eigen::Affine3d> AlignAff3d;
 
 } // namespace vicon_calibration

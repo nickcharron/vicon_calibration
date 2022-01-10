@@ -10,7 +10,8 @@ void DiamondCameraExtractor::GetKeypoints() {
   // find dimensions of checkerboard with [n_dim x m_dim] interior corners
   int n_dim = 0, m_dim = 0;
   double xmax = 0, ymax = 0;
-  for (Eigen::Vector3d keypoint : target_params_->keypoints_camera) {
+  for (int k = 0; k < target_params_->keypoints_camera.cols(); k++){
+    Eigen::Vector3d keypoint = target_params_->keypoints_camera.col(k);
     if (keypoint[0] > xmax) {
       xmax = keypoint[0];
       m_dim++;

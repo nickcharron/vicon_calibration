@@ -6,8 +6,6 @@ namespace vicon_calibration {
 
 class CylinderLidarExtractor : public LidarExtractor {
 public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
   // Inherit base class constructors
   using LidarExtractor::LidarExtractor;
 

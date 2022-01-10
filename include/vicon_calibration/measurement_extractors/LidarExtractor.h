@@ -24,8 +24,6 @@ template <typename PointSource, typename PointTarget, typename Scalar = float>
 class IterativeClosestPointCustom
     : public pcl::IterativeClosestPoint<PointSource, PointTarget, Scalar> {
 public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
   pcl::CorrespondencesPtr getCorrespondencesPtr() {
     return this->correspondences_;
   }
@@ -41,8 +39,6 @@ enum class LidarExtractorType { CYLINDER = 0, DIAMONDCORNERS, DIAMOND };
  */
 class LidarExtractor {
 public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
   LidarExtractor(
       const std::shared_ptr<vicon_calibration::LidarParams>& lidar_params,
       const std::shared_ptr<vicon_calibration::TargetParams>& target_params,

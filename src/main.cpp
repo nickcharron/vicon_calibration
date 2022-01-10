@@ -50,7 +50,7 @@ DEFINE_string(output_directory, "/tmp/", "Full path to output directory.");
 DEFINE_validator(output_directory,
                  &vicon_calibration::gflags::ValidateDirMustExist);
 DEFINE_bool(show_camera_measurements, false,
-            "Set to true to show and accept/reject each lidar measurement.");
+            "Set to true to show and accept/reject each camera measurement.");
 DEFINE_bool(show_lidar_measurements, false,
             "Set to true to show and accept/reject each lidar measurement.");
 

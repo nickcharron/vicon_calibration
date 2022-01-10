@@ -36,10 +36,13 @@ void DiamondCornersLidarExtractor::GetKeypoints() {
   // transform keypoints from json using opt. transform and store
   Eigen::Vector4d keypoint_trans;
   keypoints_measured_->clear();
-  for (Eigen::Vector3d keypoint : target_params_->keypoints_lidar) {
-    keypoint_trans = T_LIDAR_TARGET_OPT_ * keypoint.homogeneous();
+  for (int k = 0; k < target_params_->keypoints_lidar.cols(); k++) {
+    Eigen::Vector4d keypoint(target_params_->keypoints_lidar(0, k),
+                             target_params_->keypoints_lidar(1, k),
+                             target_params_->keypoints_lidar(2, k), 1);
+    keypoint_trans = T_LIDAR_TARGET_OPT_ * keypoint;
     keypoints_measured_->push_back(
-        utils::EigenPointToPCL(keypoint_trans.hnormalized()));
+        pcl::PointXYZ(keypoint_trans[0], keypoint_trans[1], keypoint_trans[2]));
   }
 }
 

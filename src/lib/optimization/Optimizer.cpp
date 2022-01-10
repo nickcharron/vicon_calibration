@@ -23,7 +23,6 @@ Optimizer::Optimizer(const OptimizerInputs& inputs) : inputs_(inputs) {
 
   LoadConfigCommon(J);
 
-  
   LOG_INFO("Added measurements for %d lidar(s)",
            static_cast<int>(inputs_.lidar_measurements.size()));
   LOG_INFO("Added measurements for %d camera(s)",
@@ -214,7 +213,7 @@ void Optimizer::GetImageCorrespondences() {
       // keypoints or between all target points
       bool use_target_keypoints{false};
       if (inputs_.target_params[measurement->target_id]
-              ->keypoints_camera.size() > 0) {
+              ->keypoints_camera.cols() > 0) {
         use_target_keypoints = true;
       }
 
@@ -223,14 +222,15 @@ void Optimizer::GetImageCorrespondences() {
       PointCloud::Ptr transformed_keypoints = std::make_shared<PointCloud>();
       if (use_target_keypoints) {
         // use keypoints specified in json
-        Eigen::Vector4d keypoint_transformed;
-        pcl::PointXYZ keypoint_transformed_pcl;
-        for (Eigen::Vector3d keypoint :
-             inputs_.target_params[measurement->target_id]->keypoints_camera) {
-          keypoint_transformed = T_CAM_TARGET * keypoint.homogeneous();
-          keypoint_transformed_pcl =
-              utils::EigenPointToPCL(keypoint_transformed.hnormalized());
-          transformed_keypoints->push_back(keypoint_transformed_pcl);
+        const auto& kpts =
+            inputs_.target_params[measurement->target_id]->keypoints_camera;
+        for (int k = 0; k < kpts.cols(); k++) {
+          Eigen::Vector3d keypoint = kpts.col(k);
+          Eigen::Vector4d keypoint_transformed =
+              T_CAM_TARGET * keypoint.homogeneous();
+          transformed_keypoints->emplace_back(keypoint_transformed[0],
+                                              keypoint_transformed[1],
+                                              keypoint_transformed[2]);
         }
       } else {
         // use all points from template cloud
@@ -240,14 +240,13 @@ void Optimizer::GetImageCorrespondences() {
       }
 
       for (uint32_t i = 0; i < transformed_keypoints->size(); i++) {
-        pcl::PointXYZ point_pcl = transformed_keypoints->at(i);
+        Eigen::Vector3d p(transformed_keypoints->at(i).x,
+                          transformed_keypoints->at(i).y,
+                          transformed_keypoints->at(i).z);
         opt<Eigen::Vector2d> point_projected =
             inputs_.camera_params[measurement->camera_id]
-                ->camera_model->ProjectPointPrecise(
-                    utils::PCLPointToEigen(point_pcl));
-        if (!point_projected.has_value()) {
-          continue;
-        }
+                ->camera_model->ProjectPointPrecise(p);
+        if (!point_projected.has_value()) { continue; }
         projected_keypoints->push_back(pcl::PointXYZ(
             point_projected.value()[0], point_projected.value()[1], 0));
       }
@@ -358,19 +357,18 @@ void Optimizer::GetLidarCorrespondences() {
       // Check keypoints to see if we want to find correspondences between
       // keypoints or between all target points
       PointCloud::Ptr transformed_keypoints = std::make_shared<PointCloud>();
-      if (inputs_.target_params[measurement->target_id]
-              ->keypoints_lidar.size() > 0) {
-        // use keypoints specified in json
-        Eigen::Vector4d keypoint_transformed;
-        pcl::PointXYZ keypoint_transformed_pcl;
-        for (Eigen::Vector3d keypoint :
-             inputs_.target_params[measurement->target_id]->keypoints_lidar) {
-          keypoint_transformed = T_LIDAR_TARGET * keypoint.homogeneous();
-          keypoint_transformed_pcl =
-              utils::EigenPointToPCL(keypoint_transformed.hnormalized());
-          transformed_keypoints->push_back(keypoint_transformed_pcl);
-        }
-      } else {
+      const auto& kpts =
+          inputs_.target_params[measurement->target_id]->keypoints_lidar;
+      for (int k = 0; k < kpts.cols(); k++) {
+        Eigen::Vector3d keypoint = kpts.col(k);
+        Eigen::Vector4d keypoint_transformed =
+            T_LIDAR_TARGET * keypoint.homogeneous();
+        transformed_keypoints->emplace_back(keypoint_transformed[0],
+                                            keypoint_transformed[1],
+                                            keypoint_transformed[2]);
+      }
+
+      if (kpts.cols() == 0) {
         // use all points from template cloud
         pcl::transformPointCloud(
             *(inputs_.target_params[measurement->target_id]->template_cloud),
@@ -619,14 +617,10 @@ bool Optimizer::HasConverged(uint16_t iteration) {
                 << "translation threshold (m): "
                 << optimizer_params_.error_tol[1] << "\n";
     }
-    if (error_r_rad > optimizer_params_.error_tol[0]) {
-      return false;
-    }
-    if (error_t_m > optimizer_params_.error_tol[1]) {
-      return false;
-    }
+    if (error_r_rad > optimizer_params_.error_tol[0]) { return false; }
+    if (error_t_m > optimizer_params_.error_tol[1]) { return false; }
   }
   return true;
 }
 
-}  // end namespace vicon_calibration
+} // end namespace vicon_calibration

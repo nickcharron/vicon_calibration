@@ -13,8 +13,8 @@
 #include <tf2_msgs/TFMessage.h>
 
 #include <vicon_calibration/CropBox.h>
-#include <vicon_calibration/Utils.h>
 #include <vicon_calibration/PclConversions.h>
+#include <vicon_calibration/Utils.h>
 #include <vicon_calibration/measurement_extractors/CylinderCameraExtractor.h>
 #include <vicon_calibration/measurement_extractors/CylinderLidarExtractor.h>
 #include <vicon_calibration/measurement_extractors/DiamondCameraExtractor.h>
@@ -105,9 +105,8 @@ void CalibrationVerification::ProcessResults(bool save_measurements) {
 
 CalibrationVerification::Results CalibrationVerification::GetSummary() {
   if (!results_.ground_truth_set) {
-    LOG_WARN(
-        "Ground truth calibrations not set. Translation and rotations "
-        "errors are unavailable.");
+    LOG_WARN("Ground truth calibrations not set. Translation and rotations "
+             "errors are unavailable.");
   }
   return results_;
 }
@@ -228,9 +227,7 @@ void CalibrationVerification::PrintCalibrationErrors() {
         calibrations_result_[i].from_frame, calibrations_result_[i].to_frame);
   }
 
-  if (!ground_truth_calib_set_) {
-    return;
-  }
+  if (!ground_truth_calib_set_) { return; }
 
   // next print errors between ground truth calibrations and optimized
   file << "---------------------------------------------------------\n\n"
@@ -315,9 +312,7 @@ void CalibrationVerification::SaveLidarVisuals() {
     for (int meas_iter = 0; meas_iter < lidar_measurements_[lidar_iter].size();
          meas_iter++) {
       counter++;
-      if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) {
-        continue;
-      }
+      if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) { continue; }
       measurement = lidar_measurements_[lidar_iter][meas_iter];
       lookup_time_ = measurement->time_stamp;
       this->LoadLookupTree();
@@ -352,15 +347,13 @@ void CalibrationVerification::SaveLidarVisuals() {
       }
       this->SaveScans(scan_trans_est, scan_trans_opt, targets_combined,
                       current_save_path, counter);
-      if (counter == max_lidar_results_) {
-        continue;
-      }
-    }  // measurement iter
-  }    // lidar iter
+      if (counter == max_lidar_results_) { continue; }
+    } // measurement iter
+  }   // lidar iter
 }
 
-PointCloud::Ptr CalibrationVerification::GetLidarScanFromBag(
-    const std::string& topic) {
+PointCloud::Ptr
+    CalibrationVerification::GetLidarScanFromBag(const std::string& topic) {
   ros::Duration time_window_half = ros::Duration(0.5);
   rosbag::View view(bag_, rosbag::TopicQuery(topic),
                     lookup_time_ - time_window_half,
@@ -448,9 +441,7 @@ void CalibrationVerification::GetLidarErrors() {
         lidar_errors_init, lidar_errors_true;
     for (int meas_iter = 0; meas_iter < lidar_measurements_[lidar_iter].size();
          meas_iter++) {
-      if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) {
-        continue;
-      }
+      if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) { continue; }
       measurement = lidar_measurements_[lidar_iter][meas_iter];
 
       T_SENSOR_TARGET_opt = TA_VICONBASE_SENSOR_opt.inverse().matrix() *
@@ -459,18 +450,23 @@ void CalibrationVerification::GetLidarErrors() {
                             measurement->T_VICONBASE_TARGET;
 
       // get estimated keypoints given calibrations
-      if (params_->target_params[measurement->target_id]
-              ->keypoints_lidar.size() > 0) {
-        estimated_keypoints_target = std::make_shared<PointCloud>();
-        for (Eigen::Vector3d keypoint :
-             params_->target_params[measurement->target_id]->keypoints_lidar) {
-          estimated_keypoints_target->push_back(
-              utils::EigenPointToPCL(keypoint));
+      estimated_keypoints_target = std::make_shared<PointCloud>();
+      const auto& kpts =
+          params_->target_params[measurement->target_id]->keypoints_lidar;
+      int num_keypoints = kpts.cols();
+      for (int k = 0; k < num_keypoints; k++) {
+        pcl::PointXYZ p(kpts(0, k), kpts(1, k), kpts(2, k));
+        estimated_keypoints_target->push_back(p);
+      }
+      if (num_keypoints == 0) {
+        if (params_->target_params[measurement->target_id]->template_cloud ==
+            nullptr) {
+          throw std::runtime_error{"No lidar keypoints available"};
         }
-      } else {
         estimated_keypoints_target =
             params_->target_params[measurement->target_id]->template_cloud;
       }
+
       pcl::transformPointCloud(*estimated_keypoints_target,
                                *estimated_keypoints_est, T_SENSOR_TARGET_est);
       pcl::transformPointCloud(*estimated_keypoints_target,
@@ -503,14 +499,14 @@ void CalibrationVerification::GetLidarErrors() {
                                   lidar_errors_true.end());
       }
 
-    }  // measurement iter
-  }    // lidar iter
+    } // measurement iter
+  }   // lidar iter
 }
 
 std::vector<Eigen::Vector3d, AlignVec3d>
-CalibrationVerification::CalculateLidarErrors(
-    const PointCloud::Ptr& measured_keypoints,
-    const PointCloud::Ptr& estimated_keypoints) {
+    CalibrationVerification::CalculateLidarErrors(
+        const PointCloud::Ptr& measured_keypoints,
+        const PointCloud::Ptr& estimated_keypoints) {
   // get correspondences
   corr_est_.setInputSource(measured_keypoints);
   corr_est_.setInputTarget(estimated_keypoints);
@@ -518,17 +514,17 @@ CalibrationVerification::CalculateLidarErrors(
 
   // get distances between correspondences
   int measurement_index, estimated_index;
-  Eigen::Vector3d error;
+
   std::vector<Eigen::Vector3d, AlignVec3d> lidar_errors;
   for (int i = 0; i < correspondences_->size(); i++) {
     measurement_index = correspondences_->at(i).index_query;
     estimated_index = correspondences_->at(i).index_match;
-    error = utils::PCLPointToEigen(measured_keypoints->at(measurement_index)) -
-            utils::PCLPointToEigen(estimated_keypoints->at(estimated_index));
-    error[0] = std::abs(error[0]);
-    error[1] = std::abs(error[1]);
-    error[2] = std::abs(error[2]);
-    lidar_errors.push_back(error);
+    const auto& p1 = measured_keypoints->at(measurement_index);
+    const auto& p2 = estimated_keypoints->at(estimated_index);
+    float ex = p1.x - p2.x;
+    float ey = p1.y - p2.y;
+    float ez = p1.z - p2.z;
+    lidar_errors.emplace_back(std::abs(ex), std::abs(ey), std::abs(ez));
   }
   return lidar_errors;
 }
@@ -579,9 +575,7 @@ void CalibrationVerification::SaveCameraVisuals() {
     std::shared_ptr<CameraMeasurement> measurement;
     for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
          meas_iter++) {
-      if (camera_measurements_[cam_iter][meas_iter] == nullptr) {
-        continue;
-      }
+      if (camera_measurements_[cam_iter][meas_iter] == nullptr) { continue; }
 
       measurement = camera_measurements_[cam_iter][meas_iter];
       lookup_time_ = measurement->time_stamp;
@@ -606,9 +600,7 @@ void CalibrationVerification::SaveCameraVisuals() {
                                                TA_VICONBASE_SENSOR_est.matrix(),
                                                cam_iter, cv::Scalar(0, 0, 255));
 
-      if (num_tgts_in_img_ == 0) {
-        continue;
-      }
+      if (num_tgts_in_img_ == 0) { continue; }
 
       counter++;
       final_image = this->ProjectTargetToImage(final_image, T_VICONBASE_TGTS,
@@ -626,15 +618,13 @@ void CalibrationVerification::SaveCameraVisuals() {
           current_save_path + "image_" + std::to_string(counter) + ".jpg";
       cv::imwrite(save_path, *final_image);
 
-      if (counter == max_image_results_) {
-        break;
-      }
-    }  // measurement iter
-  }    // camera iter
+      if (counter == max_image_results_) { break; }
+    } // measurement iter
+  }   // camera iter
 }
 
-std::shared_ptr<cv::Mat> CalibrationVerification::GetImageFromBag(
-    const std::string& topic) {
+std::shared_ptr<cv::Mat>
+    CalibrationVerification::GetImageFromBag(const std::string& topic) {
   ros::Duration time_window_half = ros::Duration(0.5);
   rosbag::View view(bag_, rosbag::TopicQuery(topic),
                     lookup_time_ - time_window_half,
@@ -688,9 +678,7 @@ void CalibrationVerification::GetCameraErrors() {
         camera_errors_init, camera_errors_true;
     for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
          meas_iter++) {
-      if (camera_measurements_[cam_iter][meas_iter] == nullptr) {
-        continue;
-      }
+      if (camera_measurements_[cam_iter][meas_iter] == nullptr) { continue; }
       measurement = camera_measurements_[cam_iter][meas_iter];
 
       // convert 2d measured keypoints to 3d
@@ -734,24 +722,30 @@ void CalibrationVerification::GetCameraErrors() {
                                    camera_errors_true.begin(),
                                    camera_errors_true.end());
       }
-    }  // measurement iter
-  }    // camera iter
+    } // measurement iter
+  }   // camera iter
 }
 
 std::vector<Eigen::Vector2d, AlignVec2d>
-CalibrationVerification::CalculateCameraErrors(
-    const PointCloud::Ptr& measured_keypoints,
-    const Eigen::Matrix4d& T_SENSOR_TARGET, const int& target_id,
-    const int& camera_id) {
+    CalibrationVerification::CalculateCameraErrors(
+        const PointCloud::Ptr& measured_keypoints,
+        const Eigen::Matrix4d& T_SENSOR_TARGET, const int& target_id,
+        const int& camera_id) {
   // get estimated (optimization or initial) keypoint locations
-  PointCloud::Ptr keypoints_target_frame;
-  if (params_->target_params[target_id]->keypoints_camera.size() > 0) {
-    keypoints_target_frame = std::make_shared<PointCloud>();
-    for (Eigen::Vector3d keypoint :
-         params_->target_params[target_id]->keypoints_camera) {
-      keypoints_target_frame->push_back(utils::EigenPointToPCL(keypoint));
+  PointCloud::Ptr keypoints_target_frame = std::make_shared<PointCloud>();
+  int num_keypoints =
+      params_->target_params[target_id]->keypoints_camera.cols();
+  for (int k = 0; k < num_keypoints; k++) {
+    pcl::PointXYZ p(params_->target_params[target_id]->keypoints_camera(0, k),
+                    params_->target_params[target_id]->keypoints_camera(1, k),
+                    params_->target_params[target_id]->keypoints_camera(2, k));
+    keypoints_target_frame->push_back(p);
+  }
+  if (num_keypoints == 0) {
+    if (params_->target_params[target_id]->template_cloud == nullptr) {
+      throw std::runtime_error{"Cannot instantiate target keypoints, no input "
+                               "keypoints or template cloud."};
     }
-  } else {
     keypoints_target_frame = params_->target_params[target_id]->template_cloud;
   }
 
@@ -777,12 +771,11 @@ CalibrationVerification::CalculateCameraErrors(
   for (int i = 0; i < correspondences->size(); i++) {
     measurement_index = correspondences->at(i).index_query;
     estimated_index = correspondences->at(i).index_match;
-    error3d =
-        utils::PCLPointToEigen(measured_keypoints->at(measurement_index)) -
-        utils::PCLPointToEigen(keypoints_projected->at(estimated_index));
-    error2d[0] = std::abs(error3d[0]);
-    error2d[1] = std::abs(error3d[1]);
-    camera_errors.push_back(error2d);
+    const auto& p1 = measured_keypoints->at(measurement_index);
+    const auto& p2 = keypoints_projected->at(estimated_index);
+    float ex = p1.x - p2.x;
+    float ey = p1.y - p2.y;
+    camera_errors.emplace_back(std::abs(ex), std::abs(ey));
   }
   return camera_errors;
 }
@@ -815,16 +808,15 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
         params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
             point_transformed.hnormalized());
 
-    if (!origin_projected.has_value()) {
-      continue;
-    }
+    if (!origin_projected.has_value()) { continue; }
 
     num_tgts_in_img_++;
 
     // add keypoints to image
     cv::Point point_cv_projected;
-    for (Eigen::Vector3d point :
-         params_->target_params[target_iter]->keypoints_camera) {
+    const auto& kpts = params_->target_params[target_iter]->keypoints_camera;
+    for (int k = 0; k < kpts.cols(); k++) {
+      Eigen::Vector3d point = kpts.col(k);
       point_target = point.homogeneous();
       point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                           T_VICONBASE_TARGET * point_target;
@@ -840,14 +832,13 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
       }
     }
 
-    if (!show_target_outline_on_image_) {
-      return img_out;
-    }
+    if (!show_target_outline_on_image_) { return img_out; }
     // iterate through all target points
     pcl::PointCloud<pcl::PointXYZ>::Ptr target =
         params_->target_params[target_iter]->template_cloud;
     for (uint32_t i = 0; i < target->size(); i++) {
-      point_target = utils::PCLPointToEigen(target->at(i)).homogeneous();
+      point_target =
+          Eigen::Vector4d(target->at(i).x, target->at(i).y, target->at(i).z, 1);
       point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                           T_VICONBASE_TARGET * point_target;
       opt<Eigen::Vector2d> point_projected =
@@ -882,9 +873,7 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     if (point1_projected.has_value() && point2_projected.has_value()) {
       distance = (point1_projected.value() - point2_projected.value()).norm();
       // for really small distances, set minimum
-      if (distance < 3) {
-        distance = 3;
-      }
+      if (distance < 3) { distance = 3; }
     }
 
     // keep only perimeter points
@@ -908,12 +897,10 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
 
 void CalibrationVerification::LoadLookupTree() {
   lookup_tree_->Clear();
-  ros::Duration time_window_half(1);  // Check two second time window
+  ros::Duration time_window_half(1); // Check two second time window
   ros::Time start_time = lookup_time_ - time_window_half;
   ros::Time time_zero(0, 0);
-  if (start_time <= time_zero) {
-    start_time = time_zero;
-  }
+  if (start_time <= time_zero) { start_time = time_zero; }
   ros::Time end_time = lookup_time_ + time_window_half;
   rosbag::View view(bag_, rosbag::TopicQuery("/tf"), start_time, end_time,
                     true);
@@ -1019,4 +1006,4 @@ void CalibrationVerification::PrintErrorsSummary() {
   }
 }
 
-}  // end namespace vicon_calibration
+} // end namespace vicon_calibration

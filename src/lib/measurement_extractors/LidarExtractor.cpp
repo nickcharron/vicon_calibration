@@ -116,7 +116,7 @@ void LidarExtractor::GetUserInput() {
                                        Eigen::Vector3i(255, 255, 255), 5);
 
     // add keypoints if discrete keypoints are specified
-    if (target_params_->keypoints_lidar.size() > 0) {
+    if (target_params_->keypoints_lidar.cols() > 0) {
       std::cout << "Showing measured keypoints in yellow.\n";
       pcl_viewer_->AddPointCloudToViewer(keypoints_measured_, "keypoints",
                                          Eigen::Vector3i(255, 255, 0), 5);

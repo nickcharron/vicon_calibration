@@ -39,7 +39,7 @@ namespace vicon_calibration {
 #define LOG_WARN(M, ...) fprintf(stdout, "[WARNING] " M "\n", ##__VA_ARGS__)
 #endif
 
-static std::string _string_tmp;
+static std::string utils_string_tmp;
 
 // Forward declarations
 struct CalibrationResult;
@@ -102,16 +102,6 @@ double WrapToTwoPi(double angle);
 
 /**
  * @Brief Return the smallest difference between two angles. This takes into
- * account the case where one or both angles are outside (0, 360). By smallest
- * error, we mean for example: GetSmallestAngleErrorDeg(10, 350) = 20, not 340
- * @param angle 1 in degrees
- * @param angle 2 in degrees
- * @return error in degrees
- */
-double GetSmallestAngleErrorDeg(double angle1, double angle2);
-
-/**
- * @Brief Return the smallest difference between two angles. This takes into
  * account the case where one or both angles are outside (0, 2PI). By smallest
  * error, we mean for example: GetSmallestAngleErrorDeg(0.1PI, 1.9PI) = 0.2PI,
  * not 1.8PI
@@ -138,12 +128,6 @@ double DegToRad(double d);
 
 /** Converts radians to degrees. */
 double RadToDeg(double r);
-
-/** Wraps `euler_angle` to 180 degrees **/
-double wrapTo180(double euler_angle);
-
-/** Wraps `euler_angle` to 360 degrees **/
-double wrapTo360(double euler_angle);
 
 Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd& M, const int& precision);
 
@@ -173,11 +157,7 @@ Eigen::Matrix4d BuildTransformEulerDegM(double rollInDeg, double pitchInDeg,
                                         double yawInDeg, double tx, double ty,
                                         double tz);
 
-Eigen::Vector3d InvSkewTransform(const Eigen::Matrix3d& M);
-
 Eigen::Matrix3d SkewTransform(const Eigen::Vector3d& V);
-
-Eigen::Vector3d RToLieAlgebra(const Eigen::Matrix3d& R);
 
 Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d& eps);
 
@@ -216,29 +196,6 @@ void OutputTransformInformation(const Eigen::Matrix4d& T,
 void OutputCalibrations(
     const std::vector<vicon_calibration::CalibrationResult>& calib,
     const std::string& output_string);
-
-inline Eigen::Vector3d PCLPointToEigen(const pcl::PointXYZ& pt_in) {
-  return Eigen::Vector3d(pt_in.x, pt_in.y, pt_in.z);
-}
-
-inline Eigen::Vector2d PCLPixelToEigen(const pcl::PointXY& pt_in) {
-  return Eigen::Vector2d(pt_in.x, pt_in.y);
-}
-
-inline pcl::PointXYZ EigenPointToPCL(const Eigen::Vector3d& pt_in) {
-  pcl::PointXYZ pt_out;
-  pt_out.x = pt_in[0];
-  pt_out.y = pt_in[1];
-  pt_out.z = pt_in[2];
-  return pt_out;
-}
-
-inline pcl::PointXY EigenPixelToPCL(const Eigen::Vector2d& pt_in) {
-  pcl::PointXY pt_out;
-  pt_out.x = pt_in[0];
-  pt_out.y = pt_in[1];
-  return pt_out;
-}
 
 std::string ConvertTimeToDate(
     const std::chrono::system_clock::time_point& time_);
@@ -302,18 +259,6 @@ int GetCvType(const std::string& encoding);
  */
 cv::Mat RosImgToMat(const sensor_msgs::Image& source);
 
-/**
- * @brief Converts a cv::Mat to a ROS Image
- * @param source cv mat image to convert
- * @param header ros header for the new image
- * @param encoding Image encoding ("mono8", "bgr8", etc.) See:
- * http://docs.ros.org/en/jade/api/sensor_msgs/html/namespacesensor__msgs_1_1image__encodings.html
- * @return ros image
- */
-sensor_msgs::Image MatToRosImg(const cv::Mat source,
-                               const std_msgs::Header& header,
-                               const std::string& encoding);
-
 enum PointCloudFileType { PCDBINARY, PCDASCII, PLYBINARY, PLYASCII };
 
 /** Map for storing string input */
@@ -360,7 +305,7 @@ inline bool
     SavePointCloud(const std::string& filename,
                    const pcl::PointCloud<PointT>& cloud,
                    PointCloudFileType file_type = PointCloudFileType::PCDBINARY,
-                   std::string& error_type = _string_tmp) {
+                   std::string& error_type = utils_string_tmp) {
   // check extension
   std::string extension_should_be = PointCloudFileTypeExtensionMap[file_type];
   if (!HasExtension(filename, extension_should_be)) {

@@ -8,12 +8,12 @@
 #include <ceres/solver.h>
 #include <ceres/types.h>
 
-#include <vicon_calibration/camera_models/CameraModels.h>
 #include <vicon_calibration/JsonTools.h>
+#include <vicon_calibration/Utils.h>
+#include <vicon_calibration/camera_models/CameraModels.h>
 #include <vicon_calibration/optimization/CeresCameraCostFunction.h>
 #include <vicon_calibration/optimization/CeresLidarCostFunction.h>
 #include <vicon_calibration/optimization/CeresOptimizer.h>
-#include <vicon_calibration/Utils.h>
 
 using namespace vicon_calibration;
 
@@ -109,10 +109,10 @@ CameraMeasurements CreateCameraMeasurements(
     measurement.time_stamp = ros::Time(0, 0);
     pcl::PointCloud<pcl::PointXY>::Ptr pixels =
         std::make_shared<pcl::PointCloud<pcl::PointXY>>();
-    std::vector<Eigen::Vector3d, AlignVec3d> keypoint_in_tgt_frame =
-        target_params.keypoints_camera;
+    const auto& keypoint_in_tgt_frame = target_params.keypoints_camera;
     Eigen::Matrix4d T_CT = T_CV * _T_VT;
-    for (Eigen::Vector3d P_TARGET : keypoint_in_tgt_frame) {
+    for (int k = 0; k < keypoint_in_tgt_frame.cols(); k++) {
+      Eigen::Vector3d P_TARGET = keypoint_in_tgt_frame.col(k);
       Eigen::Vector3d P_CAMERA = (T_CT * P_TARGET.homogeneous()).hnormalized();
       vicon_calibration::opt<Eigen::Vector2d> point_projected =
           camera_params.camera_model->ProjectPointPrecise(P_CAMERA);
@@ -123,10 +123,7 @@ CameraMeasurements CreateCameraMeasurements(
       }
     }
     measurement.keypoints = pixels;
-    // measurement.Print();
-    std::shared_ptr<CameraMeasurement> measurement_ptr =
-        std::make_shared<CameraMeasurement>(measurement);
-    measurements.push_back(measurement_ptr);
+    measurements.push_back(std::make_shared<CameraMeasurement>(measurement));
   }
   return CameraMeasurements{measurements};
 }
@@ -149,20 +146,17 @@ LidarMeasurements CreateLidarMeasurements(
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr measured_points =
         std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-    std::vector<Eigen::Vector3d, AlignVec3d> keypoint_in_tgt_frame =
-        target_params.keypoints_lidar;
+    const auto& keypoint_in_tgt_frame = target_params.keypoints_lidar;
     Eigen::Matrix4d T_LT = T_LV * _T_VT;
-    for (Eigen::Vector3d P_TARGET : keypoint_in_tgt_frame) {
+    for (int k = 0; k < keypoint_in_tgt_frame.cols(); k++) {
+      Eigen::Vector3d P_TARGET = keypoint_in_tgt_frame.col(k);
       Eigen::Vector3f P_LIDAR =
           (T_LT * P_TARGET.homogeneous()).hnormalized().cast<float>();
       measured_points->push_back(
           pcl::PointXYZ{.x = P_LIDAR[0], .y = P_LIDAR[1], .z = P_LIDAR[2]});
     }
     measurement.keypoints = measured_points;
-    // measurement.Print();
-    std::shared_ptr<LidarMeasurement> measurement_ptr =
-        std::make_shared<LidarMeasurement>(measurement);
-    measurements.push_back(measurement_ptr);
+    measurements.push_back(std::make_shared<LidarMeasurement>(measurement));
   }
   return LidarMeasurements{measurements};
 }
@@ -358,19 +352,17 @@ TEST_CASE("Test with same data and not using Ceres Optimizer Class") {
           results_perturbed_init[1]);
 
   // create problem and add parameters
-  std::cout << "TEST1\n";
   std::shared_ptr<ceres::Problem> problem = SetupCeresProblem();
   problem->AddParameterBlock(&(results_perturbed_init[0][0]), 7,
                              se3_parameterization_.get());
   problem->AddParameterBlock(&(results_perturbed_init[1][0]), 7,
                              se3_parameterization_.get());
-std::cout << "TEST2\n";
+
   // get camera measurements and add cost functions
   std::shared_ptr<vicon_calibration::CameraModel> camera_model =
       camera_params[0]->camera_model;
-std::cout << "TEST3\n";      
-  for (int i = 0; i < target_params[0]->keypoints_camera.size(); i++) {
-    Eigen::Vector3d P_TARGET = target_params[0]->keypoints_camera[i];
+  for (int i = 0; i < target_params[0]->keypoints_camera.cols(); i++) {
+    Eigen::Vector3d P_TARGET = target_params[0]->keypoints_camera.col(i);
     Eigen::Vector3d P_VICONBASE = (T_VT * P_TARGET.homogeneous()).hnormalized();
     Eigen::Vector3d P_CAMERA_perf =
         (T_CV * T_VT * P_TARGET.homogeneous()).hnormalized();
@@ -385,10 +377,10 @@ std::cout << "TEST3\n";
     problem->AddResidualBlock(cost_function.release(), loss_function_.get(),
                               &(results_perturbed_init[0][0]));
   }
-std::cout << "TEST4\n";
+  
   // get lidar measurements and add cost functions
-  for (int i = 0; i < target_params[0]->keypoints_lidar.size(); i++) {
-    Eigen::Vector3d P_TARGET = target_params[0]->keypoints_lidar[i];
+  for (int i = 0; i < target_params[0]->keypoints_lidar.cols(); i++) {
+    Eigen::Vector3d P_TARGET = target_params[0]->keypoints_lidar.col(i);
     Eigen::Vector3d P_VICONBASE = (T_VT * P_TARGET.homogeneous()).hnormalized();
     Eigen::Vector3d P_LIDAR_perf =
         (T_LV * T_VT * P_TARGET.homogeneous()).hnormalized();
@@ -399,12 +391,11 @@ std::cout << "TEST4\n";
     problem->AddResidualBlock(cost_function.release(), loss_function_.get(),
                               &(results_perturbed_init[1][0]));
   }
-std::cout << "TEST5\n";
+  
   // solve
   ceres::Solver::Summary ceres_summary;
-  std::cout << "TEST8\n";
   ceres::Solve(ceres_solver_options_, problem.get(), &ceres_summary);
-std::cout << "TEST7\n";
+  
   // validate results
   Eigen::Matrix4d T_CV_opt = utils::QuaternionAndTranslationToTransformMatrix(
       results_perturbed_init[0]);

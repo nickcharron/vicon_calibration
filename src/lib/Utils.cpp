@@ -3,15 +3,14 @@
 #include <regex>
 
 #include <X11/Xlib.h>
-#include <boost/optional/optional_io.hpp>
 #include <boost/endian/conversion.hpp>
+#include <boost/optional/optional_io.hpp>
 #include <sensor_msgs/image_encodings.h>
 #include <unsupported/Eigen/MatrixFunctions>
 
 namespace enc = sensor_msgs::image_encodings;
 
-namespace vicon_calibration {
-namespace utils {
+namespace vicon_calibration { namespace utils {
 
 double RandomNumber(const double& min, const double& max) {
   double random =
@@ -26,26 +25,16 @@ double WrapToPi(double angle) {
 
 double WrapToTwoPi(double angle) {
   double wrapped_angle = fmod(angle, 2 * M_PI);
-  if (wrapped_angle < 0) {
-    wrapped_angle += 2 * M_PI;
-  }
+  if (wrapped_angle < 0) { wrapped_angle += 2 * M_PI; }
   return wrapped_angle;
 }
 
-double DegToRad(double d) { return d * (M_PI / 180); }
-
-double RadToDeg(double r) { return r * (180 / M_PI); }
-
-double WrapTo180(double euler_angle) {
-  return RadToDeg(WrapToPi(DegToRad(euler_angle)));
+double DegToRad(double d) {
+  return d * (M_PI / 180);
 }
 
-double WrapTo360(double euler_angle) {
-  return RadToDeg(WrapToTwoPi(DegToRad(euler_angle)));
-}
-
-double GetSmallestAngleErrorDeg(double angle1, double angle2) {
-  return RadToDeg(GetSmallestAngleErrorRad(DegToRad(angle1), DegToRad(angle2)));
+double RadToDeg(double r) {
+  return r * (180 / M_PI);
 }
 
 double GetSmallestAngleErrorRad(double angle1, double angle2) {
@@ -205,14 +194,6 @@ Eigen::Matrix4d BuildTransformEulerDegM(double rollInDeg, double pitchInDeg,
   return T;
 }
 
-Eigen::Vector3d InvSkewTransform(const Eigen::Matrix3d& M) {
-  Eigen::Vector3d V;
-  V(0) = M(2, 1);
-  V(1) = M(0, 2);
-  V(2) = M(1, 0);
-  return V;
-}
-
 Eigen::Matrix3d SkewTransform(const Eigen::Vector3d& V) {
   Eigen::Matrix3d M;
   M(0, 0) = 0;
@@ -225,10 +206,6 @@ Eigen::Matrix3d SkewTransform(const Eigen::Vector3d& V) {
   M(2, 1) = V(0, 0);
   M(2, 2) = 0;
   return M;
-}
-
-Eigen::Vector3d RToLieAlgebra(const Eigen::Matrix3d& R) {
-  return InvSkewTransform(R.log());
 }
 
 Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d& eps) {
@@ -244,8 +221,8 @@ Eigen::Matrix4d InvertTransform(const Eigen::MatrixXd& T) {
   return T_inv;
 }
 
-Eigen::Matrix4d QuaternionAndTranslationToTransformMatrix(
-    const std::vector<double>& pose) {
+Eigen::Matrix4d
+    QuaternionAndTranslationToTransformMatrix(const std::vector<double>& pose) {
   Eigen::Quaternion<double> quaternion{pose[0], pose[1], pose[2], pose[3]};
   Eigen::Matrix4d T = Eigen::Matrix4d::Identity();
   T.block(0, 0, 3, 3) = quaternion.toRotationMatrix();
@@ -255,8 +232,8 @@ Eigen::Matrix4d QuaternionAndTranslationToTransformMatrix(
   return T;
 }
 
-std::vector<double> TransformMatrixToQuaternionAndTranslation(
-    const Eigen::Matrix4d& T) {
+std::vector<double>
+    TransformMatrixToQuaternionAndTranslation(const Eigen::Matrix4d& T) {
   Eigen::Matrix3d R = T.block(0, 0, 3, 3);
   Eigen::Quaternion<double> q = Eigen::Quaternion<double>(R);
   std::vector<double> pose{q.w(),   q.x(),   q.y(),  q.z(),
@@ -300,7 +277,7 @@ cv::Mat DrawCoordinateFrame(
   end_z.x = end_pixel_z.value()(0);
   end_z.y = end_pixel_z.value()(1);
 
-  cv::Scalar colourX(0, 0, 255);  // BGR
+  cv::Scalar colourX(0, 0, 255); // BGR
   cv::Scalar colourY(0, 255, 0);
   cv::Scalar colourZ(255, 0, 0);
   int thickness = 3;
@@ -318,41 +295,31 @@ cv::Mat ProjectPointsToImage(const cv::Mat& img,
                              std::shared_ptr<CameraModel>& camera_model) {
   cv::Mat img_out;
   img_out = img.clone();
-  Eigen::Vector4d point(0, 0, 0, 1);
-  Eigen::Vector4d point_transformed(0, 0, 0, 1);
   for (int i = 0; i < cloud->size(); i++) {
-    point = utils::PCLPointToEigen(cloud->at(i)).homogeneous();
-    point_transformed = T_IMAGE_CLOUD * point;
+    Eigen::Vector4d point(cloud->at(i).x, cloud->at(i).y, cloud->at(i).z, 1);
+    Eigen::Vector4d point_transformed = T_IMAGE_CLOUD * point;
     opt<Eigen::Vector2d> pixel =
         camera_model->ProjectPointPrecise(point_transformed.hnormalized());
-    if (!pixel.has_value()) {
-      continue;
-    }
+    if (!pixel.has_value()) { continue; }
     cv::circle(img_out, cv::Point(pixel.value()[0], pixel.value()[1]), 2,
                cv::Scalar(0, 255, 0));
   }
   return img_out;
 }
 
-std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> ProjectPoints(
-    std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
-    std::shared_ptr<CameraModel>& camera_model, const Eigen::Matrix4d& T) {
-  Eigen::Vector3d point(0, 0, 0);
-  Eigen::Vector4d point_transformed(0, 0, 0, 1);
-  pcl::PointXYZ point_projected;
+std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>
+    ProjectPoints(std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
+                  std::shared_ptr<CameraModel>& camera_model,
+                  const Eigen::Matrix4d& T) {
   std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> projected_points =
       std::make_shared<PointCloud>();
   for (int i = 0; i < cloud->size(); i++) {
-    point = utils::PCLPointToEigen(cloud->at(i));
-    point_transformed = T * point.homogeneous();
+    Eigen::Vector4d point(cloud->at(i).x, cloud->at(i).y, cloud->at(i).z, 1);
+    Eigen::Vector4d point_transformed = T * point;
     opt<Eigen::Vector2d> pixel =
         camera_model->ProjectPointPrecise(point_transformed.hnormalized());
-    if (!pixel.has_value()) {
-      continue;
-    }
-    point_projected.x = pixel.value()[0];
-    point_projected.y = pixel.value()[1];
-    point_projected.z = 0;
+    if (!pixel.has_value()) { continue; }
+    pcl::PointXYZ point_projected(pixel.value()[0], pixel.value()[1], 0);
     projected_points->push_back(point_projected);
   }
   return projected_points;
@@ -360,12 +327,11 @@ std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> ProjectPoints(
 
 PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr& cloud, const int& r,
                                      const int& g, const int& b) {
-  PointCloudColor::Ptr coloured_cloud;
-  coloured_cloud = std::make_shared<PointCloudColor>();
+  auto coloured_cloud = std::make_shared<PointCloudColor>();
   uint32_t rgb = (static_cast<uint32_t>(r) << 16 |
                   static_cast<uint32_t>(g) << 8 | static_cast<uint32_t>(b));
-  pcl::PointXYZRGB point;
   for (PointCloud::iterator it = cloud->begin(); it != cloud->end(); ++it) {
+    pcl::PointXYZRGB point;
     point.x = it->x;
     point.y = it->y;
     point.z = it->z;
@@ -408,8 +374,8 @@ void OutputCalibrations(
   }
 }
 
-std::string ConvertTimeToDate(
-    const std::chrono::system_clock::time_point& time_) {
+std::string
+    ConvertTimeToDate(const std::chrono::system_clock::time_point& time_) {
   using namespace std;
   using namespace std::chrono;
   system_clock::duration tp = time_.time_since_epoch();
@@ -624,36 +590,6 @@ cv::Mat RosImgToMat(const sensor_msgs::Image& source) {
   return mat_swap;
 }
 
-sensor_msgs::Image MatToRosImg(const cv::Mat source,
-                               const std_msgs::Header& header,
-                               const std::string& encoding) {
-  sensor_msgs::Image ros_image;
-  ros_image.header = header;
-  ros_image.height = source.rows;
-  ros_image.width = source.cols;
-  ros_image.encoding = encoding;
-  ros_image.is_bigendian =
-      (boost::endian::order::native == boost::endian::order::big);
-  ros_image.step = source.cols * source.elemSize();
-  size_t size = ros_image.step * source.rows;
-  ros_image.data.resize(size);
-
-  if (source.isContinuous()) {
-    memcpy((char*)(&ros_image.data[0]), source.data, size);
-  } else {
-    // Copy by row by row
-    uchar* ros_data_ptr = (uchar*)(&ros_image.data[0]);
-    uchar* cv_data_ptr = source.data;
-    for (int i = 0; i < source.rows; ++i) {
-      memcpy(ros_data_ptr, cv_data_ptr, ros_image.step);
-      ros_data_ptr += ros_image.step;
-      cv_data_ptr += source.step;
-    }
-  }
-
-  return ros_image;
-}
-
 bool HasExtension(const std::string& input, const std::string& extension) {
   // get extension
   std::string extension_found = boost::filesystem::extension(input);
@@ -710,5 +646,4 @@ bool ReadJson(const std::string& filename, nlohmann::json& J,
   return true;
 }
 
-}  // namespace utils
-}  // namespace vicon_calibration
+}} // namespace vicon_calibration::utils

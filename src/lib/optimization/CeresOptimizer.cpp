@@ -54,9 +54,7 @@ int CeresOptimizer::GetSensorIndex(SensorType type, int id) {
   for (uint32_t i = 0; i < inputs_.calibration_initials.size(); i++) {
     vicon_calibration::CalibrationResult calib =
         inputs_.calibration_initials[i];
-    if (calib.type == type && calib.sensor_id == id) {
-      return i;
-    }
+    if (calib.type == type && calib.sensor_id == id) { return i; }
   }
   throw std::runtime_error{"Queried sensor type and ID not found."};
   return 0;
@@ -90,17 +88,21 @@ void CeresOptimizer::AddImageMeasurements() {
     int sensor_index = GetSensorIndex(SensorType::CAMERA, camera_index);
 
     Eigen::Vector3d P_TARGET;
-    if (inputs_.target_params[target_index]->keypoints_camera.size() > 0) {
-      P_TARGET = inputs_.target_params[target_index]
-                     ->keypoints_camera[corr.target_point_index];
+    if (inputs_.target_params[target_index]->keypoints_camera.cols() > 0) {
+      P_TARGET = inputs_.target_params[target_index]->keypoints_camera.col(
+          corr.target_point_index);
     } else {
-      P_TARGET = utils::PCLPointToEigen(
-          inputs_.target_params[target_index]->template_cloud->at(
-              corr.target_point_index));
+      if (inputs_.target_params[target_index]->template_cloud == nullptr) {
+        throw std::runtime_error{"No camera keypoints"};
+      }
+      const auto& p = inputs_.target_params[target_index]->template_cloud->at(
+          corr.target_point_index);
+      P_TARGET = Eigen::Vector3d(p.x, p.y, p.z);
     }
 
-    Eigen::Vector2d pixel = utils::PCLPixelToEigen(
-        measurement->keypoints->at(corr.measured_point_index));
+    Eigen::Vector2d pixel(
+        measurement->keypoints->at(corr.measured_point_index).x,
+        measurement->keypoints->at(corr.measured_point_index).y);
 
     Eigen::Vector3d P_VICONBASE =
         (measurement->T_VICONBASE_TARGET * P_TARGET.homogeneous())
@@ -130,20 +132,19 @@ void CeresOptimizer::AddLidarMeasurements() {
     int sensor_index = GetSensorIndex(SensorType::LIDAR, lidar_index);
 
     Eigen::Vector3d P_TARGET;
-    if (inputs_.target_params[target_index]->keypoints_lidar.size() > 0) {
-      P_TARGET = inputs_.target_params[target_index]
-                     ->keypoints_lidar[corr.target_point_index];
+    if (inputs_.target_params[target_index]->keypoints_lidar.cols() > 0) {
+      P_TARGET = inputs_.target_params[target_index]->keypoints_lidar.col(
+          corr.target_point_index);
     } else {
-      P_TARGET = utils::PCLPointToEigen(
-          inputs_.target_params[target_index]->template_cloud->at(
-              corr.target_point_index));
+      const auto& p = inputs_.target_params[target_index]->template_cloud->at(
+          corr.target_point_index);
+      P_TARGET = Eigen::Vector3d(p.x, p.y, p.z);
     }
     Eigen::Vector3d P_VICONBASE =
         (measurement->T_VICONBASE_TARGET * P_TARGET.homogeneous())
             .hnormalized();
-
-    Eigen::Vector3d point_measured = utils::PCLPointToEigen(
-        measurement->keypoints->at(corr.measured_point_index));
+    const auto& p = measurement->keypoints->at(corr.measured_point_index);
+    Eigen::Vector3d point_measured(p.x, p.y, p.z);
 
     std::unique_ptr<ceres::CostFunction> cost_function(
         CeresLidarCostFunction::Create(point_measured, P_VICONBASE));
@@ -189,4 +190,4 @@ void CeresOptimizer::UpdateInitials() {
   previous_iteration_results_ = results_;
 }
 
-}  // end namespace vicon_calibration
+} // end namespace vicon_calibration

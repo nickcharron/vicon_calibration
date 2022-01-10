@@ -8,40 +8,40 @@ namespace vicon_calibration {
 
 JsonTools::JsonTools(const CalibratorInputs& inputs) : inputs_(inputs) {}
 
-std::shared_ptr<TargetParams> JsonTools::LoadTargetParams(
-    const std::string& target_config_full_path) {
+std::shared_ptr<TargetParams>
+    JsonTools::LoadTargetParams(const std::string& target_config_full_path) {
   std::shared_ptr<TargetParams> params = std::make_shared<TargetParams>();
 
   LOG_INFO("Loading Target Config File: %s", target_config_full_path.c_str());
   nlohmann::json J_target;
-
   if (!utils::ReadJson(target_config_full_path, J_target)) {
     LOG_ERROR("Could not load target config, exiting.");
     throw std::runtime_error{"Could not load target config."};
   }
-
   std::vector<float> vect1;
   std::vector<double> vect2;
   std::string template_name;
+
   try {
-    for (const auto& value : J_target["crop_scan"]) {
-      vect1.push_back(value);
-    }
-    for (const auto& value : J_target["crop_image"]) {
-      vect2.push_back(value);
-    }
+    for (const auto& value : J_target["crop_scan"]) { vect1.push_back(value); }
+    for (const auto& value : J_target["crop_image"]) { vect2.push_back(value); }
     template_name = J_target["template_cloud"];
     params->is_target_2d = J_target["is_target_2d"];
 
     for (const auto& keypoint : J_target["keypoints_lidar"]) {
       Eigen::Vector3d point;
       point << keypoint["x"], keypoint["y"], keypoint["z"];
-      params->keypoints_lidar.push_back(point);
+      params->keypoints_lidar.conservativeResize(
+          params->keypoints_lidar.rows(), params->keypoints_lidar.cols() + 1);
+      params->keypoints_lidar.col(params->keypoints_lidar.cols() - 1) = point;
     }
+
     for (const auto& keypoint : J_target["keypoints_camera"]) {
       Eigen::Vector3d point;
       point << keypoint["x"], keypoint["y"], keypoint["z"];
-      params->keypoints_camera.push_back(point);
+      params->keypoints_camera.conservativeResize(
+          params->keypoints_camera.rows(), params->keypoints_camera.cols() + 1);
+      params->keypoints_camera.col(params->keypoints_camera.cols() - 1) = point;
     }
   } catch (const nlohmann::json::exception& e) {
     LOG_ERROR("Cannot load json, one or more missing parameters. Error: %s",
@@ -49,7 +49,7 @@ std::shared_ptr<TargetParams> JsonTools::LoadTargetParams(
     return std::make_shared<TargetParams>();
   }
 
-  Eigen::VectorXf crop_scan(6);
+  Eigen::Matrix<float, 6, 1> crop_scan(6);
   if (vect1.size() != 6) {
     throw std::invalid_argument{
         "Wrong number of inputs to crop_scan. Required: 6"};
@@ -66,19 +66,25 @@ std::shared_ptr<TargetParams> JsonTools::LoadTargetParams(
   params->crop_image = crop_image;
 
   // load template cloud
-  std::string template_cloud_path = inputs_.target_data_path + template_name;
+  std::string template_cloud_path;
+  if(inputs_.target_data_path.back() == '/'){
+    template_cloud_path = inputs_.target_data_path + template_name;
+  } else {
+    template_cloud_path = inputs_.target_data_path + "/" + template_name;
+  }
+  
   PointCloud::Ptr template_cloud = std::make_shared<PointCloud>();
   if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path,
                                           *template_cloud) == -1) {
     LOG_ERROR("Couldn't read template file: %s\n", template_cloud_path.c_str());
   }
   params->template_cloud = template_cloud;
-
+  LOG_INFO("Done loading target params.");
   return params;
 }
 
-std::shared_ptr<TargetParams> JsonTools::LoadTargetParams(
-    const nlohmann::json& J_in) {
+std::shared_ptr<TargetParams>
+    JsonTools::LoadTargetParams(const nlohmann::json& J_in) {
   std::string target_config;
   try {
     target_config = J_in.at("target_config");
@@ -104,8 +110,8 @@ std::shared_ptr<TargetParams> JsonTools::LoadTargetParams(
   return params;
 }
 
-std::shared_ptr<CameraParams> JsonTools::LoadCameraParams(
-    const nlohmann::json& J_in) {
+std::shared_ptr<CameraParams>
+    JsonTools::LoadCameraParams(const nlohmann::json& J_in) {
   std::string intrinsics_filename;
   std::string topic;
   std::string frame;
@@ -124,8 +130,8 @@ std::shared_ptr<CameraParams> JsonTools::LoadCameraParams(
   return params;
 }
 
-std::shared_ptr<LidarParams> JsonTools::LoadLidarParams(
-    const nlohmann::json& J_in) {
+std::shared_ptr<LidarParams>
+    JsonTools::LoadLidarParams(const nlohmann::json& J_in) {
   std::shared_ptr<LidarParams> params = std::make_shared<LidarParams>();
   try {
     params->topic = J_in["topic"];
@@ -151,9 +157,7 @@ std::shared_ptr<CalibratorConfig> JsonTools::LoadViconCalibratorParams() {
   LOG_INFO("Loading ViconCalibrator Config File: %s",
            inputs_.calibration_config.c_str());
   nlohmann::json J;
-  if (!utils::ReadJson(inputs_.calibration_config, J)) {
-    return params;
-  }
+  if (!utils::ReadJson(inputs_.calibration_config, J)) { return params; }
 
   try {
     params->min_target_motion = J["min_target_motion"];
@@ -165,9 +169,7 @@ std::shared_ptr<CalibratorConfig> JsonTools::LoadViconCalibratorParams() {
     params->optimizer_type = J["optimizer_type"];
 
     std::vector<double> crop_time;
-    for (const auto& value : J["crop_time"]) {
-      crop_time.push_back(value);
-    }
+    for (const auto& value : J["crop_time"]) { crop_time.push_back(value); }
     params->crop_time = crop_time;
 
     int counter = 0;
@@ -194,4 +196,4 @@ std::shared_ptr<CalibratorConfig> JsonTools::LoadViconCalibratorParams() {
   return params;
 }
 
-}  // end namespace vicon_calibration
+} // end namespace vicon_calibration

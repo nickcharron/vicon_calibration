@@ -57,8 +57,8 @@ protected:
 
   void CheckInputs();
 
-  opt<Eigen::Vector2d> TargetPointToPixel(const Eigen::Vector4d &point);
-
+  void TargetPointToPixel(const Eigen::Vector4d& point, Eigen::Vector2d& pixel, bool projection_valid);
+  
   // this projects all template cloud points into the image plane, gets the min
   // and max coordinates then adds a buffer based on the parameter "crop_image"
   // in the target params. The crop_image is a percent to increase the bounding

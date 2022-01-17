@@ -9,26 +9,26 @@
 namespace vicon_calibration {
 
 /**
- * @brief Derived class for KB camera model
+ * @brief Derived class for Cataditropic model:
+ * [https://www.robots.ox.ac.uk/~cmei/articles/single_viewpoint_calib_mei_07.pdf]
  */
-class KannalaBrandt : public CameraModel {
+class Cataditropic : public CameraModel {
 public:
   /**
    * @brief Default constructor
    */
-  KannalaBrandt() = default;
+  Cataditropic() = default;
 
   /**
-   * @brief Constructor. All code was implemented from the following paper:
-   * https://arxiv.org/pdf/1807.08957.pdf
+   * @brief Constructor.
    * @param input_file path to input file
    */
-  KannalaBrandt(const std::string& file_path);
+  Cataditropic(const std::string& file_path);
 
   /**
    * @brief Default destructor
    */
-  ~KannalaBrandt() override = default;
+  ~Cataditropic() override = default;
 
   /**
    * @brief Method to perform a deep copying of this object
@@ -64,14 +64,22 @@ public:
   bool InProjectionDomain(const Eigen::Vector3d& point) override;
 
 protected:
+  void Distortion(const Eigen::Vector2d& p_u, Eigen::Vector2d& d_u) const;
+
   double fx_;
   double fy_;
   double cx_;
   double cy_;
+  double xi_;
   double k1_;
   double k2_;
-  double k3_;
-  double k4_;
+  double p1_;
+  double p2_;
+  // inverse
+  double m_inv_K11;
+  double m_inv_K13;
+  double m_inv_K22;
+  double m_inv_K23;
 };
 
 /** @} group calibration */

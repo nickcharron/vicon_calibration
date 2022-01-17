@@ -240,7 +240,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
 
     ros::Time time_current = lidar_msg->header.stamp;
     if (time_current <= time_last + time_step) { continue; }
-    this->LoadLookupTree(time_current);
+    LoadLookupTree(time_current);
     time_last = time_current;
     pcl_conversions::toPCL(*lidar_msg, *cloud_pc2);
     pcl::fromPCLPointCloud2(*cloud_pc2, *cloud);
@@ -391,7 +391,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
     if (time_current <= time_last + time_step) { continue; }
 
     cv::Mat current_image = utils::RosImgToMat(*img_msg);
-    this->LoadLookupTree(time_current);
+    LoadLookupTree(time_current);
     time_last = time_current;
     std::vector<Eigen::Affine3d, AlignAff3d> T_cam_tgts_estimated;
     std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts;
@@ -610,7 +610,7 @@ void ViconCalibrator::Setup() {
     throw std::runtime_error{"Unable to open bag."};
   }
 
-  this->GetTimeWindow();
+  GetTimeWindow();
 
   // initialize size of lidar measurement and camera measurement containers
   ros::Duration bag_length = time_end_ - time_start_;
@@ -628,7 +628,7 @@ void ViconCalibrator::Setup() {
           params_->camera_params.size(), camera_init);
 
   // Load extrinsics
-  this->LoadEstimatedExtrinsics();
+  LoadEstimatedExtrinsics();
 }
 
 void ViconCalibrator::GetMeasurements() {
@@ -641,7 +641,7 @@ void ViconCalibrator::GetMeasurements() {
   LOG_INFO("Loading lidar measurements.");
   for (uint8_t lidar_iter = 0; lidar_iter < params_->lidar_params.size();
        lidar_iter++) {
-    this->GetLidarMeasurements(lidar_iter);
+    GetLidarMeasurements(lidar_iter);
   }
 
   // close visualizer
@@ -651,10 +651,10 @@ void ViconCalibrator::GetMeasurements() {
   LOG_INFO("Loading camera measurements.");
   for (uint8_t cam_iter = 0; cam_iter < params_->camera_params.size();
        cam_iter++) {
-    this->GetCameraMeasurements(cam_iter);
+    GetCameraMeasurements(cam_iter);
   }
 
-  this->OutputMeasurementStats();
+  OutputMeasurementStats();
 
   bag_.close();
 }

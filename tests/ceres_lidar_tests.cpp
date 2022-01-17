@@ -230,14 +230,13 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
 
   for (int i = 0; i < points.size(); i++) {
     Eigen::Vector4d point_transformed = T_CT * points[i];
-    vicon_calibration::opt<Eigen::Vector2d> pixel =
-        camera_model->ProjectPointPrecise(point_transformed.hnormalized());
-    if (pixel.has_value()) {
-      pixels_valid[i] = true;
-      pixels_measured[i] = pixel.value();
+    bool pixel_valid;
+    Eigen::Vector2d pixel;
+    camera_model->ProjectPoint(point_transformed.hnormalized(), pixel, pixel_valid);
+    pixels_valid[i] = pixel_valid;
+    if (pixel_valid) {
+      pixels_measured[i] = pixel;
       points_measured[i] = T_LV * T_VT * points[i];
-    } else {
-      pixels_valid[i] = false;
     }
   }
 

@@ -73,8 +73,8 @@ void CalibrationVerification::CheckInputs() {
 
 void CalibrationVerification::ProcessResults(bool save_measurements) {
   LOG_INFO("Processing calibration results.");
-  this->CheckInputs();
-  this->LoadJSON();
+  CheckInputs();
+  LoadJSON();
 
   // load bag file
   try {
@@ -83,22 +83,22 @@ void CalibrationVerification::ProcessResults(bool save_measurements) {
     LOG_ERROR("Bag exception : %s", ex.what());
   }
 
-  this->CreateDirectories();
-  this->PrintConfig();
-  this->PrintCalibrations(calibrations_initial_, "initial_calibrations.txt");
-  this->PrintCalibrations(calibrations_result_, "optimized_calibrations.txt");
+  CreateDirectories();
+  PrintConfig();
+  PrintCalibrations(calibrations_initial_, "initial_calibrations.txt");
+  PrintCalibrations(calibrations_result_, "optimized_calibrations.txt");
   if (ground_truth_calib_set_) {
-    this->PrintCalibrations(calibrations_ground_truth_,
-                            "ground_truth_calibrations.txt");
+    PrintCalibrations(calibrations_ground_truth_,
+                      "ground_truth_calibrations.txt");
   }
-  this->PrintCalibrationErrors();
+  PrintCalibrationErrors();
   if (save_measurements) {
-    this->SaveLidarVisuals();
-    this->SaveCameraVisuals();
+    SaveLidarVisuals();
+    SaveCameraVisuals();
   }
-  this->GetLidarErrors();
-  this->GetCameraErrors();
-  this->PrintErrorsSummary();
+  GetLidarErrors();
+  GetCameraErrors();
+  PrintErrorsSummary();
   LOG_INFO("CalibrationVerification Complete.");
   bag_.close();
 }
@@ -315,7 +315,7 @@ void CalibrationVerification::SaveLidarVisuals() {
       if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) { continue; }
       measurement = lidar_measurements_[lidar_iter][meas_iter];
       lookup_time_ = measurement->time_stamp;
-      this->LoadLookupTree();
+      LoadLookupTree();
 
       // load scan and transform to viconbase frame
       PointCloud::Ptr scan = GetLidarScanFromBag(
@@ -345,8 +345,8 @@ void CalibrationVerification::SaveLidarVisuals() {
                                  T_VICONBASE_TGTS[n]);
         *targets_combined = *targets_combined + *target_transformed;
       }
-      this->SaveScans(scan_trans_est, scan_trans_opt, targets_combined,
-                      current_save_path, counter);
+      SaveScans(scan_trans_est, scan_trans_opt, targets_combined,
+                current_save_path, counter);
       if (counter == max_lidar_results_) { continue; }
     } // measurement iter
   }   // lidar iter
@@ -579,7 +579,7 @@ void CalibrationVerification::SaveCameraVisuals() {
 
       measurement = camera_measurements_[cam_iter][meas_iter];
       lookup_time_ = measurement->time_stamp;
-      this->LoadLookupTree();
+      LoadLookupTree();
 
       // load image from bag
       current_image = GetImageFromBag(
@@ -596,21 +596,21 @@ void CalibrationVerification::SaveCameraVisuals() {
       }
 
       // Add measurements to image
-      final_image = this->ProjectTargetToImage(current_image, T_VICONBASE_TGTS,
-                                               TA_VICONBASE_SENSOR_est.matrix(),
-                                               cam_iter, cv::Scalar(0, 0, 255));
+      final_image = ProjectTargetToImage(current_image, T_VICONBASE_TGTS,
+                                         TA_VICONBASE_SENSOR_est.matrix(),
+                                         cam_iter, cv::Scalar(0, 0, 255));
 
       if (num_tgts_in_img_ == 0) { continue; }
 
       counter++;
-      final_image = this->ProjectTargetToImage(final_image, T_VICONBASE_TGTS,
-                                               TA_VICONBASE_SENSOR_opt.matrix(),
-                                               cam_iter, cv::Scalar(255, 0, 0));
+      final_image = ProjectTargetToImage(final_image, T_VICONBASE_TGTS,
+                                         TA_VICONBASE_SENSOR_opt.matrix(),
+                                         cam_iter, cv::Scalar(255, 0, 0));
 
       if (ground_truth_calib_set_) {
-        final_image = this->ProjectTargetToImage(
-            final_image, T_VICONBASE_TGTS, TA_VICONBASE_SENSOR_true.matrix(),
-            cam_iter, cv::Scalar(0, 255, 0));
+        final_image = ProjectTargetToImage(final_image, T_VICONBASE_TGTS,
+                                           TA_VICONBASE_SENSOR_true.matrix(),
+                                           cam_iter, cv::Scalar(0, 255, 0));
       }
 
       // save image with targets
@@ -804,11 +804,13 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     point_target = Eigen::Vector4d(0, 0, 0, 1);
     point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                         T_VICONBASE_TARGET * point_target;
-    opt<Eigen::Vector2d> origin_projected =
-        params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
-            point_transformed.hnormalized());
+    bool origin_projection_valid;
+    Eigen::Vector2d origin_projected;
+    params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+        point_transformed.hnormalized(), origin_projected,
+        origin_projection_valid);
 
-    if (!origin_projected.has_value()) { continue; }
+    if (!origin_projection_valid) { continue; }
 
     num_tgts_in_img_++;
 
@@ -820,14 +822,16 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
       point_target = point.homogeneous();
       point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                           T_VICONBASE_TARGET * point_target;
-      opt<Eigen::Vector2d> point_projected =
-          params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
-              point_transformed.hnormalized());
+      bool point_projection_valid;
+      Eigen::Vector2d point_projected;
+      params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+          point_transformed.hnormalized(), point_projected,
+          point_projection_valid);
 
-      if (point_projected.has_value()) {
+      if (point_projection_valid) {
         cv::Point pixel_cv;
-        pixel_cv.x = point_projected.value()[0];
-        pixel_cv.y = point_projected.value()[1];
+        pixel_cv.x = point_projected[0];
+        pixel_cv.y = point_projected[1];
         cv::circle(*img_out, pixel_cv, keypoint_circle_diameter_, colour);
       }
     }
@@ -841,13 +845,15 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
           Eigen::Vector4d(target->at(i).x, target->at(i).y, target->at(i).z, 1);
       point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
                           T_VICONBASE_TARGET * point_target;
-      opt<Eigen::Vector2d> point_projected =
-          params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
-              point_transformed.hnormalized());
+      bool point_projected_valid;
+      Eigen::Vector2d point_projected;
+      params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+          point_transformed.hnormalized(), point_projected,
+          point_projected_valid);
 
-      if (point_projected.has_value()) {
-        point_pcl_projected.x = point_projected.value()[0];
-        point_pcl_projected.y = point_projected.value()[1];
+      if (point_projected_valid) {
+        point_pcl_projected.x = point_projected[0];
+        point_pcl_projected.y = point_projected[1];
         point_pcl_projected.z = 0;
         cloud_projected->push_back(point_pcl_projected);
       }
@@ -862,16 +868,18 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
         T_VICONBASE_TARGET.matrix();
     Eigen::Vector4d point1 = T_SENSOR_TARGET * Eigen::Vector4d(0, 0, 0, 1);
     Eigen::Vector4d point2 = T_SENSOR_TARGET * Eigen::Vector4d(0, 0, 0.005, 1);
-    opt<Eigen::Vector2d> point1_projected =
-        params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
-            point1.hnormalized());
-    opt<Eigen::Vector2d> point2_projected =
-        params_->camera_params[cam_iter]->camera_model->ProjectPointPrecise(
-            point2.hnormalized());
+    bool point1_projected_valid;
+    Eigen::Vector2d point1_projected;
+    params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+        point1.hnormalized(), point1_projected, point1_projected_valid);
+    bool point2_projected_valid;
+    Eigen::Vector2d point2_projected;
+    params_->camera_params[cam_iter]->camera_model->ProjectPoint(
+        point2.hnormalized(), point2_projected, point2_projected_valid);
 
     double distance = 3;
-    if (point1_projected.has_value() && point2_projected.has_value()) {
-      distance = (point1_projected.value() - point2_projected.value()).norm();
+    if (point1_projected_valid && point2_projected_valid) {
+      distance = (point1_projected - point2_projected).norm();
       // for really small distances, set minimum
       if (distance < 3) { distance = 3; }
     }

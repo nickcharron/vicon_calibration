@@ -8,7 +8,7 @@
 namespace vicon_calibration {
 
 void CylinderCameraExtractor::GetKeypoints() {
-  this->CropImage();
+  CropImage();
 
   if (!measurement_valid_) {
     measurement_complete_ = true;
@@ -53,7 +53,7 @@ void CylinderCameraExtractor::GetKeypoints() {
     cv::drawContours(bin_image_annotated, contours, max_area_iter,
                      cv::Scalar(255, 0, 0));
 
-    this->DisplayImagePair(
+    DisplayImagePair(
         *image_in_, bin_image_annotated,
         "Invalid Measurement (no target found after thresholding)",
         "Showing original image (left) and thresholded image with contours "
@@ -78,8 +78,8 @@ void CylinderCameraExtractor::GetKeypoints() {
     pixel.y = target_contour_[i].y;
     keypoints_measured_->points.push_back(pixel);
   }
-  this->GetEstimatedArea();
-  this->CheckError();
+  GetEstimatedArea();
+  CheckError();
 }
 
 void CylinderCameraExtractor::GetEstimatedArea() {
@@ -88,12 +88,13 @@ void CylinderCameraExtractor::GetEstimatedArea() {
       std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   for (PointCloud::iterator it = target_params_->template_cloud->begin();
        it != target_params_->template_cloud->end(); ++it) {
-    opt<Eigen::Vector2d> pix =
-        this->TargetPointToPixel(Eigen::Vector4d(it->x, it->y, it->z, 1));
-    if (pix.has_value()) {
+    bool pix_valid;
+    Eigen::Vector2d pix;
+    TargetPointToPixel(Eigen::Vector4d(it->x, it->y, it->z, 1), pix, pix_valid);
+    if (pix_valid) {
       pcl::PointXYZ point;
-      point.x = pix.value()[0];
-      point.y = pix.value()[1];
+      point.x = pix[0];
+      point.y = pix[1];
       point.z = 0;
       projected_points->points.push_back(point);
     }
@@ -196,7 +197,7 @@ void CylinderCameraExtractor::DisplayImagePair(const cv::Mat& img1,
       }
       if (key == 115) {
         std::cout << "setting show measurements to false.\n";
-        this->SetShowMeasurements(false);
+        SetShowMeasurements(false);
       }
     }
   } else {
@@ -212,7 +213,7 @@ void CylinderCameraExtractor::DisplayImagePair(const cv::Mat& img1,
       key = cv::waitKey();
       if (key == 115) {
         std::cout << "setting show measurements to false.\n";
-        this->SetShowMeasurements(false);
+        SetShowMeasurements(false);
       }
     }
   }

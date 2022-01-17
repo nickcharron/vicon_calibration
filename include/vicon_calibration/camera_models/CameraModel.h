@@ -1,20 +1,31 @@
+/** @file
+ * @ingroup calibration
+ */
+
 #pragma once
 
-#include <memory>
+#include <fstream>
 
-#include <Eigen/Core>
+#include <Eigen/Dense>
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/opencv.hpp>
-#include <vicon_calibration/Optional.h>
 
-static bool outside_domain_default_{false};
+#include <vicon_calibration/Log.h>
+
+static bool camera_model_tmp_bool_ = false;
 
 namespace vicon_calibration {
 
 /**
  * @brief Enum class for different types of intrinsic calibrations
  */
-enum class CameraType { RADTAN = 0, KANNALABRANDT, DOUBLESPHERE };
+enum class CameraType {
+  RADTAN = 0,
+  KANNALABRANDT,
+  DOUBLESPHERE,
+  LADYBUG,
+  CATADITROPIC
+};
 
 /**
  * @brief Abstract class for camera models
@@ -37,46 +48,44 @@ public:
   static std::shared_ptr<CameraModel> Create(std::string& file_location);
 
   /**
-   * @brief Method for projecting a point into an image plane (continous)
-   * @param point 3d point to be projected [x,y,z]^T
-   * @param outside_domain optional parameter, set if point is outside camera model domain
+   * @brief Method to perform a deep copying of this object
    */
-  virtual opt<Eigen::Vector2d>
-      ProjectPointPrecise(const Eigen::Vector3d& point,
-                          bool& outside_domain = outside_domain_default_) = 0;
+  virtual std::shared_ptr<CameraModel> Clone() = 0;
 
   /**
-   * @brief Method for projecting a point into an image plane
-   * @param point 3d point to be projected [x,y,z]^T
-   * @param outside_domain optional parameter, set if point is outside camera model domain
+   * @brief Method for projecting a point into an image plane, if the input
+   * point is outside of the valid projection domain, then the point will not be
+   * projected and will retain whatever value the input parameter has
+   * @param[in] in_point 3d point to be projected [x,y,z]^T
+   * @param[out] out_pixel pixel the point projects to
+   * @param[in] J optional param to compute the jacobian
+   * @param[out] in_image_plane true if the pixel is outside of the image plane
+   * @return whether the input point is in the domain of the function
    */
-  virtual opt<Eigen::Vector2i>
-      ProjectPoint(const Eigen::Vector3d& point,
-                   bool& outside_domain = outside_domain_default_) = 0;
+  virtual bool ProjectPoint(const Eigen::Vector3d& in_point,
+                            Eigen::Vector2d& out_pixel,
+                            bool& in_image_plane = camera_model_tmp_bool_,
+                            std::shared_ptr<Eigen::MatrixXd> J = nullptr) = 0;
 
   /**
-   * @brief Overload projection function for computing jacobian of projection
-   * @param point 3d point to be projected [x,y,z]^T
-   * @param J 2 x 3 projection jacobian.
-   * For ProjectPoint: [u,v]^T = [P1(x, y, z), P2(x, y, z)]^T
-   *                   J = | dP1/dx , dP1/dy, dP1/dz |
-   *                       | dP2/dx , dP2/dy, dP2/dz |
-   * @param outside_domain optional parameter, set if point is outside camera model domain
+   * @brief Method back projecting, if the input pixel is outside of back
+   * projection domain then it will not compute the back projection
+   * @param[in] in_pixel pixel to back project
+   * @param[out] out_point ray towards the input pixel
+   * @return return whether the input pixel is in the domain of the function
    */
-  virtual opt<Eigen::Vector2i>
-      ProjectPoint(const Eigen::Vector3d& point, Eigen::MatrixXd& J,
-                   bool& outside_domain = outside_domain_default_) = 0;
+  virtual bool BackProject(const Eigen::Vector2i& in_pixel,
+                           Eigen::Vector3d& out_point) = 0;
 
   /**
-   * @brief Method back projecting
-   * @return Returns an unnormalized bearing vector where z = 1 to a pixel in
-   * the image, from camera center = [0,0,0]
-   * @param point [u = col, v = row]
+   * @brief Method for checking if a 3d point is projectable
+   * @return Returns boolean
+   * @param point
    */
-  virtual opt<Eigen::Vector3d> BackProject(const Eigen::Vector2i& pixel) = 0;
+  virtual bool InProjectionDomain(const Eigen::Vector3d& point) = 0;
 
   /**
-   * @brief Method for setting the camera ID 
+   * @brief Method for setting the LadyBug camera ID
    * @param id of the camera to use
    */
   virtual void SetCameraID(const unsigned int id);
@@ -133,7 +142,7 @@ public:
    * @brief Method for retrieving the intrinsic values of the model
    * @return intrinsics of the camera
    */
-  const Eigen::VectorXd GetIntrinsics() const;
+  const Eigen::VectorXd& GetIntrinsics() const;
 
   /**
    * @brief Method for retrieving the camera type
@@ -184,16 +193,23 @@ protected:
   // static bool outside_domain_default_ = false;
 
   unsigned int cam_id_ = 0;
-  
+
   // Map for keeping required number of values in distortion vector
-  std::map<CameraType, int> intrinsics_size_ = {{CameraType::RADTAN, 8},
+  std::map<CameraType, int> intrinsics_size_ = {{CameraType::LADYBUG, 4},
+                                                {CameraType::RADTAN, 8},
                                                 {CameraType::KANNALABRANDT, 8},
-                                                {CameraType::DOUBLESPHERE, 6}};
+                                                {CameraType::DOUBLESPHERE, 6},
+                                                {CameraType::CATADITROPIC, 9}};
   // Map for storing string input
   std::map<std::string, CameraType> intrinsics_types_ = {
+      {"LADYBUG", CameraType::LADYBUG},
       {"RADTAN", CameraType::RADTAN},
       {"KANNALABRANDT", CameraType::KANNALABRANDT},
-      {"DOUBLESPHERE", CameraType::DOUBLESPHERE}};
+      {"DOUBLESPHERE", CameraType::DOUBLESPHERE},
+      {"CATADITROPIC", CameraType::CATADITROPIC}};
+
+public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 } // namespace vicon_calibration

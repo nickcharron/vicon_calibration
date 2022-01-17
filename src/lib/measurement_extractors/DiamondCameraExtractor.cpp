@@ -5,12 +5,12 @@
 namespace vicon_calibration {
 
 void DiamondCameraExtractor::GetKeypoints() {
-  this->CropImage();
+  CropImage();
 
   // find dimensions of checkerboard with [n_dim x m_dim] interior corners
   int n_dim = 0, m_dim = 0;
   double xmax = 0, ymax = 0;
-  for (int k = 0; k < target_params_->keypoints_camera.cols(); k++){
+  for (int k = 0; k < target_params_->keypoints_camera.cols(); k++) {
     Eigen::Vector3d keypoint = target_params_->keypoints_camera.col(k);
     if (keypoint[0] > xmax) {
       xmax = keypoint[0];
@@ -24,8 +24,9 @@ void DiamondCameraExtractor::GetKeypoints() {
 
   // Find checkerboard corners
   std::vector<cv::Point2f> corners;
-  bool checkerboard_found = cv::findChessboardCorners(
-      *image_cropped_, cv::Size(n_dim, m_dim), corners, cv::CALIB_CB_FAST_CHECK);
+  bool checkerboard_found =
+      cv::findChessboardCorners(*image_cropped_, cv::Size(n_dim, m_dim),
+                                corners, cv::CALIB_CB_FAST_CHECK);
 
   // check if valid
   if (!checkerboard_found) {

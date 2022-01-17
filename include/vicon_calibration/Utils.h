@@ -4,9 +4,6 @@
 #include <chrono>
 
 #include <Eigen/Geometry>
-#include <boost/none_t.hpp>
-#include <boost/optional.hpp>
-#include <boost/optional/optional_io.hpp>
 #include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -14,30 +11,13 @@
 #include <pcl/io/ply_io.h>
 #include <sensor_msgs/Image.h>
 
+#include <vicon_calibration/Log.h>
 #include <vicon_calibration/Aliases.h>
 #include <vicon_calibration/Params.h>
 #include <vicon_calibration/TfTree.h>
 #include <vicon_calibration/camera_models/CameraModel.h>
 
 namespace vicon_calibration {
-
-#ifndef FILENAME
-#define FILENAME \
-  (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#endif
-
-#ifndef LOG_ERROR
-#define LOG_ERROR(M, ...) \
-  fprintf(stderr, "[ERROR] [%s:%d] " M "\n", FILENAME, __LINE__, ##__VA_ARGS__)
-#endif
-
-#ifndef LOG_INFO
-#define LOG_INFO(M, ...) fprintf(stdout, "[INFO] " M "\n", ##__VA_ARGS__)
-#endif
-
-#ifndef LOG_WARN
-#define LOG_WARN(M, ...) fprintf(stdout, "[WARNING] " M "\n", ##__VA_ARGS__)
-#endif
 
 static std::string utils_string_tmp;
 

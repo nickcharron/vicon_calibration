@@ -38,13 +38,15 @@ void CameraExtractor::ProcessMeasurement(
   *image_in_ = img_in;
   measurement_valid_ = true;
   measurement_complete_ = false;
-  this->CheckInputs();
+  CheckInputs();
 
   // first check if target is in FOV of camera:
   Eigen::Vector4d point_origin{0, 0, 0, 1};
-  opt<Eigen::Vector2d> pixel_projected = this->TargetPointToPixel(point_origin);
+  bool pixel_projected_valid;
+  Eigen::Vector2d pixel_projected;
+  TargetPointToPixel(point_origin, pixel_projected, pixel_projected_valid);
 
-  if (!pixel_projected.has_value()) {
+  if (!pixel_projected_valid) {
     measurement_complete_ = true;
     measurement_valid_ = false;
     return;
@@ -55,18 +57,18 @@ void CameraExtractor::ProcessMeasurement(
     *image_annotated_ = *image_in_;
   }
 
-  this->GetKeypoints();
+  GetKeypoints();
 
   if (show_measurements_) {
     *image_annotated_ = utils::DrawCoordinateFrame(
         *image_annotated_, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
         axis_plot_scale_);
     if (!measurement_valid_) {
-      this->DisplayImage(*image_annotated_, "Inalid Measurement",
-                         "Showing failed measurement", false);
+      DisplayImage(*image_annotated_, "Inalid Measurement",
+                   "Showing failed measurement", false);
     } else {
-      this->DisplayImage(*image_annotated_, "Valid Measurement",
-                         "Showing successfull measurement", true);
+      DisplayImage(*image_annotated_, "Valid Measurement",
+                   "Showing successfull measurement", true);
     }
   }
   measurement_complete_ = true;
@@ -107,19 +109,12 @@ void CameraExtractor::CheckInputs() {
   }
 }
 
-opt<Eigen::Vector2d>
-    CameraExtractor::TargetPointToPixel(const Eigen::Vector4d& point) {
+void CameraExtractor::TargetPointToPixel(const Eigen::Vector4d& point,
+                                         Eigen::Vector2d& pixel,
+                                         bool projection_valid) {
   Eigen::Vector4d transformed_point = T_CAMERA_TARGET_EST_ * point;
-  return camera_params_->camera_model->ProjectPointPrecise(
-          transformed_point.hnormalized());
-  // opt<Eigen::Vector2d> tmp =
-  //     camera_params_->camera_model->ProjectPointPrecise(
-  //         transformed_point.hnormalized());
-  // if (tmp.has_value()) {
-  //   return opt<Eigen::Vector2d>(tmp.value());
-  // } else {
-  //   return {};
-  // }
+  camera_params_->camera_model->ProjectPoint(transformed_point.hnormalized(),
+                                             pixel, projection_valid);
 }
 
 void CameraExtractor::CropImage() {
@@ -133,13 +128,15 @@ void CameraExtractor::CropImage() {
     Eigen::Vector4d point_target{target_params_->template_cloud->at(iter).x,
                                  target_params_->template_cloud->at(iter).y,
                                  target_params_->template_cloud->at(iter).z, 1};
-    opt<Eigen::Vector2d> pixel = this->TargetPointToPixel(point_target);
+    bool pixel_valid;
+    Eigen::Vector2d pixel;
+    TargetPointToPixel(point_target, pixel, pixel_valid);
     iter = iter + 5;
-    if (!pixel.has_value()) { continue; }
-    if (pixel.value()[0] > maxu) { maxu = pixel.value()[0]; }
-    if (pixel.value()[0] < minu) { minu = pixel.value()[0]; }
-    if (pixel.value()[1] > maxv) { maxv = pixel.value()[1]; }
-    if (pixel.value()[1] < minv) { minv = pixel.value()[1]; }
+    if (!pixel_valid) { continue; }
+    if (pixel[0] > maxu) { maxu = pixel[0]; }
+    if (pixel[0] < minu) { minu = pixel[0]; }
+    if (pixel[1] > maxv) { maxv = pixel[1]; }
+    if (pixel[1] < minv) { minv = pixel[1]; }
   }
 
   // Get cropbox corners
@@ -224,7 +221,7 @@ void CameraExtractor::DisplayImage(const cv::Mat& img,
       }
       if (key == 115) {
         std::cout << "setting show measurements to false.\n";
-        this->SetShowMeasurements(false);
+        SetShowMeasurements(false);
       }
     }
   } else {
@@ -239,7 +236,7 @@ void CameraExtractor::DisplayImage(const cv::Mat& img,
       key = cv::waitKey();
       if (key == 115) {
         std::cout << "setting show measurements to false.\n";
-        this->SetShowMeasurements(false);
+        SetShowMeasurements(false);
       }
     }
   }

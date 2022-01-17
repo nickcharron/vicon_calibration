@@ -32,7 +32,7 @@ public:
    * @brief Constructor that takes in a path to a json config file with all
    * relevant parameters
    * @param config_path full path to config file. For example, see
-   * beam_optimization/config/CeresParamsDefault.json
+   * vicon_calibration/config/CeresParamsDefault.json
    */
   CeresParams(const std::string& config_path) {
     if (config_path.empty()) {

@@ -6,6 +6,7 @@ add_library(${PROJECT_NAME}
   camera_models/DoubleSphere.cpp
   camera_models/KannalaBrandt.cpp
   camera_models/Radtan.cpp
+  camera_models/Cataditropic.cpp
   measurement_extractors/CameraExtractor.cpp
   measurement_extractors/LidarExtractor.cpp
   measurement_extractors/CylinderCameraExtractor.cpp

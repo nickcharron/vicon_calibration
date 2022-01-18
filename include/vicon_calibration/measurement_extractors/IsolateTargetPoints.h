@@ -14,7 +14,7 @@ public:
 
   void SetConfig(const std::string& config_file);
 
-  void SetTransformEstimate(const Eigen::MatrixXd& T_TARGET_LIDAR);
+  void SetTransformEstimate(const Eigen::Matrix4d& T_TARGET_LIDAR);
 
   void SetScan(const PointCloud::Ptr& scan_in);
 
@@ -49,7 +49,7 @@ private:
   PointCloud::Ptr scan_in_;
   PointCloud::Ptr scan_cropped_;
   PointCloud::Ptr scan_isolated_;
-  Eigen::MatrixXd T_TARGET_LIDAR_;
+  Eigen::Matrix4d T_TARGET_LIDAR_;
   bool transform_estimate_set_{false};
   std::vector<pcl::PointIndices> cluster_indices_;
 
@@ -64,6 +64,9 @@ private:
   int min_cluster_size_{30};
   int max_cluster_size_{25000};
   bool output_cluster_scores_{false};
+
+public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 } // namespace vicon_calibration

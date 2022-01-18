@@ -42,7 +42,7 @@ void IsolateTargetPoints::LoadConfig() {
 }
 
 void IsolateTargetPoints::SetTransformEstimate(
-    const Eigen::MatrixXd& T_TARGET_LIDAR) {
+    const Eigen::Matrix4d& T_TARGET_LIDAR) {
   T_TARGET_LIDAR_ = T_TARGET_LIDAR;
   transform_estimate_set_ = true;
 }

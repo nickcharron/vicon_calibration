@@ -17,7 +17,6 @@ void TfTree::LoadJSON(const std::string& file_location) {
     LOG_ERROR("Using default calibration verification params.");
     return;
   }
-
   std::string date;
   std::vector<std::vector<double>> Ts;
   std::vector<std::string> to_frames;
@@ -36,7 +35,6 @@ void TfTree::LoadJSON(const std::string& file_location) {
   }
 
   SetCalibrationDate(date);
-
   int num_poses = Ts.size();
 
   for (int n = 0; n < num_poses; n++) {
@@ -45,11 +43,13 @@ void TfTree::LoadJSON(const std::string& file_location) {
       LOG_ERROR("Invalid transform matrix in .json file.");
       throw std::invalid_argument{"Invalid transform matrix in .json file."};
     }
-
     Eigen::Matrix4d T;
     for (int i = 0; i < 4; i++) {
-      for (int j = 0; j < 4; j++) { T(i, j) = T_vec.at(4 * i + j); }
+      for (int j = 0; j < 4; j++) {
+        T(i, j) = T_vec.at(4 * i + j);
+      }
     }
+
     if (!utils::IsTransformationMatrix(T)) {
       LOG_ERROR("Invalid transform matrix in .json file.");
       throw std::invalid_argument{"Invalid transform matrix in .json file."};

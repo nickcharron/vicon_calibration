@@ -93,8 +93,8 @@ protected:
   PointCloud::Ptr scan_isolated_;
   PointCloud::Ptr estimated_template_cloud_;
   PointCloud::Ptr measured_template_cloud_;
-  Eigen::MatrixXd T_LIDAR_TARGET_EST_ = Eigen::MatrixXd(4, 4);
-  Eigen::MatrixXd T_LIDAR_TARGET_OPT_ = Eigen::MatrixXd(4, 4);
+  Eigen::Matrix4d T_LIDAR_TARGET_EST_;
+  Eigen::Matrix4d T_LIDAR_TARGET_OPT_;
   std::shared_ptr<Visualizer> pcl_viewer_;
   PointCloud::Ptr keypoints_measured_;
   bool measurement_valid_{true};
@@ -110,6 +110,9 @@ protected:
   double allowable_keypoint_error_{0.03};
   bool output_scans_{false};
   std::string output_directory_{"/home/nick/tmp/"};
+
+  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 } // namespace vicon_calibration

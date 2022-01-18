@@ -109,7 +109,9 @@ double DegToRad(double d);
 /** Converts radians to degrees. */
 double RadToDeg(double r);
 
-Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd& M, const int& precision);
+Eigen::Matrix4d RoundMatrix(const Eigen::Matrix4d& M, const int& precision);
+
+Eigen::Matrix3d RoundMatrix(const Eigen::Matrix3d& M, const int& precision);
 
 bool IsRotationMatrix(const Eigen::Matrix3d& R);
 
@@ -141,7 +143,7 @@ Eigen::Matrix3d SkewTransform(const Eigen::Vector3d& V);
 
 Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d& eps);
 
-Eigen::Matrix4d InvertTransform(const Eigen::MatrixXd& T);
+Eigen::Matrix4d InvertTransform(const Eigen::Matrix4d& T);
 
 Eigen::Matrix4d QuaternionAndTranslationToTransformMatrix(
     const std::vector<double>& pose);
@@ -151,13 +153,13 @@ std::vector<double> TransformMatrixToQuaternionAndTranslation(
     const Eigen::Matrix4d& T);
 
 cv::Mat DrawCoordinateFrame(const cv::Mat& img_in,
-                            const Eigen::MatrixXd& T_cam_frame,
+                            const Eigen::Matrix4d& T_cam_frame,
                             const std::shared_ptr<CameraModel>& camera_model,
                             const double& scale);
 
 cv::Mat ProjectPointsToImage(
     const cv::Mat& img, std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
-    const Eigen::MatrixXd& T_IMAGE_CLOUD,
+    const Eigen::Matrix4d& T_IMAGE_CLOUD,
     std::shared_ptr<CameraModel>& camera_model);
 
 std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> ProjectPoints(

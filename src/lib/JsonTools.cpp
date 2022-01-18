@@ -154,7 +154,7 @@ std::shared_ptr<CalibratorConfig> JsonTools::LoadViconCalibratorParams() {
   params->show_camera_measurements = inputs_.show_camera_measurements;
   params->show_lidar_measurements = inputs_.show_lidar_measurements;
 
-  LOG_INFO("Loading ViconCalibrator Config File: %s",
+  LOG_INFO("Loading ViconCalibrator config file: %s",
            inputs_.calibration_config.c_str());
   nlohmann::json J;
   if (!utils::ReadJson(inputs_.calibration_config, J)) { return params; }
@@ -174,7 +174,7 @@ std::shared_ptr<CalibratorConfig> JsonTools::LoadViconCalibratorParams() {
 
     int counter = 0;
     for (const auto& target : J["targets"]) {
-      std::shared_ptr<TargetParams> target_info = LoadTargetConfigFile(target);
+      std::shared_ptr<TargetParams> target_info = LoadTargetParams(target);
       params->target_params.push_back(target_info);
     }
 

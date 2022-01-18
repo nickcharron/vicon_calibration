@@ -104,6 +104,8 @@ struct TargetParams {
               << "Camera keypoints size: " << keypoints_camera.cols() << "\n"
               << "Is target 2D: " << is_target_2d << "\n";
   }
+
+public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
@@ -128,6 +130,8 @@ struct LidarMeasurement {
               << "Lidar Frame: " << lidar_frame << "\n"
               << "Target Frame: " << target_frame << "\n";
   }
+
+public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
@@ -154,6 +158,8 @@ struct CameraMeasurement {
               << "Camera Frame: " << camera_frame << "\n"
               << "Target Frame: " << target_frame << "\n";
   }
+
+public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
@@ -184,6 +190,8 @@ struct LoopClosureMeasurement {
               << "Camera Frame: " << camera_frame << "\n"
               << "Target Frame: " << target_frame << "\n";
   }
+
+public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
@@ -211,6 +219,8 @@ struct CalibrationResult {
   int sensor_id;
   std::string to_frame;   // this is usually the vicon baselink on the robot
   std::string from_frame; // this is the sensor frame
+
+public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 

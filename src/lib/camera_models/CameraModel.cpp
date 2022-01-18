@@ -17,10 +17,9 @@ std::shared_ptr<CameraModel> CameraModel::Create(std::string& file_location) {
               file_location.c_str());
     throw std::runtime_error{"Invalid file path for camera intialization."};
   }
-  
-  LOG_INFO("Loading camera model config file: %s", file_location.c_str());
+
   std::string file_ext = boost::filesystem::extension(file_location);
-   if (file_ext == ".json") {
+  if (file_ext == ".json") {
     // load JSON
     nlohmann::json J;
     std::ifstream file(file_location);
@@ -124,7 +123,7 @@ void CameraModel::LoadJSON(const std::string& file_location) {
   nlohmann::json J;
   std::ifstream file(file_location);
   file >> J;
-  
+
   // get string repr of class type
   std::string class_type;
   for (std::map<std::string, CameraType>::iterator it =
@@ -157,8 +156,9 @@ void CameraModel::LoadJSON(const std::string& file_location) {
   }
 
   if (intrinsics_.size() != intrinsics_size_[type_]) {
-    LOG_ERROR("Invalid number of intrinsics read. read: %.0f, required: %.0f",
-              intrinsics_.size(), intrinsics_size_[type_]);
+    LOG_ERROR("Invalid number of intrinsics read. read: %d, required: %d",
+              static_cast<int>(intrinsics_.size()),
+              static_cast<int>(intrinsics_size_[type_]));
     throw std::invalid_argument{"Invalid number of instrinsics read."};
   }
 }

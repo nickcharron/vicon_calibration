@@ -97,8 +97,19 @@ double CalculateRotationError(const Eigen::Matrix3d& r1,
   return std::abs(error_r1 - error_r2);
 }
 
-Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd& M, const int& precision) {
-  Eigen::MatrixXd Mround(M.rows(), M.cols());
+Eigen::Matrix3d RoundMatrix(const Eigen::Matrix3d& M, const int& precision) {
+  Eigen::Matrix3d Mround;
+  for (int i = 0; i < M.rows(); i++) {
+    for (int j = 0; j < M.cols(); j++) {
+      Mround(i, j) = std::round(M(i, j) * std::pow(10, precision)) /
+                     std::pow(10, precision);
+    }
+  }
+  return Mround;
+}
+
+Eigen::Matrix4d RoundMatrix(const Eigen::Matrix4d& M, const int& precision) {
+  Eigen::Matrix4d Mround;
   for (int i = 0; i < M.rows(); i++) {
     for (int j = 0; j < M.cols(); j++) {
       Mround(i, j) = std::round(M(i, j) * std::pow(10, precision)) /
@@ -110,7 +121,8 @@ Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd& M, const int& precision) {
 
 bool IsRotationMatrix(const Eigen::Matrix3d& R) {
   int precision = 3;
-  Eigen::Matrix3d shouldBeIdentity = RoundMatrix(R * R.transpose(), precision);
+  Eigen::Matrix3d shouldBeIdentity = R * R.transpose();
+  shouldBeIdentity = RoundMatrix(shouldBeIdentity, precision);
   double detR = R.determinant();
   double detRRound = std::round(detR * precision) / precision;
   if (shouldBeIdentity.isIdentity() && detRRound == 1) {
@@ -129,7 +141,8 @@ bool IsRotationMatrix(const Eigen::Matrix3d& R) {
 
 bool IsTransformationMatrix(const Eigen::Matrix4d& T) {
   Eigen::Matrix3d R = T.block(0, 0, 3, 3);
-  bool homoFormValid, tValid;
+  bool homoFormValid;
+  bool tValid;
 
   // check translation for infinity or nan
   if (std::isinf(T(0, 3)) || std::isinf(T(1, 3)) || std::isinf(T(2, 3)) ||
@@ -212,7 +225,7 @@ Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d& eps) {
   return SkewTransform(eps).exp();
 }
 
-Eigen::Matrix4d InvertTransform(const Eigen::MatrixXd& T) {
+Eigen::Matrix4d InvertTransform(const Eigen::Matrix4d& T) {
   Eigen::Matrix4d T_inv;
   T_inv.setIdentity();
   T_inv.block(0, 0, 3, 3) = T.block(0, 0, 3, 3).transpose();
@@ -241,7 +254,7 @@ std::vector<double>
 }
 
 cv::Mat DrawCoordinateFrame(
-    const cv::Mat& img_in, const Eigen::MatrixXd& T_cam_frame,
+    const cv::Mat& img_in, const Eigen::Matrix4d& T_cam_frame,
     const std::shared_ptr<vicon_calibration::CameraModel>& camera_model,
     const double& scale) {
   cv::Mat img_out;
@@ -300,7 +313,7 @@ cv::Mat DrawCoordinateFrame(
 
 cv::Mat ProjectPointsToImage(const cv::Mat& img,
                              std::shared_ptr<PointCloud>& cloud,
-                             const Eigen::MatrixXd& T_IMAGE_CLOUD,
+                             const Eigen::Matrix4d& T_IMAGE_CLOUD,
                              std::shared_ptr<CameraModel>& camera_model) {
   cv::Mat img_out;
   img_out = img.clone();

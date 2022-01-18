@@ -17,12 +17,10 @@ std::shared_ptr<CameraModel> CameraModel::Create(std::string& file_location) {
               file_location.c_str());
     throw std::runtime_error{"Invalid file path for camera intialization."};
   }
-
+  
+  LOG_INFO("Loading camera model config file: %s", file_location.c_str());
   std::string file_ext = boost::filesystem::extension(file_location);
-  if (file_ext == ".conf") {
-    LOG_ERROR("Cannot use Create() factory method with ladybug model.");
-    throw std::runtime_error{"Invalid camera type."};
-  } else if (file_ext == ".json") {
+   if (file_ext == ".json") {
     // load JSON
     nlohmann::json J;
     std::ifstream file(file_location);
@@ -66,7 +64,7 @@ void CameraModel::SetImageDims(const uint32_t height, const uint32_t width) {
   image_height_ = height;
 }
 
-void CameraModel::SetIntrinsics(const Eigen::VectorXd& intrinsics) {
+void CameraModel::SetIntrinsics(const std::vector<double>& intrinsics) {
   if (intrinsics.size() != intrinsics_size_[GetType()]) {
     LOG_ERROR("Invalid number of elements in intrinsics vector.");
     throw std::runtime_error{
@@ -95,7 +93,7 @@ uint32_t CameraModel::GetWidth() const {
   return image_width_;
 }
 
-const Eigen::VectorXd& CameraModel::GetIntrinsics() const {
+const std::vector<double>& CameraModel::GetIntrinsics() const {
   return intrinsics_;
 }
 
@@ -120,10 +118,13 @@ bool CameraModel::PixelInImage(const Eigen::Vector2d& pixel) {
 }
 
 void CameraModel::LoadJSON(const std::string& file_location) {
+  LOG_INFO("Loading camera model config file: %s", file_location.c_str());
+
   // load file
   nlohmann::json J;
   std::ifstream file(file_location);
   file >> J;
+  
   // get string repr of class type
   std::string class_type;
   for (std::map<std::string, CameraType>::iterator it =
@@ -131,6 +132,7 @@ void CameraModel::LoadJSON(const std::string& file_location) {
        it != intrinsics_types_.end(); it++) {
     if (intrinsics_types_[it->first] == type_) { class_type = it->first; }
   }
+
   // check type
   std::string camera_type = J["camera_type"];
   std::map<std::string, CameraType>::iterator it =
@@ -149,14 +151,13 @@ void CameraModel::LoadJSON(const std::string& file_location) {
   image_width_ = J["image_width"];
   image_height_ = J["image_height"];
   frame_id_ = J["frame_id"];
-  std::vector<double> intrinsics;
+  intrinsics_.clear();
   for (const auto& value : J["intrinsics"]) {
-    intrinsics.push_back(value.get<double>());
+    intrinsics_.push_back(value.get<double>());
   }
 
-  intrinsics_ = Eigen::VectorXd::Map(intrinsics.data(), intrinsics.size());
   if (intrinsics_.size() != intrinsics_size_[type_]) {
-    LOG_ERROR("Invalid number of intrinsics read. read: %d, required: %d",
+    LOG_ERROR("Invalid number of intrinsics read. read: %.0f, required: %.0f",
               intrinsics_.size(), intrinsics_size_[type_]);
     throw std::invalid_argument{"Invalid number of instrinsics read."};
   }
@@ -188,12 +189,7 @@ void CameraModel::WriteJSON(const std::string& file_location,
   J["image_width"] = GetWidth();
   J["image_height"] = GetHeight();
   J["frame_id"] = GetFrameID();
-  Eigen::VectorXd intrinsics_eigen = GetIntrinsics();
-  std::vector<double> intrinsics_vec(&intrinsics_eigen[0],
-                                     intrinsics_eigen.data() +
-                                         intrinsics_eigen.cols() *
-                                             intrinsics_eigen.rows());
-  J["intrinsics"] = intrinsics_vec;
+  J["intrinsics"] = intrinsics_;
   std::ofstream out(file_location);
   out << std::setw(4) << J << std::endl;
 }

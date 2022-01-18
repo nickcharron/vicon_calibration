@@ -5,14 +5,14 @@ namespace vicon_calibration {
 KannalaBrandt::KannalaBrandt(const std::string& file_path) {
   type_ = CameraType::KANNALABRANDT;
   LoadJSON(file_path);
-  fx_ = intrinsics_[0];
-  fy_ = intrinsics_[1];
-  cx_ = intrinsics_[2];
-  cy_ = intrinsics_[3];
-  k1_ = intrinsics_[4];
-  k2_ = intrinsics_[5];
-  k3_ = intrinsics_[6];
-  k4_ = intrinsics_[7];
+  fx_ = intrinsics_.at(0);
+  fy_ = intrinsics_.at(1);
+  cx_ = intrinsics_.at(2);
+  cy_ = intrinsics_.at(3);
+  k1_ = intrinsics_.at(4);
+  k2_ = intrinsics_.at(5);
+  k3_ = intrinsics_.at(6);
+  k4_ = intrinsics_.at(7);
 }
 
 std::shared_ptr<CameraModel> KannalaBrandt::Clone() {

@@ -112,7 +112,7 @@ public:
    * @brief Method for adding intrinsic values
    * @param intrinsics of the camera
    */
-  void SetIntrinsics(const Eigen::VectorXd& instrinsics);
+  void SetIntrinsics(const std::vector<double>& instrinsics);
 
   /**
    * @brief Method for returning the frame id of a camera object
@@ -142,7 +142,7 @@ public:
    * @brief Method for retrieving the intrinsic values of the model
    * @return intrinsics of the camera
    */
-  const Eigen::VectorXd& GetIntrinsics() const;
+  const std::vector<double>& GetIntrinsics() const;
 
   /**
    * @brief Method for retrieving the camera type
@@ -188,7 +188,7 @@ protected:
   std::string calibration_date_{""};
   uint32_t image_height_{0};
   uint32_t image_width_{0};
-  Eigen::VectorXd intrinsics_;
+  std::vector<double> intrinsics_;
 
   // static bool outside_domain_default_ = false;
 
@@ -207,9 +207,6 @@ protected:
       {"KANNALABRANDT", CameraType::KANNALABRANDT},
       {"DOUBLESPHERE", CameraType::DOUBLESPHERE},
       {"CATADITROPIC", CameraType::CATADITROPIC}};
-
-public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 } // namespace vicon_calibration

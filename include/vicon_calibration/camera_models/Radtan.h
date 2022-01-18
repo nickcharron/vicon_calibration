@@ -32,7 +32,7 @@ public:
    * @param intrinsics vector of doubles of dimension 8 x 1
    */
   Radtan(uint32_t image_height, uint32_t image_width,
-         const Eigen::Matrix<double, 8, 1>& intrinsics);
+         const std::vector<double>& intrinsics);
 
   /**
    * @brief Default destructor

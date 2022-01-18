@@ -5,15 +5,15 @@ namespace vicon_calibration {
 Cataditropic::Cataditropic(const std::string& file_path) {
   type_ = CameraType::CATADITROPIC;
   LoadJSON(file_path);
-  fx_ = intrinsics_[0];
-  fy_ = intrinsics_[1];
-  cx_ = intrinsics_[2];
-  cy_ = intrinsics_[3];
-  xi_ = intrinsics_[4];
-  k1_ = intrinsics_[5];
-  k2_ = intrinsics_[6];
-  p1_ = intrinsics_[7];
-  p2_ = intrinsics_[8];
+  fx_ = intrinsics_.at(0);
+  fy_ = intrinsics_.at(1);
+  cx_ = intrinsics_.at(2);
+  cy_ = intrinsics_.at(3);
+  xi_ = intrinsics_.at(4);
+  k1_ = intrinsics_.at(5);
+  k2_ = intrinsics_.at(6);
+  p1_ = intrinsics_.at(7);
+  p2_ = intrinsics_.at(8);
 
   m_inv_K11 = 1.0 / fx_;
   m_inv_K13 = -cx_ / fx_;

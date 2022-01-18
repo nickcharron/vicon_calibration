@@ -5,12 +5,12 @@ namespace vicon_calibration {
 DoubleSphere::DoubleSphere(const std::string& file_path) {
   type_ = CameraType::DOUBLESPHERE;
   LoadJSON(file_path);
-  fx_ = intrinsics_[0];
-  fy_ = intrinsics_[1];
-  cx_ = intrinsics_[2];
-  cy_ = intrinsics_[3];
-  eps_ = intrinsics_[4];
-  alpha_ = intrinsics_[5];
+  fx_ = intrinsics_.at(0);
+  fy_ = intrinsics_.at(1);
+  cx_ = intrinsics_.at(2);
+  cy_ = intrinsics_.at(3);
+  eps_ = intrinsics_.at(4);
+  alpha_ = intrinsics_.at(5);
 }
 
 std::shared_ptr<CameraModel> DoubleSphere::Clone() {

@@ -13,7 +13,7 @@ public:
 
   ~JsonTools() = default;
 
-  std::shared_ptr<TargetParams> LoadTargetParams(const std::string& target_config_full_path);
+  std::shared_ptr<TargetParams> LoadTargetConfigFile(const std::string& target_config_full_path);
 
   std::shared_ptr<TargetParams> LoadTargetParams(const nlohmann::json &J_in);
 

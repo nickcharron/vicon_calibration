@@ -29,7 +29,8 @@ using col_handler =
  * you to toggle on/off the first three clouds added to the visualizer. Note: to
  * use:
  * 1. create visualizer instance
- * 2. call AddPointCloudToViewer (either by adding new clouds or replacing existing)
+ * 2. call AddPointCloudToViewer (either by adding new clouds or replacing
+ * existing)
  * 3. call DisplayClouds() to view them in viewer
  * 4. call ClearPointClouds (unless replacing them later)
  */
@@ -58,6 +59,9 @@ public:
           point_size(_point_size),
           cloud_on(_cloud_on),
           T(_T) {}
+
+  public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   };
 
   /**
@@ -108,7 +112,7 @@ private:
   bool measurement_valid_{true};
   bool close_viewer_{false};
   bool viewer_key_down_{false};
-  std::vector<int> background_col_{0,0,0};
+  std::vector<int> background_col_{0, 0, 0};
 };
 
 } // namespace vicon_calibration

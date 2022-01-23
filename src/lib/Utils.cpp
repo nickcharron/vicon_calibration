@@ -97,8 +97,19 @@ double CalculateRotationError(const Eigen::Matrix3d& r1,
   return std::abs(error_r1 - error_r2);
 }
 
-Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd& M, const int& precision) {
-  Eigen::MatrixXd Mround(M.rows(), M.cols());
+Eigen::Matrix3d RoundMatrix(const Eigen::Matrix3d& M, const int& precision) {
+  Eigen::Matrix3d Mround;
+  for (int i = 0; i < M.rows(); i++) {
+    for (int j = 0; j < M.cols(); j++) {
+      Mround(i, j) = std::round(M(i, j) * std::pow(10, precision)) /
+                     std::pow(10, precision);
+    }
+  }
+  return Mround;
+}
+
+Eigen::Matrix4d RoundMatrix(const Eigen::Matrix4d& M, const int& precision) {
+  Eigen::Matrix4d Mround;
   for (int i = 0; i < M.rows(); i++) {
     for (int j = 0; j < M.cols(); j++) {
       Mround(i, j) = std::round(M(i, j) * std::pow(10, precision)) /
@@ -110,7 +121,8 @@ Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd& M, const int& precision) {
 
 bool IsRotationMatrix(const Eigen::Matrix3d& R) {
   int precision = 3;
-  Eigen::Matrix3d shouldBeIdentity = RoundMatrix(R * R.transpose(), precision);
+  Eigen::Matrix3d shouldBeIdentity = R * R.transpose();
+  shouldBeIdentity = RoundMatrix(shouldBeIdentity, precision);
   double detR = R.determinant();
   double detRRound = std::round(detR * precision) / precision;
   if (shouldBeIdentity.isIdentity() && detRRound == 1) {
@@ -129,7 +141,8 @@ bool IsRotationMatrix(const Eigen::Matrix3d& R) {
 
 bool IsTransformationMatrix(const Eigen::Matrix4d& T) {
   Eigen::Matrix3d R = T.block(0, 0, 3, 3);
-  bool homoFormValid, tValid;
+  bool homoFormValid;
+  bool tValid;
 
   // check translation for infinity or nan
   if (std::isinf(T(0, 3)) || std::isinf(T(1, 3)) || std::isinf(T(2, 3)) ||
@@ -212,7 +225,7 @@ Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d& eps) {
   return SkewTransform(eps).exp();
 }
 
-Eigen::Matrix4d InvertTransform(const Eigen::MatrixXd& T) {
+Eigen::Matrix4d InvertTransform(const Eigen::Matrix4d& T) {
   Eigen::Matrix4d T_inv;
   T_inv.setIdentity();
   T_inv.block(0, 0, 3, 3) = T.block(0, 0, 3, 3).transpose();
@@ -241,7 +254,7 @@ std::vector<double>
 }
 
 cv::Mat DrawCoordinateFrame(
-    const cv::Mat& img_in, const Eigen::MatrixXd& T_cam_frame,
+    const cv::Mat& img_in, const Eigen::Matrix4d& T_cam_frame,
     const std::shared_ptr<vicon_calibration::CameraModel>& camera_model,
     const double& scale) {
   cv::Mat img_out;
@@ -256,26 +269,35 @@ cv::Mat DrawCoordinateFrame(
       y(y_trans(0), y_trans(1), y_trans(2)),
       z(z_trans(0), z_trans(1), z_trans(2));
 
-  opt<Eigen::Vector2d> start_pixel = camera_model->ProjectPointPrecise(o);
-  opt<Eigen::Vector2d> end_pixel_x = camera_model->ProjectPointPrecise(x);
-  opt<Eigen::Vector2d> end_pixel_y = camera_model->ProjectPointPrecise(y);
-  opt<Eigen::Vector2d> end_pixel_z = camera_model->ProjectPointPrecise(z);
+  Eigen::Vector2d start_pixel;
+  bool start_pixel_valid;
+  Eigen::Vector2d end_pixel_x;
+  bool end_pixel_x_valid;
+  Eigen::Vector2d end_pixel_y;
+  bool end_pixel_y_valid;
+  Eigen::Vector2d end_pixel_z;
+  bool end_pixel_z_valid;
 
-  if (!start_pixel.has_value() || !end_pixel_x.has_value() ||
-      !end_pixel_y.has_value() || !end_pixel_z.has_value()) {
+  camera_model->ProjectPoint(o, start_pixel, start_pixel_valid);
+  camera_model->ProjectPoint(x, end_pixel_x, end_pixel_x_valid);
+  camera_model->ProjectPoint(y, end_pixel_y, end_pixel_y_valid);
+  camera_model->ProjectPoint(z, end_pixel_z, end_pixel_z_valid);
+
+  if (!start_pixel_valid || !end_pixel_x_valid || !end_pixel_y_valid ||
+      !end_pixel_z_valid) {
     LOG_WARN("Unable to draw coordinate frame. Frame exceeds image dimensions");
     return img_out;
   }
 
   cv::Point start, end_x, end_y, end_z;
-  start.x = start_pixel.value()(0);
-  start.y = start_pixel.value()(1);
-  end_x.x = end_pixel_x.value()(0);
-  end_x.y = end_pixel_x.value()(1);
-  end_y.x = end_pixel_y.value()(0);
-  end_y.y = end_pixel_y.value()(1);
-  end_z.x = end_pixel_z.value()(0);
-  end_z.y = end_pixel_z.value()(1);
+  start.x = start_pixel(0);
+  start.y = start_pixel(1);
+  end_x.x = end_pixel_x(0);
+  end_x.y = end_pixel_x(1);
+  end_y.x = end_pixel_y(0);
+  end_y.y = end_pixel_y(1);
+  end_z.x = end_pixel_z(0);
+  end_z.y = end_pixel_z(1);
 
   cv::Scalar colourX(0, 0, 255); // BGR
   cv::Scalar colourY(0, 255, 0);
@@ -291,17 +313,19 @@ cv::Mat DrawCoordinateFrame(
 
 cv::Mat ProjectPointsToImage(const cv::Mat& img,
                              std::shared_ptr<PointCloud>& cloud,
-                             const Eigen::MatrixXd& T_IMAGE_CLOUD,
+                             const Eigen::Matrix4d& T_IMAGE_CLOUD,
                              std::shared_ptr<CameraModel>& camera_model) {
   cv::Mat img_out;
   img_out = img.clone();
   for (int i = 0; i < cloud->size(); i++) {
     Eigen::Vector4d point(cloud->at(i).x, cloud->at(i).y, cloud->at(i).z, 1);
     Eigen::Vector4d point_transformed = T_IMAGE_CLOUD * point;
-    opt<Eigen::Vector2d> pixel =
-        camera_model->ProjectPointPrecise(point_transformed.hnormalized());
-    if (!pixel.has_value()) { continue; }
-    cv::circle(img_out, cv::Point(pixel.value()[0], pixel.value()[1]), 2,
+    bool pixel_valid;
+    Eigen::Vector2d pixel;
+    camera_model->ProjectPoint(point_transformed.hnormalized(), pixel,
+                               pixel_valid);
+    if (!pixel_valid) { continue; }
+    cv::circle(img_out, cv::Point(pixel[0], pixel[1]), 2,
                cv::Scalar(0, 255, 0));
   }
   return img_out;
@@ -316,10 +340,12 @@ std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>
   for (int i = 0; i < cloud->size(); i++) {
     Eigen::Vector4d point(cloud->at(i).x, cloud->at(i).y, cloud->at(i).z, 1);
     Eigen::Vector4d point_transformed = T * point;
-    opt<Eigen::Vector2d> pixel =
-        camera_model->ProjectPointPrecise(point_transformed.hnormalized());
-    if (!pixel.has_value()) { continue; }
-    pcl::PointXYZ point_projected(pixel.value()[0], pixel.value()[1], 0);
+    bool pixel_valid;
+    Eigen::Vector2d pixel;
+    camera_model->ProjectPoint(point_transformed.hnormalized(), pixel,
+                               pixel_valid);
+    if (!pixel_valid) { continue; }
+    pcl::PointXYZ point_projected(pixel[0], pixel[1], 0);
     projected_points->push_back(point_projected);
   }
   return projected_points;

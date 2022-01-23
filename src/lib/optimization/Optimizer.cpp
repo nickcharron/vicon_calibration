@@ -243,12 +243,14 @@ void Optimizer::GetImageCorrespondences() {
         Eigen::Vector3d p(transformed_keypoints->at(i).x,
                           transformed_keypoints->at(i).y,
                           transformed_keypoints->at(i).z);
-        opt<Eigen::Vector2d> point_projected =
-            inputs_.camera_params[measurement->camera_id]
-                ->camera_model->ProjectPointPrecise(p);
-        if (!point_projected.has_value()) { continue; }
-        projected_keypoints->push_back(pcl::PointXYZ(
-            point_projected.value()[0], point_projected.value()[1], 0));
+        bool point_projected_valid;
+        Eigen::Vector2d point_projected;
+        inputs_.camera_params[measurement->camera_id]
+            ->camera_model->ProjectPoint(p, point_projected,
+                                         point_projected_valid);
+        if (!point_projected_valid) { continue; }
+        projected_keypoints->push_back(
+            pcl::PointXYZ(point_projected[0], point_projected[1], 0));
       }
 
       std::shared_ptr<pcl::Correspondences> correspondences =
@@ -293,9 +295,9 @@ void Optimizer::GetImageCorrespondences() {
               pcl::Correspondence(measurement_index, target_index, 0));
         }
         if (optimizer_params_.show_camera_measurements && !stop_all_vis_) {
-          this->ViewCameraMeasurements(
-              measurement_3d, hull_cloud, correspondences_tmp,
-              "measured camera points", "projected camera points");
+          ViewCameraMeasurements(measurement_3d, hull_cloud,
+                                 correspondences_tmp, "measured camera points",
+                                 "projected camera points");
         }
       } else {
         // calculate centroids and translate target to match
@@ -394,9 +396,9 @@ void Optimizer::GetLidarCorrespondences() {
       corr_est.determineCorrespondences(*correspondences,
                                         optimizer_params_.max_point_cor_dist);
       if (optimizer_params_.show_lidar_measurements && !stop_all_vis_) {
-        this->ViewLidarMeasurements(
-            measurement->keypoints, transformed_keypoints, correspondences,
-            "measured lidar keypoints", "estimated lidar keypoints");
+        ViewLidarMeasurements(measurement->keypoints, transformed_keypoints,
+                              correspondences, "measured lidar keypoints",
+                              "estimated lidar keypoints");
       }
       for (uint32_t i = 0; i < correspondences->size(); i++) {
         counter++;
@@ -457,7 +459,7 @@ void Optimizer::ViewCameraMeasurements(
       c1_col);
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb2_(
       c2_col);
-  this->ResetViewer();
+  ResetViewer();
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, c1_name);
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, c2_name);
   std::string shape_id = "correspondences";
@@ -525,7 +527,7 @@ void Optimizer::ViewLidarMeasurements(
       c1_col);
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb2_(
       c2_col);
-  this->ResetViewer();
+  ResetViewer();
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c1_col, rgb1_, c1_name);
   pcl_viewer_->addPointCloud<pcl::PointXYZRGB>(c2_col, rgb2_, c2_name);
   std::string shape_id = "correspondences";

@@ -6,6 +6,7 @@ add_library(${PROJECT_NAME}
   camera_models/DoubleSphere.cpp
   camera_models/KannalaBrandt.cpp
   camera_models/Radtan.cpp
+  camera_models/Cataditropic.cpp
   measurement_extractors/CameraExtractor.cpp
   measurement_extractors/LidarExtractor.cpp
   measurement_extractors/CylinderCameraExtractor.cpp
@@ -25,10 +26,7 @@ add_library(${PROJECT_NAME}
   ViconCalibrator.cpp
   CalibrationVerification.cpp
 )
-target_compile_options(${PROJECT_NAME}
-  PUBLIC
-    -march=native -msse4.2 -mfpmath=sse
-)
+
 target_include_directories(${PROJECT_NAME}
   PUBLIC
     ../../include

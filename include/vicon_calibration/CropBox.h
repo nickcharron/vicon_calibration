@@ -95,6 +95,9 @@ private:
   bool min_vec_set_{false};
   bool max_vec_set_{false};
   bool remove_outside_points_{true};
+
+public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 } // namespace vicon_calibration

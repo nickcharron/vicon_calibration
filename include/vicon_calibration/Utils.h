@@ -4,9 +4,6 @@
 #include <chrono>
 
 #include <Eigen/Geometry>
-#include <boost/none_t.hpp>
-#include <boost/optional.hpp>
-#include <boost/optional/optional_io.hpp>
 #include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -14,30 +11,13 @@
 #include <pcl/io/ply_io.h>
 #include <sensor_msgs/Image.h>
 
+#include <vicon_calibration/Log.h>
 #include <vicon_calibration/Aliases.h>
 #include <vicon_calibration/Params.h>
 #include <vicon_calibration/TfTree.h>
 #include <vicon_calibration/camera_models/CameraModel.h>
 
 namespace vicon_calibration {
-
-#ifndef FILENAME
-#define FILENAME \
-  (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#endif
-
-#ifndef LOG_ERROR
-#define LOG_ERROR(M, ...) \
-  fprintf(stderr, "[ERROR] [%s:%d] " M "\n", FILENAME, __LINE__, ##__VA_ARGS__)
-#endif
-
-#ifndef LOG_INFO
-#define LOG_INFO(M, ...) fprintf(stdout, "[INFO] " M "\n", ##__VA_ARGS__)
-#endif
-
-#ifndef LOG_WARN
-#define LOG_WARN(M, ...) fprintf(stdout, "[WARNING] " M "\n", ##__VA_ARGS__)
-#endif
 
 static std::string utils_string_tmp;
 
@@ -129,7 +109,9 @@ double DegToRad(double d);
 /** Converts radians to degrees. */
 double RadToDeg(double r);
 
-Eigen::MatrixXd RoundMatrix(const Eigen::MatrixXd& M, const int& precision);
+Eigen::Matrix4d RoundMatrix(const Eigen::Matrix4d& M, const int& precision);
+
+Eigen::Matrix3d RoundMatrix(const Eigen::Matrix3d& M, const int& precision);
 
 bool IsRotationMatrix(const Eigen::Matrix3d& R);
 
@@ -161,7 +143,7 @@ Eigen::Matrix3d SkewTransform(const Eigen::Vector3d& V);
 
 Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d& eps);
 
-Eigen::Matrix4d InvertTransform(const Eigen::MatrixXd& T);
+Eigen::Matrix4d InvertTransform(const Eigen::Matrix4d& T);
 
 Eigen::Matrix4d QuaternionAndTranslationToTransformMatrix(
     const std::vector<double>& pose);
@@ -171,13 +153,13 @@ std::vector<double> TransformMatrixToQuaternionAndTranslation(
     const Eigen::Matrix4d& T);
 
 cv::Mat DrawCoordinateFrame(const cv::Mat& img_in,
-                            const Eigen::MatrixXd& T_cam_frame,
+                            const Eigen::Matrix4d& T_cam_frame,
                             const std::shared_ptr<CameraModel>& camera_model,
                             const double& scale);
 
 cv::Mat ProjectPointsToImage(
     const cv::Mat& img, std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
-    const Eigen::MatrixXd& T_IMAGE_CLOUD,
+    const Eigen::Matrix4d& T_IMAGE_CLOUD,
     std::shared_ptr<CameraModel>& camera_model);
 
 std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> ProjectPoints(

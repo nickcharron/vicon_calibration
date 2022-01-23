@@ -2,7 +2,6 @@
 #include <ceres/rotation.h>
 
 #include <vicon_calibration/camera_models/CameraModel.h>
-#include <vicon_calibration/Optional.h>
 
 struct CameraProjectionFunctor {
   CameraProjectionFunctor(
@@ -11,11 +10,12 @@ struct CameraProjectionFunctor {
 
   bool operator()(const double* P, double* pixel) const {
     Eigen::Vector3d P_CAMERA_eig{P[0], P[1], P[2]};
-    vicon_calibration::opt<Eigen::Vector2d> pixel_projected =
-        camera_model_->ProjectPointPrecise(P_CAMERA_eig);
-    if (!pixel_projected.has_value()) { return false; }
-    pixel[0] = pixel_projected.value()[0];
-    pixel[1] = pixel_projected.value()[1];
+    bool projection_valid;
+    Eigen::Vector2d pixel_projected;
+    camera_model_->ProjectPoint(P_CAMERA_eig, pixel_projected, projection_valid);
+    if (!projection_valid) { return false; }
+    pixel[0] = pixel_projected[0];
+    pixel[1] = pixel_projected[1];
     return true;
   }
 

@@ -9,10 +9,10 @@ namespace vicon_calibration {
 JsonTools::JsonTools(const CalibratorInputs& inputs) : inputs_(inputs) {}
 
 std::shared_ptr<TargetParams>
-    JsonTools::LoadTargetParams(const std::string& target_config_full_path) {
+    JsonTools::LoadTargetConfigFile(const std::string& target_config_full_path) {
   std::shared_ptr<TargetParams> params = std::make_shared<TargetParams>();
 
-  LOG_INFO("Loading Target Config File: %s", target_config_full_path.c_str());
+  LOG_INFO("Loading target config file: %s", target_config_full_path.c_str());
   nlohmann::json J_target;
   if (!utils::ReadJson(target_config_full_path, J_target)) {
     LOG_ERROR("Could not load target config, exiting.");
@@ -79,7 +79,7 @@ std::shared_ptr<TargetParams>
     LOG_ERROR("Couldn't read template file: %s\n", template_cloud_path.c_str());
   }
   params->template_cloud = template_cloud;
-  LOG_INFO("Done loading target params.");
+  LOG_INFO("Done loading target config file.");
   return params;
 }
 
@@ -96,7 +96,7 @@ std::shared_ptr<TargetParams>
   std::string target_config_full_path =
       inputs_.target_config_path + target_config;
   std::shared_ptr<TargetParams> params =
-      LoadTargetParams(target_config_full_path);
+      LoadTargetConfigFile(target_config_full_path);
 
   try {
     params->frame_id = J_in["frame_id"];
@@ -154,7 +154,7 @@ std::shared_ptr<CalibratorConfig> JsonTools::LoadViconCalibratorParams() {
   params->show_camera_measurements = inputs_.show_camera_measurements;
   params->show_lidar_measurements = inputs_.show_lidar_measurements;
 
-  LOG_INFO("Loading ViconCalibrator Config File: %s",
+  LOG_INFO("Loading ViconCalibrator config file: %s",
            inputs_.calibration_config.c_str());
   nlohmann::json J;
   if (!utils::ReadJson(inputs_.calibration_config, J)) { return params; }

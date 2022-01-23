@@ -114,12 +114,13 @@ CameraMeasurements CreateCameraMeasurements(
     for (int k = 0; k < keypoint_in_tgt_frame.cols(); k++) {
       Eigen::Vector3d P_TARGET = keypoint_in_tgt_frame.col(k);
       Eigen::Vector3d P_CAMERA = (T_CT * P_TARGET.homogeneous()).hnormalized();
-      vicon_calibration::opt<Eigen::Vector2d> point_projected =
-          camera_params.camera_model->ProjectPointPrecise(P_CAMERA);
-      if (point_projected.has_value()) {
-        pixels->push_back(
-            pcl::PointXY{.x = point_projected.value().cast<float>()[0],
-                         .y = point_projected.value().cast<float>()[1]});
+      bool point_projected_valid;
+      Eigen::Vector2d point_projected;
+      camera_params.camera_model->ProjectPoint(P_CAMERA, point_projected,
+                                               point_projected_valid);
+      if (point_projected_valid) {
+        pixels->push_back(pcl::PointXY{.x = point_projected.cast<float>()[0],
+                                       .y = point_projected.cast<float>()[1]});
       }
     }
     measurement.keypoints = pixels;
@@ -368,16 +369,17 @@ TEST_CASE("Test with same data and not using Ceres Optimizer Class") {
         (T_CV * T_VT * P_TARGET.homogeneous()).hnormalized();
     Eigen::Vector3d P_CAMERA_pert =
         (T_CV_pert * T_VT * P_TARGET.homogeneous()).hnormalized();
-    vicon_calibration::opt<Eigen::Vector2d> pixels_true =
-        camera_model->ProjectPointPrecise(P_CAMERA_perf);
-    if (!pixels_true.has_value()) { continue; }
+    bool pixels_true_valid;
+    Eigen::Vector2d pixels_true;
+    camera_model->ProjectPoint(P_CAMERA_perf, pixels_true, pixels_true_valid);
+    if (!pixels_true_valid) { continue; }
     std::unique_ptr<ceres::CostFunction> cost_function(
-        CeresCameraCostFunction::Create(pixels_true.value(), P_VICONBASE,
+        CeresCameraCostFunction::Create(pixels_true, P_VICONBASE,
                                         camera_model));
     problem->AddResidualBlock(cost_function.release(), loss_function_.get(),
                               &(results_perturbed_init[0][0]));
   }
-  
+
   // get lidar measurements and add cost functions
   for (int i = 0; i < target_params[0]->keypoints_lidar.cols(); i++) {
     Eigen::Vector3d P_TARGET = target_params[0]->keypoints_lidar.col(i);
@@ -391,11 +393,11 @@ TEST_CASE("Test with same data and not using Ceres Optimizer Class") {
     problem->AddResidualBlock(cost_function.release(), loss_function_.get(),
                               &(results_perturbed_init[1][0]));
   }
-  
+
   // solve
   ceres::Solver::Summary ceres_summary;
   ceres::Solve(ceres_solver_options_, problem.get(), &ceres_summary);
-  
+
   // validate results
   Eigen::Matrix4d T_CV_opt = utils::QuaternionAndTranslationToTransformMatrix(
       results_perturbed_init[0]);

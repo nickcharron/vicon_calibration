@@ -11,6 +11,7 @@
 #include <vicon_calibration/optimization/Optimizer.h>
 #include <vicon_calibration/Params.h>
 #include <vicon_calibration/Utils.h>
+#include <vicon_calibration/CropBox.h>
 
 namespace vicon_calibration {
 
@@ -107,6 +108,9 @@ private:
   CalibrationResults calibrations_initial_;
   rosbag::Bag bag_;
   std::shared_ptr<Visualizer> pcl_viewer_;
+
+  CropBox input_cropbox_;
+  float input_cropbox_max_{5};
 
   // Simulation testing settings and Member variables
   struct SimParams {

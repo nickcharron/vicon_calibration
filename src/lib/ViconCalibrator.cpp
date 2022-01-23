@@ -219,17 +219,15 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
         "No lidar messages read. Check your topics in config file."};
   }
 
-  pcl::PCLPointCloud2::Ptr cloud_pc2 = std::make_shared<pcl::PCLPointCloud2>();
-  PointCloud::Ptr cloud = std::make_shared<PointCloud>();
-
   int valid_measurements = 0;
   int current_measurement = 0;
   ros::Duration time_step(params_->time_steps);
   ros::Time time_last(0, 0);
 
-  boost::shared_ptr<sensor_msgs::PointCloud2> lidar_msg;
   for (auto iter = view.begin(); iter != view.end(); iter++) {
-    lidar_msg = iter->instantiate<sensor_msgs::PointCloud2>();
+    boost::shared_ptr<sensor_msgs::PointCloud2> lidar_msg =
+        iter->instantiate<sensor_msgs::PointCloud2>();
+    PointCloud::Ptr cloud = std::make_shared<PointCloud>();
 
     if (lidar_msg == NULL) {
       LOG_ERROR(
@@ -242,8 +240,11 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
     if (time_current <= time_last + time_step) { continue; }
     LoadLookupTree(time_current);
     time_last = time_current;
-    pcl_conversions::toPCL(*lidar_msg, *cloud_pc2);
-    pcl::fromPCLPointCloud2(*cloud_pc2, *cloud);
+    pcl::PCLPointCloud2 cloud_pc2;
+    pcl_conversions::toPCL(*lidar_msg, cloud_pc2);
+    PointCloud cloud_tmp;
+    pcl::fromPCLPointCloud2(cloud_pc2, cloud_tmp);
+    input_cropbox_.Filter(cloud_tmp, *cloud);
     std::vector<Eigen::Affine3d, AlignAff3d> T_lidar_tgts_estimated;
     std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts;
     std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts_before;
@@ -629,6 +630,15 @@ void ViconCalibrator::Setup() {
 
   // Load extrinsics
   LoadEstimatedExtrinsics();
+
+  // setup input cropbox
+  Eigen::Vector3f min_vec(-input_cropbox_max_, -input_cropbox_max_,
+                          -input_cropbox_max_);
+  Eigen::Vector3f max_vec(input_cropbox_max_, input_cropbox_max_,
+                          input_cropbox_max_);
+  input_cropbox_.SetMinVector(min_vec);
+  input_cropbox_.SetMaxVector(max_vec);
+  input_cropbox_.SetRemoveOutsidePoints(true);
 }
 
 void ViconCalibrator::GetMeasurements() {

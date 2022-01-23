@@ -91,7 +91,7 @@ void LidarExtractor::GetUserInput() {
   pcl::transformPointCloud(*target_params_->template_cloud,
                            *estimated_template_cloud_,
                            T_LIDAR_TARGET_EST_.cast<float>());
-  
+
   pcl_viewer_->ClearPointClouds();
 
   if (measurement_valid_) {
@@ -118,8 +118,7 @@ void LidarExtractor::GetUserInput() {
     // add keypoints if discrete keypoints are specified
     if (target_params_->keypoints_lidar.cols() > 0) {
       std::cout << "Showing measured keypoints in yellow.\n";
-      pcl_viewer_->AddPointCloudToViewer(keypoints_measured_, "keypoints",
-                                         Eigen::Vector3i(255, 255, 0), 5);
+
     }
 
     std::cout << "\nViewer Legend:\n"
@@ -140,12 +139,17 @@ void LidarExtractor::GetUserInput() {
   } else {
     std::cout << "Measurement Invalid\n";
 
+    pcl_viewer_->AddPointCloudToViewer(scan_in_, "white_cloud",
+                                       Eigen::Vector3i(255, 255, 255), 3);
     pcl_viewer_->AddPointCloudToViewer(scan_isolated_, "red_cloud",
                                        Eigen::Vector3i(255, 0, 0), 3);
+    pcl_viewer_->AddPointCloudToViewer(estimated_template_cloud_, "blue_cloud",
+                                       Eigen::Vector3i(0, 0, 255), 3);
 
     std::cout << "\nViewer Legend:\n"
               << "  Red   -> isolated scan\n"
               << "  White -> original scan\n"
+              << "  Blue -> estimated target location\n"
               << "Accept measurement? [y/n]\n"
               << "Press [c] to continue with other measurements\n"
               << "Press [s] to stop showing future measurements\n";

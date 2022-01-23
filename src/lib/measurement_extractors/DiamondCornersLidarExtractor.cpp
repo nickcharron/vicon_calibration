@@ -16,7 +16,6 @@ void DiamondCornersLidarExtractor::GetKeypoints() {
   icp.setEuclideanFitnessEpsilon(icp_euclidean_epsilon_);
   icp.setMaximumIterations(icp_max_iterations_);
   icp.setMaxCorrespondenceDistance(icp_max_correspondence_dist_);
-  // // pcl::io::savePCDFileBinary("/home/nick/tmp/scan_hull.pcd", *scan_hull);
 
   icp.setInputSource(scan_isolated_);
   icp.setInputTarget(target_params_->template_cloud);

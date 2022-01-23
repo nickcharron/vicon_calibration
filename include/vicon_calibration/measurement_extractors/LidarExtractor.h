@@ -108,8 +108,8 @@ protected:
   bool show_measurements_{false};
   bool icp_enable_debug_{false};
   double allowable_keypoint_error_{0.03};
-  bool output_scans_{false};
-  std::string output_directory_{"/home/nick/tmp/"};
+  bool output_scans_{true};
+  std::string output_directory_{"/home/nick/results/vicon_calibration/debug/lidar_extractor/"};
 
   public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

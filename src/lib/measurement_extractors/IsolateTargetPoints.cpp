@@ -75,9 +75,8 @@ PointCloud::Ptr IsolateTargetPoints::GetPoints() {
 std::vector<PointCloud::Ptr> IsolateTargetPoints::GetClusters() {
   std::vector<PointCloud::Ptr> clusters;
   if (cluster_indices_.size() == 0) {
-    LOG_ERROR(
-        "No target clusters, make sure IsolateTargetPoints::GetPoints() "
-        "has been called.");
+    LOG_ERROR("No target clusters, make sure IsolateTargetPoints::GetPoints() "
+              "has been called.");
     return clusters;
   }
 
@@ -120,9 +119,8 @@ void IsolateTargetPoints::ClusterPoints() {
 
 void IsolateTargetPoints::GetTargetCluster() {
   if (cluster_indices_.size() == 0) {
-    LOG_INFO(
-        "Euclidiean clustering failed, using cropped scan. Try relax "
-        "thresholding parameters");
+    LOG_INFO("Euclidiean clustering failed, no clusters found. Using cropped "
+             "scan. Try relax thresholding parameters");
     scan_isolated_ = scan_cropped_;
     return;
   }
@@ -145,9 +143,7 @@ void IsolateTargetPoints::GetTargetCluster() {
     centroids.push_back(centroid);
   }
 
-  if (clusters.size() == 1) {
-    scan_isolated_ = clusters[0];
-  }
+  if (clusters.size() == 1) { scan_isolated_ = clusters[0]; }
 
   // get centroid of target if not already calculated
   if (target_params_->template_centroid.isZero()) {
@@ -247,7 +243,9 @@ void IsolateTargetPoints::GetTargetCluster() {
   return;
 }
 
-PointCloud::Ptr IsolateTargetPoints::GetCroppedScan() { return scan_cropped_; }
+PointCloud::Ptr IsolateTargetPoints::GetCroppedScan() {
+  return scan_cropped_;
+}
 
 bool IsolateTargetPoints::CheckInputs() {
   if (scan_in_ == nullptr) {
@@ -271,10 +269,10 @@ void IsolateTargetPoints::CropScan() {
   scan_cropped_ = std::make_shared<PointCloud>();
   CropBox cropper;
   Eigen::Vector3f min_vector;
-  min_vector << target_params_->crop_scan[0], target_params_->crop_scan[2],
-      target_params_->crop_scan[4];
+  min_vector << target_params_->crop_scan[0], target_params_->crop_scan[1],
+      target_params_->crop_scan[2];
   Eigen::Vector3f max_vector;
-  max_vector << target_params_->crop_scan[1], target_params_->crop_scan[3],
+  max_vector << target_params_->crop_scan[3], target_params_->crop_scan[4],
       target_params_->crop_scan[5];
   Eigen::Affine3f TA_TARGET_LIDAR;
   TA_TARGET_LIDAR.matrix() = T_TARGET_LIDAR_.cast<float>();
@@ -283,6 +281,13 @@ void IsolateTargetPoints::CropScan() {
   cropper.SetRemoveOutsidePoints(true);
   cropper.SetTransform(TA_TARGET_LIDAR);
   cropper.Filter(*scan_in_, *scan_cropped_);
+
+  if (scan_cropped_->empty()) {
+    LOG_WARN(
+        "Cropbox filter returned an empty result, check your cropbox params.");
+    std::cout << "Min: " << min_vector.transpose()
+              << "\nMax: " << max_vector.transpose() << "\n";
+  }
 }
 
 Eigen::Vector3d IsolateTargetPoints::CalculateMinimalDimensions(
@@ -304,4 +309,4 @@ Eigen::Vector3d IsolateTargetPoints::CalculateMinimalDimensions(
   return Eigen::Vector3d(dimensions[0], dimensions[1], dimensions[2]);
 }
 
-}  // namespace vicon_calibration
+} // namespace vicon_calibration

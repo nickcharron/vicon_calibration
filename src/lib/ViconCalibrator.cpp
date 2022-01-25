@@ -701,7 +701,7 @@ void ViconCalibrator::RunCalibration() {
   GetInitialCalibrations();
   GetMeasurements();
   CalibrationResults results = Solve(calibrations_initial_);
-  // RunVerification(results);
+  RunVerification(results);
   return;
 }
 

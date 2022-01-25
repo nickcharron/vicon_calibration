@@ -388,17 +388,16 @@ void CalibrationVerification::SaveScans(const PointCloud::Ptr& scan_est,
   cropper.Filter(*scan_est, *scan_est_cropped);
   cropper.Filter(*scan_opt, *scan_opt_cropped);
 
-  PointCloudColor::Ptr cloud_combined = std::make_shared<PointCloudColor>();
   PointCloudColor::Ptr scan_est_colored =
       utils::ColorPointCloud(scan_est_cropped, 255, 0, 0);
   PointCloudColor::Ptr scan_opt_colored =
       utils::ColorPointCloud(scan_opt_cropped, 0, 255, 0);
   PointCloudColor::Ptr targets_colored =
       utils::ColorPointCloud(targets, 0, 0, 255);
-  *cloud_combined = *scan_est_colored;
-  *cloud_combined = *cloud_combined + *scan_opt_colored;
-  *cloud_combined = *cloud_combined + *targets_colored;
-  pcl::io::savePCDFileBinary(save_path_full, *cloud_combined);
+  PointCloudColor cloud_combined = *scan_est_colored;
+  cloud_combined += *scan_opt_colored;
+  cloud_combined += *targets_colored;
+  pcl::io::savePCDFileBinary(save_path_full, cloud_combined);
 }
 
 void CalibrationVerification::GetLidarErrors() {

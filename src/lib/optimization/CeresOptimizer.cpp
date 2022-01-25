@@ -13,11 +13,10 @@ CeresOptimizer::CeresOptimizer(const OptimizerInputs& inputs)
 void CeresOptimizer::SetupProblem() {
   // set ceres problem options
   problem_ = std::make_shared<ceres::Problem>(ceres_params_.ProblemOptions());
-
+  parameterization_ = ceres_params_.SE3QuatTransLocalParametrization();
+  loss_function_ = ceres_params_.LossFunction();
   for (int i = 0; i < results_.size(); i++) {
-    problem_->AddParameterBlock(
-        &(results_[i][0]), 7,
-        ceres_params_.SE3QuatTransLocalParametrization().get());
+    problem_->AddParameterBlock(&(results_[i][0]), 7, parameterization_.get());
   }
 }
 
@@ -78,7 +77,6 @@ Eigen::Matrix4d CeresOptimizer::GetFinalPose(SensorType type, int id) {
 void CeresOptimizer::AddImageMeasurements() {
   LOG_INFO("Setting image measurements");
   int counter = 0;
-
   for (vicon_calibration::Correspondence corr : camera_correspondences_) {
     counter++;
     std::shared_ptr<CameraMeasurement> measurement =
@@ -113,8 +111,7 @@ void CeresOptimizer::AddImageMeasurements() {
             pixel, P_VICONBASE,
             inputs_.camera_params[camera_index]->camera_model));
 
-    problem_->AddResidualBlock(cost_function.release(),
-                               ceres_params_.LossFunction().get(),
+    problem_->AddResidualBlock(cost_function.release(), loss_function_.get(),
                                &(results_[sensor_index][0]));
   }
   LOG_INFO("Added %d image measurements.", counter);
@@ -149,8 +146,7 @@ void CeresOptimizer::AddLidarMeasurements() {
     std::unique_ptr<ceres::CostFunction> cost_function(
         CeresLidarCostFunction::Create(point_measured, P_VICONBASE));
 
-    problem_->AddResidualBlock(cost_function.release(),
-                               ceres_params_.LossFunction().get(),
+    problem_->AddResidualBlock(cost_function.release(), loss_function_.get(),
                                &(results_[sensor_index][0]));
   }
   LOG_INFO("Added %d lidar measurements.", counter);
@@ -158,29 +154,12 @@ void CeresOptimizer::AddLidarMeasurements() {
 
 void CeresOptimizer::Optimize() {
   LOG_INFO("Optimizing Ceres Problem");
-  // auto p = problem_.get();
-  // std::cout << "TEST5.0\n";
-  // auto p = problem_.get();
-  // std::cout << "TEST5.1\n";
-  // auto o = ceres_params_.SolverOptions();
-  // std::cout << "TEST5.1A\n";
-  std::cout << "NumParameterBlocks: " << problem_->NumParameterBlocks() << "\n";
-  std::cout << "NumParameters: " << problem_->NumParameters() << "\n";
-  std::cout << "NumResidualBlocks: " << problem_->NumResidualBlocks() << "\n";
-  std::cout << "NumResiduals: " << problem_->NumResiduals() << "\n";
-  // std::cout << "NumEffectiveParameters(): " <<
-  // problem_->NumEffectiveParameters() << "\n";
-
-  // auto s = &ceres_summary_;
-  // std::cout << "TEST5.1B\n";
-  // ceres::Solve(o, p, s);
   ceres::Solve(ceres_params_.SolverOptions(), problem_.get(), &ceres_summary_);
-  // std::cout << "TEST5.2\n";
+
   if (optimizer_params_.print_results_to_terminal) {
     std::string report = ceres_summary_.FullReport();
     std::cout << report << "\n";
   }
-  // std::cout << "TEST5.3\n";
   LOG_INFO("Done.");
 }
 

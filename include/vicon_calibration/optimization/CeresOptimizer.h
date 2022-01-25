@@ -47,6 +47,8 @@ private:
   std::shared_ptr<ceres::Problem> problem_;
   CeresParams ceres_params_;
   ceres::Solver::Summary ceres_summary_;
+  std::unique_ptr<ceres::LossFunction> loss_function_;
+  std::unique_ptr<ceres::LocalParameterization> parameterization_;
 };
 
 } // end namespace vicon_calibration

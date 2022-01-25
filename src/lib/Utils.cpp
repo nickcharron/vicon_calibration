@@ -422,7 +422,7 @@ std::vector<Eigen::Affine3d, AlignAff3d> GetTargetLocation(
     const std::string& vicon_baselink_frame, const ros::Time& lookup_time,
     const std::shared_ptr<vicon_calibration::TfTree>& lookup_tree) {
   std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts;
-  for (uint8_t n; n < target_params.size(); n++) {
+  for (uint8_t n = 0; n < target_params.size(); n++) {
     Eigen::Affine3d T_viconbase_tgt;
     T_viconbase_tgt = lookup_tree->GetTransformEigen(
         vicon_baselink_frame, target_params[n]->frame_id, lookup_time);

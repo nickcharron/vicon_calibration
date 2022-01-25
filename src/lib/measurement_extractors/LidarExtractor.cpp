@@ -93,7 +93,7 @@ void LidarExtractor::GetUserInput() {
                            T_LIDAR_TARGET_EST_.cast<float>());
 
   pcl_viewer_->ClearPointClouds();
-
+  bool stop_viz = false;
   if (measurement_valid_) {
     std::cout << "Measurement Valid\n";
     measured_template_cloud_ = std::make_shared<PointCloud>();
@@ -118,7 +118,6 @@ void LidarExtractor::GetUserInput() {
     // add keypoints if discrete keypoints are specified
     if (target_params_->keypoints_lidar.cols() > 0) {
       std::cout << "Showing measured keypoints in yellow.\n";
-
     }
 
     std::cout << "\nViewer Legend:\n"
@@ -129,7 +128,7 @@ void LidarExtractor::GetUserInput() {
               << "Press [c] to accept default\n"
               << "Press [s] to stop showing future measurements\n";
 
-    measurement_valid_ = pcl_viewer_->DisplayClouds();
+    measurement_valid_ = pcl_viewer_->DisplayClouds(stop_viz);
     if (measurement_valid_) {
       std::cout << "Accepting measurement" << std::endl;
     } else {
@@ -153,12 +152,17 @@ void LidarExtractor::GetUserInput() {
               << "Accept measurement? [y/n]\n"
               << "Press [c] to continue with other measurements\n"
               << "Press [s] to stop showing future measurements\n";
-    measurement_valid_ = pcl_viewer_->DisplayClouds();
+    measurement_valid_ = pcl_viewer_->DisplayClouds(stop_viz);
     if (measurement_valid_) {
       std::cout << "Accepting measurement" << std::endl;
     } else {
       std::cout << "Rejecting measurement" << std::endl;
     }
+  }
+
+  if (stop_viz) {
+    std::cout << "Turning off visualization, using default validation method.";
+    show_measurements_ = false;
   }
 }
 

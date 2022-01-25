@@ -119,7 +119,7 @@ void IsolateTargetPoints::ClusterPoints() {
 
 void IsolateTargetPoints::GetTargetCluster() {
   if (cluster_indices_.size() == 0) {
-    LOG_INFO("Euclidiean clustering failed, no clusters found. Using cropped "
+    LOG_WARN("Euclidiean clustering failed, no clusters found. Using cropped "
              "scan. Try relax thresholding parameters");
     scan_isolated_ = scan_cropped_;
     return;

@@ -274,11 +274,11 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
       continue;
     }
     for (int n = 0; n < T_lidar_tgts_estimated.size(); n++) {
-      counters_.total_lidar++;
+      lidar_counters_.at(lidar_iter).total++;
       if (T_lidar_tgts_estimated_prev.size() > 0) {
         if (!PassedMinMotion(T_lidar_tgts_estimated_prev[n],
                              T_lidar_tgts_estimated[n])) {
-          counters_.lidar_rejected_still++;
+          lidar_counters_.at(lidar_iter).rejected_still++;
           continue;
         }
       }
@@ -287,7 +287,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
         if (!PassedMaxVelocity(T_viconbase_tgts_before[n],
                                T_viconbase_tgts_after[n])) {
           LOG_INFO("Target is moving too quickly. Skipping.");
-          counters_.lidar_rejected_fast++;
+          lidar_counters_.at(lidar_iter).rejected_fast++;
           continue;
         }
       }
@@ -328,7 +328,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
                                            params_->show_lidar_measurements);
 
       if (lidar_extractor_->GetMeasurementValid()) {
-        counters_.lidar_accepted++;
+        lidar_counters_.at(lidar_iter).accepted++;
         valid_measurements++;
         std::shared_ptr<LidarMeasurement> lidar_measurement =
             std::make_shared<LidarMeasurement>();
@@ -343,13 +343,13 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
         lidar_measurements_[lidar_iter][current_measurement] =
             lidar_measurement;
       } else {
-        counters_.lidar_rejected_invalid++;
+        lidar_counters_.at(lidar_iter).rejected_invalid++;
       }
       current_measurement++;
     }
     T_lidar_tgts_estimated_prev = T_lidar_tgts_estimated;
-    if (counters_.lidar_accepted != 0 &&
-        counters_.lidar_accepted == params_->max_measurements) {
+    if (lidar_counters_.at(lidar_iter).accepted != 0 &&
+        lidar_counters_.at(lidar_iter).accepted == params_->max_measurements) {
       LOG_INFO("Stored %d measurements for lidar with frame id: %s",
                valid_measurements, sensor_frame.c_str());
       return;
@@ -424,11 +424,11 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
     }
 
     for (int n = 0; n < T_cam_tgts_estimated.size(); n++) {
-      counters_.total_camera++;
+      camera_counters_.at(cam_iter).total++;
       if (T_cam_tgts_estimated_prev.size() > 0) {
         if (!PassedMinMotion(T_cam_tgts_estimated_prev[n],
                              T_cam_tgts_estimated[n])) {
-          counters_.camera_rejected_still++;
+          camera_counters_.at(cam_iter).rejected_still++;
           continue;
         }
       }
@@ -436,7 +436,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
           T_viconbase_tgts_after.size() > 0) {
         if (!PassedMaxVelocity(T_viconbase_tgts_before[n],
                                T_viconbase_tgts_after[n])) {
-          counters_.camera_rejected_fast++;
+          camera_counters_.at(cam_iter).rejected_fast++;
           continue;
         }
       }
@@ -469,7 +469,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
       params_->show_camera_measurements =
           camera_extractor_->GetShowMeasurements();
       if (camera_extractor_->GetMeasurementValid()) {
-        counters_.camera_accepted++;
+        camera_counters_.at(cam_iter).accepted++;
         valid_measurements++;
         std::shared_ptr<CameraMeasurement> camera_measurement =
             std::make_shared<CameraMeasurement>();
@@ -484,13 +484,13 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
         camera_measurements_[cam_iter][current_measurement] =
             camera_measurement;
       } else {
-        counters_.camera_rejected_invalid++;
+        camera_counters_.at(cam_iter).rejected_invalid++;
       }
       current_measurement++;
     }
     T_cam_tgts_estimated_prev = T_cam_tgts_estimated;
-    if (counters_.camera_accepted != 0 &&
-        counters_.camera_accepted == params_->max_measurements) {
+    if (camera_counters_.at(cam_iter).accepted != 0 &&
+        camera_counters_.at(cam_iter).accepted == params_->max_measurements) {
       LOG_INFO("Stored %d measurements for camera with frame id: %s",
                valid_measurements, sensor_frame.c_str());
       return;
@@ -600,8 +600,6 @@ void ViconCalibrator::Setup() {
   JsonTools json_loader(inputs_);
   params_ = json_loader.LoadViconCalibratorParams();
 
-  counters_.reset();
-
   // load bag file
   try {
     LOG_INFO("Opening bag: %s", params_->bag_file.c_str());
@@ -648,9 +646,11 @@ void ViconCalibrator::GetMeasurements() {
   }
 
   // loop through each lidar, get measurements and solve problem
-  LOG_INFO("Loading lidar measurements.");
-  for (uint8_t lidar_iter = 0; lidar_iter < params_->lidar_params.size();
-       lidar_iter++) {
+  int num_lidars = params_->lidar_params.size();
+  LOG_INFO("Loading lidar measurements for %d lidars.",
+           static_cast<int>(num_lidars));
+  lidar_counters_ = std::vector<vicon_calibration::Counters>(num_lidars);
+  for (uint8_t lidar_iter = 0; lidar_iter < num_lidars; lidar_iter++) {
     GetLidarMeasurements(lidar_iter);
   }
 
@@ -658,9 +658,11 @@ void ViconCalibrator::GetMeasurements() {
   if (params_->show_lidar_measurements) { pcl_viewer_ = nullptr; }
 
   // loop through each camera, get measurements and solve problem
-  LOG_INFO("Loading camera measurements.");
-  for (uint8_t cam_iter = 0; cam_iter < params_->camera_params.size();
-       cam_iter++) {
+  int num_cameras = params_->camera_params.size();
+  LOG_INFO("Loading camera measurements for %d cameras.",
+           static_cast<int>(num_lidars));
+  camera_counters_ = std::vector<vicon_calibration::Counters>(num_cameras);
+  for (uint8_t cam_iter = 0; cam_iter < num_cameras; cam_iter++) {
     GetCameraMeasurements(cam_iter);
   }
 
@@ -775,20 +777,31 @@ void ViconCalibrator::RunVerification(const CalibrationResults& results) {
 void ViconCalibrator::OutputMeasurementStats() {
   std::cout << "------------------------------------------------------------\n"
             << "Outputing Measurement Statistics\n"
-            << "--------------------------------\n"
-            << "Total possible camera measurements: " << counters_.total_camera
-            << "\nSaved: " << counters_.camera_accepted
-            << "\nRejected - no movement: " << counters_.camera_rejected_still
-            << "\nRejected - high motion: " << counters_.camera_rejected_fast
-            << "\nRejected - invalid result: "
-            << counters_.camera_rejected_invalid
-            << "\n\nTotal possible lidar measurements: "
-            << counters_.total_lidar << "\nSaved: " << counters_.lidar_accepted
-            << "\nRejected - no movement: " << counters_.lidar_rejected_still
-            << "\nRejected - high motion: " << counters_.lidar_rejected_fast
-            << "\nRejected - invalid result: "
-            << counters_.lidar_rejected_invalid << "\n"
-            << "------------------------------------------------------------\n";
+            << "--------------------------------\n";
+  for (int i = 0; i < lidar_counters_.size(); i++) {
+    std::cout << "Lidar " << i << ":\n\n"
+              << "Total possible measurements: " << lidar_counters_.at(i).total
+              << "\nSaved: " << lidar_counters_.at(i).accepted
+              << "\nRejected - no movement: "
+              << lidar_counters_.at(i).rejected_still
+              << "\nRejected - high motion: "
+              << lidar_counters_.at(i).rejected_fast
+              << "\nRejected - invalid result: "
+              << lidar_counters_.at(i).rejected_invalid << "\n";
+  }
+  std::cout << "\n";
+  for (int i = 0; i < camera_counters_.size(); i++) {
+    std::cout << "Camera " << i << ":\n\n"
+              << "Total possible measurements: " << camera_counters_.at(i).total
+              << "\nSaved: " << camera_counters_.at(i).accepted
+              << "\nRejected - no movement: "
+              << camera_counters_.at(i).rejected_still
+              << "\nRejected - high motion: "
+              << camera_counters_.at(i).rejected_fast
+              << "\nRejected - invalid result: "
+              << camera_counters_.at(i).rejected_invalid << "\n";
+  }
+  std::cout << "------------------------------------------------------------\n";
 }
 
 } // end namespace vicon_calibration

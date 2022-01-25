@@ -94,7 +94,8 @@ private:
 
   const CalibratorInputs inputs_;
   std::shared_ptr<CalibratorConfig> params_;
-  vicon_calibration::Counters counters_;
+  std::vector<vicon_calibration::Counters> lidar_counters_;
+  std::vector<vicon_calibration::Counters> camera_counters_;
   std::string results_directory_;
   std::string config_file_path_;
   std::shared_ptr<LidarExtractor> lidar_extractor_;

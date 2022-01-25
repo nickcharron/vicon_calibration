@@ -163,54 +163,11 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
-struct LoopClosureMeasurement {
-  pcl::PointCloud<pcl::PointXY>::Ptr keypoints_camera;
-  PointCloud::Ptr keypoints_lidar;
-  Eigen::Matrix4d T_VICONBASE_TARGET;
-  int camera_id;
-  int lidar_id;
-  int target_id;
-  std::string camera_frame;
-  std::string lidar_frame;
-  std::string target_frame;
-  LoopClosureMeasurement() {
-    keypoints_camera = std::make_shared<pcl::PointCloud<pcl::PointXY>>();
-  }
-  void Print() {
-    std::cout << "----------------------------------------------\n"
-              << "Printing measurement for Lidar " << lidar_id << " , Camera "
-              << camera_id << " , Target " << target_id << "\n"
-              << "Lidar Keypoints size: " << keypoints_lidar->size() << "\n"
-              << "Camera Keypoints size: " << keypoints_camera->size() << "\n"
-              << "T_VICONBASE_TARGET [qw qx qy qz tx ty tx]: "
-              << TransformMatrixToQuaternionAndTranslationStr(
-                     T_VICONBASE_TARGET)
-              << "\n"
-              << "Lidar Frame: " << lidar_frame << "\n"
-              << "Camera Frame: " << camera_frame << "\n"
-              << "Target Frame: " << target_frame << "\n";
-  }
-
-public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-};
-
 struct Correspondence {
   int target_point_index;
   int measured_point_index;
   int measurement_index;
   int sensor_index;
-};
-
-struct LoopCorrespondence {
-  int camera_target_point_index;
-  int camera_measurement_point_index;
-  int lidar_target_point_index;
-  int lidar_measurement_point_index;
-  int camera_id;
-  int lidar_id;
-  int target_id;
-  int measurement_index;
 };
 
 struct CalibrationResult {
@@ -289,8 +246,6 @@ typedef std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>
     CameraMeasurements;
 typedef std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>
     LidarMeasurements;
-typedef std::vector<std::shared_ptr<LoopClosureMeasurement>>
-    LoopClosureMeasurements;
 typedef std::vector<CalibrationResult> CalibrationResults;
 
 } // end namespace vicon_calibration

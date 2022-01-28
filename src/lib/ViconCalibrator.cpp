@@ -545,20 +545,25 @@ void ViconCalibrator::GetTimeWindow() {
   rosbag::View view_tmp(bag_, rosbag::TopicQuery(topics), ros::TIME_MIN,
                         ros::TIME_MAX, true);
 
+  if (view_tmp.size() == 0) {
+    throw std::runtime_error{
+        "Empty rosbag view, make sure your topics are correct."};
+  }
+
   // Get start time of measurements
   boost::shared_ptr<sensor_msgs::PointCloud2> lid_msg;
   boost::shared_ptr<sensor_msgs::Image> cam_msg;
 
   ros::Time first_msg_time;
   lid_msg = view_tmp.begin()->instantiate<sensor_msgs::PointCloud2>();
+  cam_msg = view_tmp.begin()->instantiate<sensor_msgs::Image>();
+
   if (lid_msg != NULL) {
     first_msg_time = lid_msg->header.stamp;
-  } else {
-    cam_msg = view_tmp.begin()->instantiate<sensor_msgs::Image>();
-    if (cam_msg == NULL) {
-      throw std::runtime_error{"Invalid topic message type."};
-    }
+  } else if (cam_msg != NULL) {
     first_msg_time = cam_msg->header.stamp;
+  } else {
+    throw std::runtime_error{"Invalid topic message type."};
   }
 
   // Get end time of measurements
@@ -566,6 +571,7 @@ void ViconCalibrator::GetTimeWindow() {
     lid_msg = iter->instantiate<sensor_msgs::PointCloud2>();
     cam_msg = iter->instantiate<sensor_msgs::Image>();
   }
+
   ros::Time last_msg_time;
   if (lid_msg != NULL) {
     last_msg_time = lid_msg->header.stamp;

@@ -5,8 +5,8 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-#include <vicon_calibration/camera_models/CameraModel.h>
 #include <vicon_calibration/Params.h>
+#include <vicon_calibration/camera_models/CameraModel.h>
 
 namespace vicon_calibration {
 
@@ -35,17 +35,17 @@ public:
   virtual CameraExtractorType GetType() const = 0;
 
   void SetCameraParams(
-      std::shared_ptr<vicon_calibration::CameraParams> &camera_params);
+      std::shared_ptr<vicon_calibration::CameraParams>& camera_params);
 
   void SetTargetParams(
-      std::shared_ptr<vicon_calibration::TargetParams> &target_params);
+      std::shared_ptr<vicon_calibration::TargetParams>& target_params);
 
-  void SetShowMeasurements(const bool &show_measurements);
+  void SetShowMeasurements(const bool& show_measurements);
 
   bool GetShowMeasurements();
 
-  void ProcessMeasurement(const Eigen::Matrix4d &T_CAMERA_TARGET_EST,
-                          const cv::Mat &img_in);
+  void ProcessMeasurement(const Eigen::Matrix4d& T_CAMERA_TARGET_EST,
+                          const cv::Mat& img_in);
 
   bool GetMeasurementValid();
 
@@ -57,16 +57,17 @@ protected:
 
   void CheckInputs();
 
-  void TargetPointToPixel(const Eigen::Vector4d& point, Eigen::Vector2d& pixel, bool projection_valid);
-  
+  void TargetPointToPixel(const Eigen::Vector4d& point, Eigen::Vector2d& pixel,
+                          bool& projection_valid);
+
   // this projects all template cloud points into the image plane, gets the min
   // and max coordinates then adds a buffer based on the parameter "crop_image"
   // in the target params. The crop_image is a percent to increase the bounding
   // box by
   void CropImage();
 
-  void DisplayImage(const cv::Mat &img, const std::string &display_name,
-                    const std::string &output_text, const bool &allow_override);
+  void DisplayImage(const cv::Mat& img, const std::string& display_name,
+                    const std::string& output_text, const bool& allow_override);
 
   // params:
   double axis_plot_scale_{0.3}; // scale for plotting projected axes on an img
@@ -85,9 +86,8 @@ protected:
   bool target_params_set_{false};
   bool camera_params_set_{false};
 
-  public:
+public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
 };
 
 } // namespace vicon_calibration

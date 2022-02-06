@@ -64,7 +64,7 @@ void CameraExtractor::ProcessMeasurement(
         *image_annotated_, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
         axis_plot_scale_);
     if (!measurement_valid_) {
-      DisplayImage(*image_annotated_, "Inalid Measurement",
+      DisplayImage(*image_annotated_, "Invalid Measurement",
                    "Showing failed measurement", false);
     } else {
       DisplayImage(*image_annotated_, "Valid Measurement",
@@ -111,7 +111,7 @@ void CameraExtractor::CheckInputs() {
 
 void CameraExtractor::TargetPointToPixel(const Eigen::Vector4d& point,
                                          Eigen::Vector2d& pixel,
-                                         bool projection_valid) {
+                                         bool& projection_valid) {
   Eigen::Vector4d transformed_point = T_CAMERA_TARGET_EST_ * point;
   camera_params_->camera_model->ProjectPoint(transformed_point.hnormalized(),
                                              pixel, projection_valid);

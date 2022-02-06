@@ -174,7 +174,7 @@ std::vector<Eigen::Affine3d, AlignAff3d>
                                      const std::string& sensor_frame,
                                      SensorType type, int sensor_id) {
   std::vector<Eigen::Affine3d, AlignAff3d> T_sensor_tgts_estimated;
-  for (uint8_t n; n < params_->target_params.size(); n++) {
+  for (uint8_t n = 0; n < params_->target_params.size(); n++) {
     // get transform from sensor to target
     Eigen::Affine3d T_VICONBASE_TGTn = lookup_tree_->GetTransformEigen(
         params_->vicon_baselink_frame, params_->target_params[n]->frame_id,
@@ -342,8 +342,10 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
         lidar_measurement->time_stamp = time_current;
         lidar_measurements_[lidar_iter][current_measurement] =
             lidar_measurement;
+        LOG_INFO("Measurement accepted.");    
       } else {
         lidar_counters_.at(lidar_iter).rejected_invalid++;
+        LOG_INFO("Measurement rejected.");    
       }
       current_measurement++;
     }
@@ -391,8 +393,8 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
 
     if (time_current <= time_last + time_step) { continue; }
 
-    cv::Mat current_image = utils::RosImgToMat(*img_msg);
     LoadLookupTree(time_current);
+  
     time_last = time_current;
     std::vector<Eigen::Affine3d, AlignAff3d> T_cam_tgts_estimated;
     std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts;
@@ -432,6 +434,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
           continue;
         }
       }
+
       if (T_viconbase_tgts_before.size() > 0 &&
           T_viconbase_tgts_after.size() > 0) {
         if (!PassedMaxVelocity(T_viconbase_tgts_before[n],
@@ -465,9 +468,11 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
       camera_extractor_->SetTargetParams(params_->target_params[n]);
       camera_extractor_->SetShowMeasurements(params_->show_camera_measurements);
       camera_extractor_->ProcessMeasurement(T_cam_tgts_estimated[n].matrix(),
-                                            current_image);
+                                            utils::RosImgToMat(*img_msg));
       params_->show_camera_measurements =
           camera_extractor_->GetShowMeasurements();
+
+      // process measurement
       if (camera_extractor_->GetMeasurementValid()) {
         camera_counters_.at(cam_iter).accepted++;
         valid_measurements++;
@@ -483,11 +488,14 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
         camera_measurement->time_stamp = time_current;
         camera_measurements_[cam_iter][current_measurement] =
             camera_measurement;
+        LOG_INFO("Measurement accepted.");    
       } else {
         camera_counters_.at(cam_iter).rejected_invalid++;
+        LOG_INFO("Measurement rejected.");    
       }
       current_measurement++;
     }
+
     T_cam_tgts_estimated_prev = T_cam_tgts_estimated;
     if (camera_counters_.at(cam_iter).accepted != 0 &&
         camera_counters_.at(cam_iter).accepted == params_->max_measurements) {
@@ -496,6 +504,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
       return;
     }
   }
+
   LOG_INFO("Stored %d measurements for camera with frame id: %s",
            valid_measurements, sensor_frame.c_str());
 }
@@ -666,7 +675,7 @@ void ViconCalibrator::GetMeasurements() {
   // loop through each camera, get measurements and solve problem
   int num_cameras = params_->camera_params.size();
   LOG_INFO("Loading camera measurements for %d cameras.",
-           static_cast<int>(num_lidars));
+           static_cast<int>(num_cameras));
   camera_counters_ = std::vector<vicon_calibration::Counters>(num_cameras);
   for (uint8_t cam_iter = 0; cam_iter < num_cameras; cam_iter++) {
     GetCameraMeasurements(cam_iter);

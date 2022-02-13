@@ -26,7 +26,7 @@ void DiamondCameraExtractor::GetKeypoints() {
   std::vector<cv::Point2f> corners;
   bool checkerboard_found =
       cv::findChessboardCorners(*image_cropped_, cv::Size(n_dim, m_dim),
-                                corners, cv::CALIB_CB_FAST_CHECK);
+                                corners, cv::CALIB_CB_EXHAUSTIVE);
 
   // check if valid
   if (!checkerboard_found) {

@@ -33,6 +33,8 @@ bool CameraExtractor::GetShowMeasurements() {
 void CameraExtractor::ProcessMeasurement(
     const Eigen::Matrix4d& T_CAMERA_TARGET_EST, const cv::Mat& img_in) {
   // initialize member variables
+  image_cropped_ = std::make_shared<cv::Mat>();
+  image_annotated_ = std::make_shared<cv::Mat>();
   image_in_ = std::make_shared<cv::Mat>();
   T_CAMERA_TARGET_EST_ = T_CAMERA_TARGET_EST;
   *image_in_ = img_in;
@@ -45,20 +47,16 @@ void CameraExtractor::ProcessMeasurement(
   bool pixel_projected_valid;
   Eigen::Vector2d pixel_projected;
   TargetPointToPixel(point_origin, pixel_projected, pixel_projected_valid);
-
   if (!pixel_projected_valid) {
     measurement_complete_ = true;
     measurement_valid_ = false;
     return;
   }
-
   if (show_measurements_) {
     image_annotated_ = std::make_shared<cv::Mat>();
-    *image_annotated_ = *image_in_;
+    *image_annotated_ = image_in_->clone();
   }
-
   GetKeypoints();
-
   if (show_measurements_) {
     *image_annotated_ = utils::DrawCoordinateFrame(
         *image_annotated_, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
@@ -72,6 +70,9 @@ void CameraExtractor::ProcessMeasurement(
     }
   }
   measurement_complete_ = true;
+  image_cropped_ = nullptr;
+  image_annotated_ = nullptr;
+  image_in_ = nullptr;
   return;
 }
 
@@ -118,8 +119,6 @@ void CameraExtractor::TargetPointToPixel(const Eigen::Vector4d& point,
 }
 
 void CameraExtractor::CropImage() {
-  image_cropped_ = std::make_shared<cv::Mat>();
-
   // project taget points to image and get bounding box
   int iter = 0;
   double maxu{0}, maxv{0}, minu{std::numeric_limits<double>::max()},
@@ -182,9 +181,9 @@ void CameraExtractor::CropImage() {
         cv::Mat::zeros(image_in_->rows, image_in_->cols, image_in_->depth());
     mask(cv::Rect(min_vec_buffer(0), min_vec_buffer(1), width, height)) = 1;
     image_in_->copyTo(bounded_img, mask);
-    *image_cropped_ = bounded_img;
+    *image_cropped_ = bounded_img.clone();
   } else {
-    *image_cropped_ = *image_in_;
+    *image_cropped_ = image_in_->clone();
   }
   return;
 }

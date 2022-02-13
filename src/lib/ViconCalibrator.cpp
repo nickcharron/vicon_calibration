@@ -342,10 +342,10 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
         lidar_measurement->time_stamp = time_current;
         lidar_measurements_[lidar_iter][current_measurement] =
             lidar_measurement;
-        LOG_INFO("Measurement accepted.");    
+        LOG_INFO("Measurement accepted.");
       } else {
         lidar_counters_.at(lidar_iter).rejected_invalid++;
-        LOG_INFO("Measurement rejected.");    
+        LOG_INFO("Measurement rejected.");
       }
       current_measurement++;
     }
@@ -394,7 +394,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
     if (time_current <= time_last + time_step) { continue; }
 
     LoadLookupTree(time_current);
-  
+
     time_last = time_current;
     std::vector<Eigen::Affine3d, AlignAff3d> T_cam_tgts_estimated;
     std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts;
@@ -467,8 +467,9 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
       camera_extractor_->SetCameraParams(params_->camera_params[cam_iter]);
       camera_extractor_->SetTargetParams(params_->target_params[n]);
       camera_extractor_->SetShowMeasurements(params_->show_camera_measurements);
+      auto img = utils::RosImgToMat(*img_msg);
       camera_extractor_->ProcessMeasurement(T_cam_tgts_estimated[n].matrix(),
-                                            utils::RosImgToMat(*img_msg));
+                                            img);
       params_->show_camera_measurements =
           camera_extractor_->GetShowMeasurements();
 
@@ -488,10 +489,10 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
         camera_measurement->time_stamp = time_current;
         camera_measurements_[cam_iter][current_measurement] =
             camera_measurement;
-        LOG_INFO("Measurement accepted.");    
+        LOG_INFO("Measurement accepted.");
       } else {
         camera_counters_.at(cam_iter).rejected_invalid++;
-        LOG_INFO("Measurement rejected.");    
+        LOG_INFO("Measurement rejected.");
       }
       current_measurement++;
     }

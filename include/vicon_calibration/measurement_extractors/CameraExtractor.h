@@ -85,7 +85,6 @@ protected:
   bool measurement_valid_{false};
   bool target_params_set_{false};
   bool camera_params_set_{false};
-
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };

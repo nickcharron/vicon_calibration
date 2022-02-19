@@ -4,7 +4,7 @@
 
 namespace vicon_calibration {
 
-class DiamondLidarExtractor : public LidarExtractor {
+class CheckerboardLidarExtractor : public LidarExtractor {
 public:
   // Inherit base class constructors
   using LidarExtractor::LidarExtractor;

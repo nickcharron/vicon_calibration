@@ -1,5 +1,5 @@
 #include <vicon_calibration/measurement_extractors/CylinderCameraExtractor.h>
 #include <vicon_calibration/measurement_extractors/CylinderLidarExtractor.h>
-#include <vicon_calibration/measurement_extractors/DiamondCameraExtractor.h>
-#include <vicon_calibration/measurement_extractors/DiamondLidarExtractor.h>
-#include <vicon_calibration/measurement_extractors/DiamondCornersLidarExtractor.h>
+#include <vicon_calibration/measurement_extractors/CheckerboardCameraExtractor.h>
+#include <vicon_calibration/measurement_extractors/CheckerboardLidarExtractor.h>
+#include <vicon_calibration/measurement_extractors/CheckerboardCornersLidarExtractor.h>

@@ -303,12 +303,12 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
                 params_->show_lidar_measurements, pcl_viewer_);
       } else if (extractor_type == "DIAMONDCORNERS") {
         lidar_extractor_ =
-            std::make_shared<vicon_calibration::DiamondCornersLidarExtractor>(
+            std::make_shared<vicon_calibration::CheckerboardCornersLidarExtractor>(
                 params_->lidar_params[lidar_iter], params_->target_params[n],
                 params_->show_lidar_measurements, pcl_viewer_);
       } else if (extractor_type == "DIAMOND") {
         lidar_extractor_ =
-            std::make_shared<vicon_calibration::DiamondLidarExtractor>(
+            std::make_shared<vicon_calibration::CheckerboardLidarExtractor>(
                 params_->lidar_params[lidar_iter], params_->target_params[n],
                 params_->show_lidar_measurements, pcl_viewer_);
       } else {
@@ -450,7 +450,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
             std::make_shared<vicon_calibration::CylinderCameraExtractor>();
       } else if (extractor_type == "DIAMOND") {
         camera_extractor_ =
-            std::make_shared<vicon_calibration::DiamondCameraExtractor>();
+            std::make_shared<vicon_calibration::CheckerboardCameraExtractor>();
       } else {
         throw std::invalid_argument{
             "Invalid extractor type. Options: CYLINDER, DIAMOND"};

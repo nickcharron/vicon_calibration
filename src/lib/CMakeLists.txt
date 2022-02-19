@@ -11,9 +11,9 @@ add_library(${PROJECT_NAME}
   measurement_extractors/LidarExtractor.cpp
   measurement_extractors/CylinderCameraExtractor.cpp
   measurement_extractors/CylinderLidarExtractor.cpp
-  measurement_extractors/DiamondCameraExtractor.cpp
-  measurement_extractors/DiamondLidarExtractor.cpp
-  measurement_extractors/DiamondCornersLidarExtractor.cpp
+  measurement_extractors/CheckerboardCameraExtractor.cpp
+  measurement_extractors/CheckerboardLidarExtractor.cpp
+  measurement_extractors/CheckerboardCornersLidarExtractor.cpp
   measurement_extractors/IsolateTargetPoints.cpp
   optimization/Optimizer.cpp
   optimization/CeresOptimizer.cpp

@@ -11,7 +11,7 @@
 #include <vicon_calibration/TfTree.h>
 #include <vicon_calibration/Utils.h>
 #include <vicon_calibration/PclConversions.h>
-#include <vicon_calibration/measurement_extractors/DiamondLidarExtractor.h>
+#include <vicon_calibration/measurement_extractors/CheckerboardLidarExtractor.h>
 
 using namespace vicon_calibration;
 
@@ -38,9 +38,9 @@ using namespace std::literals::chrono_literals;
 
 void FileSetup() {
   bag_path = utils::GetFilePathTestBags("roben_simulation.bag");
-  target_config = utils::GetFilePathTestData("DiamondTargetSim.json");
+  target_config = utils::GetFilePathTestData("CheckerboardTargetSim.json");
   template_cloud =
-      utils::GetFilePathTestClouds("diamond_target_simulation.pcd");
+      utils::GetFilePathTestClouds("checkerboard_target_simulation.pcd");
 }
 
 void LoadSimulatedCloud() {
@@ -146,7 +146,7 @@ void Setup() {
   setup_called = true;
 }
 
-TEST_CASE("Test diamond extractor with empty template cloud && empty scan") {
+TEST_CASE("Test checkerboard extractor with empty template cloud && empty scan") {
   Setup();
   std::shared_ptr<TargetParams> invalid_target_params =
       std::make_shared<TargetParams>(*target_params);
@@ -154,42 +154,42 @@ TEST_CASE("Test diamond extractor with empty template cloud && empty scan") {
   std::shared_ptr<PointCloud> empty_cloud = std::make_shared<PointCloud>();
   invalid_target_params->template_cloud = null_cloud;
 
-  std::shared_ptr<LidarExtractor> diamond_extractor =
-      std::make_shared<DiamondLidarExtractor>(
+  std::shared_ptr<LidarExtractor> checkerboard_extractor =
+      std::make_shared<CheckerboardLidarExtractor>(
           lidar_params, invalid_target_params, show_measurements, pcl_viewer);
   REQUIRE_THROWS(
-      diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud));
+      checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud));
 
   invalid_target_params->template_cloud = empty_cloud;
-  diamond_extractor = std::make_shared<DiamondLidarExtractor>(
+  checkerboard_extractor = std::make_shared<CheckerboardLidarExtractor>(
       lidar_params, invalid_target_params, show_measurements, pcl_viewer);
   REQUIRE_THROWS(
-      diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud));
+      checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud));
 
-  diamond_extractor = std::make_shared<DiamondLidarExtractor>(
+  checkerboard_extractor = std::make_shared<CheckerboardLidarExtractor>(
       lidar_params, target_params, show_measurements, pcl_viewer);
   REQUIRE_THROWS(
-      diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, null_cloud));
+      checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, null_cloud));
   REQUIRE_THROWS(
-      diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, empty_cloud));
+      checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, empty_cloud));
 }
 
-TEST_CASE("Test extracting diamond with invalid transformation matrix") {
+TEST_CASE("Test extracting checkerboard with invalid transformation matrix") {
   Setup();
   Eigen::Affine3d TA_INVALID1;
   Eigen::Matrix4d T_INVALID2, T_INVALID3;
   T_INVALID3.setIdentity();
   T_INVALID3(3, 0) = 1;
-  std::shared_ptr<LidarExtractor> diamond_extractor =
-      std::make_shared<DiamondLidarExtractor>(lidar_params, target_params,
+  std::shared_ptr<LidarExtractor> checkerboard_extractor =
+      std::make_shared<CheckerboardLidarExtractor>(lidar_params, target_params,
                                               show_measurements, pcl_viewer);
   REQUIRE_THROWS(
-      diamond_extractor->ProcessMeasurement(TA_INVALID1.matrix(), sim_cloud));
-  REQUIRE_THROWS(diamond_extractor->ProcessMeasurement(T_INVALID2, sim_cloud));
-  REQUIRE_THROWS(diamond_extractor->ProcessMeasurement(T_INVALID3, sim_cloud));
+      checkerboard_extractor->ProcessMeasurement(TA_INVALID1.matrix(), sim_cloud));
+  REQUIRE_THROWS(checkerboard_extractor->ProcessMeasurement(T_INVALID2, sim_cloud));
+  REQUIRE_THROWS(checkerboard_extractor->ProcessMeasurement(T_INVALID3, sim_cloud));
 }
 
-TEST_CASE("Test extracting diamond target with and without diverged ICP "
+TEST_CASE("Test extracting checkerboard target with and without diverged ICP "
           "registration") {
   Setup();
   std::shared_ptr<TargetParams> div_target_params =
@@ -204,27 +204,27 @@ TEST_CASE("Test extracting diamond target with and without diverged ICP "
   good_crop2 << -1, 1, -1, 1, -1, 1;
   div_target_params->crop_scan = div_crop1;
 
-  std::shared_ptr<LidarExtractor> diamond_extractor =
-      std::make_shared<DiamondLidarExtractor>(lidar_params, div_target_params,
+  std::shared_ptr<LidarExtractor> checkerboard_extractor =
+      std::make_shared<CheckerboardLidarExtractor>(lidar_params, div_target_params,
                                               show_measurements, pcl_viewer);
-  REQUIRE_THROWS(diamond_extractor->GetMeasurementValid());
-  diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud);
-  REQUIRE(diamond_extractor->GetMeasurementValid() == false);
+  REQUIRE_THROWS(checkerboard_extractor->GetMeasurementValid());
+  checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud);
+  REQUIRE(checkerboard_extractor->GetMeasurementValid() == false);
   div_target_params->crop_scan = good_crop;
-  diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud);
-  REQUIRE(diamond_extractor->GetMeasurementValid() == true);
-  diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST_CONV, sim_cloud);
-  REQUIRE(diamond_extractor->GetMeasurementValid() == true);
-  diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST_DIV, sim_cloud);
-  REQUIRE(diamond_extractor->GetMeasurementValid() == false);
-  diamond_extractor->ProcessMeasurement(T_SCAN_TARGET2_TRUE, sim_cloud);
-  REQUIRE(diamond_extractor->GetMeasurementValid() == true);
+  checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud);
+  REQUIRE(checkerboard_extractor->GetMeasurementValid() == true);
+  checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST_CONV, sim_cloud);
+  REQUIRE(checkerboard_extractor->GetMeasurementValid() == true);
+  checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST_DIV, sim_cloud);
+  REQUIRE(checkerboard_extractor->GetMeasurementValid() == false);
+  checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET2_TRUE, sim_cloud);
+  REQUIRE(checkerboard_extractor->GetMeasurementValid() == true);
 
   conv_target_params->crop_scan = good_crop2;
-  diamond_extractor = std::make_shared<DiamondLidarExtractor>(
+  checkerboard_extractor = std::make_shared<CheckerboardLidarExtractor>(
       lidar_params, conv_target_params, show_measurements, pcl_viewer);
-  diamond_extractor->ProcessMeasurement(T_SCAN_TARGET2_EST_CONV, sim_cloud);
-  REQUIRE(diamond_extractor->GetMeasurementValid() == true);
+  checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET2_EST_CONV, sim_cloud);
+  REQUIRE(checkerboard_extractor->GetMeasurementValid() == true);
 }
 
 // need to view these results, can't automate the test
@@ -240,14 +240,14 @@ TEST_CASE("Test best correspondence estimation") {
   div_crop << -0.5, 0.5, -0.2, 0.2, -0.2, 0.2;
   target_params2->crop_scan = div_crop;
 
-  std::shared_ptr<LidarExtractor> diamond_extractor =
-      std::make_shared<DiamondLidarExtractor>(lidar_params, target_params2,
+  std::shared_ptr<LidarExtractor> checkerboard_extractor =
+      std::make_shared<CheckerboardLidarExtractor>(lidar_params, target_params2,
                                               show_measurements, pcl_viewer);
 
   // view keypoints 1
-  diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud);
+  checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud);
   std::shared_ptr<PointCloud> keypoints1 =
-      diamond_extractor->GetMeasurement();
+      checkerboard_extractor->GetMeasurement();
   pcl_viewer->AddPointCloudToViewer(keypoints1, "keypoints1",
                                     Eigen::Vector3i(255, 0, 0), 5);
 
@@ -256,9 +256,9 @@ TEST_CASE("Test best correspondence estimation") {
   Eigen::VectorXf div_crop2(6);
   div_crop2 << -0.7, 0.7, -0.5, 0.5, -0.5, 0.5;
   target_params2->crop_scan = div_crop2;
-  diamond_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST_CONV, sim_cloud);
+  checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST_CONV, sim_cloud);
   std::shared_ptr<PointCloud> keypoints2 =
-      diamond_extractor->GetMeasurement();
+      checkerboard_extractor->GetMeasurement();
   pcl_viewer->AddPointCloudToViewer(keypoints2, "keypoints2",
                                     Eigen::Vector3i(0, 255, 0), 5);
 }

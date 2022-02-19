@@ -10,7 +10,7 @@
   "targets":[
     {"frame_id": "vicon/target2/target2",
      "extractor_type": "DIAMOND",
-     "target_config": "DiamondTarget_EXAMPLE.json"
+     "target_config": "CheckerboardTarget_EXAMPLE.json"
     }
   ],
   "camera_params": [

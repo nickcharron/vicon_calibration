@@ -1,4 +1,4 @@
-#include <vicon_calibration/measurement_extractors/DiamondLidarExtractor.h>
+#include <vicon_calibration/measurement_extractors/CheckerboardLidarExtractor.h>
 
 #include <math.h>
 
@@ -7,7 +7,7 @@
 
 namespace vicon_calibration {
 
-void DiamondLidarExtractor::GetKeypoints() {
+void CheckerboardLidarExtractor::GetKeypoints() {
   measurement_valid_ = true;
 
   // setup icp
@@ -42,7 +42,7 @@ void DiamondLidarExtractor::GetKeypoints() {
   }
 }
 
-void DiamondLidarExtractor::CheckMeasurementValid() {
+void CheckerboardLidarExtractor::CheckMeasurementValid() {
   if (!measurement_valid_) { return; }
 
   if (keypoints_measured_->size() < min_num_keypoints_) {

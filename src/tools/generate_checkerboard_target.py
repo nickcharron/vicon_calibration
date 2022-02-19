@@ -3,8 +3,8 @@
 # READ ME
 ##############
 # This script generates gazebo models for black and white checkerboards
-# on a diamond background. This was designed for use with the vicon calibration
-# code. The checkerboards are pure black and white with a white diamond
+# on a checkerboard background. This was designed for use with the vicon calibration
+# code. The checkerboards are pure black and white with a white checkerboard
 # background
 #
 # Usage
@@ -12,8 +12,8 @@
 # The following command will generate a new folder and populate it with a Gazebo
 # model.
 #
-# generate_diamond_target.py rows columns [square_size_in_meters]
-# [diamond_size_in_meters]
+# generate_checkerboard_target.py rows columns [square_size_in_meters]
+# [checkerboard_size_in_meters]
 #
 # This folder can be placed anywhere in your Gazebo models path, such as the
 # default location: $HOME/.gazebo/models.
@@ -26,8 +26,8 @@ import math
 # basic argument checking
 # this script is not complicated enough to merit using a system such as argparse
 if len(sys.argv) < 3:
-    print("usage is: generate_diamond_target.py rows columns "
-          "[square_size_in_meters] [diamond_size_in_meters]")
+    print("usage is: generate_checkerboard_target.py rows columns "
+          "[square_size_in_meters] [checkerboard_size_in_meters]")
     exit()
 
 # in meters
@@ -42,13 +42,13 @@ if len(sys.argv) > 3:
 else:
     sq_size = DEFAULT_SQUARE_SIZE
 if len(sys.argv) > 4:
-    diamond_size = float(sys.argv[4])
+    checkerboard_size = float(sys.argv[4])
 else:
-    diamond_size = DEFAULT_DIAMOND_SIZE
+    checkerboard_size = DEFAULT_DIAMOND_SIZE
 dims = str(cols) + "x" + str(rows)
-name = "_".join(["DiamondTarget", dims,
-                 str(sq_size).replace(".", "_"), str(diamond_size).replace(".", "_")])
-pretty_name = "DiamondTarget {} x {}, sq. size {}m diamond size {}m".format(cols, rows, sq_size, diamond_size)
+name = "_".join(["CheckerboardTarget", dims,
+                 str(sq_size).replace(".", "_"), str(checkerboard_size).replace(".", "_")])
+pretty_name = "CheckerboardTarget {} x {}, sq. size {}m checkerboard size {}m".format(cols, rows, sq_size, checkerboard_size)
 
 
 # create directory for the model if it doesn't exist.
@@ -110,7 +110,7 @@ element = """      <visual name="checker_backdrop_vis">
         <pose>{x_trans} {y_trans} 0 0 0 {rotation}</pose>
         <geometry>
           <box>
-            <size>{diamond_size} {diamond_size} 0.0001</size>
+            <size>{checkerboard_size} {checkerboard_size} 0.0001</size>
           </box>
         </geometry>
         <material>
@@ -124,11 +124,11 @@ element = """      <visual name="checker_backdrop_vis">
               <pose>{x_trans} {y_trans} 0 0 0 {rotation}</pose>
               <geometry>
                 <box>
-                  <size>{diamond_size} {diamond_size} 0.0001</size>
+                  <size>{checkerboard_size} {checkerboard_size} 0.0001</size>
                 </box>
               </geometry>
               <max_contacts>10</max_contacts>
-        </collision>""".format(x_trans=x_trans, y_trans=y_trans, diamond_size=diamond_size, rotation=rotation)
+        </collision>""".format(x_trans=x_trans, y_trans=y_trans, checkerboard_size=checkerboard_size, rotation=rotation)
 visual_elements.append(element)
 
 # create the final SDF contents
@@ -136,7 +136,7 @@ sdf_visuals = "\n".join(visual_elements)
 sdf_string = sdf_preamble + sdf_visuals + sdf_postamble
 
 # save the SDF
-sdf_path = os.path.join(name, "DiamondTarget.sdf")
+sdf_path = os.path.join(name, "CheckerboardTarget.sdf")
 with open(sdf_path, "w") as f:
     f.write(sdf_string)
 print("wrote target to {}".format(sdf_path))
@@ -147,9 +147,9 @@ config_string = """<?xml version='1.0'?>
 <model>
   <name>{pretty_name}</name>
   <version>1.0.0</version>
-  <sdf version='1.4'>DiamondTarget.sdf</sdf>
+  <sdf version='1.4'>CheckerboardTarget.sdf</sdf>
   <author>
-    <name>generate_diamond_target.py</name>
+    <name>generate_checkerboard_target.py</name>
     <email>N/A</email>
   </author>
 </model>

@@ -1,10 +1,10 @@
-#include <vicon_calibration/measurement_extractors/DiamondCameraExtractor.h>
+#include <vicon_calibration/measurement_extractors/CheckerboardCameraExtractor.h>
 
 #include <vicon_calibration/Utils.h>
 
 namespace vicon_calibration {
 
-void DiamondCameraExtractor::GetKeypoints() {
+void CheckerboardCameraExtractor::GetKeypoints() {
   CropImage();
 
   // find dimensions of checkerboard with [n_dim x m_dim] interior corners

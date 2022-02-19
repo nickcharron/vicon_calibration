@@ -222,7 +222,7 @@ TEST_CASE("Test Ceres Optimizer With Perfect Initials") {
   CreateTransforms();
 
   // create measurements
-  TargetParamsVector target_params = GetTargetParams("DiamondTargetSim.json");
+  TargetParamsVector target_params = GetTargetParams("CheckerboardTargetSim.json");
   CameraParamsVector camera_params =
       GetCameraParams("CamFactorIntrinsics.json");
   LidarMeasurements lidar_measurements =
@@ -270,7 +270,7 @@ TEST_CASE("Test Ceres Optimizer With Perturbed Initials") {
   CreateTransforms();
 
   // create measurements
-  TargetParamsVector target_params = GetTargetParams("DiamondTargetSim.json");
+  TargetParamsVector target_params = GetTargetParams("CheckerboardTargetSim.json");
   CameraParamsVector camera_params =
       GetCameraParams("CamFactorIntrinsics.json");
   LidarMeasurements lidar_measurements =
@@ -321,7 +321,7 @@ TEST_CASE("Test with same data and not using Ceres Optimizer Class") {
   CreateTransforms();
 
   // create measurements
-  TargetParamsVector target_params = GetTargetParams("DiamondTargetSim.json");
+  TargetParamsVector target_params = GetTargetParams("CheckerboardTargetSim.json");
   CameraParamsVector camera_params =
       GetCameraParams("CamFactorIntrinsics.json");
   CameraMeasurements camera_measurements = CreateCameraMeasurements(

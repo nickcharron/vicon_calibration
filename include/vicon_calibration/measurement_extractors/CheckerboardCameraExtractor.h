@@ -3,12 +3,12 @@
 #include <vicon_calibration/measurement_extractors/CameraExtractor.h>
 
 namespace vicon_calibration {
-class DiamondCameraExtractor : public CameraExtractor {
+class CheckerboardCameraExtractor : public CameraExtractor {
 public:
   // Inherit base class constructors
   using CameraExtractor::CameraExtractor;
 
-  ~DiamondCameraExtractor() override = default;
+  ~CheckerboardCameraExtractor() override = default;
 
   /**
    * @brief Get the type of CameraExtractor

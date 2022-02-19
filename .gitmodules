@@ -1,0 +1,3 @@
+[submodule "dependencies/libcbdetect"]
+	path = dependencies/libcbdetect
+	url = https://github.com/nickcharron/libcbdetect.git

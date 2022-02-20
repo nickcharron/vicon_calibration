@@ -45,8 +45,6 @@ private:
 
   void DetectCornersLibCBDetect();
 
-  void PlotLibCBDetectCorners(const cbdetect::Corner& corners);
-
   CornerDetectorType corner_detector_{CornerDetectorType::OPENCV};
 };
 

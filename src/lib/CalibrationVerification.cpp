@@ -15,10 +15,10 @@
 #include <vicon_calibration/CropBox.h>
 #include <vicon_calibration/PclConversions.h>
 #include <vicon_calibration/Utils.h>
-#include <vicon_calibration/measurement_extractors/CylinderCameraExtractor.h>
-#include <vicon_calibration/measurement_extractors/CylinderLidarExtractor.h>
 #include <vicon_calibration/measurement_extractors/CheckerboardCameraExtractor.h>
 #include <vicon_calibration/measurement_extractors/CheckerboardLidarExtractor.h>
+#include <vicon_calibration/measurement_extractors/CylinderCameraExtractor.h>
+#include <vicon_calibration/measurement_extractors/CylinderLidarExtractor.h>
 
 namespace vicon_calibration {
 
@@ -569,7 +569,7 @@ void CalibrationVerification::SaveCameraVisuals() {
       }
     }
 
-    // iterate through all measurements for this lidar
+    // iterate through all measurements for this camera
     std::shared_ptr<cv::Mat> current_image, final_image;
     std::shared_ptr<CameraMeasurement> measurement;
     for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
@@ -583,6 +583,15 @@ void CalibrationVerification::SaveCameraVisuals() {
       // load image from bag
       current_image = GetImageFromBag(
           params_->camera_params[measurement->camera_id]->topic);
+
+      // convert to color if not already
+      if (current_image->channels() != 3) {
+#if CV_VERSION_MAJOR >= 4
+        cv::cvtColor(*current_image, *current_image, cv::COLOR_GRAY2BGR);
+#else
+        cv::cvtColor(*current_image, *current_image, CV_GRAY2BGR);
+#endif
+      }
 
       // load targets and transform to viconbase frame
       try {

@@ -24,18 +24,15 @@
 
 namespace cbdetect {
 
-void plot_boards(const cv::Mat& img, const Corner& corners,
+void plot_boards(cv::Mat& img_show, const Corner& corners,
                  const std::vector<Board>& boards, const Params& params) {
-  cv::Mat img_show;
-  if(img.channels() != 3) {
+  if(img_show.channels() != 3) {
 #if CV_VERSION_MAJOR >= 4
-    cv::cvtColor(img, img_show, cv::COLOR_GRAY2BGR);
+    cv::cvtColor(img_show, img_show, cv::COLOR_GRAY2BGR);
 #else
-    cv::cvtColor(img, img_show, CV_GRAY2BGR);
+    cv::cvtColor(img_show, img_show, CV_GRAY2BGR);
 #endif
-  } else {
-    img_show = img.clone();
-  }
+  } 
 
   for(int n = 0; n < boards.size(); ++n) {
     const auto& board = boards[n];
@@ -107,8 +104,8 @@ void plot_boards(const cv::Mat& img, const Corner& corners,
                 cv::FONT_HERSHEY_SIMPLEX, 1.3, cv::Scalar(196, 196, 0), 2);
   }
 
-  cv::imshow("boards_img", img_show);
-  cv::waitKey();
+  // cv::imshow("boards_img", img_show);
+  // cv::waitKey();
 }
 
 } // namespace cbdetect

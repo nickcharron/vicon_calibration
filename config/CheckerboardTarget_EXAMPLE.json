@@ -1,7 +1,7 @@
 {
   "crop_scan": [-0.5, 0.75, -0.5, 0.75, -0.15, 0.15],
   "crop_image": [0, 0],
-  "template_cloud": "diamond_target_EXAMPLE.pcd",
+  "template_cloud": "checkerboard_target_EXAMPLE.pcd",
   "is_target_2d": true,
   "keypoints_lidar": [
   ],

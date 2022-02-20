@@ -9,7 +9,8 @@
   "optimizer_type": "CERES",
   "targets":[
     {"frame_id": "vicon/target1/target1",
-     "extractor_type": "CYLINDER",
+     "camera_extractor_type": "CHECKERBOARD-OPENCV",
+     "lidar_extractor_type": "CHECKERBOARD-CORNERS",
      "target_config": "CylinderTarget_EXAMPLE.json"
     }
   ],

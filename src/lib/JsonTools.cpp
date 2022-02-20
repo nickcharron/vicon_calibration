@@ -100,7 +100,8 @@ std::shared_ptr<TargetParams>
 
   try {
     params->frame_id = J_in["frame_id"];
-    params->extractor_type = J_in["extractor_type"];
+    params->lidar_extractor_type = J_in["lidar_extractor_type"];
+    params->camera_extractor_type = J_in["camera_extractor_type"];
   } catch (const nlohmann::json::exception& e) {
     LOG_ERROR("Cannot load json, one or more missing parameters. Error: %s",
               e.what());

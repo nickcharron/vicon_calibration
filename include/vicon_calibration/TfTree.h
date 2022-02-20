@@ -56,7 +56,7 @@ public:
    * @param is_static (default: false)
    */
   void AddTransform(const geometry_msgs::TransformStamped& T_ROS,
-                    const bool &is_static = false);
+                    bool is_static = false);
 
   /**
    * @brief Method for retrieving a static transformation
@@ -91,8 +91,9 @@ public:
    * @param from_frame
    * @return T_ROS
    */
-  geometry_msgs::TransformStamped GetTransformROS(const std::string& to_frame,
-                                                  const std::string& from_frame);
+  geometry_msgs::TransformStamped
+      GetTransformROS(const std::string& to_frame,
+                      const std::string& from_frame);
 
   /**
    * @brief Method for retrieving the date that the calibration was done
@@ -110,10 +111,10 @@ public:
 
   std::unordered_map<std::string, std::vector<std::string>> GetAllFrames() {
     /**
-    * @brief Method for getting all the frames in TfTree
-    * @return Return unordered_map. First strings are from (parent) frames and
-    * vectors of strings are to (child) frames
-    */
+     * @brief Method for getting all the frames in TfTree
+     * @return Return unordered_map. First strings are from (parent) frames and
+     * vectors of strings are to (child) frames
+     */
     return frames_;
   }
 
@@ -133,7 +134,7 @@ private:
    */
   void SetTransform(const geometry_msgs::TransformStamped& T_ROS,
                     const std::string& to_frame, const std::string& from_frame,
-                    const ros::Time& time_stamp, const bool &is_static);
+                    const ros::Time& time_stamp, bool is_static);
 
   /**
    * @brief Private method for looking up a transform
@@ -176,7 +177,7 @@ private:
 
   tf2::BufferCore Tree_{ros::Duration(1000)};
   std::string calibration_date_;
-  bool is_calibration_date_set_ = false;
+  bool is_calibration_date_set_{false};
 
   // Stores all frame names. Key: Parent frame Value: Vector of child frames
   std::unordered_map<std::string, std::vector<std::string>> frames_;

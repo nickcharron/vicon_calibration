@@ -160,7 +160,7 @@ void CylinderCameraExtractor::DisplayImagePair(const cv::Mat& img1,
                                                const cv::Mat& img2,
                                                const std::string& display_name,
                                                const std::string& output_text,
-                                               const bool& allow_override) {
+                                               bool allow_override) {
   if (!show_measurements_) { return; }
 
   cv::Mat img1_w_axes = utils::DrawCoordinateFrame(img1, T_CAMERA_TARGET_EST_,

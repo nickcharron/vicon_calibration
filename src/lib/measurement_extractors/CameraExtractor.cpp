@@ -1,5 +1,7 @@
 #include <vicon_calibration/measurement_extractors/CameraExtractor.h>
 
+#include <vicon_calibration/measurement_extractors/CameraExtractors.h>
+
 #include <boost/make_shared.hpp>
 
 #include <vicon_calibration/Utils.h>
@@ -8,6 +10,42 @@ namespace vicon_calibration {
 
 CameraExtractor::CameraExtractor() {
   keypoints_measured_ = std::make_shared<pcl::PointCloud<pcl::PointXY>>();
+}
+
+std::shared_ptr<CameraExtractor>
+    CameraExtractor::Create(const std::string& type) {
+  std::shared_ptr<CameraExtractor> camera_extractor;
+
+  std::string output_options;
+  output_options +=
+      "Extractor type must be of the form: TARGETTYPE-EXTRACTORTYPE. "
+      "Where TARGETTYPE can be CYLINDER or CHECKERBOARD, and "
+      "EXTRACTORTYPE can be OPENCV, SADDLEPOINT, or MONKEYSADDLEPOINT";
+
+  if (type.find("CYLINDER") != std::string::npos) {
+    camera_extractor =
+        std::make_shared<vicon_calibration::CylinderCameraExtractor>();
+    return camera_extractor;
+  }
+
+  if (type.find("OPENCV") != std::string::npos) {
+    camera_extractor =
+        std::make_shared<vicon_calibration::CheckerboardCameraExtractor>(
+            CornerDetectorType::OPENCV);
+  } else if (type.find("SADDLEPOINT") != std::string::npos) {
+    camera_extractor =
+        std::make_shared<vicon_calibration::CheckerboardCameraExtractor>(
+            CornerDetectorType::SADDLEPOINT);
+  } else if (type.find("MONKEYSADDLEPOINT") != std::string::npos) {
+    camera_extractor =
+        std::make_shared<vicon_calibration::CheckerboardCameraExtractor>(
+            CornerDetectorType::MONKEYSADDLEPOINT);
+  } else {
+    LOG_ERROR("Invalid extractor type. %s", output_options.c_str());
+    throw std::invalid_argument{"Invalid extractor type"};
+  }
+
+  return camera_extractor;
 }
 
 void CameraExtractor::SetCameraParams(
@@ -22,7 +60,7 @@ void CameraExtractor::SetTargetParams(
   target_params_set_ = true;
 }
 
-void CameraExtractor::SetShowMeasurements(const bool& show_measurements) {
+void CameraExtractor::SetShowMeasurements(bool show_measurements) {
   show_measurements_ = show_measurements;
 }
 
@@ -166,7 +204,7 @@ void CameraExtractor::CropImage() {
   } else {
     measurement_valid_ = false;
     if (show_measurements_) {
-      LOG_WARN("Target not in image, skipping measurement.");
+      LOG_WARN("Target not in image, skipping measurement");
     }
   }
 
@@ -191,7 +229,7 @@ void CameraExtractor::CropImage() {
 void CameraExtractor::DisplayImage(const cv::Mat& img,
                                    const std::string& display_name,
                                    const std::string& output_text,
-                                   const bool& allow_override) {
+                                   bool allow_override) {
   if (!show_measurements_) { return; }
 
   cv::Mat current_image_w_axes = utils::DrawCoordinateFrame(

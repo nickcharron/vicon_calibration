@@ -1,6 +1,6 @@
 /* This exectuable can be used to generate keypoints used for a checkerboard
   target that you will include in your TargetConfig.json config file (see
-  DiamondTaret.json).
+  CheckerboardTaret.json).
 
   **Note:** This assumes the coordinate frame is actually at the top left
   "exterior" edge, not the first interior edge which is usually the assumed

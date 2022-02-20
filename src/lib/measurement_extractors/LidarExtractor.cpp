@@ -1,5 +1,7 @@
 #include <vicon_calibration/measurement_extractors/LidarExtractor.h>
 
+#include <vicon_calibration/measurement_extractors/LidarExtractors.h>
+
 #include <vicon_calibration/CropBox.h>
 
 namespace vicon_calibration {
@@ -7,13 +9,56 @@ namespace vicon_calibration {
 LidarExtractor::LidarExtractor(
     const std::shared_ptr<vicon_calibration::LidarParams>& lidar_params,
     const std::shared_ptr<vicon_calibration::TargetParams>& target_params,
-    const bool& show_measurements, const std::shared_ptr<Visualizer> pcl_viewer)
+    bool show_measurements, std::shared_ptr<Visualizer> pcl_viewer)
     : lidar_params_(lidar_params),
       target_params_(target_params),
       pcl_viewer_(pcl_viewer),
       show_measurements_(show_measurements) {
   keypoints_measured_ = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
   pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS);
+}
+
+std::shared_ptr<LidarExtractor> LidarExtractor::Create(
+    const std::string& type,
+    const std::shared_ptr<vicon_calibration::LidarParams>& lidar_params,
+    const std::shared_ptr<vicon_calibration::TargetParams>& target_params,
+    bool show_measurements, std::shared_ptr<Visualizer> pcl_viewer) {
+  std::shared_ptr<LidarExtractor> lidar_extractor;
+
+  // look for cylinder
+  if (type.find("CYLINDER") != std::string::npos) {
+    lidar_extractor =
+        std::make_shared<vicon_calibration::CylinderLidarExtractor>(
+            lidar_params, target_params, show_measurements, pcl_viewer);
+    return lidar_extractor;
+  }
+
+  std::string output_options;
+  output_options +=
+      "Extractor type must be of the form: TARGETTYPE-EXTRACTORTYPE. Where "
+      "TARGETTYPE can be CYLINDER or CHECKERBOARD, and EXTRACTORTYPE can be "
+      "CORNERS or ALL";
+
+  // look for CHECKERBOARD
+  if (type.find("CHECKERBOARD") == std::string::npos) {
+    LOG_ERROR("Invalid extractor type. %s", output_options.c_str());
+    throw std::invalid_argument{"Invalid extractor type"};
+  }
+
+  if (type.find("CORNERS") != std::string::npos) {
+    lidar_extractor =
+        std::make_shared<vicon_calibration::CheckerboardCornersLidarExtractor>(
+            lidar_params, target_params, show_measurements, pcl_viewer);
+  } else if (type.find("ALL") != std::string::npos) {
+    lidar_extractor =
+        std::make_shared<vicon_calibration::CheckerboardLidarExtractor>(
+            lidar_params, target_params, show_measurements, pcl_viewer);
+  } else {
+    LOG_ERROR("Invalid extractor type. %s", output_options.c_str());
+    throw std::invalid_argument{"Invalid extractor type"};
+  }
+
+  return lidar_extractor;
 }
 
 bool LidarExtractor::GetMeasurementValid() {

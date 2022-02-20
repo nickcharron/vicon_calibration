@@ -9,8 +9,9 @@
   "optimizer_type": "CERES",
   "targets":[
     {"frame_id": "vicon/target2/target2",
-     "extractor_type": "DIAMOND",
-     "target_config": "DiamondTarget_EXAMPLE.json"
+      "camera_extractor_type": "CHECKERBOARD-OPENCV",
+      "lidar_extractor_type": "CHECKERBOARD-CORNERS",
+     "target_config": "CheckerboardTarget_EXAMPLE.json"
     }
   ],
   "camera_params": [

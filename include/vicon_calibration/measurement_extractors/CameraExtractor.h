@@ -13,7 +13,7 @@ namespace vicon_calibration {
 /**
  * @brief Enum class for different types of camera extractors we can use
  */
-enum class CameraExtractorType { CYLINDER = 0, DIAMOND };
+enum class CameraExtractorType { CYLINDER = 0, CHECKERBOARD };
 
 /**
  * @brief Abstract class for CameraExtractor
@@ -24,15 +24,19 @@ public:
 
   virtual ~CameraExtractor() = default;
 
+  /**
+   * @brief Factory method to create camera extractor at runtime
+   */
+  static std::shared_ptr<CameraExtractor> Create(const std::string& type);
+
   // alias for clarity
   using Ptr = std::shared_ptr<CameraExtractor>;
 
   /**
    * @brief Get the type of CameraExtractor
-   * @return Returns type as one of CameraExtractor types specified in the enum
-   * CameraExtractorType
+   * @return Returns type as string
    */
-  virtual CameraExtractorType GetType() const = 0;
+  virtual std::string GetTypeString() const = 0;
 
   void SetCameraParams(
       std::shared_ptr<vicon_calibration::CameraParams>& camera_params);
@@ -40,7 +44,7 @@ public:
   void SetTargetParams(
       std::shared_ptr<vicon_calibration::TargetParams>& target_params);
 
-  void SetShowMeasurements(const bool& show_measurements);
+  void SetShowMeasurements(bool show_measurements);
 
   bool GetShowMeasurements();
 
@@ -67,7 +71,7 @@ protected:
   void CropImage();
 
   void DisplayImage(const cv::Mat& img, const std::string& display_name,
-                    const std::string& output_text, const bool& allow_override);
+                    const std::string& output_text, bool allow_override);
 
   // params:
   double axis_plot_scale_{0.3}; // scale for plotting projected axes on an img
@@ -85,6 +89,7 @@ protected:
   bool measurement_valid_{false};
   bool target_params_set_{false};
   bool camera_params_set_{false};
+
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };

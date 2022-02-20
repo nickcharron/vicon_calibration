@@ -1,4 +1,4 @@
-#include <vicon_calibration/measurement_extractors/DiamondCornersLidarExtractor.h>
+#include <vicon_calibration/measurement_extractors/CheckerboardCornersLidarExtractor.h>
 
 #include <math.h>
 
@@ -6,7 +6,7 @@
 
 namespace vicon_calibration {
 
-void DiamondCornersLidarExtractor::GetKeypoints() {
+void CheckerboardCornersLidarExtractor::GetKeypoints() {
   measurement_valid_ = true;
 
   // setup icp
@@ -45,7 +45,7 @@ void DiamondCornersLidarExtractor::GetKeypoints() {
   }
 }
 
-void DiamondCornersLidarExtractor::CheckMeasurementValid() {
+void CheckerboardCornersLidarExtractor::CheckMeasurementValid() {
   if (!measurement_valid_) { return; }
 
   pcl::KdTreeFLANN<pcl::PointXYZ> kd_tree;

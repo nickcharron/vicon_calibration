@@ -21,7 +21,7 @@ find_package(OpenCV REQUIRED)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(Ceres REQUIRED)
 
-################## Add the core library ##################
+################## Add the libraries ##################
 add_subdirectory(src/lib)
 add_subdirectory(tests)
 
@@ -87,31 +87,31 @@ if(CATKIN_ENABLE_TESTING)
   )
 
   ### TEST3 ###
-  add_executable(${PROJECT_NAME}_tests_diamond_camera_extractor
-    tests/diamond_camera_extractor_test.cpp
+  add_executable(${PROJECT_NAME}_tests_checkerboard_camera_extractor
+    tests/checkerboard_camera_extractor_test.cpp
   )
 
-  target_include_directories(${PROJECT_NAME}_tests_diamond_camera_extractor
+  target_include_directories(${PROJECT_NAME}_tests_checkerboard_camera_extractor
     PUBLIC
       include
   )
 
-  target_link_libraries(${PROJECT_NAME}_tests_diamond_camera_extractor
+  target_link_libraries(${PROJECT_NAME}_tests_checkerboard_camera_extractor
     ${PROJECT_NAME}
     Catch2::Catch2
   )
 
   ### TEST4 ###
-  add_executable(${PROJECT_NAME}_tests_diamond_lidar_extractor
-    tests/diamond_lidar_extractor_test.cpp
+  add_executable(${PROJECT_NAME}_tests_checkerboard_lidar_extractor
+    tests/checkerboard_lidar_extractor_test.cpp
   )
 
-  target_include_directories(${PROJECT_NAME}_tests_diamond_lidar_extractor
+  target_include_directories(${PROJECT_NAME}_tests_checkerboard_lidar_extractor
     PUBLIC
       include
   )
 
-  target_link_libraries(${PROJECT_NAME}_tests_diamond_lidar_extractor
+  target_link_libraries(${PROJECT_NAME}_tests_checkerboard_lidar_extractor
     ${PROJECT_NAME}
     Catch2::Catch2
   )

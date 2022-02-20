@@ -11,12 +11,9 @@ public:
 
   /**
    * @brief Get the type of LidarExtractor
-   * @return Returns type as one of LidarExtractor types specified in the enum
-   * LidarExtractorType
+   * @return Returns type as string
    */
-  LidarExtractorType GetType() const override {
-    return LidarExtractorType::CYLINDER;
-  };
+  std::string GetTypeString() const override { return "CYLINDER"; };
 
 private:
   void GetKeypoints() override;

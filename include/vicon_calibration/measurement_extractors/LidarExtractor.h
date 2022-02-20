@@ -30,11 +30,6 @@ public:
 };
 
 /**
- * @brief Enum class for different types of camera extractors we can use
- */
-enum class LidarExtractorType { CYLINDER = 0, DIAMONDCORNERS, DIAMOND };
-
-/**
  * @brief Abstract class for LidarExtractor
  */
 class LidarExtractor {
@@ -42,20 +37,29 @@ public:
   LidarExtractor(
       const std::shared_ptr<vicon_calibration::LidarParams>& lidar_params,
       const std::shared_ptr<vicon_calibration::TargetParams>& target_params,
-      const bool& show_measurements,
-      const std::shared_ptr<Visualizer> pcl_viewer);
+      bool show_measurements,
+      std::shared_ptr<Visualizer> pcl_viewer);
 
   virtual ~LidarExtractor() = default;
+
+  /**
+   * @brief Factory method to create lidar extractor at runtime
+   */
+  static std::shared_ptr<LidarExtractor> Create(
+      const std::string& type,
+      const std::shared_ptr<vicon_calibration::LidarParams>& lidar_params,
+      const std::shared_ptr<vicon_calibration::TargetParams>& target_params,
+      bool show_measurements,
+      std::shared_ptr<Visualizer> pcl_viewer);
 
   // alias for clarity
   using Ptr = std::shared_ptr<LidarExtractor>;
 
   /**
-   * @brief Get the type of LidarExtractor
-   * @return Returns type as one of LidarExtractor types specified in the enum
-   * LidarExtractorType
+   * @brief Get the type of LidarExtractor as a string
+   * @return string specifying the type
    */
-  virtual LidarExtractorType GetType() const = 0;
+  virtual std::string GetTypeString() const = 0;
 
   void ProcessMeasurement(const Eigen::Matrix4d& T_LIDAR_TARGET_EST,
                           const PointCloud::Ptr& cloud_in,
@@ -109,9 +113,10 @@ protected:
   bool icp_enable_debug_{false};
   double allowable_keypoint_error_{0.03};
   bool output_scans_{false};
-  std::string output_directory_{"/home/nick/results/vicon_calibration/debug/lidar_extractor/"};
+  std::string output_directory_{
+      "/home/nick/results/vicon_calibration/debug/lidar_extractor/"};
 
-  public:
+public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 

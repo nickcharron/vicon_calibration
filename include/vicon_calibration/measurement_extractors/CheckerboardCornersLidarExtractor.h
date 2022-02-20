@@ -4,18 +4,17 @@
 
 namespace vicon_calibration {
 
-class DiamondLidarExtractor : public LidarExtractor {
+class CheckerboardCornersLidarExtractor : public LidarExtractor {
 public:
   // Inherit base class constructors
   using LidarExtractor::LidarExtractor;
 
   /**
    * @brief Get the type of LidarExtractor
-   * @return Returns type as one of LidarExtractor types specified in the enum
-   * LidarExtractorType
+   * @return Returns type as string
    */
-  LidarExtractorType GetType() const override {
-    return LidarExtractorType::DIAMONDCORNERS;
+  std::string GetTypeString() const override {
+    return "CHECKERBOARD-CORNERS";
   };
 
 private:
@@ -26,9 +25,9 @@ private:
   double icp_transform_epsilon_{1e-8};
   double icp_euclidean_epsilon_{1e-2};
   int icp_max_iterations_{50};
-  double icp_max_correspondence_dist_{0.2};
+  double icp_max_correspondence_dist_{1};
   bool icp_enable_debug_{false};
-  int min_num_keypoints_{30};
+  double concave_hull_alpha_{0.1};
 };
 
 } // namespace vicon_calibration

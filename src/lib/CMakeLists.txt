@@ -2,6 +2,25 @@ SET(CMAKE_CXX_STANDARD 17)
 
 # Core library
 add_library(${PROJECT_NAME}
+  libcbdetect/board_energy.cc
+  libcbdetect/boards_from_corners.cc
+  libcbdetect/create_correlation_patch.cc
+  libcbdetect/filter_board.cc
+  libcbdetect/filter_corners.cc
+  libcbdetect/find_corners.cc
+  libcbdetect/find_modes_meanshift.cc
+  libcbdetect/get_image_patch.cc
+  libcbdetect/get_init_location.cc
+  libcbdetect/grow_board.cc
+  libcbdetect/image_normalization_and_gradients.cc
+  libcbdetect/init_board.cc
+  libcbdetect/non_maximum_suppression.cc
+  libcbdetect/plot_boards.cc
+  libcbdetect/plot_corners.cc
+  libcbdetect/polynomial_fit.cc
+  libcbdetect/refine_corners.cc
+  libcbdetect/score_corners.cc
+  libcbdetect/weight_mask.cc
   camera_models/CameraModel.cpp
   camera_models/DoubleSphere.cpp
   camera_models/KannalaBrandt.cpp
@@ -11,9 +30,9 @@ add_library(${PROJECT_NAME}
   measurement_extractors/LidarExtractor.cpp
   measurement_extractors/CylinderCameraExtractor.cpp
   measurement_extractors/CylinderLidarExtractor.cpp
-  measurement_extractors/DiamondCameraExtractor.cpp
-  measurement_extractors/DiamondLidarExtractor.cpp
-  measurement_extractors/DiamondCornersLidarExtractor.cpp
+  measurement_extractors/CheckerboardCameraExtractor.cpp
+  measurement_extractors/CheckerboardLidarExtractor.cpp
+  measurement_extractors/CheckerboardCornersLidarExtractor.cpp
   measurement_extractors/IsolateTargetPoints.cpp
   optimization/Optimizer.cpp
   optimization/CeresOptimizer.cpp

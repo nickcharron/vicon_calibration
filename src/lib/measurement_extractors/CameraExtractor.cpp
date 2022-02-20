@@ -100,11 +100,10 @@ void CameraExtractor::ProcessMeasurement(
         *image_annotated_, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
         axis_plot_scale_);
     if (!measurement_valid_) {
-      DisplayImage(*image_annotated_, "Invalid Measurement",
-                   "Showing failed measurement", false);
+      DisplayImage("Invalid Measurement", "Showing failed measurement", false);
     } else {
-      DisplayImage(*image_annotated_, "Valid Measurement",
-                   "Showing successfull measurement", true);
+      DisplayImage("Valid Measurement", "Showing successfull measurement",
+                   true);
     }
   }
   measurement_complete_ = true;
@@ -226,14 +225,21 @@ void CameraExtractor::CropImage() {
   return;
 }
 
-void CameraExtractor::DisplayImage(const cv::Mat& img,
-                                   const std::string& display_name,
+void CameraExtractor::DisplayImage(const std::string& display_name,
                                    const std::string& output_text,
                                    bool allow_override) {
   if (!show_measurements_) { return; }
 
+  if (image_annotated_->channels() != 3) {
+#if CV_VERSION_MAJOR >= 4
+    cv::cvtColor(*image_annotated_, *image_annotated_, cv::COLOR_GRAY2BGR);
+#else
+    cv::cvtColor(*image_annotated_, *image_annotated_, CV_GRAY2BGR);
+#endif
+  }
+
   cv::Mat current_image_w_axes = utils::DrawCoordinateFrame(
-      img, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
+      *image_annotated_, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
       axis_plot_scale_);
 
   if (allow_override) {
@@ -243,7 +249,8 @@ void CameraExtractor::DisplayImage(const cv::Mat& img,
               << "Press [n] to reject measurement\n"
               << "Press [s] to stop showing future measurements\n";
     cv::namedWindow(display_name, cv::WINDOW_NORMAL);
-    cv::resizeWindow(display_name, img.cols / 2, img.rows / 2);
+    cv::resizeWindow(display_name, image_annotated_->cols / 2,
+                     image_annotated_->rows / 2);
     cv::imshow(display_name, current_image_w_axes);
     auto key = 0;
     while (key != 67 && key != 99 && key != 121 && key != 110 && key != 115) {
@@ -266,7 +273,8 @@ void CameraExtractor::DisplayImage(const cv::Mat& img,
               << "Press [c] to continue with default\n"
               << "Press [s] to stop showing future measurements\n";
     cv::namedWindow(display_name, cv::WINDOW_NORMAL);
-    cv::resizeWindow(display_name, img.cols / 2, img.rows / 2);
+    cv::resizeWindow(display_name, image_annotated_->cols / 2,
+                     image_annotated_->rows / 2);
     cv::imshow(display_name, current_image_w_axes);
     auto key = 0;
     while (key != 67 && key != 99 && key != 115) {

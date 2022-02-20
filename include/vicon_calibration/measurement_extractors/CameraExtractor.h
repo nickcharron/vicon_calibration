@@ -70,7 +70,7 @@ protected:
   // box by
   void CropImage();
 
-  void DisplayImage(const cv::Mat& img, const std::string& display_name,
+  void DisplayImage(const std::string& display_name,
                     const std::string& output_text, bool allow_override);
 
   // params:

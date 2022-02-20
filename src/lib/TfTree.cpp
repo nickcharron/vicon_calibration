@@ -78,7 +78,7 @@ void TfTree::AddTransform(const Eigen::Affine3d& T, const std::string& to_frame,
 }
 
 void TfTree::AddTransform(const geometry_msgs::TransformStamped& T_ROS,
-                          const bool& is_static) {
+                          bool is_static) {
   std::string to_frame = T_ROS.header.frame_id;
   std::string from_frame = T_ROS.child_frame_id;
   ros::Time transform_time = T_ROS.header.stamp;
@@ -178,7 +178,7 @@ Eigen::Affine3d
 void TfTree::SetTransform(const geometry_msgs::TransformStamped& T_ROS,
                           const std::string& to_frame,
                           const std::string& from_frame,
-                          const ros::Time& time_stamp, const bool& is_static) {
+                          const ros::Time& time_stamp, bool is_static) {
   /* ---------------------------------------------------------------------------
   here's the logic:
   if static and exact transform from child to parent exists, output error

@@ -23,7 +23,8 @@
 #include <vicon_calibration/Params.h>
 #include <vicon_calibration/PclConversions.h>
 #include <vicon_calibration/Utils.h>
-#include <vicon_calibration/measurement_extractors/MeasurementExtractors.h>
+#include <vicon_calibration/measurement_extractors/CameraExtractors.h>
+#include <vicon_calibration/measurement_extractors/LidarExtractors.h>
 #include <vicon_calibration/optimization/CeresOptimizer.h>
 
 namespace vicon_calibration {
@@ -292,29 +293,11 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
         }
       }
 
-      std::string extractor_type = params_->target_params[n]->extractor_type;
-      // TODO: add factory method [create(...)] to initialize these
-      //       automatically without having to do these if statements.
-      //       This increases extensibility
-      if (extractor_type == "CYLINDER") {
-        lidar_extractor_ =
-            std::make_shared<vicon_calibration::CylinderLidarExtractor>(
-                params_->lidar_params[lidar_iter], params_->target_params[n],
-                params_->show_lidar_measurements, pcl_viewer_);
-      } else if (extractor_type == "DIAMONDCORNERS") {
-        lidar_extractor_ =
-            std::make_shared<vicon_calibration::CheckerboardCornersLidarExtractor>(
-                params_->lidar_params[lidar_iter], params_->target_params[n],
-                params_->show_lidar_measurements, pcl_viewer_);
-      } else if (extractor_type == "DIAMOND") {
-        lidar_extractor_ =
-            std::make_shared<vicon_calibration::CheckerboardLidarExtractor>(
-                params_->lidar_params[lidar_iter], params_->target_params[n],
-                params_->show_lidar_measurements, pcl_viewer_);
-      } else {
-        throw std::invalid_argument{
-            "Invalid extractor type. Options: CYLINDER, DIAMOND"};
-      }
+      lidar_extractor_ = LidarExtractor::Create(
+          params_->target_params[n]->lidar_extractor_type,
+          params_->lidar_params[lidar_iter], params_->target_params[n],
+          params_->show_lidar_measurements, pcl_viewer_);
+
       if (params_->show_lidar_measurements) {
         std::cout << "---------------------------------\n"
                   << "Processing measurement for: Lidar"
@@ -444,17 +427,8 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
         }
       }
 
-      std::string extractor_type = params_->target_params[n]->extractor_type;
-      if (extractor_type == "CYLINDER") {
-        camera_extractor_ =
-            std::make_shared<vicon_calibration::CylinderCameraExtractor>();
-      } else if (extractor_type == "DIAMOND") {
-        camera_extractor_ =
-            std::make_shared<vicon_calibration::CheckerboardCameraExtractor>();
-      } else {
-        throw std::invalid_argument{
-            "Invalid extractor type. Options: CYLINDER, DIAMOND"};
-      }
+      camera_extractor_ = CameraExtractor::Create(
+          params_->target_params[n]->camera_extractor_type);
 
       if (params_->show_camera_measurements) {
         std::cout << "---------------------------------\n"

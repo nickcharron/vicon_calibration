@@ -32,7 +32,7 @@ if len(sys.argv) < 3:
 
 # in meters
 DEFAULT_SQUARE_SIZE = 0.0254
-DEFAULT_DIAMOND_SIZE = 0.500
+DEFAULT_CHECKERBOARD_SIZE = 0.500
 
 # set up shop
 rows = int(sys.argv[1])
@@ -44,7 +44,7 @@ else:
 if len(sys.argv) > 4:
     checkerboard_size = float(sys.argv[4])
 else:
-    checkerboard_size = DEFAULT_DIAMOND_SIZE
+    checkerboard_size = DEFAULT_CHECKERBOARD_SIZE
 dims = str(cols) + "x" + str(rows)
 name = "_".join(["CheckerboardTarget", dims,
                  str(sq_size).replace(".", "_"), str(checkerboard_size).replace(".", "_")])

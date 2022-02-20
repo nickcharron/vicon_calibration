@@ -12,12 +12,9 @@ public:
 
   /**
    * @brief Get the type of CameraExtractor
-   * @return Returns type as one of CameraExtractor types specified in the enum
-   * CameraExtractorType
+   * @return Returns type as string
    */
-  CameraExtractorType GetType() const override {
-    return CameraExtractorType::CYLINDER;
-  };
+  std::string GetTypeString() const override { return "CYLINDER"; };
 
 private:
   void GetKeypoints() override;
@@ -33,7 +30,7 @@ private:
   void DisplayImagePair(const cv::Mat& img1, const cv::Mat& img2,
                         const std::string& display_name,
                         const std::string& output_text,
-                        const bool& allow_override);
+                        bool allow_override);
 
   // params:
   cv::Scalar color_threshold_min_{0, 95, 0}; // Min BGR to threshold img for tgt

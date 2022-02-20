@@ -74,7 +74,8 @@ struct CameraParams {
 
 struct TargetParams {
   std::string frame_id;
-  std::string extractor_type;
+  std::string lidar_extractor_type;
+  std::string camera_extractor_type;
   std::string target_config_path;
   Eigen::Matrix<float, 6, 1>
       crop_scan;              // [min x, max x, min y, max y, min z, max z]
@@ -94,7 +95,8 @@ struct TargetParams {
   void Print() {
     std::cout << "----------------------------------\n"
               << "Printing target params for frame: " << frame_id << "\n"
-              << "Extractor type: " << extractor_type << "\n"
+              << "Lidar extractor type: " << lidar_extractor_type << "\n"
+              << "Camera extractor type: " << camera_extractor_type << "\n"
               << "Config path: " << target_config_path << "\n"
               << "Scan Crop: [" << crop_scan[0] << ", " << crop_scan[1] << ", "
               << crop_scan[2] << "]\n"

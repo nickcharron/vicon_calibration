@@ -4,21 +4,32 @@
   "max_target_velocity": 0.7,
   "vicon_baselink_frame": "vicon/robot/robot",
   "time_steps": 1,
-  "crop_time": [0,0],
+  "crop_time": [
+    0,
+    0
+  ],
   "max_measurements": 5,
   "optimizer_type": "CERES",
-  "targets":[
-    {"frame_id": "vicon/target2/target2",
-      "camera_extractor_type": "CHECKERBOARD-OPENCV",
+  "targets": [
+    {
+      "frame_id": "vicon/target2/target2",
+      "camera_extractor_type": "CHECKERBOARD-SADDLEPOINT",
       "lidar_extractor_type": "CHECKERBOARD-CORNERS",
-     "target_config": "CheckerboardTarget_EXAMPLE.json"
+      "target_config": "CheckerboardTarget_EXAMPLE.json"
     }
   ],
   "camera_params": [
+    {
+      "topic": "/camera/image_raw",
+      "frame": "camera_link",
+      "intrinsics": "intrinsics_EXAMPLE.json"
+    }
   ],
-  "lidar_params":[
-    {"topic": "/velodyne_points",
+  "lidar_params": [
+    {
+      "topic": "/velodyne_points",
       "frame": "velodyne_link",
-      "max_angular_resolution_deg": 2}
+      "max_angular_resolution_deg": 2
+    }
   ]
 }

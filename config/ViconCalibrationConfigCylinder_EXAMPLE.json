@@ -4,24 +4,32 @@
   "max_target_velocity": 0.7,
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
   "time_steps": 1,
-  "crop_time": [0,0],
+  "crop_time": [
+    0,
+    0
+  ],
   "max_measurements": 30,
   "optimizer_type": "CERES",
-  "targets":[
-    {"frame_id": "vicon/target1/target1",
-     "camera_extractor_type": "CHECKERBOARD-OPENCV",
-     "lidar_extractor_type": "CHECKERBOARD-CORNERS",
-     "target_config": "CylinderTarget_EXAMPLE.json"
+  "targets": [
+    {
+      "frame_id": "vicon/target1/target1",
+      "camera_extractor_type": "CHECKERBOARD-OPENCV",
+      "lidar_extractor_type": "CHECKERBOARD-CORNERS",
+      "target_config": "CylinderTarget_EXAMPLE.json"
     }
   ],
   "camera_params": [
-    {"topic": "/camera/image_raw",
+    {
+      "topic": "/camera/image_raw",
       "frame": "camera_link",
-      "intrinsics": "intrinsics_EXAMPLE.json"}
+      "intrinsics": "intrinsics_EXAMPLE.json"
+    }
   ],
-  "lidar_params":[
-    {"topic": "/velodyne_points",
+  "lidar_params": [
+    {
+      "topic": "/velodyne_points",
       "frame": "velodyne_link",
-      "max_angular_resolution_deg": 2}
+      "max_angular_resolution_deg": 2
+    }
   ]
 }

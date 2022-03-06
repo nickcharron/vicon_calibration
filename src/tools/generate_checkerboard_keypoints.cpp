@@ -10,11 +10,11 @@
   detection.
 */
 
+#include <fstream>
+#include <iomanip>
+#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fstream>
-#include <iostream>
-#include <iomanip>
 
 #include <gflags/gflags.h>
 #include <nlohmann/json.hpp>
@@ -51,7 +51,8 @@ int main(int argc, char** argv) {
 
   if (FLAGS_n_corners_horizontal == 0 || FLAGS_n_corners_vertical == 0 ||
       FLAGS_square_size == 0) {
-    LOG_ERROR("Invalid input, exiting.");
+    LOG_ERROR("Invalid input. Required parameters:  n_corners_vertical, "
+              "n_corners_horizontal square_size. Exiting.");
     return 0;
   }
 
@@ -75,14 +76,13 @@ int main(int argc, char** argv) {
       points += "{ \"x\": " + std::to_string(point[0]) +
                 ", \"y\": " + std::to_string(point[1]) +
                 ", \"z\": " + std::to_string(point[2]) + "}";
-      if (n != n_max || m != m_max) {
-        points += ",";
-      }
+      if (n != n_max || m != m_max) { points += ","; }
     }
   }
   points += "]}";
   nlohmann::json J = nlohmann::json::parse(points);
-  std::string save_path = FLAGS_output_directory + "/checkerboard_keypoints.json";
+  std::string save_path =
+      FLAGS_output_directory + "/checkerboard_keypoints.json";
   LOG_INFO("Saving to: %s", save_path.c_str());
   std::ofstream filejson(save_path);
   filejson << std::setw(2) << J << std::endl;

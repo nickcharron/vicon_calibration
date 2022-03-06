@@ -77,13 +77,17 @@ struct TargetParams {
   std::string lidar_extractor_type;
   std::string camera_extractor_type;
   std::string target_config_path;
-  Eigen::Matrix<float, 6, 1>
-      crop_scan;              // [min x, max x, min y, max y, min z, max z]
-  Eigen::Vector2d crop_image; // [ %u, %v]
+
+  // [min x, max x, min y, max y, min z, max z]
+  Eigen::Matrix<float, 6, 1> crop_scan;
+  
+  // [ %u, %v]
+  Eigen::Vector2d crop_image; 
   Eigen::Matrix3Xd keypoints_lidar;
   Eigen::Matrix3Xd keypoints_camera;
   PointCloud::Ptr template_cloud;
   bool is_target_2d;
+  
   // These are calculated automatically and only used in IsolateTargetPoints
   Eigen::Vector4d template_centroid;
   Eigen::Vector3d template_dimensions;

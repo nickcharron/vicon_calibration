@@ -242,6 +242,21 @@ void CameraExtractor::DisplayImage(const std::string& display_name,
       *image_annotated_, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
       axis_plot_scale_);
 
+  const Eigen::Matrix3Xd& kpts = target_params_->keypoints_camera;
+
+  cv::Scalar color(255, 255, 0); // BGR
+  int radius = 5;
+  for (int i = 0; i < kpts.cols(); i++) {
+    Eigen::Vector4d point(kpts(0, i), kpts(1, i), kpts(2, i), 1);
+    Eigen::Vector2d pixel;
+    bool projection_valid = true;
+    TargetPointToPixel(point, pixel, projection_valid);
+    if (projection_valid) {
+      cv::Point2d keypoint(pixel[0], pixel[1]);
+      cv::circle(current_image_w_axes, keypoint, radius, color);
+    }
+  }
+
   if (allow_override) {
     std::cout << output_text << std::endl
               << "Press [c] to continue with default\n"

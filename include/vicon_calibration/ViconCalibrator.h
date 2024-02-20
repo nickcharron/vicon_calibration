@@ -5,13 +5,13 @@
 #include <ros/time.h>
 #include <rosbag/bag.h>
 
+#include <vicon_calibration/CropBox.h>
+#include <vicon_calibration/Params.h>
 #include <vicon_calibration/TfTree.h>
+#include <vicon_calibration/Utils.h>
 #include <vicon_calibration/measurement_extractors/CameraExtractor.h>
 #include <vicon_calibration/measurement_extractors/LidarExtractor.h>
 #include <vicon_calibration/optimization/Optimizer.h>
-#include <vicon_calibration/Params.h>
-#include <vicon_calibration/Utils.h>
-#include <vicon_calibration/CropBox.h>
 
 namespace vicon_calibration {
 
@@ -52,9 +52,7 @@ private:
 
   void GetInitialCalibrations();
 
-  void GetInitialCalibrationsPerturbed();
-
-  void RunVerification(const CalibrationResults& results);
+  void RunVerification();
 
   /**
    * @brief get initial guess of where the targets are located at the current
@@ -90,7 +88,7 @@ private:
 
   void OutputMeasurementStats();
 
-  CalibrationResults Solve(const CalibrationResults& initial_calibrations);
+  void Solve();
 
   const CalibratorInputs inputs_;
   std::shared_ptr<CalibratorConfig> params_;
@@ -107,22 +105,14 @@ private:
   LidarMeasurements lidar_measurements_;
   CameraMeasurements camera_measurements_;
   CalibrationResults calibrations_initial_;
+  CalibrationResults calibrations_final_;
+  std::vector<Eigen::Matrix4d> target_corrections_;
+
   rosbag::Bag bag_;
   std::shared_ptr<Visualizer> pcl_viewer_;
 
   CropBox input_cropbox_;
   float input_cropbox_max_{5};
-
-  // Simulation testing settings and Member variables
-  struct SimParams {
-    bool using_simulation{false};
-    bool perturb_measurements{false};
-    CalibrationResults calibrations_perturbed_;
-    double max_rot_error_deg{5};
-    double max_trans_error_m{0.03};
-    int num_trials{30};
-  };
-  SimParams sim_options;
 };
 
 } // end namespace vicon_calibration

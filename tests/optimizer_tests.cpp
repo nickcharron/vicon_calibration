@@ -373,7 +373,8 @@ TEST_CASE("Test with same data and not using Ceres Optimizer Class") {
     camera_model->ProjectPoint(P_Camera_perf, pixels_true, pixels_true_valid);
     if (!pixels_true_valid) { continue; }
     std::unique_ptr<ceres::CostFunction> cost_function(
-        CeresCameraCostFunction::Create(pixels_true, P_Robot, camera_model));
+        CeresCameraCostFunction::Create(pixels_true, P_Target, T_VT,
+                                        camera_model));
     problem->AddResidualBlock(cost_function.release(), loss_function_.get(),
                               &(results_perturbed_init[0][0]));
   }

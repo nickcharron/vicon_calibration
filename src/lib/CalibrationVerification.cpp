@@ -117,8 +117,7 @@ void CalibrationVerification::SetInitialCalib(
   initial_calib_set_ = true;
 }
 
-// TODO: add checks for whether or not this was set. This
-// should still work otherwise
+// TODO: Remove all GT calls. This was for simulation testing
 void CalibrationVerification::SetGroundTruthCalib(
     const std::vector<vicon_calibration::CalibrationResult>& calib) {
   calibrations_ground_truth_ = calib;
@@ -129,6 +128,11 @@ void CalibrationVerification::SetOptimizedCalib(
     const std::vector<vicon_calibration::CalibrationResult>& calib) {
   calibrations_result_ = calib;
   optimized_calib_set_ = true;
+}
+
+void CalibrationVerification::SetTargetCorrections(
+    const std::vector<Eigen::Matrix4d>& corrections) {
+  target_corrections_ = corrections;
 }
 
 void CalibrationVerification::SetParams(

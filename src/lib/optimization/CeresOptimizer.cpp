@@ -18,6 +18,10 @@ void CeresOptimizer::SetupProblem() {
   for (int i = 0; i < results_.size(); i++) {
     problem_->AddParameterBlock(&(results_[i][0]), 7, parameterization_.get());
   }
+  for (int i = 0; i < target_corrections_.size(); i++) {
+    problem_->AddParameterBlock(&(target_corrections_[i][0]), 7,
+                                parameterization_.get());
+  }
 }
 
 void CeresOptimizer::AddInitials() {
@@ -31,6 +35,11 @@ void CeresOptimizer::AddInitials() {
     initials_.push_back(
         std::vector<double>{q.w(), q.x(), q.y(), q.z(), T_Sensor_Robot(0, 3),
                             T_Sensor_Robot(1, 3), T_Sensor_Robot(2, 3)});
+  }
+
+  // add target corrections
+  for (uint32_t i = 0; i < inputs_.target_params.size(); i++) {
+    target_corrections_.push_back(std::vector<double>{1, 0, 0, 0, 0, 0, 0});
   }
 
   // copy arrays:
@@ -73,6 +82,16 @@ Eigen::Matrix4d CeresOptimizer::GetFinalPose(SensorType type, int id) {
   return utils::InvertTransform(T_Sensor_Robot);
 }
 
+std::vector<Eigen::Matrix4d> CeresOptimizer::GetTargetCorrections() {
+  std::vector<Eigen::Matrix4d> corrections;
+  for (const auto& target_correction : target_corrections_) {
+    Eigen::Matrix4d T =
+        utils::QuaternionAndTranslationToTransformMatrix(target_correction);
+    corrections.push_back(T);
+  }
+  return corrections;
+}
+
 void CeresOptimizer::AddImageMeasurements() {
   LOG_INFO("Setting image measurements");
   int counter = 0;
@@ -101,15 +120,14 @@ void CeresOptimizer::AddImageMeasurements() {
         measurement->keypoints->at(corr.measured_point_index).x,
         measurement->keypoints->at(corr.measured_point_index).y);
 
-    Eigen::Vector3d P_Robot =
-        (measurement->T_Robot_Target * P_Target.homogeneous()).hnormalized();
-
     std::unique_ptr<ceres::CostFunction> cost_function(
         CeresCameraCostFunction::Create(
-            pixel, P_Robot, inputs_.camera_params[camera_index]->camera_model));
+            pixel, P_Target, measurement->T_Robot_Target,
+            inputs_.camera_params[camera_index]->camera_model));
 
     problem_->AddResidualBlock(cost_function.release(), loss_function_.get(),
-                               &(results_[sensor_index][0]));
+                               &(results_[sensor_index][0]),
+                               &(target_corrections_[target_index][0]));
   }
   LOG_INFO("Added %d image measurements.", counter);
 }

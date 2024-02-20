@@ -150,11 +150,12 @@ TEST_CASE("Test camera optimization") {
 
   for (int i = 0; i < points.size(); i++) {
     if (pixels_valid[i]) {
+      Eigen::Vector3d P_Target = points[i].hnormalized();
       Eigen::Vector3d P_Robot = (T_VT * points[i]).hnormalized();
 
       // add residuals for perfect init
       std::unique_ptr<ceres::CostFunction> cost_function1(
-          CeresCameraCostFunction::Create(pixels[i], P_Robot,
+          CeresCameraCostFunction::Create(pixels[i], P_Target, T_VT,
                                           camera_model));
 
       problem1->AddResidualBlock(cost_function1.release(), loss_function_.get(),
@@ -162,15 +163,15 @@ TEST_CASE("Test camera optimization") {
 
       // add residuals for perturbed init
       std::unique_ptr<ceres::CostFunction> cost_function2(
-          CeresCameraCostFunction::Create(pixels[i], P_Robot,
+          CeresCameraCostFunction::Create(pixels[i], P_Target, T_VT,
                                           camera_model));
       problem2->AddResidualBlock(cost_function2.release(), loss_function_.get(),
                                  &(results_perturbed_init[0]));
 
       // Check that the inputs are correct:
       double P_C[3];
-      ceres::QuaternionRotatePoint(&(results_perfect_init[0]),
-                                   P_Robot.data(), P_C);
+      ceres::QuaternionRotatePoint(&(results_perfect_init[0]), P_Robot.data(),
+                                   P_C);
       Eigen::Vector3d point_transformed(P_C[0] + results_perfect_init[4],
                                         P_C[1] + results_perfect_init[5],
                                         P_C[2] + results_perfect_init[6]);

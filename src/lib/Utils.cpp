@@ -400,6 +400,21 @@ void OutputCalibrations(
   }
 }
 
+void OutputTargetCorrections(const std::vector<Eigen::Matrix4d>& Ts) {
+  std::cout << "----------------------\n"
+            << "Target Corrections"
+            << "\n";
+  for (const auto& T : Ts) {
+    Eigen::Matrix3d R = T.block(0, 0, 3, 3);
+    Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
+    std::cout << "T_TargetCorrected_Target:\n"
+              << T << "\n"
+              << "rpy (deg): [" << utils::RadToDeg(utils::WrapToPi(rpy[0]))
+              << ", " << utils::RadToDeg(utils::WrapToPi(rpy[1])) << ", "
+              << utils::RadToDeg(utils::WrapToPi(rpy[2])) << "]\n";
+  }
+}
+
 std::string
     ConvertTimeToDate(const std::chrono::system_clock::time_point& time_) {
   using namespace std;

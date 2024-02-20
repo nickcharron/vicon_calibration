@@ -43,6 +43,8 @@ public:
   void SetOptimizedCalib(
       const std::vector<vicon_calibration::CalibrationResult>& calib);
 
+  void SetTargetCorrections(const std::vector<Eigen::Matrix4d>& corrections);
+
   void SetConfig(const std::string& calib_config);
 
   void SetParams(std::shared_ptr<CalibratorConfig>& params);
@@ -144,6 +146,7 @@ private:
       std::make_shared<vicon_calibration::TfTree>();
   std::vector<vicon_calibration::CalibrationResult> calibrations_result_,
       calibrations_initial_, calibrations_ground_truth_;
+  std::vector<Eigen::Matrix4d> target_corrections_;
   std::vector<Eigen::Vector3d, AlignVec3d> lidar_errors_opt_,
       lidar_errors_init_, lidar_errors_true_;
   std::vector<Eigen::Vector2d, AlignVec2d> camera_errors_opt_,

@@ -5,9 +5,9 @@
 #include <ceres/solver.h>
 #include <ceres/types.h>
 
+#include <vicon_calibration/CeresParams.h>
 #include <vicon_calibration/Params.h>
 #include <vicon_calibration/Utils.h>
-#include <vicon_calibration/CeresParams.h>
 #include <vicon_calibration/optimization/Optimizer.h>
 
 namespace vicon_calibration {
@@ -19,6 +19,8 @@ namespace vicon_calibration {
 class CeresOptimizer : public Optimizer {
 public:
   CeresOptimizer(const OptimizerInputs& inputs);
+
+  std::vector<Eigen::Matrix4d> GetTargetCorrections() override;
 
 private:
   void SetupProblem();
@@ -42,6 +44,7 @@ private:
   void UpdateInitials() override;
 
   std::vector<std::vector<double>> results_;
+  std::vector<std::vector<double>> target_corrections_;
   std::vector<std::vector<double>> previous_iteration_results_;
   std::vector<std::vector<double>> initials_;
   std::shared_ptr<ceres::Problem> problem_;

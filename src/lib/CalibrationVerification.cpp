@@ -292,17 +292,17 @@ void CalibrationVerification::SaveLidarVisuals() {
     std::string sensor_frame = params_->lidar_params[lidar_iter]->frame;
 
     // get initial calibration and optimized calibration
-    Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_opt;
+    Eigen::Affine3d TA_Robot_Sensor_est, TA_Robot_Sensor_opt;
     for (CalibrationResult calib : calibrations_initial_) {
       if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
-        TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
+        TA_Robot_Sensor_est.matrix() = calib.transform;
         break;
       }
     }
 
     for (CalibrationResult calib : calibrations_result_) {
       if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
-        TA_VICONBASE_SENSOR_opt.matrix() = calib.transform;
+        TA_Robot_Sensor_opt.matrix() = calib.transform;
         break;
       }
     }
@@ -322,13 +322,13 @@ void CalibrationVerification::SaveLidarVisuals() {
           params_->lidar_params[measurement->lidar_id]->topic);
       PointCloud::Ptr scan_trans_est = std::make_shared<PointCloud>();
       PointCloud::Ptr scan_trans_opt = std::make_shared<PointCloud>();
-      pcl::transformPointCloud(*scan, *scan_trans_est, TA_VICONBASE_SENSOR_est);
-      pcl::transformPointCloud(*scan, *scan_trans_opt, TA_VICONBASE_SENSOR_opt);
+      pcl::transformPointCloud(*scan, *scan_trans_est, TA_Robot_Sensor_est);
+      pcl::transformPointCloud(*scan, *scan_trans_opt, TA_Robot_Sensor_opt);
 
       // load targets and transform to viconbase frame
-      std::vector<Eigen::Affine3d, AlignAff3d> T_VICONBASE_TGTS;
+      std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets;
       try {
-        T_VICONBASE_TGTS = utils::GetTargetLocation(
+        T_Robot_Targets = utils::GetTargetLocation(
             params_->target_params, params_->vicon_baselink_frame, lookup_time_,
             lookup_tree_);
       } catch (const std::runtime_error err) {
@@ -337,12 +337,12 @@ void CalibrationVerification::SaveLidarVisuals() {
       }
 
       PointCloud::Ptr targets_combined = std::make_shared<PointCloud>();
-      for (uint8_t n = 0; n < T_VICONBASE_TGTS.size(); n++) {
+      for (uint8_t n = 0; n < T_Robot_Targets.size(); n++) {
         const PointCloud::Ptr target =
             params_->target_params[n]->template_cloud;
         PointCloud::Ptr target_transformed = std::make_shared<PointCloud>();
         pcl::transformPointCloud(*target, *target_transformed,
-                                 T_VICONBASE_TGTS[n]);
+                                 T_Robot_Targets[n]);
         *targets_combined = *targets_combined + *target_transformed;
       }
       SaveScans(scan_trans_est, scan_trans_opt, targets_combined,
@@ -405,25 +405,25 @@ void CalibrationVerification::GetLidarErrors() {
   for (uint8_t lidar_iter = 0; lidar_iter < params_->lidar_params.size();
        lidar_iter++) {
     // get initial calibration and optimized calibration
-    Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_true,
-        TA_VICONBASE_SENSOR_opt;
+    Eigen::Affine3d TA_Robot_Sensor_est, TA_Robot_Sensor_true,
+        TA_Robot_Sensor_opt;
     if (ground_truth_calib_set_) {
       for (CalibrationResult calib : calibrations_ground_truth_) {
         if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
-          TA_VICONBASE_SENSOR_true.matrix() = calib.transform;
+          TA_Robot_Sensor_true.matrix() = calib.transform;
           break;
         }
       }
     }
     for (CalibrationResult calib : calibrations_initial_) {
       if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
-        TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
+        TA_Robot_Sensor_est.matrix() = calib.transform;
         break;
       }
     }
     for (CalibrationResult calib : calibrations_result_) {
       if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
-        TA_VICONBASE_SENSOR_opt.matrix() = calib.transform;
+        TA_Robot_Sensor_opt.matrix() = calib.transform;
         break;
       }
     }
@@ -434,8 +434,8 @@ void CalibrationVerification::GetLidarErrors() {
     PointCloud::Ptr estimated_keypoints_est = std::make_shared<PointCloud>();
     PointCloud::Ptr estimated_keypoints_opt = std::make_shared<PointCloud>();
     PointCloud::Ptr estimated_keypoints_true = std::make_shared<PointCloud>();
-    Eigen::Matrix4d T_SENSOR_TARGET_opt, T_SENSOR_TARGET_est,
-        T_SENSOR_TARGET_true;
+    Eigen::Matrix4d T_Sensor_Target_opt, T_Sensor_Target_est,
+        T_Sensor_Target_true;
     std::vector<Eigen::Vector3d, AlignVec3d> lidar_errors_opt,
         lidar_errors_init, lidar_errors_true;
     for (int meas_iter = 0; meas_iter < lidar_measurements_[lidar_iter].size();
@@ -443,10 +443,10 @@ void CalibrationVerification::GetLidarErrors() {
       if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) { continue; }
       measurement = lidar_measurements_[lidar_iter][meas_iter];
 
-      T_SENSOR_TARGET_opt = TA_VICONBASE_SENSOR_opt.inverse().matrix() *
-                            measurement->T_VICONBASE_TARGET;
-      T_SENSOR_TARGET_est = TA_VICONBASE_SENSOR_est.inverse().matrix() *
-                            measurement->T_VICONBASE_TARGET;
+      T_Sensor_Target_opt =
+          TA_Robot_Sensor_opt.inverse().matrix() * measurement->T_Robot_Target;
+      T_Sensor_Target_est =
+          TA_Robot_Sensor_est.inverse().matrix() * measurement->T_Robot_Target;
 
       // get estimated keypoints given calibrations
       estimated_keypoints_target = std::make_shared<PointCloud>();
@@ -467,9 +467,9 @@ void CalibrationVerification::GetLidarErrors() {
       }
 
       pcl::transformPointCloud(*estimated_keypoints_target,
-                               *estimated_keypoints_est, T_SENSOR_TARGET_est);
+                               *estimated_keypoints_est, T_Sensor_Target_est);
       pcl::transformPointCloud(*estimated_keypoints_target,
-                               *estimated_keypoints_opt, T_SENSOR_TARGET_opt);
+                               *estimated_keypoints_opt, T_Sensor_Target_opt);
 
       lidar_errors_init =
           CalculateLidarErrors(measurement->keypoints, estimated_keypoints_est);
@@ -485,11 +485,11 @@ void CalibrationVerification::GetLidarErrors() {
                                 lidar_errors_init.end());
 
       if (ground_truth_calib_set_) {
-        T_SENSOR_TARGET_true = TA_VICONBASE_SENSOR_true.inverse().matrix() *
-                               measurement->T_VICONBASE_TARGET;
+        T_Sensor_Target_true = TA_Robot_Sensor_true.inverse().matrix() *
+                               measurement->T_Robot_Target;
         pcl::transformPointCloud(*estimated_keypoints_target,
                                  *estimated_keypoints_true,
-                                 T_SENSOR_TARGET_true);
+                                 T_Sensor_Target_true);
         lidar_errors_true = CalculateLidarErrors(measurement->keypoints,
                                                  estimated_keypoints_true);
 
@@ -529,7 +529,7 @@ std::vector<Eigen::Vector3d, AlignVec3d>
 }
 
 void CalibrationVerification::SaveCameraVisuals() {
-  std::vector<Eigen::Affine3d, AlignAff3d> T_VICONBASE_TGTS;
+  std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets;
 
   // Iterate over each camera
   for (uint8_t cam_iter = 0; cam_iter < params_->camera_params.size();
@@ -546,25 +546,25 @@ void CalibrationVerification::SaveCameraVisuals() {
                       ros::TIME_MAX, true);
 
     // get initial calibration and optimized calibration
-    Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_opt,
-        TA_VICONBASE_SENSOR_true;
+    Eigen::Affine3d TA_Robot_Sensor_est, TA_Robot_Sensor_opt,
+        TA_Robot_Sensor_true;
     if (ground_truth_calib_set_) {
       for (CalibrationResult calib : calibrations_ground_truth_) {
         if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
-          TA_VICONBASE_SENSOR_true.matrix() = calib.transform;
+          TA_Robot_Sensor_true.matrix() = calib.transform;
           break;
         }
       }
     }
     for (CalibrationResult calib : calibrations_initial_) {
       if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
-        TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
+        TA_Robot_Sensor_est.matrix() = calib.transform;
         break;
       }
     }
     for (CalibrationResult calib : calibrations_result_) {
       if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
-        TA_VICONBASE_SENSOR_opt.matrix() = calib.transform;
+        TA_Robot_Sensor_opt.matrix() = calib.transform;
         break;
       }
     }
@@ -595,7 +595,7 @@ void CalibrationVerification::SaveCameraVisuals() {
 
       // load targets and transform to viconbase frame
       try {
-        T_VICONBASE_TGTS = utils::GetTargetLocation(
+        T_Robot_Targets = utils::GetTargetLocation(
             params_->target_params, params_->vicon_baselink_frame, lookup_time_,
             lookup_tree_);
       } catch (const std::runtime_error err) {
@@ -604,20 +604,20 @@ void CalibrationVerification::SaveCameraVisuals() {
       }
 
       // Add measurements to image
-      final_image = ProjectTargetToImage(current_image, T_VICONBASE_TGTS,
-                                         TA_VICONBASE_SENSOR_est.matrix(),
-                                         cam_iter, cv::Scalar(0, 0, 255));
+      final_image = ProjectTargetToImage(current_image, T_Robot_Targets,
+                                         TA_Robot_Sensor_est.matrix(), cam_iter,
+                                         cv::Scalar(0, 0, 255));
 
       if (num_tgts_in_img_ == 0) { continue; }
 
       counter++;
-      final_image = ProjectTargetToImage(final_image, T_VICONBASE_TGTS,
-                                         TA_VICONBASE_SENSOR_opt.matrix(),
-                                         cam_iter, cv::Scalar(255, 0, 0));
+      final_image = ProjectTargetToImage(final_image, T_Robot_Targets,
+                                         TA_Robot_Sensor_opt.matrix(), cam_iter,
+                                         cv::Scalar(255, 0, 0));
 
       if (ground_truth_calib_set_) {
-        final_image = ProjectTargetToImage(final_image, T_VICONBASE_TGTS,
-                                           TA_VICONBASE_SENSOR_true.matrix(),
+        final_image = ProjectTargetToImage(final_image, T_Robot_Targets,
+                                           TA_Robot_Sensor_true.matrix(),
                                            cam_iter, cv::Scalar(0, 255, 0));
       }
 
@@ -654,25 +654,25 @@ void CalibrationVerification::GetCameraErrors() {
   for (uint8_t cam_iter = 0; cam_iter < params_->camera_params.size();
        cam_iter++) {
     // get initial calibration and optimized calibration
-    Eigen::Affine3d TA_VICONBASE_SENSOR_est, TA_VICONBASE_SENSOR_true,
-        TA_VICONBASE_SENSOR_opt;
+    Eigen::Affine3d TA_Robot_Sensor_est, TA_Robot_Sensor_true,
+        TA_Robot_Sensor_opt;
     if (ground_truth_calib_set_) {
       for (CalibrationResult calib : calibrations_ground_truth_) {
         if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
-          TA_VICONBASE_SENSOR_true.matrix() = calib.transform;
+          TA_Robot_Sensor_true.matrix() = calib.transform;
           break;
         }
       }
     }
     for (CalibrationResult calib : calibrations_initial_) {
       if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
-        TA_VICONBASE_SENSOR_est.matrix() = calib.transform;
+        TA_Robot_Sensor_est.matrix() = calib.transform;
         break;
       }
     }
     for (CalibrationResult calib : calibrations_result_) {
       if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
-        TA_VICONBASE_SENSOR_opt.matrix() = calib.transform;
+        TA_Robot_Sensor_opt.matrix() = calib.transform;
         break;
       }
     }
@@ -680,8 +680,8 @@ void CalibrationVerification::GetCameraErrors() {
     // iterate through all measurements for this camera
     std::shared_ptr<CameraMeasurement> measurement;
     PointCloud::Ptr measured_keypoints;
-    Eigen::Matrix4d T_SENSOR_TARGET_opt, T_SENSOR_TARGET_est,
-        T_SENSOR_TARGET_true;
+    Eigen::Matrix4d T_Sensor_Target_opt, T_Sensor_Target_est,
+        T_Sensor_Target_true;
     std::vector<Eigen::Vector2d, AlignVec2d> camera_errors_opt,
         camera_errors_init, camera_errors_true;
     for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
@@ -700,15 +700,15 @@ void CalibrationVerification::GetCameraErrors() {
         measured_keypoints_3d->push_back(point3d);
       }
 
-      T_SENSOR_TARGET_opt = TA_VICONBASE_SENSOR_opt.inverse().matrix() *
-                            measurement->T_VICONBASE_TARGET;
-      T_SENSOR_TARGET_est = TA_VICONBASE_SENSOR_est.inverse().matrix() *
-                            measurement->T_VICONBASE_TARGET;
+      T_Sensor_Target_opt =
+          TA_Robot_Sensor_opt.inverse().matrix() * measurement->T_Robot_Target;
+      T_Sensor_Target_est =
+          TA_Robot_Sensor_est.inverse().matrix() * measurement->T_Robot_Target;
       camera_errors_opt =
-          CalculateCameraErrors(measured_keypoints_3d, T_SENSOR_TARGET_opt,
+          CalculateCameraErrors(measured_keypoints_3d, T_Sensor_Target_opt,
                                 measurement->target_id, measurement->camera_id);
       camera_errors_init =
-          CalculateCameraErrors(measured_keypoints_3d, T_SENSOR_TARGET_est,
+          CalculateCameraErrors(measured_keypoints_3d, T_Sensor_Target_est,
                                 measurement->target_id, measurement->camera_id);
 
       camera_errors_opt_.insert(camera_errors_opt_.end(),
@@ -720,10 +720,10 @@ void CalibrationVerification::GetCameraErrors() {
                                  camera_errors_init.end());
 
       if (ground_truth_calib_set_) {
-        T_SENSOR_TARGET_true = TA_VICONBASE_SENSOR_true.inverse().matrix() *
-                               measurement->T_VICONBASE_TARGET;
+        T_Sensor_Target_true = TA_Robot_Sensor_true.inverse().matrix() *
+                               measurement->T_Robot_Target;
         camera_errors_true = CalculateCameraErrors(
-            measured_keypoints_3d, T_SENSOR_TARGET_true, measurement->target_id,
+            measured_keypoints_3d, T_Sensor_Target_true, measurement->target_id,
             measurement->camera_id);
 
         camera_errors_true_.insert(camera_errors_true_.end(),
@@ -737,7 +737,7 @@ void CalibrationVerification::GetCameraErrors() {
 std::vector<Eigen::Vector2d, AlignVec2d>
     CalibrationVerification::CalculateCameraErrors(
         const PointCloud::Ptr& measured_keypoints,
-        const Eigen::Matrix4d& T_SENSOR_TARGET, const int& target_id,
+        const Eigen::Matrix4d& T_Sensor_Target, const int& target_id,
         const int& camera_id) {
   // get estimated (optimization or initial) keypoint locations
   PointCloud::Ptr keypoints_target_frame = std::make_shared<PointCloud>();
@@ -760,7 +760,7 @@ std::vector<Eigen::Vector2d, AlignVec2d>
   // project points to image plane and save as cloud
   PointCloud::Ptr keypoints_projected = utils::ProjectPoints(
       keypoints_target_frame, params_->camera_params[camera_id]->camera_model,
-      T_SENSOR_TARGET);
+      T_Sensor_Target);
 
   // get correspondences
   pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
@@ -790,8 +790,8 @@ std::vector<Eigen::Vector2d, AlignVec2d>
 
 std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     const std::shared_ptr<cv::Mat>& img_in,
-    const std::vector<Eigen::Affine3d, AlignAff3d>& T_VICONBASE_TGTS,
-    const Eigen::Matrix4d& T_VICONBASE_SENSOR, const int& cam_iter,
+    const std::vector<Eigen::Affine3d, AlignAff3d>& T_Robot_Targets,
+    const Eigen::Matrix4d& T_Robot_Sensor, const int& cam_iter,
     cv::Scalar colour) {
   // create all objects we'll need
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected =
@@ -803,15 +803,15 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
   *img_out = img_in->clone();
 
   // iterate through all targets
-  Eigen::Affine3d T_VICONBASE_TARGET;
+  Eigen::Affine3d T_Robot_Target;
   num_tgts_in_img_ = 0;
-  for (int target_iter = 0; target_iter < T_VICONBASE_TGTS.size();
+  for (int target_iter = 0; target_iter < T_Robot_Targets.size();
        target_iter++) {
-    T_VICONBASE_TARGET = T_VICONBASE_TGTS[target_iter];
+    T_Robot_Target = T_Robot_Targets[target_iter];
     // check if target origin is in camera frame
     point_target = Eigen::Vector4d(0, 0, 0, 1);
-    point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
-                        T_VICONBASE_TARGET * point_target;
+    point_transformed =
+        utils::InvertTransform(T_Robot_Sensor) * T_Robot_Target * point_target;
     bool origin_projection_valid;
     Eigen::Vector2d origin_projected;
     params_->camera_params[cam_iter]->camera_model->ProjectPoint(
@@ -828,8 +828,8 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     for (int k = 0; k < kpts.cols(); k++) {
       Eigen::Vector3d point = kpts.col(k);
       point_target = point.homogeneous();
-      point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
-                          T_VICONBASE_TARGET * point_target;
+      point_transformed = utils::InvertTransform(T_Robot_Sensor) *
+                          T_Robot_Target * point_target;
       bool point_projection_valid;
       Eigen::Vector2d point_projected;
       params_->camera_params[cam_iter]->camera_model->ProjectPoint(
@@ -851,8 +851,8 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     for (uint32_t i = 0; i < target->size(); i++) {
       point_target =
           Eigen::Vector4d(target->at(i).x, target->at(i).y, target->at(i).z, 1);
-      point_transformed = utils::InvertTransform(T_VICONBASE_SENSOR) *
-                          T_VICONBASE_TARGET * point_target;
+      point_transformed = utils::InvertTransform(T_Robot_Sensor) *
+                          T_Robot_Target * point_target;
       bool point_projected_valid;
       Eigen::Vector2d point_projected;
       params_->camera_params[cam_iter]->camera_model->ProjectPoint(
@@ -871,11 +871,10 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     // we want to make sure alpha is larget than two consecutive projected pts
     // assume template points are 5mm apart, calculate distance in pixels
     // between two consecutive projected points
-    Eigen::Matrix4d T_SENSOR_TARGET =
-        utils::InvertTransform(T_VICONBASE_SENSOR) *
-        T_VICONBASE_TARGET.matrix();
-    Eigen::Vector4d point1 = T_SENSOR_TARGET * Eigen::Vector4d(0, 0, 0, 1);
-    Eigen::Vector4d point2 = T_SENSOR_TARGET * Eigen::Vector4d(0, 0, 0.005, 1);
+    Eigen::Matrix4d T_Sensor_Target =
+        utils::InvertTransform(T_Robot_Sensor) * T_Robot_Target.matrix();
+    Eigen::Vector4d point1 = T_Sensor_Target * Eigen::Vector4d(0, 0, 0, 1);
+    Eigen::Vector4d point2 = T_Sensor_Target * Eigen::Vector4d(0, 0, 0.005, 1);
     bool point1_projected_valid;
     Eigen::Vector2d point1_projected;
     params_->camera_params[cam_iter]->camera_model->ProjectPoint(

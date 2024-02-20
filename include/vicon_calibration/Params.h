@@ -80,14 +80,14 @@ struct TargetParams {
 
   // [min x, max x, min y, max y, min z, max z]
   Eigen::Matrix<float, 6, 1> crop_scan;
-  
+
   // [ %u, %v]
-  Eigen::Vector2d crop_image; 
+  Eigen::Vector2d crop_image;
   Eigen::Matrix3Xd keypoints_lidar;
   Eigen::Matrix3Xd keypoints_camera;
   PointCloud::Ptr template_cloud;
   bool is_target_2d;
-  
+
   // These are calculated automatically and only used in IsolateTargetPoints
   Eigen::Vector4d template_centroid;
   Eigen::Vector3d template_dimensions;
@@ -117,7 +117,7 @@ public:
 
 struct LidarMeasurement {
   PointCloud::Ptr keypoints;
-  Eigen::Matrix4d T_VICONBASE_TARGET;
+  Eigen::Matrix4d T_Robot_Target;
   int lidar_id;
   int target_id;
   std::string lidar_frame;
@@ -129,9 +129,8 @@ struct LidarMeasurement {
               << "Printing measurement for Lidar " << lidar_id << " , Target "
               << target_id << "\n"
               << "Keypoints size: " << keypoints->size() << "\n"
-              << "T_VICONBASE_TARGET [qw qx qy qz tx ty tx]: "
-              << TransformMatrixToQuaternionAndTranslationStr(
-                     T_VICONBASE_TARGET)
+              << "T_Robot_Target [qw qx qy qz tx ty tx]: "
+              << TransformMatrixToQuaternionAndTranslationStr(T_Robot_Target)
               << "\n"
               << "Lidar Frame: " << lidar_frame << "\n"
               << "Target Frame: " << target_frame << "\n";
@@ -143,7 +142,7 @@ public:
 
 struct CameraMeasurement {
   pcl::PointCloud<pcl::PointXY>::Ptr keypoints;
-  Eigen::Matrix4d T_VICONBASE_TARGET;
+  Eigen::Matrix4d T_Robot_Target;
   int camera_id;
   int target_id;
   std::string camera_frame;
@@ -157,9 +156,8 @@ struct CameraMeasurement {
               << "Printing measurement for Camera " << camera_id << " , Target "
               << target_id << "\n"
               << "Keypoints size: " << keypoints->size() << "\n"
-              << "T_VICONBASE_TARGET [qw qx qy qz tx ty tx]: "
-              << TransformMatrixToQuaternionAndTranslationStr(
-                     T_VICONBASE_TARGET)
+              << "T_Robot_Target [qw qx qy qz tx ty tx]: "
+              << TransformMatrixToQuaternionAndTranslationStr(T_Robot_Target)
               << "\n"
               << "Camera Frame: " << camera_frame << "\n"
               << "Target Frame: " << target_frame << "\n";

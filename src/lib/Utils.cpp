@@ -254,15 +254,15 @@ std::vector<double>
 }
 
 cv::Mat DrawCoordinateFrame(
-    const cv::Mat& img_in, const Eigen::Matrix4d& T_cam_frame,
+    const cv::Mat& img_in, const Eigen::Matrix4d& T_Cam_Frame,
     const std::shared_ptr<vicon_calibration::CameraModel>& camera_model,
     const double& scale) {
   cv::Mat img_out;
   img_out = img_in.clone();
   Eigen::Vector4d origin(0, 0, 0, 1), x_end(scale, 0, 0, 1),
       y_end(0, scale, 0, 1), z_end(0, 0, scale, 1);
-  Eigen::Vector4d o_trans = T_cam_frame * origin, x_trans = T_cam_frame * x_end,
-                  y_trans = T_cam_frame * y_end, z_trans = T_cam_frame * z_end;
+  Eigen::Vector4d o_trans = T_Cam_Frame * origin, x_trans = T_Cam_Frame * x_end,
+                  y_trans = T_Cam_Frame * y_end, z_trans = T_Cam_Frame * z_end;
 
   Eigen::Vector3d o(o_trans(0), o_trans(1), o_trans(2)),
       x(x_trans(0), x_trans(1), x_trans(2)),
@@ -421,14 +421,14 @@ std::vector<Eigen::Affine3d, AlignAff3d> GetTargetLocation(
         target_params,
     const std::string& vicon_baselink_frame, const ros::Time& lookup_time,
     const std::shared_ptr<vicon_calibration::TfTree>& lookup_tree) {
-  std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts;
+  std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets;
   for (uint8_t n = 0; n < target_params.size(); n++) {
-    Eigen::Affine3d T_viconbase_tgt;
-    T_viconbase_tgt = lookup_tree->GetTransformEigen(
+    Eigen::Affine3d T_Robot_Target;
+    T_Robot_Target = lookup_tree->GetTransformEigen(
         vicon_baselink_frame, target_params[n]->frame_id, lookup_time);
-    T_viconbase_tgts.push_back(T_viconbase_tgt);
+    T_Robot_Targets.push_back(T_Robot_Target);
   }
-  return T_viconbase_tgts;
+  return T_Robot_Targets;
 }
 
 std::string GetFilePathData(const std::string& file_name) {
@@ -488,9 +488,9 @@ void GetScreenResolution(int& horizontal, int& vertical) {
   vertical = s->height;
 }
 
-Eigen::Matrix4d GetT_VICONBASE_SENSOR(const CalibrationResults& calibs,
-                                      SensorType type, uint8_t sensor_id,
-                                      bool& success) {
+Eigen::Matrix4d GetT_Robot_Sensor(const CalibrationResults& calibs,
+                                  SensorType type, uint8_t sensor_id,
+                                  bool& success) {
   success = true;
   for (CalibrationResult calib : calibs) {
     if (calib.type == type && calib.sensor_id == sensor_id) {

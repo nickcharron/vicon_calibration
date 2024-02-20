@@ -9,10 +9,11 @@ struct CameraProjectionFunctor {
       : camera_model_(camera_model) {}
 
   bool operator()(const double* P, double* pixel) const {
-    Eigen::Vector3d P_CAMERA_eig{P[0], P[1], P[2]};
+    Eigen::Vector3d P_Camera_eig{P[0], P[1], P[2]};
     bool projection_valid;
     Eigen::Vector2d pixel_projected;
-    camera_model_->ProjectPoint(P_CAMERA_eig, pixel_projected, projection_valid);
+    camera_model_->ProjectPoint(P_Camera_eig, pixel_projected,
+                                projection_valid);
     if (!projection_valid) { return false; }
     pixel[0] = pixel_projected[0];
     pixel[1] = pixel_projected[1];
@@ -24,10 +25,10 @@ struct CameraProjectionFunctor {
 
 struct CeresCameraCostFunction {
   CeresCameraCostFunction(
-      Eigen::Vector2d pixel_detected, Eigen::Vector3d P_VICONBASE,
+      Eigen::Vector2d pixel_detected, Eigen::Vector3d P_Robot,
       std::shared_ptr<vicon_calibration::CameraModel> camera_model)
       : pixel_detected_(pixel_detected),
-        P_VICONBASE_(P_VICONBASE),
+        P_Robot_(P_Robot),
         camera_model_(camera_model) {
     compute_projection.reset(new ceres::CostFunctionToFunctor<2, 3>(
         new ceres::NumericDiffCostFunction<CameraProjectionFunctor,
@@ -36,23 +37,23 @@ struct CeresCameraCostFunction {
   }
 
   template <typename T>
-  bool operator()(const T* const T_CR, T* residuals) const {
-    T P_VICONBASE[3];
-    P_VICONBASE[0] = P_VICONBASE_.cast<T>()[0];
-    P_VICONBASE[1] = P_VICONBASE_.cast<T>()[1];
-    P_VICONBASE[2] = P_VICONBASE_.cast<T>()[2];
+  bool operator()(const T* const T_Camera_Robot, T* residuals) const {
+    T P_Robot[3];
+    P_Robot[0] = P_Robot_.cast<T>()[0];
+    P_Robot[1] = P_Robot_.cast<T>()[1];
+    P_Robot[2] = P_Robot_.cast<T>()[2];
 
     // rotate and translate point
-    T P_CAMERA[3];
-    ceres::QuaternionRotatePoint(T_CR, P_VICONBASE, P_CAMERA);
-    P_CAMERA[0] += T_CR[4];
-    P_CAMERA[1] += T_CR[5];
-    P_CAMERA[2] += T_CR[6];
+    T P_Camera[3];
+    ceres::QuaternionRotatePoint(T_Camera_Robot, P_Robot, P_Camera);
+    P_Camera[0] += T_Camera_Robot[4];
+    P_Camera[1] += T_Camera_Robot[5];
+    P_Camera[2] += T_Camera_Robot[6];
 
-    const T* P_CAMERA_const = &(P_CAMERA[0]);
+    const T* P_Camera_Const = &(P_Camera[0]);
 
     T pixel_projected[2];
-    (*compute_projection)(P_CAMERA_const, &(pixel_projected[0]));
+    (*compute_projection)(P_Camera_Const, &(pixel_projected[0]));
 
     residuals[0] = pixel_detected_.cast<T>()[0] - pixel_projected[0];
     residuals[1] = pixel_detected_.cast<T>()[1] - pixel_projected[1];
@@ -62,15 +63,14 @@ struct CeresCameraCostFunction {
   // Factory to hide the construction of the CostFunction object from
   // the client code.
   static ceres::CostFunction* Create(
-      const Eigen::Vector2d pixel_detected, const Eigen::Vector3d P_VICONBASE,
+      const Eigen::Vector2d pixel_detected, const Eigen::Vector3d P_Robot,
       const std::shared_ptr<vicon_calibration::CameraModel> camera_model) {
     return (new ceres::AutoDiffCostFunction<CeresCameraCostFunction, 2, 7>(
-        new CeresCameraCostFunction(pixel_detected, P_VICONBASE,
-                                    camera_model)));
+        new CeresCameraCostFunction(pixel_detected, P_Robot, camera_model)));
   }
 
   Eigen::Vector2d pixel_detected_;
-  Eigen::Vector3d P_VICONBASE_;
+  Eigen::Vector3d P_Robot_;
   std::shared_ptr<vicon_calibration::CameraModel> camera_model_;
   std::unique_ptr<ceres::CostFunctionToFunctor<2, 3>> compute_projection;
 };

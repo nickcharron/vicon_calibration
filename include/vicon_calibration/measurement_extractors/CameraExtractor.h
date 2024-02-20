@@ -48,7 +48,7 @@ public:
 
   bool GetShowMeasurements();
 
-  void ProcessMeasurement(const Eigen::Matrix4d& T_CAMERA_TARGET_EST,
+  void ProcessMeasurement(const Eigen::Matrix4d& T_Camera_Target_Est,
                           const cv::Mat& img_in);
 
   bool GetMeasurementValid();
@@ -80,7 +80,7 @@ protected:
   std::shared_ptr<vicon_calibration::TargetParams> target_params_;
 
   // member variables:
-  Eigen::Matrix4d T_CAMERA_TARGET_EST_ = Eigen::Matrix4d::Identity();
+  Eigen::Matrix4d T_Camera_Target_Est_ = Eigen::Matrix4d::Identity();
   pcl::PointCloud<pcl::PointXY>::Ptr keypoints_measured_;
   std::shared_ptr<cv::Mat> image_in_;
   std::shared_ptr<cv::Mat> image_cropped_;

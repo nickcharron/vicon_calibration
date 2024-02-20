@@ -47,15 +47,15 @@ public:
 
   /**
    * @brief Method for getting the transformation used to transform the cropbox
-   * @return T_box_cloud (from cloud frame to box frame)
+   * @return T_Box_Cloud (from cloud frame to box frame)
    */
   Eigen::Affine3f GetTransform();
 
   /**
    * @brief Method for applying a transform to the cropbox
-   * @param T_box_cloud (from cloud frame to box frame)
+   * @param T_Box_Cloud (from cloud frame to box frame)
    */
-  void SetTransform(Eigen::Affine3f& T_box_cloud);
+  void SetTransform(Eigen::Affine3f& T_Box_Cloud);
 
   /**
    * @brief Method for setting whether or not the points inside or outside the
@@ -91,7 +91,7 @@ public:
 private:
   Eigen::Vector3f min_vec_;
   Eigen::Vector3f max_vec_;
-  Eigen::Affine3f T_box_cloud_;
+  Eigen::Affine3f T_Box_Cloud_;
   bool min_vec_set_{false};
   bool max_vec_set_{false};
   bool remove_outside_points_{true};

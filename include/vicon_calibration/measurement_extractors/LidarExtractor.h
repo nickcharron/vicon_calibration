@@ -61,7 +61,7 @@ public:
    */
   virtual std::string GetTypeString() const = 0;
 
-  void ProcessMeasurement(const Eigen::Matrix4d& T_LIDAR_TARGET_EST,
+  void ProcessMeasurement(const Eigen::Matrix4d& T_Lidar_Target_Est,
                           const PointCloud::Ptr& cloud_in,
                           bool& show_measurements = show_measurements_default);
 
@@ -97,8 +97,8 @@ protected:
   PointCloud::Ptr scan_isolated_;
   PointCloud::Ptr estimated_template_cloud_;
   PointCloud::Ptr measured_template_cloud_;
-  Eigen::Matrix4d T_LIDAR_TARGET_EST_;
-  Eigen::Matrix4d T_LIDAR_TARGET_OPT_;
+  Eigen::Matrix4d T_Lidar_Target_Est_;
+  Eigen::Matrix4d T_Lidar_Target_Opt_;
   std::shared_ptr<Visualizer> pcl_viewer_;
   PointCloud::Ptr keypoints_measured_;
   bool measurement_valid_{true};

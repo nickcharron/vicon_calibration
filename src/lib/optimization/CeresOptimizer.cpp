@@ -25,13 +25,12 @@ void CeresOptimizer::AddInitials() {
   for (uint32_t i = 0; i < inputs_.calibration_initials.size(); i++) {
     vicon_calibration::CalibrationResult calib =
         inputs_.calibration_initials[i];
-    Eigen::Matrix4d T_SENSOR_VICONBASE =
-        utils::InvertTransform(calib.transform);
-    Eigen::Matrix3d R = T_SENSOR_VICONBASE.block(0, 0, 3, 3);
+    Eigen::Matrix4d T_Sensor_Robot = utils::InvertTransform(calib.transform);
+    Eigen::Matrix3d R = T_Sensor_Robot.block(0, 0, 3, 3);
     Eigen::Quaternion<double> q = Eigen::Quaternion<double>(R);
-    initials_.push_back(std::vector<double>{
-        q.w(), q.x(), q.y(), q.z(), T_SENSOR_VICONBASE(0, 3),
-        T_SENSOR_VICONBASE(1, 3), T_SENSOR_VICONBASE(2, 3)});
+    initials_.push_back(
+        std::vector<double>{q.w(), q.x(), q.y(), q.z(), T_Sensor_Robot(0, 3),
+                            T_Sensor_Robot(1, 3), T_Sensor_Robot(2, 3)});
   }
 
   // copy arrays:
@@ -61,17 +60,17 @@ int CeresOptimizer::GetSensorIndex(SensorType type, int id) {
 
 Eigen::Matrix4d CeresOptimizer::GetUpdatedInitialPose(SensorType type, int id) {
   int index = GetSensorIndex(type, id);
-  Eigen::Matrix4d T_SENSOR_VICONBASE =
+  Eigen::Matrix4d T_Sensor_Robot =
       utils::QuaternionAndTranslationToTransformMatrix(
           previous_iteration_results_[index]);
-  return utils::InvertTransform(T_SENSOR_VICONBASE);
+  return utils::InvertTransform(T_Sensor_Robot);
 }
 
 Eigen::Matrix4d CeresOptimizer::GetFinalPose(SensorType type, int id) {
   int index = GetSensorIndex(type, id);
-  Eigen::Matrix4d T_SENSOR_VICONBASE =
+  Eigen::Matrix4d T_Sensor_Robot =
       utils::QuaternionAndTranslationToTransformMatrix(results_[index]);
-  return utils::InvertTransform(T_SENSOR_VICONBASE);
+  return utils::InvertTransform(T_Sensor_Robot);
 }
 
 void CeresOptimizer::AddImageMeasurements() {
@@ -85,9 +84,9 @@ void CeresOptimizer::AddImageMeasurements() {
     int camera_index = measurement->camera_id;
     int sensor_index = GetSensorIndex(SensorType::CAMERA, camera_index);
 
-    Eigen::Vector3d P_TARGET;
+    Eigen::Vector3d P_Target;
     if (inputs_.target_params[target_index]->keypoints_camera.cols() > 0) {
-      P_TARGET = inputs_.target_params[target_index]->keypoints_camera.col(
+      P_Target = inputs_.target_params[target_index]->keypoints_camera.col(
           corr.target_point_index);
     } else {
       if (inputs_.target_params[target_index]->template_cloud == nullptr) {
@@ -95,21 +94,19 @@ void CeresOptimizer::AddImageMeasurements() {
       }
       const auto& p = inputs_.target_params[target_index]->template_cloud->at(
           corr.target_point_index);
-      P_TARGET = Eigen::Vector3d(p.x, p.y, p.z);
+      P_Target = Eigen::Vector3d(p.x, p.y, p.z);
     }
 
     Eigen::Vector2d pixel(
         measurement->keypoints->at(corr.measured_point_index).x,
         measurement->keypoints->at(corr.measured_point_index).y);
 
-    Eigen::Vector3d P_VICONBASE =
-        (measurement->T_VICONBASE_TARGET * P_TARGET.homogeneous())
-            .hnormalized();
+    Eigen::Vector3d P_Robot =
+        (measurement->T_Robot_Target * P_Target.homogeneous()).hnormalized();
 
     std::unique_ptr<ceres::CostFunction> cost_function(
         CeresCameraCostFunction::Create(
-            pixel, P_VICONBASE,
-            inputs_.camera_params[camera_index]->camera_model));
+            pixel, P_Robot, inputs_.camera_params[camera_index]->camera_model));
 
     problem_->AddResidualBlock(cost_function.release(), loss_function_.get(),
                                &(results_[sensor_index][0]));
@@ -128,23 +125,22 @@ void CeresOptimizer::AddLidarMeasurements() {
     int lidar_index = measurement->lidar_id;
     int sensor_index = GetSensorIndex(SensorType::LIDAR, lidar_index);
 
-    Eigen::Vector3d P_TARGET;
+    Eigen::Vector3d P_Target;
     if (inputs_.target_params[target_index]->keypoints_lidar.cols() > 0) {
-      P_TARGET = inputs_.target_params[target_index]->keypoints_lidar.col(
+      P_Target = inputs_.target_params[target_index]->keypoints_lidar.col(
           corr.target_point_index);
     } else {
       const auto& p = inputs_.target_params[target_index]->template_cloud->at(
           corr.target_point_index);
-      P_TARGET = Eigen::Vector3d(p.x, p.y, p.z);
+      P_Target = Eigen::Vector3d(p.x, p.y, p.z);
     }
-    Eigen::Vector3d P_VICONBASE =
-        (measurement->T_VICONBASE_TARGET * P_TARGET.homogeneous())
-            .hnormalized();
+    Eigen::Vector3d P_Robot =
+        (measurement->T_Robot_Target * P_Target.homogeneous()).hnormalized();
     const auto& p = measurement->keypoints->at(corr.measured_point_index);
     Eigen::Vector3d point_measured(p.x, p.y, p.z);
 
     std::unique_ptr<ceres::CostFunction> cost_function(
-        CeresLidarCostFunction::Create(point_measured, P_VICONBASE));
+        CeresLidarCostFunction::Create(point_measured, P_Robot));
 
     problem_->AddResidualBlock(cost_function.release(), loss_function_.get(),
                                &(results_[sensor_index][0]));

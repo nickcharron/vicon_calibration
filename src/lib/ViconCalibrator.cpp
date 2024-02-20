@@ -68,7 +68,7 @@ void ViconCalibrator::LoadEstimatedExtrinsics() {
     std::string to_frame = params_->vicon_baselink_frame;
     std::string from_frame = "base_link";
     try {
-      Eigen::Affine3d T_VICONBASE_BASELINK =
+      Eigen::Affine3d T_Robot_Baselink =
           estimate_extrinsics_->GetTransformEigen(to_frame, from_frame);
     } catch (std::runtime_error& error) {
       LOG_INFO("Transform from base_link to %s not available on topic "
@@ -121,11 +121,10 @@ void ViconCalibrator::LoadLookupTree(const ros::Time& lookup_time) {
 void ViconCalibrator::GetInitialCalibrations() {
   calibrations_initial_.clear();
   for (uint8_t i = 0; i < params_->lidar_params.size(); i++) {
-    Eigen::Affine3d T_VICONBASE_SENSOR =
-        estimate_extrinsics_->GetTransformEigen(
-            params_->vicon_baselink_frame, params_->lidar_params[i]->frame);
+    Eigen::Affine3d T_Robot_Sensor = estimate_extrinsics_->GetTransformEigen(
+        params_->vicon_baselink_frame, params_->lidar_params[i]->frame);
     vicon_calibration::CalibrationResult calib_initial;
-    calib_initial.transform = T_VICONBASE_SENSOR.matrix();
+    calib_initial.transform = T_Robot_Sensor.matrix();
     calib_initial.type = SensorType::LIDAR;
     calib_initial.sensor_id = i;
     calib_initial.to_frame = params_->vicon_baselink_frame;
@@ -133,11 +132,10 @@ void ViconCalibrator::GetInitialCalibrations() {
     calibrations_initial_.push_back(calib_initial);
   }
   for (uint8_t i = 0; i < params_->camera_params.size(); i++) {
-    Eigen::Affine3d T_VICONBASE_SENSOR =
-        estimate_extrinsics_->GetTransformEigen(
-            params_->vicon_baselink_frame, params_->camera_params[i]->frame);
+    Eigen::Affine3d T_Robot_Sensor = estimate_extrinsics_->GetTransformEigen(
+        params_->vicon_baselink_frame, params_->camera_params[i]->frame);
     vicon_calibration::CalibrationResult calib_initial;
-    calib_initial.transform = T_VICONBASE_SENSOR.matrix();
+    calib_initial.transform = T_Robot_Sensor.matrix();
     calib_initial.type = SensorType::CAMERA;
     calib_initial.sensor_id = i;
     calib_initial.to_frame = params_->vicon_baselink_frame;
@@ -177,21 +175,21 @@ std::vector<Eigen::Affine3d, AlignAff3d>
   std::vector<Eigen::Affine3d, AlignAff3d> T_sensor_tgts_estimated;
   for (uint8_t n = 0; n < params_->target_params.size(); n++) {
     // get transform from sensor to target
-    Eigen::Affine3d T_VICONBASE_TGTn = lookup_tree_->GetTransformEigen(
+    Eigen::Affine3d T_Robot_TargetN = lookup_tree_->GetTransformEigen(
         params_->vicon_baselink_frame, params_->target_params[n]->frame_id,
         lookup_time);
-    Eigen::Affine3d T_SENSOR_TGTn;
+    Eigen::Affine3d T_Sensor_TargetN;
     bool success;
     if (sim_options.perturb_measurements) {
-      Eigen::Affine3d TA_VICONBASE_SENSOR_pert;
-      TA_VICONBASE_SENSOR_pert.matrix() = utils::GetT_VICONBASE_SENSOR(
+      Eigen::Affine3d TA_Robot_Sensor_pert;
+      TA_Robot_Sensor_pert.matrix() = utils::GetT_Robot_Sensor(
           sim_options.calibrations_perturbed_, type, sensor_id, success);
-      T_SENSOR_TGTn = TA_VICONBASE_SENSOR_pert.inverse() * T_VICONBASE_TGTn;
+      T_Sensor_TargetN = TA_Robot_Sensor_pert.inverse() * T_Robot_TargetN;
     } else {
-      Eigen::Affine3d TA_VICONBASE_SENSOR;
-      TA_VICONBASE_SENSOR.matrix() = utils::GetT_VICONBASE_SENSOR(
+      Eigen::Affine3d TA_Robot_Sensor;
+      TA_Robot_Sensor.matrix() = utils::GetT_Robot_Sensor(
           calibrations_initial_, type, sensor_id, success);
-      T_SENSOR_TGTn = TA_VICONBASE_SENSOR.inverse() * T_VICONBASE_TGTn;
+      T_Sensor_TargetN = TA_Robot_Sensor.inverse() * T_Robot_TargetN;
     }
 
     if (!success) {
@@ -201,7 +199,7 @@ std::vector<Eigen::Affine3d, AlignAff3d>
       throw std::runtime_error{"Unable to find calibration."};
     }
 
-    T_sensor_tgts_estimated.push_back(T_SENSOR_TGTn);
+    T_sensor_tgts_estimated.push_back(T_Sensor_TargetN);
   }
   return T_sensor_tgts_estimated;
 }
@@ -247,26 +245,26 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
     pcl::fromPCLPointCloud2(cloud_pc2, cloud_tmp);
     input_cropbox_.Filter(cloud_tmp, *cloud);
     std::vector<Eigen::Affine3d, AlignAff3d> T_lidar_tgts_estimated;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts_before;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts_after;
+    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets;
+    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets_before;
+    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets_after;
     try {
       T_lidar_tgts_estimated = GetInitialGuess(time_current, sensor_frame,
                                                SensorType::LIDAR, lidar_iter);
-      T_viconbase_tgts = utils::GetTargetLocation(params_->target_params,
-                                                  params_->vicon_baselink_frame,
-                                                  time_current, lookup_tree_);
+      T_Robot_Targets = utils::GetTargetLocation(params_->target_params,
+                                                 params_->vicon_baselink_frame,
+                                                 time_current, lookup_tree_);
 
       // get transforms just before and after which will be used to calculate
       // velocities
       ros::Duration time_window_half(0.15);
       if (time_current - time_window_half > view.getBeginTime()) {
-        T_viconbase_tgts_before = utils::GetTargetLocation(
+        T_Robot_Targets_before = utils::GetTargetLocation(
             params_->target_params, params_->vicon_baselink_frame,
             time_current - time_window_half, lookup_tree_);
       }
       if (time_current + time_window_half < view.getEndTime()) {
-        T_viconbase_tgts_after = utils::GetTargetLocation(
+        T_Robot_Targets_after = utils::GetTargetLocation(
             params_->target_params, params_->vicon_baselink_frame,
             time_current + time_window_half, lookup_tree_);
       }
@@ -283,10 +281,10 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
           continue;
         }
       }
-      if (T_viconbase_tgts_before.size() > 0 &&
-          T_viconbase_tgts_after.size() > 0) {
-        if (!PassedMaxVelocity(T_viconbase_tgts_before[n],
-                               T_viconbase_tgts_after[n])) {
+      if (T_Robot_Targets_before.size() > 0 &&
+          T_Robot_Targets_after.size() > 0) {
+        if (!PassedMaxVelocity(T_Robot_Targets_before[n],
+                               T_Robot_Targets_after[n])) {
           LOG_INFO("Target is moving too quickly. Skipping.");
           lidar_counters_.at(lidar_iter).rejected_fast++;
           continue;
@@ -316,7 +314,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
         std::shared_ptr<LidarMeasurement> lidar_measurement =
             std::make_shared<LidarMeasurement>();
         lidar_measurement->keypoints = lidar_extractor_->GetMeasurement();
-        lidar_measurement->T_VICONBASE_TARGET = T_viconbase_tgts[n].matrix();
+        lidar_measurement->T_Robot_Target = T_Robot_Targets[n].matrix();
         lidar_measurement->lidar_id = lidar_iter;
         lidar_measurement->target_id = n;
         lidar_measurement->lidar_frame =
@@ -380,26 +378,26 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
 
     time_last = time_current;
     std::vector<Eigen::Affine3d, AlignAff3d> T_cam_tgts_estimated;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts_before;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_viconbase_tgts_after;
+    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets;
+    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets_before;
+    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets_after;
     try {
       T_cam_tgts_estimated = GetInitialGuess(time_current, sensor_frame,
                                              SensorType::CAMERA, cam_iter);
-      T_viconbase_tgts = utils::GetTargetLocation(params_->target_params,
-                                                  params_->vicon_baselink_frame,
-                                                  time_current, lookup_tree_);
+      T_Robot_Targets = utils::GetTargetLocation(params_->target_params,
+                                                 params_->vicon_baselink_frame,
+                                                 time_current, lookup_tree_);
 
       // get transforms just before and after which will be used to
       // calculate velocities
       ros::Duration time_window_half(0.15);
       if (time_current - time_window_half > view.getBeginTime()) {
-        T_viconbase_tgts_before = utils::GetTargetLocation(
+        T_Robot_Targets_before = utils::GetTargetLocation(
             params_->target_params, params_->vicon_baselink_frame,
             time_current - time_window_half, lookup_tree_);
       }
       if (time_current + time_window_half < view.getEndTime()) {
-        T_viconbase_tgts_after = utils::GetTargetLocation(
+        T_Robot_Targets_after = utils::GetTargetLocation(
             params_->target_params, params_->vicon_baselink_frame,
             time_current + time_window_half, lookup_tree_);
       }
@@ -418,10 +416,10 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
         }
       }
 
-      if (T_viconbase_tgts_before.size() > 0 &&
-          T_viconbase_tgts_after.size() > 0) {
-        if (!PassedMaxVelocity(T_viconbase_tgts_before[n],
-                               T_viconbase_tgts_after[n])) {
+      if (T_Robot_Targets_before.size() > 0 &&
+          T_Robot_Targets_after.size() > 0) {
+        if (!PassedMaxVelocity(T_Robot_Targets_before[n],
+                               T_Robot_Targets_after[n])) {
           camera_counters_.at(cam_iter).rejected_fast++;
           continue;
         }
@@ -454,7 +452,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
         std::shared_ptr<CameraMeasurement> camera_measurement =
             std::make_shared<CameraMeasurement>();
         camera_measurement->keypoints = camera_extractor_->GetMeasurement();
-        camera_measurement->T_VICONBASE_TARGET = T_viconbase_tgts[n].matrix();
+        camera_measurement->T_Robot_Target = T_Robot_Targets[n].matrix();
         camera_measurement->camera_id = cam_iter;
         camera_measurement->target_id = n;
         camera_measurement->camera_frame =

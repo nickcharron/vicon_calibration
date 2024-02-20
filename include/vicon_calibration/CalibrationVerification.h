@@ -85,7 +85,7 @@ private:
 
   std::vector<Eigen::Vector2d, AlignVec2d>
       CalculateCameraErrors(const PointCloud::Ptr& measured_keypoints,
-                            const Eigen::Matrix4d& T_SENSOR_TARGET,
+                            const Eigen::Matrix4d& T_Sensor_Target,
                             const int& target_id, const int& camera_id);
 
   void PrintConfig();
@@ -103,8 +103,8 @@ private:
 
   std::shared_ptr<cv::Mat> ProjectTargetToImage(
       const std::shared_ptr<cv::Mat>& img_in,
-      const std::vector<Eigen::Affine3d, AlignAff3d>& T_VICONBASE_TGTS,
-      const Eigen::Matrix4d& T_VICONBASE_SENSOR, const int& cam_iter,
+      const std::vector<Eigen::Affine3d, AlignAff3d>& T_Robot_Targets,
+      const Eigen::Matrix4d& T_Robot_Sensor, const int& cam_iter,
       cv::Scalar colour);
 
   void LoadLookupTree();

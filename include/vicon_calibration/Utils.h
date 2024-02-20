@@ -153,7 +153,7 @@ std::vector<double> TransformMatrixToQuaternionAndTranslation(
     const Eigen::Matrix4d& T);
 
 cv::Mat DrawCoordinateFrame(const cv::Mat& img_in,
-                            const Eigen::Matrix4d& T_cam_frame,
+                            const Eigen::Matrix4d& T_Cam_Frame,
                             const std::shared_ptr<CameraModel>& camera_model,
                             const double& scale);
 
@@ -225,7 +225,7 @@ std::string GetFilePathTestBags(const std::string& file_name);
 
 void GetScreenResolution(int& horizontal, int& vertical);
 
-Eigen::Matrix4d GetT_VICONBASE_SENSOR(const CalibrationResults& calibs,
+Eigen::Matrix4d GetT_Robot_Sensor(const CalibrationResults& calibs,
                                       SensorType type, uint8_t sensor_id,
                                       bool& success);
 

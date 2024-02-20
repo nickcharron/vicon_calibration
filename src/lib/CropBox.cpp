@@ -4,7 +4,7 @@
 namespace vicon_calibration {
 
 CropBox::CropBox() {
-  T_box_cloud_.matrix().setIdentity();
+  T_Box_Cloud_.matrix().setIdentity();
 }
 
 Eigen::Vector3f CropBox::GetMinVector() {
@@ -26,11 +26,11 @@ void CropBox::SetMaxVector(Eigen::Vector3f& max_vec) {
 }
 
 Eigen::Affine3f CropBox::GetTransform() {
-  return T_box_cloud_;
+  return T_Box_Cloud_;
 }
 
-void CropBox::SetTransform(Eigen::Affine3f& T_box_cloud) {
-  T_box_cloud_ = T_box_cloud;
+void CropBox::SetTransform(Eigen::Affine3f& T_Box_Cloud) {
+  T_Box_Cloud_ = T_Box_Cloud;
 }
 
 void CropBox::SetRemoveOutsidePoints(bool remove_outside_points) {
@@ -56,7 +56,7 @@ void CropBox::Filter(pcl::PointCloud<pcl::PointXYZ>& input_cloud,
   // perform filtering
   for (pcl::PointCloud<pcl::PointXYZ>::iterator it = input_cloud.begin();
        it != input_cloud.end(); ++it) {
-    pcl::PointXYZ point = pcl::transformPoint(*it, T_box_cloud_);
+    pcl::PointXYZ point = pcl::transformPoint(*it, T_Box_Cloud_);
 
     if (point.x < min_vec_[0] || point.y < min_vec_[1] ||
         point.z < min_vec_[2] || point.x > max_vec_[0] ||
@@ -91,7 +91,7 @@ void CropBox::Filter(pcl::PointCloud<pcl::PointXYZI>& input_cloud,
   // perform filtering
   for (pcl::PointCloud<pcl::PointXYZI>::iterator it = input_cloud.begin();
        it != input_cloud.end(); ++it) {
-    pcl::PointXYZI point = pcl::transformPoint(*it, T_box_cloud_);
+    pcl::PointXYZI point = pcl::transformPoint(*it, T_Box_Cloud_);
 
     if (point.x < min_vec_[0] || point.y < min_vec_[1] ||
         point.z < min_vec_[2] || point.x > max_vec_[0] ||

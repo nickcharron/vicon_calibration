@@ -140,25 +140,25 @@ TEST_CASE("Test lidar optimization") {
                               se3_parameterization_.get());
 
   for (int i = 0; i < points.size(); i++) {
-    Eigen::Vector3d P_VICONBASE = (T_VT * points[i]).hnormalized();
+    Eigen::Vector3d P_Robot = (T_VT * points[i]).hnormalized();
     Eigen::Vector3d point_measured = points_measured[i].hnormalized();
 
     // add residuals for perfect init
     std::unique_ptr<ceres::CostFunction> cost_function1(
-        CeresLidarCostFunction::Create(point_measured, P_VICONBASE));
+        CeresLidarCostFunction::Create(point_measured, P_Robot));
     problem1->AddResidualBlock(cost_function1.release(), loss_function_.get(),
                                &(results_perfect_init[0]));
 
     // add residuals for perturbed init
     std::unique_ptr<ceres::CostFunction> cost_function2(
-        CeresLidarCostFunction::Create(point_measured, P_VICONBASE));
+        CeresLidarCostFunction::Create(point_measured, P_Robot));
 
     problem2->AddResidualBlock(cost_function2.release(), loss_function_.get(),
                                &results_perturbed_init[0]);
 
     // Check that the inputs are correct:
     double P_L[3];
-    ceres::QuaternionRotatePoint(&(results_perfect_init[0]), P_VICONBASE.data(),
+    ceres::QuaternionRotatePoint(&(results_perfect_init[0]), P_Robot.data(),
                                  P_L);
     Eigen::Vector3d point_transformed(P_L[0] + results_perfect_init[4],
                                       P_L[1] + results_perfect_init[5],

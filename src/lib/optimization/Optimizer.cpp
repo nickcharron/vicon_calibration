@@ -180,7 +180,7 @@ void Optimizer::CheckInputs() {
 void Optimizer::GetImageCorrespondences() {
   LOG_INFO("Setting image correspondences");
   int counter = 0;
-  Eigen::Matrix4d T_VICONBASE_CAM, T_CAM_TARGET;
+  Eigen::Matrix4d T_Robot_Camera, T_Camera_Target;
   std::shared_ptr<CameraMeasurement> measurement;
   for (uint8_t cam_iter = 0; cam_iter < inputs_.camera_measurements.size();
        cam_iter++) {
@@ -192,10 +192,10 @@ void Optimizer::GetImageCorrespondences() {
       }
       measurement = inputs_.camera_measurements[cam_iter][meas_iter];
 
-      T_VICONBASE_CAM =
+      T_Robot_Camera =
           GetUpdatedInitialPose(SensorType::CAMERA, measurement->camera_id);
-      T_CAM_TARGET = utils::InvertTransform(T_VICONBASE_CAM) *
-                     measurement->T_VICONBASE_TARGET;
+      T_Camera_Target =
+          utils::InvertTransform(T_Robot_Camera) * measurement->T_Robot_Target;
 
       // convert measurement to 3D (set z to 0)
       PointCloud::Ptr measurement_3d = std::make_shared<PointCloud>();
@@ -227,7 +227,7 @@ void Optimizer::GetImageCorrespondences() {
         for (int k = 0; k < kpts.cols(); k++) {
           Eigen::Vector3d keypoint = kpts.col(k);
           Eigen::Vector4d keypoint_transformed =
-              T_CAM_TARGET * keypoint.homogeneous();
+              T_Camera_Target * keypoint.homogeneous();
           transformed_keypoints->emplace_back(keypoint_transformed[0],
                                               keypoint_transformed[1],
                                               keypoint_transformed[2]);
@@ -236,7 +236,7 @@ void Optimizer::GetImageCorrespondences() {
         // use all points from template cloud
         pcl::transformPointCloud(
             *(inputs_.target_params[measurement->target_id]->template_cloud),
-            *transformed_keypoints, T_CAM_TARGET);
+            *transformed_keypoints, T_Camera_Target);
       }
 
       for (uint32_t i = 0; i < transformed_keypoints->size(); i++) {
@@ -339,7 +339,7 @@ void Optimizer::GetImageCorrespondences() {
 void Optimizer::GetLidarCorrespondences() {
   LOG_INFO("Setting lidar correspondences");
   int counter = 0;
-  Eigen::Matrix4d T_VICONBASE_LIDAR, T_LIDAR_TARGET;
+  Eigen::Matrix4d T_Robot_Lidar, T_Lidar_Target;
   std::shared_ptr<LidarMeasurement> measurement;
   for (uint8_t lidar_iter = 0; lidar_iter < inputs_.lidar_measurements.size();
        lidar_iter++) {
@@ -351,10 +351,10 @@ void Optimizer::GetLidarCorrespondences() {
       }
       measurement = inputs_.lidar_measurements[lidar_iter][meas_iter];
 
-      T_VICONBASE_LIDAR =
+      T_Robot_Lidar =
           GetUpdatedInitialPose(SensorType::LIDAR, measurement->lidar_id);
-      T_LIDAR_TARGET = utils::InvertTransform(T_VICONBASE_LIDAR) *
-                       measurement->T_VICONBASE_TARGET;
+      T_Lidar_Target =
+          utils::InvertTransform(T_Robot_Lidar) * measurement->T_Robot_Target;
 
       // Check keypoints to see if we want to find correspondences between
       // keypoints or between all target points
@@ -364,7 +364,7 @@ void Optimizer::GetLidarCorrespondences() {
       for (int k = 0; k < kpts.cols(); k++) {
         Eigen::Vector3d keypoint = kpts.col(k);
         Eigen::Vector4d keypoint_transformed =
-            T_LIDAR_TARGET * keypoint.homogeneous();
+            T_Lidar_Target * keypoint.homogeneous();
         transformed_keypoints->emplace_back(keypoint_transformed[0],
                                             keypoint_transformed[1],
                                             keypoint_transformed[2]);
@@ -374,7 +374,7 @@ void Optimizer::GetLidarCorrespondences() {
         // use all points from template cloud
         pcl::transformPointCloud(
             *(inputs_.target_params[measurement->target_id]->template_cloud),
-            *transformed_keypoints, T_LIDAR_TARGET);
+            *transformed_keypoints, T_Lidar_Target);
       }
 
       // calculate centroids and translate target to match
@@ -423,10 +423,10 @@ PointCloud::Ptr Optimizer::MatchCentroids(const PointCloud::Ptr& source_cloud,
   pcl::compute3DCentroid(*target_cloud, target_centroid);
   Eigen::Vector3d t_SOURCE_TARGET =
       source_centroid.hnormalized() - target_centroid.hnormalized();
-  Eigen::Matrix4d T_SOURCE_TARGET;
-  T_SOURCE_TARGET.setIdentity();
-  T_SOURCE_TARGET.block(0, 3, 3, 1) = t_SOURCE_TARGET;
-  pcl::transformPointCloud(*target_cloud, *target_translated, T_SOURCE_TARGET);
+  Eigen::Matrix4d T_Source_Target;
+  T_Source_Target.setIdentity();
+  T_Source_Target.block(0, 3, 3, 1) = t_SOURCE_TARGET;
+  pcl::transformPointCloud(*target_cloud, *target_translated, T_Source_Target);
   return target_translated;
 }
 

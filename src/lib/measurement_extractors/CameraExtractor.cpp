@@ -69,12 +69,12 @@ bool CameraExtractor::GetShowMeasurements() {
 }
 
 void CameraExtractor::ProcessMeasurement(
-    const Eigen::Matrix4d& T_CAMERA_TARGET_EST, const cv::Mat& img_in) {
+    const Eigen::Matrix4d& T_Camera_Target_Est, const cv::Mat& img_in) {
   // initialize member variables
   image_cropped_ = std::make_shared<cv::Mat>();
   image_annotated_ = std::make_shared<cv::Mat>();
   image_in_ = std::make_shared<cv::Mat>();
-  T_CAMERA_TARGET_EST_ = T_CAMERA_TARGET_EST;
+  T_Camera_Target_Est_ = T_Camera_Target_Est;
   *image_in_ = img_in;
   measurement_valid_ = true;
   measurement_complete_ = false;
@@ -97,7 +97,7 @@ void CameraExtractor::ProcessMeasurement(
   GetKeypoints();
   if (show_measurements_) {
     *image_annotated_ = utils::DrawCoordinateFrame(
-        *image_annotated_, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
+        *image_annotated_, T_Camera_Target_Est_, camera_params_->camera_model,
         axis_plot_scale_);
     if (!measurement_valid_) {
       DisplayImage("Invalid Measurement", "Showing failed measurement", false);
@@ -134,7 +134,7 @@ pcl::PointCloud<pcl::PointXY>::Ptr CameraExtractor::GetMeasurement() {
 void CameraExtractor::CheckInputs() {
   if (!image_in_->data) { throw std::invalid_argument{"No image data"}; }
 
-  if (!utils::IsTransformationMatrix(T_CAMERA_TARGET_EST_)) {
+  if (!utils::IsTransformationMatrix(T_Camera_Target_Est_)) {
     throw std::invalid_argument{"Invalid transform"};
   }
 
@@ -150,7 +150,7 @@ void CameraExtractor::CheckInputs() {
 void CameraExtractor::TargetPointToPixel(const Eigen::Vector4d& point,
                                          Eigen::Vector2d& pixel,
                                          bool& projection_valid) {
-  Eigen::Vector4d transformed_point = T_CAMERA_TARGET_EST_ * point;
+  Eigen::Vector4d transformed_point = T_Camera_Target_Est_ * point;
   camera_params_->camera_model->ProjectPoint(transformed_point.hnormalized(),
                                              pixel, projection_valid);
 }
@@ -239,7 +239,7 @@ void CameraExtractor::DisplayImage(const std::string& display_name,
   }
 
   cv::Mat current_image_w_axes = utils::DrawCoordinateFrame(
-      *image_annotated_, T_CAMERA_TARGET_EST_, camera_params_->camera_model,
+      *image_annotated_, T_Camera_Target_Est_, camera_params_->camera_model,
       axis_plot_scale_);
 
   const Eigen::Matrix3Xd& kpts = target_params_->keypoints_camera;

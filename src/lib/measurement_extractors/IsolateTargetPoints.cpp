@@ -42,8 +42,8 @@ void IsolateTargetPoints::LoadConfig() {
 }
 
 void IsolateTargetPoints::SetTransformEstimate(
-    const Eigen::Matrix4d& T_TARGET_LIDAR) {
-  T_TARGET_LIDAR_ = T_TARGET_LIDAR;
+    const Eigen::Matrix4d& T_Target_Lidar) {
+  T_Target_Lidar_ = T_Target_Lidar;
   transform_estimate_set_ = true;
 }
 
@@ -96,7 +96,7 @@ std::vector<PointCloud::Ptr> IsolateTargetPoints::GetClusters() {
 
 void IsolateTargetPoints::ClusterPoints() {
   // get estimated distance to target
-  Eigen::Vector3d translation = T_TARGET_LIDAR_.block(0, 3, 3, 1);
+  Eigen::Vector3d translation = T_Target_Lidar_.block(0, 3, 3, 1);
   double distance = translation.norm();
   double max_point_distance =
       distance *
@@ -154,7 +154,7 @@ void IsolateTargetPoints::GetTargetCluster() {
 
   // transform target centroid to lidar frame
   Eigen::Vector3d centroid_estimated =
-      (utils::InvertTransform(T_TARGET_LIDAR_) *
+      (utils::InvertTransform(T_Target_Lidar_) *
        target_params_->template_centroid)
           .hnormalized();
 
@@ -275,7 +275,7 @@ void IsolateTargetPoints::CropScan() {
   max_vector << target_params_->crop_scan[3], target_params_->crop_scan[4],
       target_params_->crop_scan[5];
   Eigen::Affine3f TA_TARGET_LIDAR;
-  TA_TARGET_LIDAR.matrix() = T_TARGET_LIDAR_.cast<float>();
+  TA_TARGET_LIDAR.matrix() = T_Target_Lidar_.cast<float>();
   cropper.SetMinVector(min_vector);
   cropper.SetMaxVector(max_vector);
   cropper.SetRemoveOutsidePoints(true);

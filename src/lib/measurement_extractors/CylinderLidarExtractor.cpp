@@ -15,21 +15,21 @@ void CylinderLidarExtractor::GetKeypoints() {
   icp.setMaxCorrespondenceDistance(icp_max_correspondence_dist_);
   icp.setInputSource(scan_isolated_);
   icp.setInputTarget(target_params_->template_cloud);
-  icp.align(*scan_registered, T_LIDAR_TARGET_EST_.inverse().cast<float>());
+  icp.align(*scan_registered, T_Lidar_Target_Est_.inverse().cast<float>());
 
   if (!icp.hasConverged()) {
     measurement_valid_ = false;
     if (show_measurements_) {
       std::cout << "ICP failed." << std::endl;
     }
-    T_LIDAR_TARGET_OPT_ = T_LIDAR_TARGET_EST_;
+    T_Lidar_Target_Opt_ = T_Lidar_Target_Est_;
     keypoints_measured_ = scan_isolated_;
     return;
   }
 
   keypoints_measured_->clear();
   measurement_valid_ = true;
-  T_LIDAR_TARGET_OPT_ =
+  T_Lidar_Target_Opt_ =
       utils::InvertTransform(icp.getFinalTransformation().cast<double>());
 
   // get correspondences from ICP and store as keypoints

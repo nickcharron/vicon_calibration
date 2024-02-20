@@ -163,11 +163,11 @@ void CylinderCameraExtractor::DisplayImagePair(const cv::Mat& img1,
                                                bool allow_override) {
   if (!show_measurements_) { return; }
 
-  cv::Mat img1_w_axes = utils::DrawCoordinateFrame(img1, T_CAMERA_TARGET_EST_,
+  cv::Mat img1_w_axes = utils::DrawCoordinateFrame(img1, T_Camera_Target_Est_,
                                                    camera_params_->camera_model,
                                                    axis_plot_scale_);
 
-  cv::Mat img2_w_axes = utils::DrawCoordinateFrame(img2, T_CAMERA_TARGET_EST_,
+  cv::Mat img2_w_axes = utils::DrawCoordinateFrame(img2, T_Camera_Target_Est_,
                                                    camera_params_->camera_model,
                                                    axis_plot_scale_);
 

@@ -21,16 +21,16 @@ void CheckerboardLidarExtractor::GetKeypoints() {
   icp.setInputSource(scan_isolated_);
   icp.setInputTarget(target_params_->template_cloud);
   icp.align(*scan_registered,
-            utils::InvertTransform(T_LIDAR_TARGET_EST_).cast<float>());
+            utils::InvertTransform(T_Lidar_Target_Est_).cast<float>());
 
   if (!icp.hasConverged()) {
     measurement_valid_ = false;
     if (show_measurements_) { std::cout << "ICP failed." << std::endl; }
-    T_LIDAR_TARGET_OPT_ = T_LIDAR_TARGET_EST_;
+    T_Lidar_Target_Opt_ = T_Lidar_Target_Est_;
     return;
   } else {
     measurement_valid_ = true;
-    T_LIDAR_TARGET_OPT_ =
+    T_Lidar_Target_Opt_ =
         utils::InvertTransform(icp.getFinalTransformation().cast<double>());
   }
 

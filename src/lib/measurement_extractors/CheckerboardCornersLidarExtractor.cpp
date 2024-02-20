@@ -20,15 +20,15 @@ void CheckerboardCornersLidarExtractor::GetKeypoints() {
   icp.setInputSource(scan_isolated_);
   icp.setInputTarget(target_params_->template_cloud);
   icp.align(*scan_registered,
-            utils::InvertTransform(T_LIDAR_TARGET_EST_).cast<float>());
+            utils::InvertTransform(T_Lidar_Target_Est_).cast<float>());
 
   if (!icp.hasConverged()) {
     measurement_valid_ = false;
     if (show_measurements_) { std::cout << "ICP failed." << std::endl; }
-    T_LIDAR_TARGET_OPT_ = T_LIDAR_TARGET_EST_;
+    T_Lidar_Target_Opt_ = T_Lidar_Target_Est_;
   } else {
     measurement_valid_ = true;
-    T_LIDAR_TARGET_OPT_ =
+    T_Lidar_Target_Opt_ =
         utils::InvertTransform(icp.getFinalTransformation().cast<double>());
   }
 
@@ -39,7 +39,7 @@ void CheckerboardCornersLidarExtractor::GetKeypoints() {
     Eigen::Vector4d keypoint(target_params_->keypoints_lidar(0, k),
                              target_params_->keypoints_lidar(1, k),
                              target_params_->keypoints_lidar(2, k), 1);
-    keypoint_trans = T_LIDAR_TARGET_OPT_ * keypoint;
+    keypoint_trans = T_Lidar_Target_Opt_ * keypoint;
     keypoints_measured_->push_back(
         pcl::PointXYZ(keypoint_trans[0], keypoint_trans[1], keypoint_trans[2]));
   }
@@ -52,7 +52,7 @@ void CheckerboardCornersLidarExtractor::CheckMeasurementValid() {
   PointCloud::Ptr template_transformed = std::make_shared<PointCloud>();
   pcl::transformPointCloud(*target_params_->template_cloud,
                            *template_transformed,
-                           T_LIDAR_TARGET_OPT_.cast<float>());
+                           T_Lidar_Target_Opt_.cast<float>());
   kd_tree.setInputCloud(template_transformed);
   for (pcl::PointCloud<pcl::PointXYZ>::iterator it = scan_isolated_->begin();
        it != scan_isolated_->end(); ++it) {

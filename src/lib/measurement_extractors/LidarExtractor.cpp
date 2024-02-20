@@ -71,10 +71,10 @@ bool LidarExtractor::GetMeasurementValid() {
 }
 
 void LidarExtractor::ProcessMeasurement(
-    const Eigen::Matrix4d& T_LIDAR_TARGET_EST, const PointCloud::Ptr& cloud_in,
+    const Eigen::Matrix4d& T_Lidar_Target_Est, const PointCloud::Ptr& cloud_in,
     bool& show_measurements) {
   scan_in_ = cloud_in;
-  T_LIDAR_TARGET_EST_ = T_LIDAR_TARGET_EST;
+  T_Lidar_Target_Est_ = T_Lidar_Target_Est;
   SetupVariables();
   CheckInputs();
   IsolatePoints();
@@ -104,7 +104,7 @@ void LidarExtractor::CheckInputs() {
     throw std::runtime_error{"Input scan is empty"};
   }
 
-  if (!utils::IsTransformationMatrix(T_LIDAR_TARGET_EST_)) {
+  if (!utils::IsTransformationMatrix(T_Lidar_Target_Est_)) {
     throw std::runtime_error{
         "Estimated transform from target to lidar is invalid"};
   }
@@ -114,7 +114,7 @@ void LidarExtractor::IsolatePoints() {
   target_isolator_ = IsolateTargetPoints();
   target_isolator_.SetScan(scan_in_);
   target_isolator_.SetTransformEstimate(
-      utils::InvertTransform(T_LIDAR_TARGET_EST_));
+      utils::InvertTransform(T_Lidar_Target_Est_));
   target_isolator_.SetTargetParams(target_params_);
   target_isolator_.SetLidarParams(lidar_params_);
   scan_isolated_ = target_isolator_.GetPoints();
@@ -135,7 +135,7 @@ void LidarExtractor::GetUserInput() {
   estimated_template_cloud_ = std::make_shared<PointCloud>();
   pcl::transformPointCloud(*target_params_->template_cloud,
                            *estimated_template_cloud_,
-                           T_LIDAR_TARGET_EST_.cast<float>());
+                           T_Lidar_Target_Est_.cast<float>());
 
   pcl_viewer_->ClearPointClouds();
   bool stop_viz = false;
@@ -144,17 +144,17 @@ void LidarExtractor::GetUserInput() {
     measured_template_cloud_ = std::make_shared<PointCloud>();
     pcl::transformPointCloud(*target_params_->template_cloud,
                              *measured_template_cloud_,
-                             T_LIDAR_TARGET_OPT_.cast<float>());
+                             T_Lidar_Target_Opt_.cast<float>());
 
     // add estimated template cloud
     pcl_viewer_->AddPointCloudToViewer(estimated_template_cloud_, "blue_cloud",
                                        Eigen::Vector3i(0, 0, 255), 5,
-                                       T_LIDAR_TARGET_EST_.cast<float>());
+                                       T_Lidar_Target_Est_.cast<float>());
 
     // add measured template cloud
     pcl_viewer_->AddPointCloudToViewer(measured_template_cloud_, "green_cloud",
                                        Eigen::Vector3i(0, 255, 0), 5,
-                                       T_LIDAR_TARGET_OPT_.cast<float>());
+                                       T_Lidar_Target_Opt_.cast<float>());
 
     // add the isolated scan
     pcl_viewer_->AddPointCloudToViewer(scan_isolated_, "white_cloud",

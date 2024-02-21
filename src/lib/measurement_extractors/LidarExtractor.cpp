@@ -1,10 +1,14 @@
 #include <vicon_calibration/measurement_extractors/LidarExtractor.h>
 
+#include <filesystem>
+
 #include <vicon_calibration/measurement_extractors/LidarExtractors.h>
 
 #include <vicon_calibration/CropBox.h>
 
 namespace vicon_calibration {
+
+namespace fs = std::filesystem;
 
 LidarExtractor::LidarExtractor(
     const std::shared_ptr<vicon_calibration::LidarParams>& lidar_params,
@@ -215,11 +219,11 @@ void LidarExtractor::OutputScans() {
   if (!output_scans_) { return; }
   std::string date_and_time =
       utils::ConvertTimeToDate(std::chrono::system_clock::now());
-  if (!boost::filesystem::exists(output_directory_)) {
-    boost::filesystem::create_directory(output_directory_);
+  if (!std::filesystem::exists(output_directory_)) {
+    std::filesystem::create_directory(output_directory_);
   }
-  std::string save_dir = output_directory_ + date_and_time + "/";
-  boost::filesystem::create_directory(save_dir);
+  fs::path save_dir = fs::path(output_directory_) / fs::path(date_and_time);
+  std::filesystem::create_directory(save_dir);
   pcl::PCDWriter writer;
   // crop scan in
   PointCloud scan_in2;
@@ -230,32 +234,36 @@ void LidarExtractor::OutputScans() {
   cropper.SetRemoveOutsidePoints(true);
   cropper.Filter(*scan_in_, scan_in2);
   if (scan_in_ != nullptr && scan_in2.size() > 0) {
-    writer.write(save_dir + "scan_in.pcd", scan_in2);
+    writer.write((save_dir / fs::path("scan_in.pcd")).string(), scan_in2);
   }
   if (scan_isolated_ != nullptr && scan_isolated_->size() > 0) {
-    writer.write(save_dir + "scan_isolated.pcd", *scan_isolated_);
+    writer.write((save_dir / fs::path("scan_isolated.pcd")).string(),
+                 *scan_isolated_);
   }
   if (keypoints_measured_ != nullptr && keypoints_measured_->size() > 0) {
-    writer.write(save_dir + "keypoints_measured.pcd", *keypoints_measured_);
+    writer.write((save_dir / fs::path("keypoints_measured.pcd")).string(),
+                 *keypoints_measured_);
   }
   PointCloud::Ptr scan_cropped = target_isolator_.GetCroppedScan();
   if (scan_cropped != nullptr && scan_cropped->size() > 0) {
-    writer.write(save_dir + "scan_cropped.pcd", *scan_cropped);
+    writer.write((save_dir / fs::path("scan_cropped.pcd")).string(),
+                 *scan_cropped);
   }
   if (estimated_template_cloud_ != nullptr &&
       estimated_template_cloud_->size() > 0) {
-    writer.write(save_dir + "estimated_template_cloud.pcd",
+    writer.write((save_dir / fs::path("estimated_template_cloud.pcd")).string(),
                  *estimated_template_cloud_);
   }
   if (measured_template_cloud_ != nullptr &&
       measured_template_cloud_->size() > 0) {
-    writer.write(save_dir + "measured_template_cloud.pcd",
+    writer.write((save_dir / fs::path("measured_template_cloud.pcd")).string(),
                  *measured_template_cloud_);
   }
   std::vector<PointCloud::Ptr> clusters = target_isolator_.GetClusters();
   for (int i = 0; i < clusters.size(); i++) {
-    writer.write(save_dir + "cluster" + std::to_string(i) + ".pcd",
-                 *clusters[i]);
+    writer.write(
+        (save_dir / fs::path("cluster" + std::to_string(i) + ".pcd")).string(),
+        *clusters[i]);
   }
   LOG_INFO("Saved %d clusters.", static_cast<int>(clusters.size()));
 }

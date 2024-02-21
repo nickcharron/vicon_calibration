@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <filesystem>
 #include <sys/time.h>
 
 #include <Eigen/Geometry>
@@ -157,14 +158,13 @@ cv::Mat DrawCoordinateFrame(const cv::Mat& img_in,
                             const std::shared_ptr<CameraModel>& camera_model,
                             const double& scale);
 
-cv::Mat
-    ProjectPointsToImage(const cv::Mat& img,
-                         std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
-                         const Eigen::Matrix4d& T_IMAGE_CLOUD,
-                         std::shared_ptr<CameraModel>& camera_model);
+cv::Mat ProjectPointsToImage(const cv::Mat& img,
+                             pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
+                             const Eigen::Matrix4d& T_IMAGE_CLOUD,
+                             std::shared_ptr<CameraModel>& camera_model);
 
-std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>
-    ProjectPoints(std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
+pcl::PointCloud<pcl::PointXYZ>::Ptr
+    ProjectPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
                   std::shared_ptr<CameraModel>& camera_model,
                   const Eigen::Matrix4d& T);
 
@@ -177,20 +177,18 @@ void OutputTransformInformation(const Eigen::Affine3d& T,
 void OutputTransformInformation(const Eigen::Matrix4d& T,
                                 const std::string& transform_name);
 
-void OutputCalibrations(
-    const std::vector<vicon_calibration::CalibrationResult>& calib,
-    const std::string& output_string);
+void OutputCalibrations(const std::vector<CalibrationResult>& calib,
+                        const std::string& output_string);
 
 void OutputTargetCorrections(const std::vector<Eigen::Matrix4d>& Ts);
 
 std::string
     ConvertTimeToDate(const std::chrono::system_clock::time_point& time_);
 
-std::vector<Eigen::Affine3d, AlignAff3d> GetTargetLocation(
-    const std::vector<std::shared_ptr<vicon_calibration::TargetParams>>&
-        target_params,
+std::vector<Eigen::Affine3d> GetTargetLocation(
+    const std::vector<std::shared_ptr<TargetParams>>& target_params,
     const std::string& vicon_baselink_frame, const ros::Time& lookup_time,
-    const std::shared_ptr<vicon_calibration::TfTree>& lookup_tree);
+    const std::shared_ptr<TfTree>& lookup_tree);
 
 /**
  * @brief gets full name to file inside data subfolder
@@ -301,8 +299,8 @@ inline bool
   }
 
   // check path exists
-  boost::filesystem::path path(filename);
-  if (!boost::filesystem::exists(path.parent_path())) {
+  std::filesystem::path path(filename);
+  if (!std::filesystem::exists(path.parent_path())) {
     error_type =
         "File path parent directory does not exist. Input file: " + filename;
     return false;

@@ -61,10 +61,9 @@ private:
    * @return T_sensor_tgts_estimated estimated transform from targets to sensor
    * frame
    */
-  std::vector<Eigen::Affine3d, AlignAff3d>
-      GetInitialGuess(const ros::Time& lookup_time,
-                      const std::string& sensor_frame, SensorType type,
-                      int sensor_id);
+  std::vector<Eigen::Affine3d> GetInitialGuess(const ros::Time& lookup_time,
+                                               const std::string& sensor_frame,
+                                               SensorType type, int sensor_id);
 
   /**
    * @brief Compute the measurements from one lidar

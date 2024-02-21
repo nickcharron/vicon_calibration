@@ -25,7 +25,7 @@ Eigen::Matrix4d T_VL;
 Eigen::Matrix4d T_LT;
 Eigen::Matrix4d T_LV;
 Eigen::Matrix4d T_VT;
-std::vector<Eigen::Matrix4d, AlignMat4d> T_VTs;
+std::vector<Eigen::Matrix4d> T_VTs;
 Eigen::Matrix4d T_CV_pert;
 Eigen::Matrix4d T_VC_pert;
 Eigen::Matrix4d T_LV_pert;
@@ -53,7 +53,7 @@ void CreateTransforms() {
 
   // Create target transforms
   T_VT = T_VC * T_CT;
-  T_VTs = std::vector<Eigen::Matrix4d, AlignMat4d>{T_VT};
+  T_VTs = std::vector<Eigen::Matrix4d>{T_VT};
 
   // create Lidar Transforms
   T_VL = utils::BuildTransformEulerDegM(20, 90, 5, 0.3, 0.1, -0.3);
@@ -93,8 +93,7 @@ CameraParamsVector GetCameraParams(const std::string& camera_model_filename) {
 }
 
 CameraMeasurements CreateCameraMeasurements(
-    const Eigen::Matrix4d& T_VC,
-    const std::vector<Eigen::Matrix4d, AlignMat4d>& T_VTs,
+    const Eigen::Matrix4d& T_VC, const std::vector<Eigen::Matrix4d>& T_VTs,
     const TargetParams& target_params, const CameraParams& camera_params) {
   Eigen::Matrix4d T_CV = utils::InvertTransform(T_VC);
   std::vector<std::shared_ptr<CameraMeasurement>> measurements;
@@ -129,10 +128,10 @@ CameraMeasurements CreateCameraMeasurements(
   return CameraMeasurements{measurements};
 }
 
-LidarMeasurements CreateLidarMeasurements(
-    const Eigen::Matrix4d& T_VL,
-    const std::vector<Eigen::Matrix4d, AlignMat4d>& T_VTs,
-    const TargetParams& target_params) {
+LidarMeasurements
+    CreateLidarMeasurements(const Eigen::Matrix4d& T_VL,
+                            const std::vector<Eigen::Matrix4d>& T_VTs,
+                            const TargetParams& target_params) {
   Eigen::Matrix4d T_LV = utils::InvertTransform(T_VL);
   std::vector<std::shared_ptr<LidarMeasurement>> measurements;
   for (int i = 0; i < T_VTs.size(); i++) {

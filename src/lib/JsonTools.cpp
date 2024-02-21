@@ -1,15 +1,13 @@
 #include <vicon_calibration/JsonTools.h>
 
-#include <boost/filesystem.hpp>
-
 #include <vicon_calibration/Utils.h>
 
 namespace vicon_calibration {
 
 JsonTools::JsonTools(const CalibratorInputs& inputs) : inputs_(inputs) {}
 
-std::shared_ptr<TargetParams>
-    JsonTools::LoadTargetConfigFile(const std::string& target_config_full_path) {
+std::shared_ptr<TargetParams> JsonTools::LoadTargetConfigFile(
+    const std::string& target_config_full_path) {
   std::shared_ptr<TargetParams> params = std::make_shared<TargetParams>();
 
   LOG_INFO("Loading target config file: %s", target_config_full_path.c_str());
@@ -67,12 +65,12 @@ std::shared_ptr<TargetParams>
 
   // load template cloud
   std::string template_cloud_path;
-  if(inputs_.target_data_path.back() == '/'){
+  if (inputs_.target_data_path.back() == '/') {
     template_cloud_path = inputs_.target_data_path + template_name;
   } else {
     template_cloud_path = inputs_.target_data_path + "/" + template_name;
   }
-  
+
   PointCloud::Ptr template_cloud = std::make_shared<PointCloud>();
   if (pcl::io::loadPCDFile<pcl::PointXYZ>(template_cloud_path,
                                           *template_cloud) == -1) {

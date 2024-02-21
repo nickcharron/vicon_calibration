@@ -1,12 +1,12 @@
 #include <vicon_calibration/ViconCalibrator.h>
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <time.h>
 
 #include <Eigen/StdVector>
-#include <boost/filesystem.hpp>
 #include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <nlohmann/json.hpp>
@@ -144,11 +144,11 @@ void ViconCalibrator::GetInitialCalibrations() {
   }
 }
 
-std::vector<Eigen::Affine3d, AlignAff3d>
+std::vector<Eigen::Affine3d>
     ViconCalibrator::GetInitialGuess(const ros::Time& lookup_time,
                                      const std::string& sensor_frame,
                                      SensorType type, int sensor_id) {
-  std::vector<Eigen::Affine3d, AlignAff3d> T_sensor_tgts_estimated;
+  std::vector<Eigen::Affine3d> T_sensor_tgts_estimated;
   for (uint8_t n = 0; n < params_->target_params.size(); n++) {
     // get transform from sensor to target
     Eigen::Affine3d T_Robot_TargetN = lookup_tree_->GetTransformEigen(
@@ -178,7 +178,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
   std::string sensor_frame = params_->lidar_params[lidar_iter]->frame;
   LOG_INFO("Getting lidar measurements for frame id: %s and topic: %s .",
            sensor_frame.c_str(), topic.c_str());
-  std::vector<Eigen::Affine3d, AlignAff3d> T_lidar_tgts_estimated_prev;
+  std::vector<Eigen::Affine3d> T_lidar_tgts_estimated_prev;
   rosbag::View view(bag_, rosbag::TopicQuery(topic), time_start_, time_end_,
                     true);
 
@@ -193,8 +193,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
   ros::Time time_last(0, 0);
 
   for (auto iter = view.begin(); iter != view.end(); iter++) {
-    boost::shared_ptr<sensor_msgs::PointCloud2> lidar_msg =
-        iter->instantiate<sensor_msgs::PointCloud2>();
+    auto lidar_msg = iter->instantiate<sensor_msgs::PointCloud2>();
     PointCloud::Ptr cloud = std::make_shared<PointCloud>();
 
     if (lidar_msg == NULL) {
@@ -213,10 +212,10 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
     PointCloud cloud_tmp;
     pcl::fromPCLPointCloud2(cloud_pc2, cloud_tmp);
     input_cropbox_.Filter(cloud_tmp, *cloud);
-    std::vector<Eigen::Affine3d, AlignAff3d> T_lidar_tgts_estimated;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets_before;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets_after;
+    std::vector<Eigen::Affine3d> T_lidar_tgts_estimated;
+    std::vector<Eigen::Affine3d> T_Robot_Targets;
+    std::vector<Eigen::Affine3d> T_Robot_Targets_before;
+    std::vector<Eigen::Affine3d> T_Robot_Targets_after;
     try {
       T_lidar_tgts_estimated = GetInitialGuess(time_current, sensor_frame,
                                                SensorType::LIDAR, lidar_iter);
@@ -316,7 +315,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
   std::string sensor_frame = params_->camera_params[cam_iter]->frame;
   LOG_INFO("Getting camera measurements for frame id: %s and topic: %s .",
            sensor_frame.c_str(), topic.c_str());
-  std::vector<Eigen::Affine3d, AlignAff3d> T_cam_tgts_estimated_prev;
+  std::vector<Eigen::Affine3d> T_cam_tgts_estimated_prev;
   rosbag::View view(bag_, rosbag::TopicQuery(topic), time_start_, time_end_,
                     true);
   if (view.size() == 0) {
@@ -346,10 +345,10 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
     LoadLookupTree(time_current);
 
     time_last = time_current;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_cam_tgts_estimated;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets_before;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets_after;
+    std::vector<Eigen::Affine3d> T_cam_tgts_estimated;
+    std::vector<Eigen::Affine3d> T_Robot_Targets;
+    std::vector<Eigen::Affine3d> T_Robot_Targets_before;
+    std::vector<Eigen::Affine3d> T_Robot_Targets_after;
     try {
       T_cam_tgts_estimated = GetInitialGuess(time_current, sensor_frame,
                                              SensorType::CAMERA, cam_iter);
@@ -502,12 +501,9 @@ void ViconCalibrator::GetTimeWindow() {
   }
 
   // Get start time of measurements
-  boost::shared_ptr<sensor_msgs::PointCloud2> lid_msg;
-  boost::shared_ptr<sensor_msgs::Image> cam_msg;
-
   ros::Time first_msg_time;
-  lid_msg = view_tmp.begin()->instantiate<sensor_msgs::PointCloud2>();
-  cam_msg = view_tmp.begin()->instantiate<sensor_msgs::Image>();
+  auto lid_msg = view_tmp.begin()->instantiate<sensor_msgs::PointCloud2>();
+  auto cam_msg = view_tmp.begin()->instantiate<sensor_msgs::Image>();
 
   if (lid_msg != NULL) {
     first_msg_time = lid_msg->header.stamp;

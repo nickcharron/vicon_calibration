@@ -2,8 +2,8 @@
 
 #include <chrono>
 #include <ctime>
+#include <filesystem>
 
-#include <boost/filesystem.hpp>
 #include <nlohmann/json.hpp>
 
 namespace vicon_calibration {
@@ -12,15 +12,14 @@ std::shared_ptr<CameraModel> CameraModel::Create(std::string& file_location) {
   std::shared_ptr<CameraModel> camera_model;
 
   // check file exists
-  if (!boost::filesystem::exists(file_location)) {
+  if (!std::filesystem::exists(file_location)) {
     LOG_ERROR("Invalid file path for camera intialization. Input: %s",
               file_location.c_str());
     throw std::runtime_error{"Invalid file path for camera intialization."};
   }
 
-  std::string file_ext = boost::filesystem::extension(file_location);
-  if (file_ext == ".json") {
-    // load JSON
+  std::filesystem::path p(file_location);
+  if (p.extension().string() == ".json") {
     nlohmann::json J;
     std::ifstream file(file_location);
     file >> J;

@@ -107,7 +107,7 @@ TEST_CASE("Test camera optimization") {
   Eigen::Matrix4d T_CV_pert = utils::PerturbTransformDegM(T_CV, perturbation);
 
   // create projected (detected) points - no noise
-  std::vector<Eigen::Vector2d, AlignVec2d> pixels(points.size());
+  std::vector<Eigen::Vector2d> pixels(points.size());
   std::vector<bool> pixels_valid(points.size());
   for (int i = 0; i < points.size(); i++) {
     Eigen::Vector4d point_transformed = T_CV * T_VT * points[i];

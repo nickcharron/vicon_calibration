@@ -1,7 +1,5 @@
 #include <vicon_calibration/optimization/CeresOptimizer.h>
 
-#include <boost/filesystem.hpp>
-
 #include <vicon_calibration/optimization/CeresCameraCostFunction.h>
 #include <vicon_calibration/optimization/CeresLidarCostFunction.h>
 

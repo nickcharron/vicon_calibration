@@ -1,6 +1,6 @@
 #include <vicon_calibration/Gflags.h>
 
-#include <boost/filesystem.hpp>
+#include <filesystem>
 
 namespace vicon_calibration { namespace gflags {
 
@@ -25,7 +25,7 @@ bool ValidateDirMustExist(const char* flagname, const std::string& value) {
            value.c_str());
     return false;
   }
-  if (!boost::filesystem::exists(value)) {
+  if (!std::filesystem::exists(value)) {
     printf("Invalid value for --%s: %s. Directory does not exist.\n", flagname,
            value.c_str());
     return false;
@@ -34,14 +34,14 @@ bool ValidateDirMustExist(const char* flagname, const std::string& value) {
 }
 
 bool ValidateFileMustExist(const char* flagname, const std::string& value) {
-  if (boost::filesystem::exists(value)) { return true; }
+  if (std::filesystem::exists(value)) { return true; }
   printf("Invalid value for --%s: %s. File Does not exist.\n", flagname,
          value.c_str());
   return false;
 }
 
 bool ValidateJsonFileMustExist(const char* flagname, const std::string& value) {
-  if (!boost::filesystem::exists(value)) {
+  if (!std::filesystem::exists(value)) {
     printf("Invalid value for --%s: %s. File Does not exist.\n", flagname,
            value.c_str());
     return false;
@@ -58,7 +58,7 @@ bool ValidateJsonFileMustExistOrNONE(const char* flagname,
                                      const std::string& value) {
   if (value == "NONE") { return true; }
 
-  if (!boost::filesystem::exists(value)) {
+  if (!std::filesystem::exists(value)) {
     printf("Invalid value for --%s: %s. File Does not exist.\n", flagname,
            value.c_str());
     return false;
@@ -75,7 +75,7 @@ bool ValidateJsonFileMustExistOrEmpty(const char* flagname,
                                       const std::string& value) {
   if (value == "") { return true; }
 
-  if (!boost::filesystem::exists(value)) {
+  if (!std::filesystem::exists(value)) {
     printf("Invalid value for --%s: %s. File Does not exist.\n", flagname,
            value.c_str());
     return false;
@@ -89,7 +89,7 @@ bool ValidateJsonFileMustExistOrEmpty(const char* flagname,
 }
 
 bool ValidateBagFileMustExist(const char* flagname, const std::string& value) {
-  if (!boost::filesystem::exists(value)) {
+  if (!std::filesystem::exists(value)) {
     printf("Invalid value for --%s: %s. File Does not exist.\n", flagname,
            value.c_str());
     return false;

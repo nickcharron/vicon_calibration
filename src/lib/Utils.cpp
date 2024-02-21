@@ -331,12 +331,11 @@ cv::Mat ProjectPointsToImage(const cv::Mat& img,
   return img_out;
 }
 
-std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>
-    ProjectPoints(std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
+pcl::PointCloud<pcl::PointXYZ>::Ptr
+    ProjectPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
                   std::shared_ptr<CameraModel>& camera_model,
                   const Eigen::Matrix4d& T) {
-  std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> projected_points =
-      std::make_shared<PointCloud>();
+  auto projected_points = std::make_shared<PointCloud>();
   for (int i = 0; i < cloud->size(); i++) {
     Eigen::Vector4d point(cloud->at(i).x, cloud->at(i).y, cloud->at(i).z, 1);
     Eigen::Vector4d point_transformed = T * point;
@@ -431,12 +430,12 @@ std::string
   return outputTime;
 }
 
-std::vector<Eigen::Affine3d, AlignAff3d> GetTargetLocation(
+std::vector<Eigen::Affine3d> GetTargetLocation(
     const std::vector<std::shared_ptr<vicon_calibration::TargetParams>>&
         target_params,
     const std::string& vicon_baselink_frame, const ros::Time& lookup_time,
     const std::shared_ptr<vicon_calibration::TfTree>& lookup_tree) {
-  std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets;
+  std::vector<Eigen::Affine3d> T_Robot_Targets;
   for (uint8_t n = 0; n < target_params.size(); n++) {
     Eigen::Affine3d T_Robot_Target;
     T_Robot_Target = lookup_tree->GetTransformEigen(
@@ -633,7 +632,8 @@ cv::Mat RosImgToMat(const sensor_msgs::Image& source) {
 
 bool HasExtension(const std::string& input, const std::string& extension) {
   // get extension
-  std::string extension_found = boost::filesystem::extension(input);
+  std::filesystem::path p(input);
+  std::string extension_found = p.extension().string();
 
   // convert both to lowercase
   std::string extension_search_lowercase = extension;
@@ -651,7 +651,7 @@ bool HasExtension(const std::string& input, const std::string& extension) {
 bool ReadJson(const std::string& filename, nlohmann::json& J,
               JsonReadErrorType& error_type, bool output_error) {
   // check file exists
-  if (!boost::filesystem::exists(filename)) {
+  if (!std::filesystem::exists(filename)) {
     if (output_error) {
       LOG_ERROR("CheckJson failed - Json file does not exist. Input: %s",
                 filename.c_str());

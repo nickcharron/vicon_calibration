@@ -110,9 +110,9 @@ double DegToRad(double d);
 /** Converts radians to degrees. */
 double RadToDeg(double r);
 
-Eigen::Matrix4d RoundMatrix(const Eigen::Matrix4d& M, const int& precision);
+Eigen::Matrix4d RoundMatrix(const Eigen::Matrix4d& M, int precision);
 
-Eigen::Matrix3d RoundMatrix(const Eigen::Matrix3d& M, const int& precision);
+Eigen::Matrix3d RoundMatrix(const Eigen::Matrix3d& M, int precision);
 
 bool IsRotationMatrix(const Eigen::Matrix3d& R);
 
@@ -168,8 +168,8 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr
                   std::shared_ptr<CameraModel>& camera_model,
                   const Eigen::Matrix4d& T);
 
-PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr& cloud, const int& r,
-                                     const int& g, const int& b);
+PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr& cloud, int r,
+                                     int g, int b);
 
 void OutputTransformInformation(const Eigen::Affine3d& T,
                                 const std::string& transform_name);

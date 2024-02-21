@@ -97,7 +97,7 @@ double CalculateRotationError(const Eigen::Matrix3d& r1,
   return std::abs(error_r1 - error_r2);
 }
 
-Eigen::Matrix3d RoundMatrix(const Eigen::Matrix3d& M, const int& precision) {
+Eigen::Matrix3d RoundMatrix(const Eigen::Matrix3d& M, int precision) {
   Eigen::Matrix3d Mround;
   for (int i = 0; i < M.rows(); i++) {
     for (int j = 0; j < M.cols(); j++) {
@@ -108,7 +108,7 @@ Eigen::Matrix3d RoundMatrix(const Eigen::Matrix3d& M, const int& precision) {
   return Mround;
 }
 
-Eigen::Matrix4d RoundMatrix(const Eigen::Matrix4d& M, const int& precision) {
+Eigen::Matrix4d RoundMatrix(const Eigen::Matrix4d& M, int precision) {
   Eigen::Matrix4d Mround;
   for (int i = 0; i < M.rows(); i++) {
     for (int j = 0; j < M.cols(); j++) {
@@ -350,8 +350,8 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr
   return projected_points;
 }
 
-PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr& cloud, const int& r,
-                                     const int& g, const int& b) {
+PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr& cloud, int r,
+                                     int g, int b) {
   auto coloured_cloud = std::make_shared<PointCloudColor>();
   uint32_t rgb = (static_cast<uint32_t>(r) << 16 |
                   static_cast<uint32_t>(g) << 8 | static_cast<uint32_t>(b));

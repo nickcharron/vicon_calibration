@@ -397,7 +397,7 @@ void CalibrationVerification::SaveScans(const PointCloud::Ptr& scan_est,
                                         const PointCloud::Ptr& scan_opt,
                                         const PointCloud::Ptr& targets,
                                         const std::string& save_path,
-                                        const int& scan_count) {
+                                        int scan_count) {
   std::string save_path_full =
       save_path + "scan_" + std::to_string(scan_count) + ".pcd";
   PointCloud::Ptr scan_est_cropped = std::make_shared<PointCloud>();
@@ -753,8 +753,7 @@ void CalibrationVerification::GetCameraErrors() {
 
 std::vector<Eigen::Vector2d> CalibrationVerification::CalculateCameraErrors(
     const PointCloud::Ptr& measured_keypoints,
-    const Eigen::Matrix4d& T_Sensor_Target, const int& target_id,
-    const int& camera_id) {
+    const Eigen::Matrix4d& T_Sensor_Target, int target_id, int camera_id) {
   // get estimated (optimization or initial) keypoint locations
   PointCloud::Ptr keypoints_target_frame = std::make_shared<PointCloud>();
   int num_keypoints =
@@ -774,9 +773,11 @@ std::vector<Eigen::Vector2d> CalibrationVerification::CalculateCameraErrors(
   }
 
   // project points to image plane and save as cloud
+  Eigen::Matrix4d T_Sensor_TargetCorrected =
+      T_Sensor_Target * target_corrections_.at(target_id);
   PointCloud::Ptr keypoints_projected = utils::ProjectPoints(
       keypoints_target_frame, params_->camera_params[camera_id]->camera_model,
-      T_Sensor_Target);
+      T_Sensor_TargetCorrected);
 
   // get correspondences
   pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
@@ -807,8 +808,7 @@ std::vector<Eigen::Vector2d> CalibrationVerification::CalculateCameraErrors(
 std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     const std::shared_ptr<cv::Mat>& img_in,
     const std::vector<Eigen::Affine3d>& T_Robot_Targets,
-    const Eigen::Matrix4d& T_Robot_Sensor, const int& cam_iter,
-    cv::Scalar colour) {
+    const Eigen::Matrix4d& T_Robot_Sensor, int cam_iter, cv::Scalar colour) {
   // create all objects we'll need
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected =
       std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();

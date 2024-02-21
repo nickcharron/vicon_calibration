@@ -70,7 +70,7 @@ private:
   void SaveScans(const PointCloud::Ptr& scan_est,
                  const PointCloud::Ptr& scan_opt,
                  const PointCloud::Ptr& targets, const std::string& save_path,
-                 const int& scan_count);
+                 int scan_count);
 
   void GetLidarErrors();
 
@@ -87,7 +87,7 @@ private:
   std::vector<Eigen::Vector2d>
       CalculateCameraErrors(const PointCloud::Ptr& measured_keypoints,
                             const Eigen::Matrix4d& T_Sensor_Target,
-                            const int& target_id, const int& camera_id);
+                            int target_id, int camera_id);
 
   void PrintConfig();
 
@@ -107,8 +107,8 @@ private:
   std::shared_ptr<cv::Mat>
       ProjectTargetToImage(const std::shared_ptr<cv::Mat>& img_in,
                            const std::vector<Eigen::Affine3d>& T_Robot_Targets,
-                           const Eigen::Matrix4d& T_Robot_Sensor,
-                           const int& cam_iter, cv::Scalar colour);
+                           const Eigen::Matrix4d& T_Robot_Sensor, int cam_iter,
+                           cv::Scalar colour);
 
   void LoadLookupTree();
 

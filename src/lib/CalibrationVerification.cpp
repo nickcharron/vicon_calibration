@@ -94,7 +94,7 @@ void CalibrationVerification::ProcessResults(bool save_measurements) {
     PrintCalibrations(calibrations_ground_truth_,
                       "ground_truth_calibrations.txt");
   }
-  PrintTargetCorrections("optimized_calibrations.txt");
+  PrintTargetCorrections("target_corrections.txt");
   PrintCalibrationErrors();
   if (save_measurements) {
     SaveLidarVisuals();
@@ -204,6 +204,7 @@ void CalibrationVerification::PrintTargetCorrections(
     Eigen::Matrix3d R = T.block(0, 0, 3, 3);
     Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
     file << "T_TargetCorrected_Target\n"
+         << T << "\n"
          << "rpy (deg): [" << utils::RadToDeg(utils::WrapToTwoPi(rpy[0]))
          << ", " << utils::RadToDeg(utils::WrapToTwoPi(rpy[1])) << ", "
          << utils::RadToDeg(utils::WrapToTwoPi(rpy[2])) << "]\n\n";
@@ -292,7 +293,8 @@ void CalibrationVerification::PrintCalibrationErrors() {
 void CalibrationVerification::PrintConfig() {
   nlohmann::json J_in;
   std::ifstream file_in(calibration_config_);
-  std::ofstream file_out(results_directory_ + "ViconCalibratorConfig.json");
+  std::ofstream file_out(fs::path(results_directory_) /
+                         fs::path("ViconCalibratorConfig.json"));
   file_in >> J_in;
   file_out << std::setw(4) << J_in << std::endl;
 }
@@ -947,7 +949,8 @@ void CalibrationVerification::LoadLookupTree() {
 }
 
 void CalibrationVerification::PrintErrorsSummary() {
-  std::string output_path = results_directory_ + "errors_summary.txt";
+  fs::path output_path =
+      fs::path(results_directory_) / fs::path("errors_summary.txt");
   std::ofstream file(output_path);
   file << "-----------------------------------------------------------\n"
        << "ERRORS SUMMARY \nfor bag: " << params_->bag_file

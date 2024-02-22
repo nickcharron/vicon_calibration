@@ -222,6 +222,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
   int current_measurement = 0;
   ros::Duration time_step(params_->time_steps);
   ros::Time time_last(0, 0);
+  bool got_measurement = false;
 
   for (auto iter = view.begin(); iter != view.end(); iter++) {
     boost::shared_ptr<sensor_msgs::PointCloud2> lidar_msg =
@@ -272,6 +273,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
       LOG_WARN("Transform lookup failed for time: %.1f", time_current.toSec());
       continue;
     }
+    got_measurement = false;
     for (int n = 0; n < T_lidar_tgts_estimated.size(); n++) {
       lidar_counters_.at(lidar_iter).total++;
       if (T_lidar_tgts_estimated_prev.size() > 0) {
@@ -324,13 +326,15 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
         lidar_measurements_[lidar_iter][current_measurement] =
             lidar_measurement;
         LOG_INFO("Measurement accepted.");
+        got_measurement = true;
       } else {
         lidar_counters_.at(lidar_iter).rejected_invalid++;
         LOG_INFO("Measurement rejected.");
       }
       current_measurement++;
     }
-    T_lidar_tgts_estimated_prev = T_lidar_tgts_estimated;
+    if(got_measurement)
+      T_lidar_tgts_estimated_prev = T_lidar_tgts_estimated;
     if (lidar_counters_.at(lidar_iter).accepted != 0 &&
         lidar_counters_.at(lidar_iter).accepted == params_->max_measurements) {
       LOG_INFO("Stored %d measurements for lidar with frame id: %s",
@@ -359,6 +363,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
   int current_measurement = 0;
   ros::Duration time_step(params_->time_steps);
   ros::Time time_last = view.getBeginTime();
+  bool got_measurement = false;
 
   sensor_msgs::ImageConstPtr img_msg;
   for (auto iter = view.begin(); iter != view.end(); iter++) {
@@ -405,7 +410,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
       LOG_WARN("Transform lookup failed for time: %.1f", time_current.toSec());
       continue;
     }
-
+    got_measurement = false;
     for (int n = 0; n < T_cam_tgts_estimated.size(); n++) {
       camera_counters_.at(cam_iter).total++;
       if (T_cam_tgts_estimated_prev.size() > 0) {
@@ -462,14 +467,15 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
         camera_measurements_[cam_iter][current_measurement] =
             camera_measurement;
         LOG_INFO("Measurement accepted.");
+        got_measurement = true;
       } else {
         camera_counters_.at(cam_iter).rejected_invalid++;
         LOG_INFO("Measurement rejected.");
       }
       current_measurement++;
     }
-
-    T_cam_tgts_estimated_prev = T_cam_tgts_estimated;
+    if(got_measurement)
+      T_cam_tgts_estimated_prev = T_cam_tgts_estimated;
     if (camera_counters_.at(cam_iter).accepted != 0 &&
         camera_counters_.at(cam_iter).accepted == params_->max_measurements) {
       LOG_INFO("Stored %d measurements for camera with frame id: %s",

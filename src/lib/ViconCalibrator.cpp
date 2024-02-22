@@ -209,7 +209,8 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
   std::string sensor_frame = params_->lidar_params[lidar_iter]->frame;
   LOG_INFO("Getting lidar measurements for frame id: %s and topic: %s .",
            sensor_frame.c_str(), topic.c_str());
-  std::vector<Eigen::Affine3d, AlignAff3d> T_lidar_tgts_estimated_prev;
+  std::vector<Eigen::Affine3d> T_lidar_tgts_estimated_prev(
+      params_->target_params.size());
   rosbag::View view(bag_, rosbag::TopicQuery(topic), time_start_, time_end_,
                     true);
 
@@ -348,7 +349,8 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
   std::string sensor_frame = params_->camera_params[cam_iter]->frame;
   LOG_INFO("Getting camera measurements for frame id: %s and topic: %s .",
            sensor_frame.c_str(), topic.c_str());
-  std::vector<Eigen::Affine3d, AlignAff3d> T_cam_tgts_estimated_prev;
+  std::vector<Eigen::Affine3d> T_cam_tgts_estimated_prev(
+      params_->target_params.size());
   rosbag::View view(bag_, rosbag::TopicQuery(topic), time_start_, time_end_,
                     true);
   if (view.size() == 0) {

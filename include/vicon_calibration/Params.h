@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Eigen/Geometry>
-#include <boost/make_shared.hpp>
 #include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
 #include <pcl/point_cloud.h>
@@ -139,6 +138,7 @@ struct LidarMeasurement {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
+using LidarMeasurementPtr = std::shared_ptr<LidarMeasurement>;
 
 struct CameraMeasurement {
   pcl::PointCloud<pcl::PointXY>::Ptr keypoints;
@@ -166,6 +166,7 @@ struct CameraMeasurement {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
+using CameraMeasurementPtr = std::shared_ptr<CameraMeasurement>;
 
 struct Correspondence {
   int target_point_index;

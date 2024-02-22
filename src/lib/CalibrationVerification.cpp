@@ -1,5 +1,6 @@
 #include <vicon_calibration/CalibrationVerification.h>
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 
@@ -21,6 +22,8 @@
 #include <vicon_calibration/measurement_extractors/CylinderLidarExtractor.h>
 
 namespace vicon_calibration {
+
+namespace fs = std::filesystem;
 
 CalibrationVerification::CalibrationVerification(
     const std::string& config_file_name, const std::string& output_directory,
@@ -91,6 +94,7 @@ void CalibrationVerification::ProcessResults(bool save_measurements) {
     PrintCalibrations(calibrations_ground_truth_,
                       "ground_truth_calibrations.txt");
   }
+  PrintTargetCorrections("target_corrections.txt");
   PrintCalibrationErrors();
   if (save_measurements) {
     SaveLidarVisuals();
@@ -117,8 +121,7 @@ void CalibrationVerification::SetInitialCalib(
   initial_calib_set_ = true;
 }
 
-// TODO: add checks for whether or not this was set. This
-// should still work otherwise
+// TODO: Remove all GT calls. This was for simulation testing
 void CalibrationVerification::SetGroundTruthCalib(
     const std::vector<vicon_calibration::CalibrationResult>& calib) {
   calibrations_ground_truth_ = calib;
@@ -129,6 +132,11 @@ void CalibrationVerification::SetOptimizedCalib(
     const std::vector<vicon_calibration::CalibrationResult>& calib) {
   calibrations_result_ = calib;
   optimized_calib_set_ = true;
+}
+
+void CalibrationVerification::SetTargetCorrections(
+    const std::vector<Eigen::Matrix4d>& corrections) {
+  target_corrections_ = corrections;
 }
 
 void CalibrationVerification::SetParams(
@@ -150,32 +158,31 @@ void CalibrationVerification::SetParams(
 }
 
 void CalibrationVerification::SetLidarMeasurements(
-    const std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>&
-        lidar_measurements) {
+    const std::vector<std::vector<LidarMeasurementPtr>>& lidar_measurements) {
   lidar_measurements_ = lidar_measurements;
   lidar_measurements_set_ = true;
 }
 
 void CalibrationVerification::SetCameraMeasurements(
-    const std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>&
-        camera_measurements) {
+    const std::vector<std::vector<CameraMeasurementPtr>>& camera_measurements) {
   camera_measurements_ = camera_measurements;
   camera_measurements_set_ = true;
 }
 
 void CalibrationVerification::CreateDirectories() {
   date_and_time_ = utils::ConvertTimeToDate(std::chrono::system_clock::now());
-  results_directory_ = output_directory_ + date_and_time_ + "/";
-  boost::filesystem::create_directory(results_directory_);
-  boost::filesystem::create_directory(results_directory_ + "CAMERAS/");
-  boost::filesystem::create_directory(results_directory_ + "LIDARS/");
+  results_directory_ =
+      (fs::path(output_directory_) / fs::path(date_and_time_)).string();
+  fs::create_directory(results_directory_);
+  fs::create_directory(fs::path(results_directory_) / fs::path("CAMERAS"));
+  fs::create_directory(fs::path(results_directory_) / fs::path("LIDARS"));
   LOG_INFO("Saving results to: %s", results_directory_.c_str());
 }
 
 void CalibrationVerification::PrintCalibrations(
     std::vector<vicon_calibration::CalibrationResult>& calib,
     const std::string& file_name) {
-  std::string output_path = results_directory_ + file_name;
+  fs::path output_path = fs::path(results_directory_) / fs::path(file_name);
   std::ofstream file(output_path);
   for (uint16_t i = 0; i < calib.size(); i++) {
     Eigen::Matrix4d T = calib[i].transform;
@@ -186,6 +193,21 @@ void CalibrationVerification::PrintCalibrations(
          << "rpy (deg): [" << utils::RadToDeg(utils::WrapToTwoPi(rpy[0]))
          << ", " << utils::RadToDeg(utils::WrapToTwoPi(rpy[1])) << ", "
          << utils::RadToDeg(utils::WrapToTwoPi(rpy[2])) << "]\n";
+  }
+}
+
+void CalibrationVerification::PrintTargetCorrections(
+    const std::string& file_name) {
+  fs::path output_path = fs::path(results_directory_) / fs::path(file_name);
+  std::ofstream file(output_path);
+  for (const auto& T : target_corrections_) {
+    Eigen::Matrix3d R = T.block(0, 0, 3, 3);
+    Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
+    file << "T_TargetCorrected_Target\n"
+         << T << "\n"
+         << "rpy (deg): [" << utils::RadToDeg(utils::WrapToTwoPi(rpy[0]))
+         << ", " << utils::RadToDeg(utils::WrapToTwoPi(rpy[1])) << ", "
+         << utils::RadToDeg(utils::WrapToTwoPi(rpy[2])) << "]\n\n";
   }
 }
 
@@ -216,7 +238,8 @@ std::string CalibrationVerification::CalibrationErrorsToString(
 }
 
 void CalibrationVerification::PrintCalibrationErrors() {
-  std::string output_path = results_directory_ + "calibration_errors.txt";
+  fs::path output_path =
+      fs::path(results_directory_) / fs::path("calibration_errors.txt");
   std::ofstream file(output_path);
   // first print errors between initial calibration and final
   file << "Showing errors between:\n"
@@ -270,7 +293,8 @@ void CalibrationVerification::PrintCalibrationErrors() {
 void CalibrationVerification::PrintConfig() {
   nlohmann::json J_in;
   std::ifstream file_in(calibration_config_);
-  std::ofstream file_out(results_directory_ + "ViconCalibratorConfig.json");
+  std::ofstream file_out(fs::path(results_directory_) /
+                         fs::path("ViconCalibratorConfig.json"));
   file_in >> J_in;
   file_out << std::setw(4) << J_in << std::endl;
 }
@@ -282,10 +306,10 @@ void CalibrationVerification::SaveLidarVisuals() {
     int counter = 0;
 
     // create directories
-    std::string current_save_path = results_directory_ + "LIDARS/" +
-                                    params_->lidar_params[lidar_iter]->frame +
-                                    "/";
-    boost::filesystem::create_directory(current_save_path);
+    fs::path current_save_path =
+        fs::path(results_directory_) / fs::path("LIDARS") /
+        fs::path(params_->lidar_params[lidar_iter]->frame);
+    fs::create_directory(current_save_path);
 
     // get lidar info
     std::string topic = params_->lidar_params[lidar_iter]->topic;
@@ -308,12 +332,12 @@ void CalibrationVerification::SaveLidarVisuals() {
     }
 
     // iterate through all measurements for this lidar
-    std::shared_ptr<LidarMeasurement> measurement;
     for (int meas_iter = 0; meas_iter < lidar_measurements_[lidar_iter].size();
          meas_iter++) {
       counter++;
       if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) { continue; }
-      measurement = lidar_measurements_[lidar_iter][meas_iter];
+      LidarMeasurementPtr measurement =
+          lidar_measurements_[lidar_iter][meas_iter];
       lookup_time_ = measurement->time_stamp;
       LoadLookupTree();
 
@@ -326,7 +350,7 @@ void CalibrationVerification::SaveLidarVisuals() {
       pcl::transformPointCloud(*scan, *scan_trans_opt, TA_Robot_Sensor_opt);
 
       // load targets and transform to viconbase frame
-      std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets;
+      std::vector<Eigen::Affine3d> T_Robot_Targets;
       try {
         T_Robot_Targets = utils::GetTargetLocation(
             params_->target_params, params_->vicon_baselink_frame, lookup_time_,
@@ -346,10 +370,10 @@ void CalibrationVerification::SaveLidarVisuals() {
         *targets_combined = *targets_combined + *target_transformed;
       }
       SaveScans(scan_trans_est, scan_trans_opt, targets_combined,
-                current_save_path, counter);
+                current_save_path.string(), counter);
       if (counter == max_lidar_results_) { continue; }
-    } // measurement iter
-  }   // lidar iter
+    }
+  }
 }
 
 PointCloud::Ptr
@@ -358,11 +382,10 @@ PointCloud::Ptr
   rosbag::View view(bag_, rosbag::TopicQuery(topic),
                     lookup_time_ - time_window_half,
                     lookup_time_ + time_window_half, true);
-  boost::shared_ptr<sensor_msgs::PointCloud2> lidar_msg;
   pcl::PCLPointCloud2::Ptr cloud_pc2 = std::make_shared<pcl::PCLPointCloud2>();
   PointCloud::Ptr scan = std::make_shared<PointCloud>();
   for (auto iter = view.begin(); iter != view.end(); iter++) {
-    lidar_msg = iter->instantiate<sensor_msgs::PointCloud2>();
+    auto lidar_msg = iter->instantiate<sensor_msgs::PointCloud2>();
     if (lidar_msg->header.stamp >= lookup_time_) {
       pcl_conversions::toPCL(*lidar_msg, *cloud_pc2);
       pcl::fromPCLPointCloud2(*cloud_pc2, *scan);
@@ -376,7 +399,7 @@ void CalibrationVerification::SaveScans(const PointCloud::Ptr& scan_est,
                                         const PointCloud::Ptr& scan_opt,
                                         const PointCloud::Ptr& targets,
                                         const std::string& save_path,
-                                        const int& scan_count) {
+                                        int scan_count) {
   std::string save_path_full =
       save_path + "scan_" + std::to_string(scan_count) + ".pcd";
   PointCloud::Ptr scan_est_cropped = std::make_shared<PointCloud>();
@@ -429,15 +452,17 @@ void CalibrationVerification::GetLidarErrors() {
     }
 
     // iterate through all measurements for this lidar
-    std::shared_ptr<LidarMeasurement> measurement;
+    LidarMeasurementPtr measurement;
     PointCloud::Ptr measured_keypoints, estimated_keypoints_target;
     PointCloud::Ptr estimated_keypoints_est = std::make_shared<PointCloud>();
     PointCloud::Ptr estimated_keypoints_opt = std::make_shared<PointCloud>();
     PointCloud::Ptr estimated_keypoints_true = std::make_shared<PointCloud>();
-    Eigen::Matrix4d T_Sensor_Target_opt, T_Sensor_Target_est,
-        T_Sensor_Target_true;
-    std::vector<Eigen::Vector3d, AlignVec3d> lidar_errors_opt,
-        lidar_errors_init, lidar_errors_true;
+    Eigen::Matrix4d T_Sensor_Target_opt;
+    Eigen::Matrix4d T_Sensor_Target_est;
+    Eigen::Matrix4d T_Sensor_Target_true;
+    std::vector<Eigen::Vector3d> lidar_errors_opt;
+    std::vector<Eigen::Vector3d> lidar_errors_init;
+    std::vector<Eigen::Vector3d> lidar_errors_true;
     for (int meas_iter = 0; meas_iter < lidar_measurements_[lidar_iter].size();
          meas_iter++) {
       if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) { continue; }
@@ -502,22 +527,19 @@ void CalibrationVerification::GetLidarErrors() {
   }   // lidar iter
 }
 
-std::vector<Eigen::Vector3d, AlignVec3d>
-    CalibrationVerification::CalculateLidarErrors(
-        const PointCloud::Ptr& measured_keypoints,
-        const PointCloud::Ptr& estimated_keypoints) {
+std::vector<Eigen::Vector3d> CalibrationVerification::CalculateLidarErrors(
+    const PointCloud::Ptr& measured_keypoints,
+    const PointCloud::Ptr& estimated_keypoints) {
   // get correspondences
   corr_est_.setInputSource(measured_keypoints);
   corr_est_.setInputTarget(estimated_keypoints);
   corr_est_.determineCorrespondences(*correspondences_, max_point_cor_dist_);
 
   // get distances between correspondences
-  int measurement_index, estimated_index;
-
-  std::vector<Eigen::Vector3d, AlignVec3d> lidar_errors;
+  std::vector<Eigen::Vector3d> lidar_errors;
   for (int i = 0; i < correspondences_->size(); i++) {
-    measurement_index = correspondences_->at(i).index_query;
-    estimated_index = correspondences_->at(i).index_match;
+    int measurement_index = correspondences_->at(i).index_query;
+    int estimated_index = correspondences_->at(i).index_match;
     const auto& p1 = measured_keypoints->at(measurement_index);
     const auto& p2 = estimated_keypoints->at(estimated_index);
     float ex = p1.x - p2.x;
@@ -529,25 +551,24 @@ std::vector<Eigen::Vector3d, AlignVec3d>
 }
 
 void CalibrationVerification::SaveCameraVisuals() {
-  std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets;
-
   // Iterate over each camera
   for (uint8_t cam_iter = 0; cam_iter < params_->camera_params.size();
        cam_iter++) {
-    std::string current_save_path = results_directory_ + "CAMERAS/" +
-                                    params_->camera_params[cam_iter]->frame +
-                                    "/";
-    boost::filesystem::create_directory(current_save_path);
+    fs::path current_save_path =
+        fs::path(results_directory_) / fs::path("CAMERAS") /
+        fs::path(params_->camera_params[cam_iter]->frame);
+    fs::create_directory(current_save_path);
     int counter = 0;
     std::string topic = params_->camera_params[cam_iter]->topic;
     std::string sensor_frame = params_->camera_params[cam_iter]->frame;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_cam_tgts_estimated_prev;
+    std::vector<Eigen::Affine3d> T_cam_tgts_estimated_prev;
     rosbag::View view(bag_, rosbag::TopicQuery(topic), ros::TIME_MIN,
                       ros::TIME_MAX, true);
 
     // get initial calibration and optimized calibration
-    Eigen::Affine3d TA_Robot_Sensor_est, TA_Robot_Sensor_opt,
-        TA_Robot_Sensor_true;
+    Eigen::Affine3d TA_Robot_Sensor_est;
+    Eigen::Affine3d TA_Robot_Sensor_opt;
+    Eigen::Affine3d TA_Robot_Sensor_true;
     if (ground_truth_calib_set_) {
       for (CalibrationResult calib : calibrations_ground_truth_) {
         if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
@@ -570,18 +591,17 @@ void CalibrationVerification::SaveCameraVisuals() {
     }
 
     // iterate through all measurements for this camera
-    std::shared_ptr<cv::Mat> current_image, final_image;
-    std::shared_ptr<CameraMeasurement> measurement;
     for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
          meas_iter++) {
       if (camera_measurements_[cam_iter][meas_iter] == nullptr) { continue; }
 
-      measurement = camera_measurements_[cam_iter][meas_iter];
+      CameraMeasurementPtr measurement =
+          camera_measurements_[cam_iter][meas_iter];
       lookup_time_ = measurement->time_stamp;
       LoadLookupTree();
 
       // load image from bag
-      current_image = GetImageFromBag(
+      std::shared_ptr<cv::Mat> current_image = GetImageFromBag(
           params_->camera_params[measurement->camera_id]->topic);
 
       // convert to color if not already
@@ -593,7 +613,8 @@ void CalibrationVerification::SaveCameraVisuals() {
 #endif
       }
 
-      // load targets and transform to viconbase frame
+      // load targets and transform to robot frame
+      std::vector<Eigen::Affine3d> T_Robot_Targets;
       try {
         T_Robot_Targets = utils::GetTargetLocation(
             params_->target_params, params_->vicon_baselink_frame, lookup_time_,
@@ -604,9 +625,9 @@ void CalibrationVerification::SaveCameraVisuals() {
       }
 
       // Add measurements to image
-      final_image = ProjectTargetToImage(current_image, T_Robot_Targets,
-                                         TA_Robot_Sensor_est.matrix(), cam_iter,
-                                         cv::Scalar(0, 0, 255));
+      std::shared_ptr<cv::Mat> final_image = ProjectTargetToImage(
+          current_image, T_Robot_Targets, TA_Robot_Sensor_est.matrix(),
+          cam_iter, cv::Scalar(0, 0, 255));
 
       if (num_tgts_in_img_ == 0) { continue; }
 
@@ -622,13 +643,14 @@ void CalibrationVerification::SaveCameraVisuals() {
       }
 
       // save image with targets
-      std::string save_path =
-          current_save_path + "image_" + std::to_string(counter) + ".jpg";
-      cv::imwrite(save_path, *final_image);
+      fs::path save_path =
+          current_save_path /
+          fs::path("image_" + std::to_string(counter) + ".jpg");
+      cv::imwrite(save_path.string(), *final_image);
 
       if (counter == max_image_results_) { break; }
-    } // measurement iter
-  }   // camera iter
+    }
+  }
 }
 
 std::shared_ptr<cv::Mat>
@@ -654,8 +676,9 @@ void CalibrationVerification::GetCameraErrors() {
   for (uint8_t cam_iter = 0; cam_iter < params_->camera_params.size();
        cam_iter++) {
     // get initial calibration and optimized calibration
-    Eigen::Affine3d TA_Robot_Sensor_est, TA_Robot_Sensor_true,
-        TA_Robot_Sensor_opt;
+    Eigen::Affine3d TA_Robot_Sensor_est;
+    Eigen::Affine3d TA_Robot_Sensor_true;
+    Eigen::Affine3d TA_Robot_Sensor_opt;
     if (ground_truth_calib_set_) {
       for (CalibrationResult calib : calibrations_ground_truth_) {
         if (calib.type == SensorType::CAMERA && calib.sensor_id == cam_iter) {
@@ -678,16 +701,11 @@ void CalibrationVerification::GetCameraErrors() {
     }
 
     // iterate through all measurements for this camera
-    std::shared_ptr<CameraMeasurement> measurement;
-    PointCloud::Ptr measured_keypoints;
-    Eigen::Matrix4d T_Sensor_Target_opt, T_Sensor_Target_est,
-        T_Sensor_Target_true;
-    std::vector<Eigen::Vector2d, AlignVec2d> camera_errors_opt,
-        camera_errors_init, camera_errors_true;
     for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
          meas_iter++) {
       if (camera_measurements_[cam_iter][meas_iter] == nullptr) { continue; }
-      measurement = camera_measurements_[cam_iter][meas_iter];
+      CameraMeasurementPtr measurement =
+          camera_measurements_[cam_iter][meas_iter];
 
       // convert 2d measured keypoints to 3d
       PointCloud::Ptr measured_keypoints_3d = std::make_shared<PointCloud>();
@@ -700,14 +718,14 @@ void CalibrationVerification::GetCameraErrors() {
         measured_keypoints_3d->push_back(point3d);
       }
 
-      T_Sensor_Target_opt =
+      Eigen::Matrix4d T_Sensor_Target_opt =
           TA_Robot_Sensor_opt.inverse().matrix() * measurement->T_Robot_Target;
-      T_Sensor_Target_est =
+      Eigen::Matrix4d T_Sensor_Target_est =
           TA_Robot_Sensor_est.inverse().matrix() * measurement->T_Robot_Target;
-      camera_errors_opt =
+      std::vector<Eigen::Vector2d> camera_errors_opt =
           CalculateCameraErrors(measured_keypoints_3d, T_Sensor_Target_opt,
                                 measurement->target_id, measurement->camera_id);
-      camera_errors_init =
+      std::vector<Eigen::Vector2d> camera_errors_init =
           CalculateCameraErrors(measured_keypoints_3d, T_Sensor_Target_est,
                                 measurement->target_id, measurement->camera_id);
 
@@ -720,9 +738,10 @@ void CalibrationVerification::GetCameraErrors() {
                                  camera_errors_init.end());
 
       if (ground_truth_calib_set_) {
-        T_Sensor_Target_true = TA_Robot_Sensor_true.inverse().matrix() *
-                               measurement->T_Robot_Target;
-        camera_errors_true = CalculateCameraErrors(
+        Eigen::Matrix4d T_Sensor_Target_true =
+            TA_Robot_Sensor_true.inverse().matrix() *
+            measurement->T_Robot_Target;
+        std::vector<Eigen::Vector2d> camera_errors_true = CalculateCameraErrors(
             measured_keypoints_3d, T_Sensor_Target_true, measurement->target_id,
             measurement->camera_id);
 
@@ -734,11 +753,9 @@ void CalibrationVerification::GetCameraErrors() {
   }   // camera iter
 }
 
-std::vector<Eigen::Vector2d, AlignVec2d>
-    CalibrationVerification::CalculateCameraErrors(
-        const PointCloud::Ptr& measured_keypoints,
-        const Eigen::Matrix4d& T_Sensor_Target, const int& target_id,
-        const int& camera_id) {
+std::vector<Eigen::Vector2d> CalibrationVerification::CalculateCameraErrors(
+    const PointCloud::Ptr& measured_keypoints,
+    const Eigen::Matrix4d& T_Sensor_Target, int target_id, int camera_id) {
   // get estimated (optimization or initial) keypoint locations
   PointCloud::Ptr keypoints_target_frame = std::make_shared<PointCloud>();
   int num_keypoints =
@@ -758,9 +775,11 @@ std::vector<Eigen::Vector2d, AlignVec2d>
   }
 
   // project points to image plane and save as cloud
+  Eigen::Matrix4d T_Sensor_TargetCorrected =
+      T_Sensor_Target * target_corrections_.at(target_id);
   PointCloud::Ptr keypoints_projected = utils::ProjectPoints(
       keypoints_target_frame, params_->camera_params[camera_id]->camera_model,
-      T_Sensor_Target);
+      T_Sensor_TargetCorrected);
 
   // get correspondences
   pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
@@ -775,7 +794,7 @@ std::vector<Eigen::Vector2d, AlignVec2d>
   int measurement_index, estimated_index;
   Eigen::Vector3d error3d;
   Eigen::Vector2d error2d;
-  std::vector<Eigen::Vector2d, AlignVec2d> camera_errors;
+  std::vector<Eigen::Vector2d> camera_errors;
   for (int i = 0; i < correspondences->size(); i++) {
     measurement_index = correspondences->at(i).index_query;
     estimated_index = correspondences->at(i).index_match;
@@ -790,9 +809,8 @@ std::vector<Eigen::Vector2d, AlignVec2d>
 
 std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     const std::shared_ptr<cv::Mat>& img_in,
-    const std::vector<Eigen::Affine3d, AlignAff3d>& T_Robot_Targets,
-    const Eigen::Matrix4d& T_Robot_Sensor, const int& cam_iter,
-    cv::Scalar colour) {
+    const std::vector<Eigen::Affine3d>& T_Robot_Targets,
+    const Eigen::Matrix4d& T_Robot_Sensor, int cam_iter, cv::Scalar colour) {
   // create all objects we'll need
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected =
       std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
@@ -931,7 +949,8 @@ void CalibrationVerification::LoadLookupTree() {
 }
 
 void CalibrationVerification::PrintErrorsSummary() {
-  std::string output_path = results_directory_ + "errors_summary.txt";
+  fs::path output_path =
+      fs::path(results_directory_) / fs::path("errors_summary.txt");
   std::ofstream file(output_path);
   file << "-----------------------------------------------------------\n"
        << "ERRORS SUMMARY \nfor bag: " << params_->bag_file

@@ -1,12 +1,12 @@
 #include <vicon_calibration/ViconCalibrator.h>
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <time.h>
 
 #include <Eigen/StdVector>
-#include <boost/filesystem.hpp>
 #include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <nlohmann/json.hpp>
@@ -144,35 +144,11 @@ void ViconCalibrator::GetInitialCalibrations() {
   }
 }
 
-void ViconCalibrator::GetInitialCalibrationsPerturbed() {
-  sim_options.calibrations_perturbed_.clear();
-  std::srand(std::time(NULL));
-
-  for (CalibrationResult calib : calibrations_initial_) {
-    // generate random perturbation
-    Eigen::VectorXd perturbation(6);
-    for (int i = 0; i < 3; i++) {
-      double dt = utils::RandomNumber(-sim_options.max_trans_error_m,
-                                      sim_options.max_trans_error_m);
-      double dr = utils::RandomNumber(-sim_options.max_rot_error_deg,
-                                      sim_options.max_rot_error_deg);
-      perturbation[i] = dr;
-      perturbation[i + 3] = dt;
-    }
-
-    // store as new transform
-    CalibrationResult calib_perturbed = calib;
-    calib_perturbed.transform =
-        utils::PerturbTransformDegM(calib.transform, perturbation);
-    sim_options.calibrations_perturbed_.push_back(calib_perturbed);
-  }
-}
-
-std::vector<Eigen::Affine3d, AlignAff3d>
+std::vector<Eigen::Affine3d>
     ViconCalibrator::GetInitialGuess(const ros::Time& lookup_time,
                                      const std::string& sensor_frame,
                                      SensorType type, int sensor_id) {
-  std::vector<Eigen::Affine3d, AlignAff3d> T_sensor_tgts_estimated;
+  std::vector<Eigen::Affine3d> T_sensor_tgts_estimated;
   for (uint8_t n = 0; n < params_->target_params.size(); n++) {
     // get transform from sensor to target
     Eigen::Affine3d T_Robot_TargetN = lookup_tree_->GetTransformEigen(
@@ -180,17 +156,10 @@ std::vector<Eigen::Affine3d, AlignAff3d>
         lookup_time);
     Eigen::Affine3d T_Sensor_TargetN;
     bool success;
-    if (sim_options.perturb_measurements) {
-      Eigen::Affine3d TA_Robot_Sensor_pert;
-      TA_Robot_Sensor_pert.matrix() = utils::GetT_Robot_Sensor(
-          sim_options.calibrations_perturbed_, type, sensor_id, success);
-      T_Sensor_TargetN = TA_Robot_Sensor_pert.inverse() * T_Robot_TargetN;
-    } else {
-      Eigen::Affine3d TA_Robot_Sensor;
-      TA_Robot_Sensor.matrix() = utils::GetT_Robot_Sensor(
-          calibrations_initial_, type, sensor_id, success);
-      T_Sensor_TargetN = TA_Robot_Sensor.inverse() * T_Robot_TargetN;
-    }
+    Eigen::Affine3d TA_Robot_Sensor;
+    TA_Robot_Sensor.matrix() = utils::GetT_Robot_Sensor(
+        calibrations_initial_, type, sensor_id, success);
+    T_Sensor_TargetN = TA_Robot_Sensor.inverse() * T_Robot_TargetN;
 
     if (!success) {
       LOG_ERROR(
@@ -225,8 +194,7 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
   ros::Time time_last(0, 0);
 
   for (auto iter = view.begin(); iter != view.end(); iter++) {
-    boost::shared_ptr<sensor_msgs::PointCloud2> lidar_msg =
-        iter->instantiate<sensor_msgs::PointCloud2>();
+    auto lidar_msg = iter->instantiate<sensor_msgs::PointCloud2>();
     PointCloud::Ptr cloud = std::make_shared<PointCloud>();
 
     if (lidar_msg == NULL) {
@@ -245,10 +213,10 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
     PointCloud cloud_tmp;
     pcl::fromPCLPointCloud2(cloud_pc2, cloud_tmp);
     input_cropbox_.Filter(cloud_tmp, *cloud);
-    std::vector<Eigen::Affine3d, AlignAff3d> T_lidar_tgts_estimated;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets_before;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets_after;
+    std::vector<Eigen::Affine3d> T_lidar_tgts_estimated;
+    std::vector<Eigen::Affine3d> T_Robot_Targets;
+    std::vector<Eigen::Affine3d> T_Robot_Targets_before;
+    std::vector<Eigen::Affine3d> T_Robot_Targets_after;
     try {
       T_lidar_tgts_estimated = GetInitialGuess(time_current, sensor_frame,
                                                SensorType::LIDAR, lidar_iter);
@@ -380,10 +348,10 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
     LoadLookupTree(time_current);
 
     time_last = time_current;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_cam_tgts_estimated;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets_before;
-    std::vector<Eigen::Affine3d, AlignAff3d> T_Robot_Targets_after;
+    std::vector<Eigen::Affine3d> T_cam_tgts_estimated;
+    std::vector<Eigen::Affine3d> T_Robot_Targets;
+    std::vector<Eigen::Affine3d> T_Robot_Targets_before;
+    std::vector<Eigen::Affine3d> T_Robot_Targets_after;
     try {
       T_cam_tgts_estimated = GetInitialGuess(time_current, sensor_frame,
                                              SensorType::CAMERA, cam_iter);
@@ -536,12 +504,9 @@ void ViconCalibrator::GetTimeWindow() {
   }
 
   // Get start time of measurements
-  boost::shared_ptr<sensor_msgs::PointCloud2> lid_msg;
-  boost::shared_ptr<sensor_msgs::Image> cam_msg;
-
   ros::Time first_msg_time;
-  lid_msg = view_tmp.begin()->instantiate<sensor_msgs::PointCloud2>();
-  cam_msg = view_tmp.begin()->instantiate<sensor_msgs::Image>();
+  auto lid_msg = view_tmp.begin()->instantiate<sensor_msgs::PointCloud2>();
+  auto cam_msg = view_tmp.begin()->instantiate<sensor_msgs::Image>();
 
   if (lid_msg != NULL) {
     first_msg_time = lid_msg->header.stamp;
@@ -662,15 +627,14 @@ void ViconCalibrator::GetMeasurements() {
   bag_.close();
 }
 
-CalibrationResults
-    ViconCalibrator::Solve(const CalibrationResults& initial_calibrations) {
-  OptimizerInputs optimizer_inputs{.target_params = params_->target_params,
-                                   .camera_params = params_->camera_params,
-                                   .lidar_measurements = lidar_measurements_,
-                                   .camera_measurements = camera_measurements_,
-                                   .calibration_initials = initial_calibrations,
-                                   .optimizer_config_path =
-                                       inputs_.optimizer_config};
+void ViconCalibrator::Solve() {
+  OptimizerInputs optimizer_inputs{
+      .target_params = params_->target_params,
+      .camera_params = params_->camera_params,
+      .lidar_measurements = lidar_measurements_,
+      .camera_measurements = camera_measurements_,
+      .calibration_initials = calibrations_initial_,
+      .optimizer_config_path = inputs_.optimizer_config};
 
   std::shared_ptr<Optimizer> optimizer;
   if (params_->optimizer_type == "GTSAM") {
@@ -686,83 +650,38 @@ CalibrationResults
   }
 
   optimizer->Solve();
-  return optimizer->GetResults();
+  calibrations_final_ = optimizer->GetResults();
+  target_corrections_ = optimizer->GetTargetCorrections();
 }
 
 void ViconCalibrator::RunCalibration() {
   Setup();
   GetInitialCalibrations();
   GetMeasurements();
-  CalibrationResults results = Solve(calibrations_initial_);
-  RunVerification(results);
-  return;
+  Solve();
+  RunVerification();
 }
 
-void ViconCalibrator::RunVerification(const CalibrationResults& results) {
+void ViconCalibrator::RunVerification() {
+  if (inputs_.verification_config == "NONE") {
+    utils::OutputCalibrations(calibrations_initial_,
+                              "Initial Calibration Estimates:");
+    utils::OutputCalibrations(calibrations_final_, "Optimized Calibrations:");
+    utils::OutputTargetCorrections(target_corrections_);
+    LOG_INFO("Skipping calibration verification since no config was input");
+    return;
+  }
+
   CalibrationVerification ver(inputs_.verification_config,
                               inputs_.output_directory,
                               inputs_.calibration_config);
   ver.SetParams(params_);
   ver.SetLidarMeasurements(lidar_measurements_);
   ver.SetCameraMeasurements(camera_measurements_);
-
-  if (sim_options.using_simulation) {
-    ver.SetGroundTruthCalib(calibrations_initial_);
-    std::vector<double> camera_reprojection_errors;
-    std::vector<double> lidar_average_point_errors;
-    std::vector<double> calibration_translation_errors;
-    std::vector<double> calibration_rotation_errors;
-    for (int i = 0; i < sim_options.num_trials; i++) {
-      GetInitialCalibrationsPerturbed();
-      CalibrationResults results = Solve(sim_options.calibrations_perturbed_);
-      ver.SetInitialCalib(sim_options.calibrations_perturbed_);
-      ver.SetOptimizedCalib(results);
-      ver.ProcessResults(i == 0); // save measurements for first iteration only
-      CalibrationVerification::Results summary = ver.GetSummary();
-      camera_reprojection_errors.push_back(
-          summary.camera_average_reprojection_errors_pixels);
-      lidar_average_point_errors.push_back(
-          summary.lidar_average_point_errors_mm);
-      calibration_translation_errors.push_back(
-          utils::VectorAverage(summary.calibration_translation_errors_mm));
-      calibration_rotation_errors.push_back(
-          utils::VectorAverage(summary.calibration_rotation_errors_deg));
-    }
-    std::cout << "------------------------------------------------------\n"
-              << "Outputting Summary for Calibration Pertubation Trials:\n"
-              << std::setw(25) << "Description" << std::setw(20) << "Mean"
-              << std::setw(20) << "Std"
-              << "\n"
-              << std::setw(25) << "Cam Rep. Error (pixels)" << std::setw(20)
-              << utils::VectorAverage(camera_reprojection_errors)
-              << std::setw(20) << utils::VectorStdev(camera_reprojection_errors)
-              << "\n"
-              << std::setw(25) << "Lid Pt. Error (mm)" << std::setw(20)
-              << std::setprecision(10)
-              << utils::VectorAverage(lidar_average_point_errors)
-              << std::setw(20) << std::setprecision(10)
-              << utils::VectorStdev(lidar_average_point_errors) << "\n"
-              << std::setw(25) << "Cal. Trans. Error (mm)" << std::setw(20)
-              << std::setprecision(10)
-              << utils::VectorAverage(calibration_translation_errors)
-              << std::setw(20) << std::setprecision(10)
-              << utils::VectorStdev(calibration_translation_errors) << "\n"
-              << std::setw(25) << "Cal. Rot. Error (deg)" << std::setw(20)
-              << std::setprecision(10)
-              << utils::VectorAverage(calibration_rotation_errors)
-              << std::setw(20) << std::setprecision(10)
-              << utils::VectorStdev(calibration_rotation_errors) << "\n";
-  } else {
-    utils::OutputCalibrations(calibrations_initial_,
-                              "Initial Calibration Estimates:");
-    utils::OutputCalibrations(results, "Optimized Calibrations:");
-    if (inputs_.verification_config != "NONE") {
-      ver.SetInitialCalib(calibrations_initial_);
-      ver.SetOptimizedCalib(results);
-      ver.SetLidarMeasurements(lidar_measurements_);
-      ver.ProcessResults();
-    }
-  }
+  ver.SetInitialCalib(calibrations_initial_);
+  ver.SetOptimizedCalib(calibrations_final_);
+  ver.SetTargetCorrections(target_corrections_);
+  ver.ProcessResults();
 }
 
 void ViconCalibrator::OutputMeasurementStats() {

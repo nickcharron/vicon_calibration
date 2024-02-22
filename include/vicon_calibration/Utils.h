@@ -1,18 +1,19 @@
 #pragma once
 
-#include <sys/time.h>
 #include <chrono>
+#include <filesystem>
+#include <sys/time.h>
 
 #include <Eigen/Geometry>
 #include <opencv2/opencv.hpp>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
 #include <sensor_msgs/Image.h>
 
-#include <vicon_calibration/Log.h>
 #include <vicon_calibration/Aliases.h>
+#include <vicon_calibration/Log.h>
 #include <vicon_calibration/Params.h>
 #include <vicon_calibration/TfTree.h>
 #include <vicon_calibration/camera_models/CameraModel.h>
@@ -54,13 +55,13 @@ struct HighResolutionTimer {
     return take_time_stamp() - start_time;
   }
 
- protected:
+protected:
   static std::uint64_t take_time_stamp() {
     return std::uint64_t(
         std::chrono::high_resolution_clock::now().time_since_epoch().count());
   }
 
- private:
+private:
   std::uint64_t start_time;
 };
 
@@ -109,9 +110,9 @@ double DegToRad(double d);
 /** Converts radians to degrees. */
 double RadToDeg(double r);
 
-Eigen::Matrix4d RoundMatrix(const Eigen::Matrix4d& M, const int& precision);
+Eigen::Matrix4d RoundMatrix(const Eigen::Matrix4d& M, int precision);
 
-Eigen::Matrix3d RoundMatrix(const Eigen::Matrix3d& M, const int& precision);
+Eigen::Matrix3d RoundMatrix(const Eigen::Matrix3d& M, int precision);
 
 bool IsRotationMatrix(const Eigen::Matrix3d& R);
 
@@ -145,29 +146,30 @@ Eigen::Matrix3d LieAlgebraToR(const Eigen::Vector3d& eps);
 
 Eigen::Matrix4d InvertTransform(const Eigen::Matrix4d& T);
 
-Eigen::Matrix4d QuaternionAndTranslationToTransformMatrix(
-    const std::vector<double>& pose);
+Eigen::Matrix4d
+    QuaternionAndTranslationToTransformMatrix(const std::vector<double>& pose);
 
 // [qw qx qy qz tx ty tx]
-std::vector<double> TransformMatrixToQuaternionAndTranslation(
-    const Eigen::Matrix4d& T);
+std::vector<double>
+    TransformMatrixToQuaternionAndTranslation(const Eigen::Matrix4d& T);
 
 cv::Mat DrawCoordinateFrame(const cv::Mat& img_in,
-                            const Eigen::Matrix4d& T_Cam_Frame,
+                            const Eigen::Matrix4d& T_cam_frame,
                             const std::shared_ptr<CameraModel>& camera_model,
                             const double& scale);
 
-cv::Mat ProjectPointsToImage(
-    const cv::Mat& img, std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
-    const Eigen::Matrix4d& T_IMAGE_CLOUD,
-    std::shared_ptr<CameraModel>& camera_model);
+cv::Mat ProjectPointsToImage(const cv::Mat& img,
+                             pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
+                             const Eigen::Matrix4d& T_IMAGE_CLOUD,
+                             std::shared_ptr<CameraModel>& camera_model);
 
-std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> ProjectPoints(
-    std::shared_ptr<pcl::PointCloud<pcl::PointXYZ>>& cloud,
-    std::shared_ptr<CameraModel>& camera_model, const Eigen::Matrix4d& T);
+pcl::PointCloud<pcl::PointXYZ>::Ptr
+    ProjectPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
+                  std::shared_ptr<CameraModel>& camera_model,
+                  const Eigen::Matrix4d& T);
 
-PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr& cloud, const int& r,
-                                     const int& g, const int& b);
+PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr& cloud, int r,
+                                     int g, int b);
 
 void OutputTransformInformation(const Eigen::Affine3d& T,
                                 const std::string& transform_name);
@@ -175,18 +177,18 @@ void OutputTransformInformation(const Eigen::Affine3d& T,
 void OutputTransformInformation(const Eigen::Matrix4d& T,
                                 const std::string& transform_name);
 
-void OutputCalibrations(
-    const std::vector<vicon_calibration::CalibrationResult>& calib,
-    const std::string& output_string);
+void OutputCalibrations(const std::vector<CalibrationResult>& calib,
+                        const std::string& output_string);
 
-std::string ConvertTimeToDate(
-    const std::chrono::system_clock::time_point& time_);
+void OutputTargetCorrections(const std::vector<Eigen::Matrix4d>& Ts);
 
-std::vector<Eigen::Affine3d, AlignAff3d> GetTargetLocation(
-    const std::vector<std::shared_ptr<vicon_calibration::TargetParams>>&
-        target_params,
+std::string
+    ConvertTimeToDate(const std::chrono::system_clock::time_point& time_);
+
+std::vector<Eigen::Affine3d> GetTargetLocation(
+    const std::vector<std::shared_ptr<TargetParams>>& target_params,
     const std::string& vicon_baselink_frame, const ros::Time& lookup_time,
-    const std::shared_ptr<vicon_calibration::TfTree>& lookup_tree);
+    const std::shared_ptr<TfTree>& lookup_tree);
 
 /**
  * @brief gets full name to file inside data subfolder
@@ -226,8 +228,8 @@ std::string GetFilePathTestBags(const std::string& file_name);
 void GetScreenResolution(int& horizontal, int& vertical);
 
 Eigen::Matrix4d GetT_Robot_Sensor(const CalibrationResults& calibs,
-                                      SensorType type, uint8_t sensor_id,
-                                      bool& success);
+                                  SensorType type, uint8_t sensor_id,
+                                  bool& success);
 
 int DepthStrToInt(const std::string depth);
 
@@ -297,8 +299,8 @@ inline bool
   }
 
   // check path exists
-  boost::filesystem::path path(filename);
-  if (!boost::filesystem::exists(path.parent_path())) {
+  std::filesystem::path path(filename);
+  if (!std::filesystem::exists(path.parent_path())) {
     error_type =
         "File path parent directory does not exist. Input file: " + filename;
     return false;
@@ -366,6 +368,6 @@ bool ReadJson(const std::string& filename, nlohmann::json& J,
               JsonReadErrorType& error_type = tmp_json_read_error_type_,
               bool output_error = true);
 
-}  // namespace utils
+} // namespace utils
 
-}  // namespace vicon_calibration
+} // namespace vicon_calibration

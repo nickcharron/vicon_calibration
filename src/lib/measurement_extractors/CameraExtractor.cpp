@@ -2,8 +2,6 @@
 
 #include <vicon_calibration/measurement_extractors/CameraExtractors.h>
 
-#include <boost/make_shared.hpp>
-
 #include <vicon_calibration/Utils.h>
 
 namespace vicon_calibration {

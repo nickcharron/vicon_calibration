@@ -167,8 +167,8 @@ void IsolateTargetPoints::GetTargetCluster() {
   // iterate through clusters and calculate errors
   std::vector<double> distance_errors;
   std::vector<double> distances;
-  std::vector<Eigen::Vector3d, AlignVec3d> dimension_errors;
-  std::vector<Eigen::Vector3d, AlignVec3d> dimensions;
+  std::vector<Eigen::Vector3d> dimension_errors;
+  std::vector<Eigen::Vector3d> dimensions;
   for (int i = 0; i < clusters.size(); i++) {
     // calculate centroid distances and their errors
     double centroid_distance = centroids[i].norm();

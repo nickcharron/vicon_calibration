@@ -4,7 +4,6 @@
 #include <fstream>
 #include <map>
 
-#include <boost/filesystem.hpp>
 #include <ceres/ceres.h>
 #include <ceres/loss_function.h>
 #include <ceres/solver.h>

@@ -7,8 +7,8 @@
 #include <ceres/solver.h>
 #include <ceres/types.h>
 
-#include <vicon_calibration/optimization/CeresLidarCostFunction.h>
 #include <vicon_calibration/Utils.h>
+#include <vicon_calibration/optimization/CeresLidarCostFunction.h>
 
 using namespace vicon_calibration;
 
@@ -76,8 +76,7 @@ void SolveProblem(const std::shared_ptr<ceres::Problem>& problem,
 
 TEST_CASE("Test lidar optimization") {
   // create keypoints
-  std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
-      points;
+  std::vector<Eigen::Vector4d> points;
   double x, y, z, max_distance = 3;
   for (int i = 0; i < 30; i++) {
     x = ((double)std::rand() / (RAND_MAX)-0.5) * 2 * max_distance;
@@ -101,8 +100,7 @@ TEST_CASE("Test lidar optimization") {
   T_LV_pert = utils::PerturbTransformRadM(T_LV, perturbation);
 
   // create transformed (detected) points - no noise
-  std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
-      points_measured(points.size());
+  std::vector<Eigen::Vector4d> points_measured(points.size());
   Eigen::Vector4d point_transformed;
   for (int i = 0; i < points.size(); i++) {
     points_measured[i] = T_LV * T_VT * points[i];
@@ -183,8 +181,7 @@ TEST_CASE("Test lidar optimization") {
 /*
 TEST_CASE("Test Camera-Lidar factor in Optimization") {
   // create keypoints
-  std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
-      points;
+  std::vector<Eigen::Vector4d> points;
   double max_distance_x = 3, max_distance_y = 3, max_distance_z = 4;
   for (int i = 0; i < 80; i++) {
     double x = ((double)std::rand() / (RAND_MAX)-0.5) * 2 * max_distance_x;
@@ -223,8 +220,8 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
   T_VL_pert = utils::PerturbTransformRadM(T_VL, perturb_lid);
 
   // create measured pixels and measured lidar points - no noise
-  std::vector<Eigen::Vector2d, AlignVec2d> pixels_measured(points.size());
-  std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
+  std::vector<Eigen::Vector2d> pixels_measured(points.size());
+  std::vector<Eigen::Vector4d>
       points_measured(points.size());
   std::vector<bool> pixels_valid(points.size());
 
@@ -232,9 +229,8 @@ TEST_CASE("Test Camera-Lidar factor in Optimization") {
     Eigen::Vector4d point_transformed = T_CT * points[i];
     bool pixel_valid;
     Eigen::Vector2d pixel;
-    camera_model->ProjectPoint(point_transformed.hnormalized(), pixel, pixel_valid);
-    pixels_valid[i] = pixel_valid;
-    if (pixel_valid) {
+    camera_model->ProjectPoint(point_transformed.hnormalized(), pixel,
+pixel_valid); pixels_valid[i] = pixel_valid; if (pixel_valid) {
       pixels_measured[i] = pixel;
       points_measured[i] = T_LV * T_VT * points[i];
     }

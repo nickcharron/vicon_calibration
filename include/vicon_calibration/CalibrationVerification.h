@@ -43,16 +43,17 @@ public:
   void SetOptimizedCalib(
       const std::vector<vicon_calibration::CalibrationResult>& calib);
 
+  void SetTargetCorrections(const std::vector<Eigen::Matrix4d>& corrections);
+
   void SetConfig(const std::string& calib_config);
 
   void SetParams(std::shared_ptr<CalibratorConfig>& params);
 
   void SetLidarMeasurements(
-      const std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>&
-          lidar_measurements);
+      const std::vector<std::vector<LidarMeasurementPtr>>& lidar_measurements);
 
   void SetCameraMeasurements(
-      const std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>&
+      const std::vector<std::vector<CameraMeasurementPtr>>&
           camera_measurements);
 
   void ProcessResults(bool save_measurements = true);
@@ -69,11 +70,11 @@ private:
   void SaveScans(const PointCloud::Ptr& scan_est,
                  const PointCloud::Ptr& scan_opt,
                  const PointCloud::Ptr& targets, const std::string& save_path,
-                 const int& scan_count);
+                 int scan_count);
 
   void GetLidarErrors();
 
-  std::vector<Eigen::Vector3d, AlignVec3d>
+  std::vector<Eigen::Vector3d>
       CalculateLidarErrors(const PointCloud::Ptr& measured_keypoints,
                            const PointCloud::Ptr& estimated_keypoints);
 
@@ -83,16 +84,18 @@ private:
 
   void GetCameraErrors();
 
-  std::vector<Eigen::Vector2d, AlignVec2d>
+  std::vector<Eigen::Vector2d>
       CalculateCameraErrors(const PointCloud::Ptr& measured_keypoints,
                             const Eigen::Matrix4d& T_Sensor_Target,
-                            const int& target_id, const int& camera_id);
+                            int target_id, int camera_id);
 
   void PrintConfig();
 
   void PrintCalibrations(
       std::vector<vicon_calibration::CalibrationResult>& calib,
       const std::string& file_name);
+
+  void PrintTargetCorrections(const std::string& file_name);
 
   std::string CalibrationErrorsToString(const Eigen::Matrix4d& T1,
                                         const Eigen::Matrix4d& T2,
@@ -101,11 +104,11 @@ private:
 
   void PrintCalibrationErrors();
 
-  std::shared_ptr<cv::Mat> ProjectTargetToImage(
-      const std::shared_ptr<cv::Mat>& img_in,
-      const std::vector<Eigen::Affine3d, AlignAff3d>& T_Robot_Targets,
-      const Eigen::Matrix4d& T_Robot_Sensor, const int& cam_iter,
-      cv::Scalar colour);
+  std::shared_ptr<cv::Mat>
+      ProjectTargetToImage(const std::shared_ptr<cv::Mat>& img_in,
+                           const std::vector<Eigen::Affine3d>& T_Robot_Targets,
+                           const Eigen::Matrix4d& T_Robot_Sensor, int cam_iter,
+                           cv::Scalar colour);
 
   void LoadLookupTree();
 
@@ -142,16 +145,18 @@ private:
   ros::Time lookup_time_;
   std::shared_ptr<vicon_calibration::TfTree> lookup_tree_ =
       std::make_shared<vicon_calibration::TfTree>();
-  std::vector<vicon_calibration::CalibrationResult> calibrations_result_,
-      calibrations_initial_, calibrations_ground_truth_;
-  std::vector<Eigen::Vector3d, AlignVec3d> lidar_errors_opt_,
-      lidar_errors_init_, lidar_errors_true_;
-  std::vector<Eigen::Vector2d, AlignVec2d> camera_errors_opt_,
-      camera_errors_init_, camera_errors_true_;
-  std::vector<std::vector<std::shared_ptr<LidarMeasurement>>>
-      lidar_measurements_;
-  std::vector<std::vector<std::shared_ptr<CameraMeasurement>>>
-      camera_measurements_;
+  std::vector<vicon_calibration::CalibrationResult> calibrations_result_;
+  std::vector<vicon_calibration::CalibrationResult> calibrations_initial_;
+  std::vector<vicon_calibration::CalibrationResult> calibrations_ground_truth_;
+  std::vector<Eigen::Matrix4d> target_corrections_;
+  std::vector<Eigen::Vector3d> lidar_errors_opt_;
+  std::vector<Eigen::Vector3d> lidar_errors_init_;
+  std::vector<Eigen::Vector3d> lidar_errors_true_;
+  std::vector<Eigen::Vector2d> camera_errors_opt_;
+  std::vector<Eigen::Vector2d> camera_errors_init_;
+  std::vector<Eigen::Vector2d> camera_errors_true_;
+  std::vector<std::vector<LidarMeasurementPtr>> lidar_measurements_;
+  std::vector<std::vector<CameraMeasurementPtr>> camera_measurements_;
   pcl::registration::CorrespondenceEstimation<pcl::PointXYZ, pcl::PointXYZ>
       corr_est_;
   std::shared_ptr<pcl::Correspondences> correspondences_ =

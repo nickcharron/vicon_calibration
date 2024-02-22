@@ -105,15 +105,11 @@ void Optimizer::LoadConfigCommon(const nlohmann::json& J) {
         J.at("match_centroids_on_first_iter_only");
     optimizer_params_.print_results_to_terminal =
         J.at("print_results_to_terminal");
+    optimizer_params_.estimate_target_corrections =
+        J.at("estimate_target_corrections");
 
     std::vector<double> error_tol_tmp = J["error_tol"];
     optimizer_params_.error_tol = error_tol_tmp;
-
-    std::vector<double> image_noise_tmp = J["image_noise"];
-    optimizer_params_.image_noise = image_noise_tmp;
-
-    std::vector<double> lidar_noise_tmp = J["lidar_noise"];
-    optimizer_params_.lidar_noise = lidar_noise_tmp;
 
     std::vector<double> template_downsample_size_tmp =
         J["template_downsample_size"];
@@ -126,16 +122,6 @@ void Optimizer::LoadConfigCommon(const nlohmann::json& J) {
   if (optimizer_params_.error_tol.size() != 2) {
     throw std::invalid_argument{
         "Invalid number of inputs to error_tol. Expecting 6."};
-  }
-
-  if (optimizer_params_.image_noise.size() != 2) {
-    throw std::invalid_argument{
-        "Invalid number of inputs to image_noise. Expecting 2."};
-  }
-
-  if (optimizer_params_.lidar_noise.size() != 3) {
-    throw std::invalid_argument{
-        "Invalid number of inputs to lidar_noise. Expecting 3."};
   }
 
   if (optimizer_params_.template_downsample_size.size() != 3) {

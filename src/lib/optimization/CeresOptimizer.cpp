@@ -19,6 +19,9 @@ void CeresOptimizer::SetupProblem() {
   for (int i = 0; i < target_corrections_.size(); i++) {
     problem_->AddParameterBlock(&(target_corrections_[i][0]), 7,
                                 parameterization_.get());
+    if (!optimizer_params_.estimate_target_corrections) {
+      problem_->SetParameterBlockConstant(&(target_corrections_[i][0]));
+    }
   }
 }
 

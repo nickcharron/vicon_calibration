@@ -55,9 +55,8 @@ public:
     bool match_centroids{true};
     bool match_centroids_on_first_iter_only{true};
     bool print_results_to_terminal{false};
+    bool estimate_target_corrections{true};
     std::vector<double> error_tol{0.0001, 0.0002};
-    std::vector<double> image_noise{20, 20};
-    std::vector<double> lidar_noise{0.02, 0.02, 0.02};
     std::vector<double> template_downsample_size{0.003, 0.003, 0.003};
   };
 

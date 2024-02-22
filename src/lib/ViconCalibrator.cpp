@@ -324,13 +324,14 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
         lidar_measurements_[lidar_iter][current_measurement] =
             lidar_measurement;
         LOG_INFO("Measurement accepted.");
+        T_lidar_tgts_estimated_prev[n] = T_lidar_tgts_estimated[n];
       } else {
         lidar_counters_.at(lidar_iter).rejected_invalid++;
         LOG_INFO("Measurement rejected.");
       }
       current_measurement++;
     }
-    T_lidar_tgts_estimated_prev = T_lidar_tgts_estimated;
+
     if (lidar_counters_.at(lidar_iter).accepted != 0 &&
         lidar_counters_.at(lidar_iter).accepted == params_->max_measurements) {
       LOG_INFO("Stored %d measurements for lidar with frame id: %s",
@@ -462,6 +463,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
         camera_measurements_[cam_iter][current_measurement] =
             camera_measurement;
         LOG_INFO("Measurement accepted.");
+        T_cam_tgts_estimated_prev[n] = T_cam_tgts_estimated[n];
       } else {
         camera_counters_.at(cam_iter).rejected_invalid++;
         LOG_INFO("Measurement rejected.");
@@ -469,7 +471,6 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
       current_measurement++;
     }
 
-    T_cam_tgts_estimated_prev = T_cam_tgts_estimated;
     if (camera_counters_.at(cam_iter).accepted != 0 &&
         camera_counters_.at(cam_iter).accepted == params_->max_measurements) {
       LOG_INFO("Stored %d measurements for camera with frame id: %s",

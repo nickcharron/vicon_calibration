@@ -601,8 +601,8 @@ void CalibrationVerification::SaveCameraVisuals() {
       LoadLookupTree();
 
       // load image from bag
-      std::shared_ptr<cv::Mat> current_image = GetImageFromBag(
-          params_->camera_params[measurement->camera_id]->topic);
+      std::shared_ptr<cv::Mat> current_image = std::make_shared<cv::Mat>();
+      *current_image = measurement->img;
 
       // convert to color if not already
       if (current_image->channels() != 3) {

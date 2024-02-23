@@ -148,6 +148,7 @@ struct CameraMeasurement {
   std::string camera_frame;
   std::string target_frame;
   ros::Time time_stamp;
+  cv::Mat img;
   CameraMeasurement() {
     keypoints = std::make_shared<pcl::PointCloud<pcl::PointXY>>();
   }

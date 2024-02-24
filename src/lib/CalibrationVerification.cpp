@@ -401,7 +401,7 @@ void CalibrationVerification::SaveScans(const PointCloud::Ptr& scan_est,
                                         const std::string& save_path,
                                         int scan_count) {
   std::string save_path_full =
-      save_path + "scan_" + std::to_string(scan_count) + ".pcd";
+      save_path + "/scan_" + std::to_string(scan_count) + ".pcd";
   PointCloud::Ptr scan_est_cropped = std::make_shared<PointCloud>();
   PointCloud::Ptr scan_opt_cropped = std::make_shared<PointCloud>();
   CropBox cropper;

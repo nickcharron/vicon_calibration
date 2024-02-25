@@ -1,0 +1,28 @@
+{
+  "min_target_motion": 0.2,
+  "min_target_rotation": 20,
+  "max_target_velocity": 0.02,
+  "vicon_baselink_frame": "vicon/robot/robot",
+  "time_steps": 1,
+  "crop_time": [
+    0,
+    0
+  ],
+  "max_measurements": 14,
+  "optimizer_type": "CERES",
+  "targets": [
+    {
+      "frame_id": "vicon/target_board/target_board",
+      "camera_extractor_type": "CHECKERBOARD-OPENCV",
+      "lidar_extractor_type": "CHECKERBOARD-ALL",
+      "target_config": "CheckerboardTarget_LARGE.json"
+    }
+  ],
+  "lidar_params": [
+    {
+      "topic": "/ouster/points",
+      "frame": "velodyne_link",
+      "max_angular_resolution_deg": 2
+    }
+  ]
+}

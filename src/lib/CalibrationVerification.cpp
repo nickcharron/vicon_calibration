@@ -830,7 +830,7 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     point_target = Eigen::Vector4d(0, 0, 0, 1);
     Eigen::Matrix4d T_Sensor_TargetCorrected =
       utils::InvertTransform(T_Robot_Sensor) * T_Robot_Target.matrix() * target_corrections_.at(target_iter);
-    point_transformed =_Sensor_TargetCorrected * point_target;
+    point_transformed = T_Sensor_TargetCorrected * point_target;
     bool origin_projection_valid;
     Eigen::Vector2d origin_projected;
     params_->camera_params[cam_iter]->camera_model->ProjectPoint(
@@ -849,7 +849,7 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
       point_target = point.homogeneous();
       Eigen::Matrix4d T_Sensor_TargetCorrected =
         utils::InvertTransform(T_Robot_Sensor) * T_Robot_Target.matrix() * target_corrections_.at(target_iter);
-      point_transformed =_Sensor_TargetCorrected * point_target;
+      point_transformed = T_Sensor_TargetCorrected * point_target;
  
       bool point_projection_valid;
       Eigen::Vector2d point_projected;

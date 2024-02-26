@@ -653,24 +653,6 @@ void CalibrationVerification::SaveCameraVisuals() {
   }
 }
 
-std::shared_ptr<cv::Mat>
-    CalibrationVerification::GetImageFromBag(const std::string& topic) {
-  ros::Duration time_window_half = ros::Duration(0.5);
-  rosbag::View view(bag_, rosbag::TopicQuery(topic),
-                    lookup_time_ - time_window_half,
-                    lookup_time_ + time_window_half, true);
-  sensor_msgs::ImageConstPtr image_msg;
-  std::shared_ptr<cv::Mat> image = std::make_shared<cv::Mat>();
-  for (auto iter = view.begin(); iter != view.end(); iter++) {
-    image_msg = iter->instantiate<sensor_msgs::Image>();
-    if (image_msg->header.stamp >= lookup_time_) {
-      *image = utils::RosImgToMat(*image_msg);
-      return image;
-    }
-  }
-  throw std::runtime_error{"Cannot get image from bag."};
-}
-
 void CalibrationVerification::GetCameraErrors() {
   // iterate over each camera
   for (uint8_t cam_iter = 0; cam_iter < params_->camera_params.size();

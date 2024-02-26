@@ -422,6 +422,7 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
         valid_measurements++;
         std::shared_ptr<CameraMeasurement> camera_measurement =
             std::make_shared<CameraMeasurement>();
+        camera_measurement->img = img.clone();
         camera_measurement->keypoints = camera_extractor_->GetMeasurement();
         camera_measurement->T_Robot_Target = T_Robot_Targets[n].matrix();
         camera_measurement->camera_id = cam_iter;

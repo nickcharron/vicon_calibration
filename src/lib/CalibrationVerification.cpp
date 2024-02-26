@@ -401,7 +401,7 @@ void CalibrationVerification::SaveScans(const PointCloud::Ptr& scan_est,
                                         const std::string& save_path,
                                         int scan_count) {
   std::string save_path_full =
-      save_path + "scan_" + std::to_string(scan_count) + ".pcd";
+      save_path + "/scan_" + std::to_string(scan_count) + ".pcd";
   PointCloud::Ptr scan_est_cropped = std::make_shared<PointCloud>();
   PointCloud::Ptr scan_opt_cropped = std::make_shared<PointCloud>();
   CropBox cropper;
@@ -601,8 +601,8 @@ void CalibrationVerification::SaveCameraVisuals() {
       LoadLookupTree();
 
       // load image from bag
-      std::shared_ptr<cv::Mat> current_image = GetImageFromBag(
-          params_->camera_params[measurement->camera_id]->topic);
+      std::shared_ptr<cv::Mat> current_image = std::make_shared<cv::Mat>();
+      *current_image = measurement->img;
 
       // convert to color if not already
       if (current_image->channels() != 3) {
@@ -651,24 +651,6 @@ void CalibrationVerification::SaveCameraVisuals() {
       if (counter == max_image_results_) { break; }
     }
   }
-}
-
-std::shared_ptr<cv::Mat>
-    CalibrationVerification::GetImageFromBag(const std::string& topic) {
-  ros::Duration time_window_half = ros::Duration(0.5);
-  rosbag::View view(bag_, rosbag::TopicQuery(topic),
-                    lookup_time_ - time_window_half,
-                    lookup_time_ + time_window_half, true);
-  sensor_msgs::ImageConstPtr image_msg;
-  std::shared_ptr<cv::Mat> image = std::make_shared<cv::Mat>();
-  for (auto iter = view.begin(); iter != view.end(); iter++) {
-    image_msg = iter->instantiate<sensor_msgs::Image>();
-    if (image_msg->header.stamp >= lookup_time_) {
-      *image = utils::RosImgToMat(*image_msg);
-      return image;
-    }
-  }
-  throw std::runtime_error{"Cannot get image from bag."};
 }
 
 void CalibrationVerification::GetCameraErrors() {
@@ -828,8 +810,9 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     T_Robot_Target = T_Robot_Targets[target_iter];
     // check if target origin is in camera frame
     point_target = Eigen::Vector4d(0, 0, 0, 1);
-    point_transformed =
-        utils::InvertTransform(T_Robot_Sensor) * T_Robot_Target * point_target;
+    Eigen::Matrix4d T_Sensor_TargetCorrected =
+      utils::InvertTransform(T_Robot_Sensor) * T_Robot_Target.matrix() * target_corrections_.at(target_iter);
+    point_transformed = T_Sensor_TargetCorrected * point_target;
     bool origin_projection_valid;
     Eigen::Vector2d origin_projected;
     params_->camera_params[cam_iter]->camera_model->ProjectPoint(
@@ -846,8 +829,10 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     for (int k = 0; k < kpts.cols(); k++) {
       Eigen::Vector3d point = kpts.col(k);
       point_target = point.homogeneous();
-      point_transformed = utils::InvertTransform(T_Robot_Sensor) *
-                          T_Robot_Target * point_target;
+      Eigen::Matrix4d T_Sensor_TargetCorrected =
+        utils::InvertTransform(T_Robot_Sensor) * T_Robot_Target.matrix() * target_corrections_.at(target_iter);
+      point_transformed = T_Sensor_TargetCorrected * point_target;
+ 
       bool point_projection_valid;
       Eigen::Vector2d point_projected;
       params_->camera_params[cam_iter]->camera_model->ProjectPoint(

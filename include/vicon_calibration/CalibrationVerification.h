@@ -80,8 +80,6 @@ private:
 
   void SaveCameraVisuals();
 
-  std::shared_ptr<cv::Mat> GetImageFromBag(const std::string& topic);
-
   void GetCameraErrors();
 
   std::vector<Eigen::Vector2d>

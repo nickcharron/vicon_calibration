@@ -49,6 +49,7 @@ struct CameraParams {
     topic = input_topic;
     frame = input_frame;
     camera_model = CameraModel::Create(intrinsics);
+    camera_model->CalculateFOV();
   };
   std::string topic;
   std::string frame;

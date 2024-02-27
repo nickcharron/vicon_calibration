@@ -170,6 +170,17 @@ public:
    */
   void WriteJSON(const std::string& file_path,
                  const std::string& method = std::string());
+  
+  /**
+   * @brief Method for retrieving the field of view values of the model
+   * @return fov of the camera
+   */
+  float GetFOV() const;
+
+  /**
+   * @brief Method for calculate field of view
+   */
+  void CalculateFOV();
 
 protected:
   /**
@@ -189,6 +200,8 @@ protected:
   uint32_t image_height_{0};
   uint32_t image_width_{0};
   std::vector<double> intrinsics_;
+  float fov{0};
+  
 
   // static bool outside_domain_default_ = false;
 

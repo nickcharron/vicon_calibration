@@ -721,7 +721,7 @@ void CalibrationVerification::GetCameraErrors() {
                                  camera_errors_init.begin(),
                                  camera_errors_init.end());
 
-      float camera_error = 0;
+      double camera_error = 0;
       for(int i = 0; i < camera_errors_opt.size(); i++){
         camera_error += camera_errors_opt[i].norm();
       }
@@ -998,11 +998,11 @@ void CalibrationVerification::PrintErrorsSummary() {
   }
   norms_averaged = norms_summed / camera_errors_opt_.size();
 
-  float angular_summed, angular_averaged;
+  double angular_summed;
   for (int i = 0; i < camera_angular_errors_.size(); i++) {
     angular_summed += camera_angular_errors_[i];
   }
-  angular_averaged = angular_summed / camera_angular_errors_.size();
+  double angular_averaged = angular_summed / camera_angular_errors_.size();
 
   file << "\n-----------------------------------------------------------\n\n"
        << "Outputting Error Statistics for Optimized Camera Calibrations:\n"

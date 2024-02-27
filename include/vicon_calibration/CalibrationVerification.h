@@ -159,7 +159,7 @@ private:
       corr_est_;
   std::shared_ptr<pcl::Correspondences> correspondences_ =
       std::make_shared<pcl::Correspondences>();
-	std::vector<float> camera_angular_errors_;
+	std::vector<double> camera_angular_errors_;
 };
 
 } // end namespace vicon_calibration

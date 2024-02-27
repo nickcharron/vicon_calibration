@@ -1,0 +1,28 @@
+{
+  "min_target_motion": 0.1,
+  "min_target_rotation": 20,
+  "max_target_velocity": 0.03,
+  "vicon_baselink_frame": "vicon/robot/robot",
+  "time_steps": 0.8,
+  "crop_time": [
+    0,
+    0
+  ],
+  "max_measurements": 12,
+  "optimizer_type": "CERES",
+  "targets": [
+    {
+      "frame_id": "vicon/target_board/target_board",
+      "camera_extractor_type": "CHECKERBOARD-OPENCV",
+      "lidar_extractor_type": "CHECKERBOARD-ALL",
+      "target_config": "CheckerboardTarget_LARGE.json"
+    }
+  ],
+  "camera_params": [
+    {
+      "topic": "/camera/image_color",
+      "frame": "camera_link",
+      "intrinsics": "intrinsics_EXAMPLE_REAL_new.json"
+    }
+  ]
+}

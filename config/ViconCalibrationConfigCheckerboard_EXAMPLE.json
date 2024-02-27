@@ -22,8 +22,7 @@
     {
       "topic": "/camera/image_raw",
       "frame": "camera_link",
-      "intrinsics": "intrinsics_EXAMPLE.json",
-      "diagonal_size": 6.3
+      "intrinsics": "intrinsics_EXAMPLE.json"
     }
   ],
   "lidar_params": [

@@ -200,7 +200,7 @@ protected:
   uint32_t image_height_{0};
   uint32_t image_width_{0};
   std::vector<double> intrinsics_;
-  float fov{0};
+  double fov{0};
   
 
   // static bool outside_domain_default_ = false;

@@ -1008,7 +1008,7 @@ void CalibrationVerification::PrintErrorsSummary() {
        << "Outputting Error Statistics for Optimized Camera Calibrations:\n"
        << "Average Error Norm (pixels): " << norms_averaged << "\n"
        << "Average Error Norm (rad): " << angular_averaged << "\n"
-       << "Average Error Norm (degree): " << angular_averaged*57.2958 << "\n"
+       << "Average Error Norm (degree): " << utils::RadToDeg(angular_averaged) << "\n"
        << "Samples Used: " << camera_errors_opt_.size() << "\n";
 
   // save to results summary

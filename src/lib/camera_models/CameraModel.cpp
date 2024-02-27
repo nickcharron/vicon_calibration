@@ -41,7 +41,6 @@ std::shared_ptr<CameraModel> CameraModel::Create(std::string& file_location) {
     throw std::runtime_error{
         "Invalid file type read for camera intialization."};
   }
-  
   return camera_model;
 }
 

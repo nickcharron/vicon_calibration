@@ -682,6 +682,8 @@ void CalibrationVerification::GetCameraErrors() {
       }
     }
 
+    float camera_pixel_angle = params_->camera_params[cam_iter]->camera_model->GetFOV() / params_->camera_params[cam_iter]->camera_model->GetWidth();
+
     // iterate through all measurements for this camera
     for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
          meas_iter++) {
@@ -718,6 +720,13 @@ void CalibrationVerification::GetCameraErrors() {
       camera_errors_init_.insert(camera_errors_init_.end(),
                                  camera_errors_init.begin(),
                                  camera_errors_init.end());
+
+      double camera_error = 0;
+      for(int i = 0; i < camera_errors_opt.size(); i++){
+        camera_error += camera_errors_opt[i].norm();
+      }
+      camera_error = camera_error / camera_errors_opt.size();
+      camera_angular_errors_.push_back(camera_error * camera_pixel_angle);
 
       if (ground_truth_calib_set_) {
         Eigen::Matrix4d T_Sensor_Target_true =
@@ -989,9 +998,17 @@ void CalibrationVerification::PrintErrorsSummary() {
   }
   norms_averaged = norms_summed / camera_errors_opt_.size();
 
+  double angular_summed;
+  for (int i = 0; i < camera_angular_errors_.size(); i++) {
+    angular_summed += camera_angular_errors_[i];
+  }
+  double angular_averaged = angular_summed / camera_angular_errors_.size();
+
   file << "\n-----------------------------------------------------------\n\n"
        << "Outputting Error Statistics for Optimized Camera Calibrations:\n"
        << "Average Error Norm (pixels): " << norms_averaged << "\n"
+       << "Average Error Norm (rad): " << angular_averaged << "\n"
+       << "Average Error Norm (degree): " << utils::RadToDeg(angular_averaged) << "\n"
        << "Samples Used: " << camera_errors_opt_.size() << "\n";
 
   // save to results summary

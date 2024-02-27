@@ -41,8 +41,11 @@ std::shared_ptr<CameraModel> CameraModel::Create(std::string& file_location) {
     throw std::runtime_error{
         "Invalid file type read for camera intialization."};
   }
-
   return camera_model;
+}
+
+void CameraModel::CalculateFOV() {
+  fov = 2 * atan(image_width_ / (2 * intrinsics_.at(0)));
 }
 
 void CameraModel::SetCameraID(const unsigned int id) {
@@ -89,6 +92,11 @@ uint32_t CameraModel::GetHeight() const {
 uint32_t CameraModel::GetWidth() const {
   if (image_width_ == 0) { LOG_WARN("Image width not set."); }
   return image_width_;
+}
+
+float CameraModel::GetFOV() const {
+  if (fov == 0) { LOG_WARN("Image fov not set."); }
+  return fov;
 }
 
 const std::vector<double>& CameraModel::GetIntrinsics() const {

@@ -37,6 +37,8 @@ public:
 
   virtual std::vector<Eigen::Matrix4d> GetTargetCameraCorrections() = 0;
 
+  virtual std::vector<Eigen::Matrix4d> GetTargetLidarCorrections() = 0;
+
   /**
    * @brief params common to all optimizers
    */
@@ -55,7 +57,8 @@ public:
     bool match_centroids{true};
     bool match_centroids_on_first_iter_only{true};
     bool print_results_to_terminal{false};
-    bool estimate_target_corrections{true};
+    bool estimate_target_lidar_corrections{true};
+    bool estimate_target_camera_corrections{true};
     std::vector<double> error_tol{0.0001, 0.0002};
     std::vector<double> template_downsample_size{0.003, 0.003, 0.003};
   };

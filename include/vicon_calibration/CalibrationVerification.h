@@ -46,6 +46,9 @@ public:
   void SetTargetCameraCorrections(
       const std::vector<Eigen::Matrix4d>& corrections);
 
+  void SetTargetLidarCorrections(
+      const std::vector<Eigen::Matrix4d>& corrections);
+
   void SetConfig(const std::string& calib_config);
 
   void SetParams(std::shared_ptr<CalibratorConfig>& params);
@@ -148,6 +151,7 @@ private:
   std::vector<vicon_calibration::CalibrationResult> calibrations_initial_;
   std::vector<vicon_calibration::CalibrationResult> calibrations_ground_truth_;
   std::vector<Eigen::Matrix4d> target_camera_corrections_;
+  std::vector<Eigen::Matrix4d> target_lidar_corrections_;
   std::vector<Eigen::Vector3d> lidar_errors_opt_;
   std::vector<Eigen::Vector3d> lidar_errors_init_;
   std::vector<Eigen::Vector3d> lidar_errors_true_;

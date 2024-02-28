@@ -653,6 +653,7 @@ void ViconCalibrator::Solve() {
   optimizer->Solve();
   calibrations_final_ = optimizer->GetResults();
   target_camera_corrections_ = optimizer->GetTargetCameraCorrections();
+  target_lidar_corrections_ = optimizer->GetTargetLidarCorrections();
 }
 
 void ViconCalibrator::RunCalibration() {
@@ -668,7 +669,10 @@ void ViconCalibrator::RunVerification() {
     utils::OutputCalibrations(calibrations_initial_,
                               "Initial Calibration Estimates:");
     utils::OutputCalibrations(calibrations_final_, "Optimized Calibrations:");
+    std::cout << "Outputting Target Camera Corrections:\n\n";
     utils::OutputTargetCorrections(target_camera_corrections_);
+    std::cout << "Outputting Target Lidar Corrections:\n\n";
+    utils::OutputTargetCorrections(target_lidar_corrections_);
     LOG_INFO("Skipping calibration verification since no config was input");
     return;
   }
@@ -682,6 +686,7 @@ void ViconCalibrator::RunVerification() {
   ver.SetInitialCalib(calibrations_initial_);
   ver.SetOptimizedCalib(calibrations_final_);
   ver.SetTargetCameraCorrections(target_camera_corrections_);
+  ver.SetTargetLidarCorrections(target_lidar_corrections_);
   ver.ProcessResults();
 }
 

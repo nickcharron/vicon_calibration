@@ -105,8 +105,10 @@ void Optimizer::LoadConfigCommon(const nlohmann::json& J) {
         J.at("match_centroids_on_first_iter_only");
     optimizer_params_.print_results_to_terminal =
         J.at("print_results_to_terminal");
-    optimizer_params_.estimate_target_corrections =
-        J.at("estimate_target_corrections");
+    optimizer_params_.estimate_target_camera_corrections =
+        J.at("estimate_target_camera_corrections");
+    optimizer_params_.estimate_target_lidar_corrections =
+        J.at("estimate_target_lidar_corrections");
 
     std::vector<double> error_tol_tmp = J["error_tol"];
     optimizer_params_.error_tol = error_tol_tmp;

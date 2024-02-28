@@ -22,6 +22,8 @@ public:
 
   std::vector<Eigen::Matrix4d> GetTargetCameraCorrections() override;
 
+  std::vector<Eigen::Matrix4d> GetTargetLidarCorrections() override;
+
 private:
   void SetupProblem();
 
@@ -45,6 +47,7 @@ private:
 
   std::vector<std::vector<double>> results_;
   std::vector<std::vector<double>> target_camera_corrections_;
+  std::vector<std::vector<double>> target_lidar_corrections_;
   std::vector<std::vector<double>> previous_iteration_results_;
   std::vector<std::vector<double>> initials_;
   std::shared_ptr<ceres::Problem> problem_;

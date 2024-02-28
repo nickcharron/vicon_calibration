@@ -35,7 +35,7 @@ public:
 
   CalibrationResults GetResults();
 
-  virtual std::vector<Eigen::Matrix4d> GetTargetCorrections() = 0;
+  virtual std::vector<Eigen::Matrix4d> GetTargetCameraCorrections() = 0;
 
   /**
    * @brief params common to all optimizers

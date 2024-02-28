@@ -43,7 +43,8 @@ public:
   void SetOptimizedCalib(
       const std::vector<vicon_calibration::CalibrationResult>& calib);
 
-  void SetTargetCorrections(const std::vector<Eigen::Matrix4d>& corrections);
+  void SetTargetCameraCorrections(
+      const std::vector<Eigen::Matrix4d>& corrections);
 
   void SetConfig(const std::string& calib_config);
 
@@ -146,7 +147,7 @@ private:
   std::vector<vicon_calibration::CalibrationResult> calibrations_result_;
   std::vector<vicon_calibration::CalibrationResult> calibrations_initial_;
   std::vector<vicon_calibration::CalibrationResult> calibrations_ground_truth_;
-  std::vector<Eigen::Matrix4d> target_corrections_;
+  std::vector<Eigen::Matrix4d> target_camera_corrections_;
   std::vector<Eigen::Vector3d> lidar_errors_opt_;
   std::vector<Eigen::Vector3d> lidar_errors_init_;
   std::vector<Eigen::Vector3d> lidar_errors_true_;
@@ -159,7 +160,7 @@ private:
       corr_est_;
   std::shared_ptr<pcl::Correspondences> correspondences_ =
       std::make_shared<pcl::Correspondences>();
-	std::vector<double> camera_angular_errors_;
+  std::vector<double> camera_angular_errors_;
 };
 
 } // end namespace vicon_calibration

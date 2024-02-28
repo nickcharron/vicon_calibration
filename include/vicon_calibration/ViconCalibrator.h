@@ -105,7 +105,7 @@ private:
   CameraMeasurements camera_measurements_;
   CalibrationResults calibrations_initial_;
   CalibrationResults calibrations_final_;
-  std::vector<Eigen::Matrix4d> target_corrections_;
+  std::vector<Eigen::Matrix4d> target_camera_corrections_;
 
   rosbag::Bag bag_;
   std::shared_ptr<Visualizer> pcl_viewer_;

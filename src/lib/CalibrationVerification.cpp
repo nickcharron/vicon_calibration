@@ -134,9 +134,9 @@ void CalibrationVerification::SetOptimizedCalib(
   optimized_calib_set_ = true;
 }
 
-void CalibrationVerification::SetTargetCorrections(
+void CalibrationVerification::SetTargetCameraCorrections(
     const std::vector<Eigen::Matrix4d>& corrections) {
-  target_corrections_ = corrections;
+  target_camera_corrections_ = corrections;
 }
 
 void CalibrationVerification::SetParams(
@@ -200,7 +200,8 @@ void CalibrationVerification::PrintTargetCorrections(
     const std::string& file_name) {
   fs::path output_path = fs::path(results_directory_) / fs::path(file_name);
   std::ofstream file(output_path);
-  for (const auto& T : target_corrections_) {
+  file << "Target Camera Corrections: \n\n";
+  for (const auto& T : target_camera_corrections_) {
     Eigen::Matrix3d R = T.block(0, 0, 3, 3);
     Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
     file << "T_TargetCorrected_Target\n"
@@ -682,7 +683,9 @@ void CalibrationVerification::GetCameraErrors() {
       }
     }
 
-    float camera_pixel_angle = params_->camera_params[cam_iter]->camera_model->GetFOV() / params_->camera_params[cam_iter]->camera_model->GetWidth();
+    float camera_pixel_angle =
+        params_->camera_params[cam_iter]->camera_model->GetFOV() /
+        params_->camera_params[cam_iter]->camera_model->GetWidth();
 
     // iterate through all measurements for this camera
     for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
@@ -722,7 +725,7 @@ void CalibrationVerification::GetCameraErrors() {
                                  camera_errors_init.end());
 
       double camera_error = 0;
-      for(int i = 0; i < camera_errors_opt.size(); i++){
+      for (int i = 0; i < camera_errors_opt.size(); i++) {
         camera_error += camera_errors_opt[i].norm();
       }
       camera_error = camera_error / camera_errors_opt.size();
@@ -767,7 +770,7 @@ std::vector<Eigen::Vector2d> CalibrationVerification::CalculateCameraErrors(
 
   // project points to image plane and save as cloud
   Eigen::Matrix4d T_Sensor_TargetCorrected =
-      T_Sensor_Target * target_corrections_.at(target_id);
+      T_Sensor_Target * target_camera_corrections_.at(target_id);
   PointCloud::Ptr keypoints_projected = utils::ProjectPoints(
       keypoints_target_frame, params_->camera_params[camera_id]->camera_model,
       T_Sensor_TargetCorrected);
@@ -820,7 +823,8 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     // check if target origin is in camera frame
     point_target = Eigen::Vector4d(0, 0, 0, 1);
     Eigen::Matrix4d T_Sensor_TargetCorrected =
-      utils::InvertTransform(T_Robot_Sensor) * T_Robot_Target.matrix() * target_corrections_.at(target_iter);
+        utils::InvertTransform(T_Robot_Sensor) * T_Robot_Target.matrix() *
+        target_camera_corrections_.at(target_iter);
     point_transformed = T_Sensor_TargetCorrected * point_target;
     bool origin_projection_valid;
     Eigen::Vector2d origin_projected;
@@ -839,9 +843,10 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
       Eigen::Vector3d point = kpts.col(k);
       point_target = point.homogeneous();
       Eigen::Matrix4d T_Sensor_TargetCorrected =
-        utils::InvertTransform(T_Robot_Sensor) * T_Robot_Target.matrix() * target_corrections_.at(target_iter);
+          utils::InvertTransform(T_Robot_Sensor) * T_Robot_Target.matrix() *
+          target_camera_corrections_.at(target_iter);
       point_transformed = T_Sensor_TargetCorrected * point_target;
- 
+
       bool point_projection_valid;
       Eigen::Vector2d point_projected;
       params_->camera_params[cam_iter]->camera_model->ProjectPoint(
@@ -1008,7 +1013,8 @@ void CalibrationVerification::PrintErrorsSummary() {
        << "Outputting Error Statistics for Optimized Camera Calibrations:\n"
        << "Average Error Norm (pixels): " << norms_averaged << "\n"
        << "Average Error Norm (rad): " << angular_averaged << "\n"
-       << "Average Error Norm (degree): " << utils::RadToDeg(angular_averaged) << "\n"
+       << "Average Error Norm (degree): " << utils::RadToDeg(angular_averaged)
+       << "\n"
        << "Samples Used: " << camera_errors_opt_.size() << "\n";
 
   // save to results summary

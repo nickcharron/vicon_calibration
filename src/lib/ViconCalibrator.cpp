@@ -652,7 +652,7 @@ void ViconCalibrator::Solve() {
 
   optimizer->Solve();
   calibrations_final_ = optimizer->GetResults();
-  target_corrections_ = optimizer->GetTargetCorrections();
+  target_camera_corrections_ = optimizer->GetTargetCameraCorrections();
 }
 
 void ViconCalibrator::RunCalibration() {
@@ -668,7 +668,7 @@ void ViconCalibrator::RunVerification() {
     utils::OutputCalibrations(calibrations_initial_,
                               "Initial Calibration Estimates:");
     utils::OutputCalibrations(calibrations_final_, "Optimized Calibrations:");
-    utils::OutputTargetCorrections(target_corrections_);
+    utils::OutputTargetCorrections(target_camera_corrections_);
     LOG_INFO("Skipping calibration verification since no config was input");
     return;
   }
@@ -681,7 +681,7 @@ void ViconCalibrator::RunVerification() {
   ver.SetCameraMeasurements(camera_measurements_);
   ver.SetInitialCalib(calibrations_initial_);
   ver.SetOptimizedCalib(calibrations_final_);
-  ver.SetTargetCorrections(target_corrections_);
+  ver.SetTargetCameraCorrections(target_camera_corrections_);
   ver.ProcessResults();
 }
 

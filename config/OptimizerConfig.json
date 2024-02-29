@@ -18,8 +18,13 @@
     0.0001
   ],
   "template_downsample_size": [
-    0.003,
-    0.003,
-    0.003
+    0.001,
+    0.001,
+    0.001
+  ],
+  "viewer_backround_color": [
+    255,
+    255,
+    255
   ]
 }

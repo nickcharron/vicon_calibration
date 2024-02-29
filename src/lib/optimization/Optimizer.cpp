@@ -110,6 +110,9 @@ void Optimizer::LoadConfigCommon(const nlohmann::json& J) {
     optimizer_params_.estimate_target_lidar_corrections =
         J.at("estimate_target_lidar_corrections");
 
+    std::vector<double> viewer_backround_color = J["viewer_backround_color"];
+    optimizer_params_.viewer_backround_color = viewer_backround_color;
+
     std::vector<double> error_tol_tmp = J["error_tol"];
     optimizer_params_.error_tol = error_tol_tmp;
 

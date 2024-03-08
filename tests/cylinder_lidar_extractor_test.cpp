@@ -8,14 +8,13 @@
 #include <tf2_msgs/TFMessage.h>
 
 #include <vicon_calibration/JsonTools.h>
+#include <vicon_calibration/PclConversions.h>
 #include <vicon_calibration/TfTree.h>
 #include <vicon_calibration/Utils.h>
 #include <vicon_calibration/Visualizer.h>
-#include <vicon_calibration/PclConversions.h>
 #include <vicon_calibration/measurement_extractors/CylinderLidarExtractor.h>
 
 using namespace vicon_calibration;
-
 
 // Global variables for testing
 std::string bag_path, template_cloud, template_cloud_rot, target_config;
@@ -71,7 +70,7 @@ void LoadTransforms() {
   bag.open(bag_path, rosbag::bagmode::Read);
   rosbag::View tf_bag_view = {bag, rosbag::TopicQuery("/tf")};
 
-  tf_tree.start_time = tf_bag_view.getBeginTime();
+  tf_tree.GetStartTime() = tf_bag_view.getBeginTime();
 
   // Iterate over all message instances in our tf bag view
   std::cout << "Adding transforms" << std::endl;

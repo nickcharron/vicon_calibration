@@ -149,10 +149,6 @@ Eigen::Matrix4d InvertTransform(const Eigen::Matrix4d& T);
 Eigen::Matrix4d
     QuaternionAndTranslationToTransformMatrix(const std::vector<double>& pose);
 
-// [qw qx qy qz tx ty tx]
-std::vector<double>
-    TransformMatrixToQuaternionAndTranslation(const Eigen::Matrix4d& T);
-
 cv::Mat DrawCoordinateFrame(const cv::Mat& img_in,
                             const Eigen::Matrix4d& T_cam_frame,
                             const std::shared_ptr<CameraModel>& camera_model,
@@ -168,8 +164,8 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr
                   std::shared_ptr<CameraModel>& camera_model,
                   const Eigen::Matrix4d& T);
 
-PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr& cloud, int r,
-                                     int g, int b);
+PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr& cloud, int r, int g,
+                                     int b);
 
 void OutputTransformInformation(const Eigen::Affine3d& T,
                                 const std::string& transform_name);

@@ -1,7 +1,8 @@
 {
   "min_target_motion": 0.1,
   "min_target_rotation": 20,
-  "max_target_velocity": 0.7,
+  "max_target_velocity_mps": 0.05,
+  "velocity_window_size_s": 1,
   "vicon_baselink_frame": "vicon/inspector_gadget/inspector_gadget",
   "time_steps": 1,
   "crop_time": [

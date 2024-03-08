@@ -120,14 +120,6 @@ TEST_CASE("Test camera optimization") {
   }
 
   // create values to optimize
-  // ----------------------------------------------
-  // THIS OPTION CAUSES A SEG FAULT FOR SOME REASON
-  // std::vector<double> results_perfect_init =
-  //     utils::TransformMatrixToQuaternionAndTranslation(T_CV);
-  // std::vector<double> results_perturbed_init =
-  //     utils::TransformMatrixToQuaternionAndTranslation(
-  //         T_CV_pert);
-  // ----------------------------------------------
   Eigen::Matrix3d R1 = T_CV.block(0, 0, 3, 3);
   Eigen::Quaternion<double> q1 = Eigen::Quaternion<double>(R1);
   std::vector<double> results_perfect_init{
@@ -137,7 +129,6 @@ TEST_CASE("Test camera optimization") {
   std::vector<double> results_perturbed_init{
       q2.w(),          q2.x(),          q2.y(),         q2.z(),
       T_CV_pert(0, 3), T_CV_pert(1, 3), T_CV_pert(2, 3)};
-  // ----------------------------------------------
 
   // build problems
   std::shared_ptr<ceres::Problem> problem1 = SetupCeresProblem();

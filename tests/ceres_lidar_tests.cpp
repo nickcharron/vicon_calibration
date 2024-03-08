@@ -107,16 +107,6 @@ TEST_CASE("Test lidar optimization") {
   }
 
   // create values to optimize
-
-  // ------------------------------------
-  // THIS METHOD CAUSES SEG FAULT AT LINE 163
-  // std::vector<double> results_perfect_init =
-  //     utils::TransformMatrixToQuaternionAndTranslation(T_LV);
-  // std::vector<double> results_perturbed_init =
-  //     utils::TransformMatrixToQuaternionAndTranslation(
-  //         T_LV_pert);
-  // ------------------------------------
-  // THIS METHOD DOES NOT
   Eigen::Matrix3d R1 = T_LV.block(0, 0, 3, 3);
   Eigen::Quaternion<double> q1 = Eigen::Quaternion<double>(R1);
   std::vector<double> results_perfect_init{
@@ -126,7 +116,6 @@ TEST_CASE("Test lidar optimization") {
   std::vector<double> results_perturbed_init{
       q2.w(),          q2.x(),          q2.y(),         q2.z(),
       T_LV_pert(0, 3), T_LV_pert(1, 3), T_LV_pert(2, 3)};
-  // ------------------------------------
 
   // build problems
   std::shared_ptr<ceres::Problem> problem1 = SetupCeresProblem();

@@ -25,6 +25,10 @@ public:
    */
   ~TfTree() = default;
 
+  ros::Time GetStartTime() const;
+
+  ros::Time GetEndTime() const;
+
   /**
    * @brief Method for loading a tf tree from a .json file
    * @param file_location absolute path to json file
@@ -63,7 +67,7 @@ public:
    * @return Return the transformation requested as Affine3d object
    */
   Eigen::Affine3d GetTransformEigen(const std::string& to_frame,
-                                    const std::string& from_frame);
+                                    const std::string& from_frame) const;
 
   /**
    * @brief Method for retrieving a dynamic transformation
@@ -72,7 +76,7 @@ public:
    */
   Eigen::Affine3d GetTransformEigen(const std::string& to_frame,
                                     const std::string& from_frame,
-                                    const ros::Time& lookup_time);
+                                    const ros::Time& lookup_time) const;
 
   /**
    * @brief Method for looking up a dynamic transform
@@ -81,9 +85,10 @@ public:
    * @param lookup_time
    * @return T_ROS
    */
-  geometry_msgs::TransformStamped GetTransformROS(const std::string& to_frame,
-                                                  const std::string& from_frame,
-                                                  const ros::Time& lookup_time);
+  geometry_msgs::TransformStamped
+      GetTransformROS(const std::string& to_frame,
+                      const std::string& from_frame,
+                      const ros::Time& lookup_time) const;
 
   /**
    * @brief Method for looking up a static transform
@@ -93,13 +98,13 @@ public:
    */
   geometry_msgs::TransformStamped
       GetTransformROS(const std::string& to_frame,
-                      const std::string& from_frame);
+                      const std::string& from_frame) const;
 
   /**
    * @brief Method for retrieving the date that the calibration was done
    * @return Return calibration date
    */
-  std::string GetCalibrationDate();
+  std::string GetCalibrationDate() const;
 
   /**
    * @brief Method for setting the date that the calibration was done
@@ -107,21 +112,26 @@ public:
    */
   void SetCalibrationDate(const std::string& calibration_date);
 
-  ros::Time start_time{0};
-
-  std::unordered_map<std::string, std::vector<std::string>> GetAllFrames() {
-    /**
-     * @brief Method for getting all the frames in TfTree
-     * @return Return unordered_map. First strings are from (parent) frames and
-     * vectors of strings are to (child) frames
-     */
+  /**
+   * @brief Method for getting all the frames in TfTree
+   * @return Return unordered_map. First strings are from (parent) frames and
+   * vectors of strings are to (child) frames
+   */
+  std::unordered_map<std::string, std::vector<std::string>>
+      GetAllFrames() const {
     return frames_;
   }
 
-  void Clear();
   /**
    * @brief Method for clearing all data in object
    */
+  void Clear();
+
+  /**
+   * @brief Method for checking if a given frame id is valid
+   * @return Return true or false
+   */
+  bool IsValidFrame(const std::string& frame_id);
 
 private:
   /**
@@ -143,9 +153,10 @@ private:
    * @param time_stamp
    * @return T_ROS
    */
-  geometry_msgs::TransformStamped LookupTransform(const std::string& to_frame,
-                                                  const std::string& from_frame,
-                                                  const ros::Time& time_stamp);
+  geometry_msgs::TransformStamped
+      LookupTransform(const std::string& to_frame,
+                      const std::string& from_frame,
+                      const ros::Time& time_stamp) const;
 
   /**
    * @brief Private method for converting an Eigen transform to a ROS geometry
@@ -159,14 +170,15 @@ private:
   geometry_msgs::TransformStamped EigenToROS(const Eigen::Affine3d& T,
                                              const std::string& to_frame,
                                              const std::string& from_frame,
-                                             const ros::Time& time_stamp);
+                                             const ros::Time& time_stamp) const;
 
   /**
    * @brief Private method for converting a ROS transform to Eigen transform
    * @param T_ROS Transform from from_frame to to_frame to be converted
    * @return T
    */
-  Eigen::Affine3d ROSToEigen(const geometry_msgs::TransformStamped T_ROS);
+  Eigen::Affine3d
+      ROSToEigen(const geometry_msgs::TransformStamped& T_ROS) const;
 
   /**
    * @brief Method for storing frame names in frames_ variable
@@ -177,7 +189,9 @@ private:
 
   tf2::BufferCore Tree_{ros::Duration(1000)};
   std::string calibration_date_;
-  bool is_calibration_date_set_{false};
+  bool is_calibration_date_set_ = false;
+  ros::Time start_time_{0};
+  ros::Time end_time_{0};
 
   // Stores all frame names. Key: Parent frame Value: Vector of child frames
   std::unordered_map<std::string, std::vector<std::string>> frames_;

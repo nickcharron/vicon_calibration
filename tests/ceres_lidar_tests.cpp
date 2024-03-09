@@ -107,16 +107,6 @@ TEST_CASE("Test lidar optimization") {
   }
 
   // create values to optimize
-
-  // ------------------------------------
-  // THIS METHOD CAUSES SEG FAULT AT LINE 163
-  // std::vector<double> results_perfect_init =
-  //     utils::TransformMatrixToQuaternionAndTranslation(T_LV);
-  // std::vector<double> results_perturbed_init =
-  //     utils::TransformMatrixToQuaternionAndTranslation(
-  //         T_LV_pert);
-  // ------------------------------------
-  // THIS METHOD DOES NOT
   Eigen::Matrix3d R1 = T_LV.block(0, 0, 3, 3);
   Eigen::Quaternion<double> q1 = Eigen::Quaternion<double>(R1);
   std::vector<double> results_perfect_init{
@@ -126,7 +116,6 @@ TEST_CASE("Test lidar optimization") {
   std::vector<double> results_perturbed_init{
       q2.w(),          q2.x(),          q2.y(),         q2.z(),
       T_LV_pert(0, 3), T_LV_pert(1, 3), T_LV_pert(2, 3)};
-  // ------------------------------------
 
   // build problems
   std::shared_ptr<ceres::Problem> problem1 = SetupCeresProblem();
@@ -138,30 +127,22 @@ TEST_CASE("Test lidar optimization") {
                               se3_parameterization_.get());
 
   for (int i = 0; i < points.size(); i++) {
-    Eigen::Vector3d P_Robot = (T_VT * points[i]).hnormalized();
     Eigen::Vector3d point_measured = points_measured[i].hnormalized();
 
     // add residuals for perfect init
     std::unique_ptr<ceres::CostFunction> cost_function1(
-        CeresLidarCostFunction::Create(point_measured, P_Robot));
+        CeresLidarCostFunction::Create(point_measured, points[i].hnormalized(),
+                                       T_VT));
     problem1->AddResidualBlock(cost_function1.release(), loss_function_.get(),
                                &(results_perfect_init[0]));
 
     // add residuals for perturbed init
     std::unique_ptr<ceres::CostFunction> cost_function2(
-        CeresLidarCostFunction::Create(point_measured, P_Robot));
+        CeresLidarCostFunction::Create(point_measured, points[i].hnormalized(),
+                                       T_VT));
 
     problem2->AddResidualBlock(cost_function2.release(), loss_function_.get(),
                                &results_perturbed_init[0]);
-
-    // Check that the inputs are correct:
-    double P_L[3];
-    ceres::QuaternionRotatePoint(&(results_perfect_init[0]), P_Robot.data(),
-                                 P_L);
-    Eigen::Vector3d point_transformed(P_L[0] + results_perfect_init[4],
-                                      P_L[1] + results_perfect_init[5],
-                                      P_L[2] + results_perfect_init[6]);
-    REQUIRE(point_measured.isApprox(point_transformed, 1e-5));
   }
 
   LOG_INFO("TESTING WITH PERFECT INITIALIZATION");

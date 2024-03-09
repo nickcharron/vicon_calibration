@@ -245,14 +245,6 @@ Eigen::Matrix4d
   return T;
 }
 
-std::vector<double>
-    TransformMatrixToQuaternionAndTranslation(const Eigen::Matrix4d& T) {
-  Eigen::Matrix3d R = T.block(0, 0, 3, 3);
-  Eigen::Quaternion<double> q = Eigen::Quaternion<double>(R);
-  std::vector<double> pose{q.w(),   q.x(),   q.y(),  q.z(),
-                           T(0, 3), T(1, 3), T(2, 3)};
-}
-
 cv::Mat DrawCoordinateFrame(
     const cv::Mat& img_in, const Eigen::Matrix4d& T_Cam_Frame,
     const std::shared_ptr<vicon_calibration::CameraModel>& camera_model,
@@ -350,8 +342,8 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr
   return projected_points;
 }
 
-PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr& cloud, int r,
-                                     int g, int b) {
+PointCloudColor::Ptr ColorPointCloud(const PointCloud::Ptr& cloud, int r, int g,
+                                     int b) {
   auto coloured_cloud = std::make_shared<PointCloudColor>();
   uint32_t rgb = (static_cast<uint32_t>(r) << 16 |
                   static_cast<uint32_t>(g) << 8 | static_cast<uint32_t>(b));

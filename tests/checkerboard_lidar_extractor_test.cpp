@@ -8,9 +8,9 @@
 #include <tf2_msgs/TFMessage.h>
 
 #include <vicon_calibration/JsonTools.h>
+#include <vicon_calibration/PclConversions.h>
 #include <vicon_calibration/TfTree.h>
 #include <vicon_calibration/Utils.h>
-#include <vicon_calibration/PclConversions.h>
 #include <vicon_calibration/measurement_extractors/CheckerboardLidarExtractor.h>
 
 using namespace vicon_calibration;
@@ -66,8 +66,6 @@ void LoadTransforms() {
   rosbag::Bag bag;
   bag.open(bag_path, rosbag::bagmode::Read);
   rosbag::View tf_bag_view = {bag, rosbag::TopicQuery("/tf")};
-
-  tf_tree.start_time = tf_bag_view.getBeginTime();
 
   // Iterate over all message instances in our tf bag view
   std::cout << "Adding transforms" << std::endl;
@@ -146,7 +144,8 @@ void Setup() {
   setup_called = true;
 }
 
-TEST_CASE("Test checkerboard extractor with empty template cloud && empty scan") {
+TEST_CASE(
+    "Test checkerboard extractor with empty template cloud && empty scan") {
   Setup();
   std::shared_ptr<TargetParams> invalid_target_params =
       std::make_shared<TargetParams>(*target_params);
@@ -157,21 +156,21 @@ TEST_CASE("Test checkerboard extractor with empty template cloud && empty scan")
   std::shared_ptr<LidarExtractor> checkerboard_extractor =
       std::make_shared<CheckerboardLidarExtractor>(
           lidar_params, invalid_target_params, show_measurements, pcl_viewer);
-  REQUIRE_THROWS(
-      checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud));
+  REQUIRE_THROWS(checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE,
+                                                            sim_cloud));
 
   invalid_target_params->template_cloud = empty_cloud;
   checkerboard_extractor = std::make_shared<CheckerboardLidarExtractor>(
       lidar_params, invalid_target_params, show_measurements, pcl_viewer);
-  REQUIRE_THROWS(
-      checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud));
+  REQUIRE_THROWS(checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE,
+                                                            sim_cloud));
 
   checkerboard_extractor = std::make_shared<CheckerboardLidarExtractor>(
       lidar_params, target_params, show_measurements, pcl_viewer);
-  REQUIRE_THROWS(
-      checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, null_cloud));
-  REQUIRE_THROWS(
-      checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, empty_cloud));
+  REQUIRE_THROWS(checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE,
+                                                            null_cloud));
+  REQUIRE_THROWS(checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE,
+                                                            empty_cloud));
 }
 
 TEST_CASE("Test extracting checkerboard with invalid transformation matrix") {
@@ -181,12 +180,14 @@ TEST_CASE("Test extracting checkerboard with invalid transformation matrix") {
   T_INVALID3.setIdentity();
   T_INVALID3(3, 0) = 1;
   std::shared_ptr<LidarExtractor> checkerboard_extractor =
-      std::make_shared<CheckerboardLidarExtractor>(lidar_params, target_params,
-                                              show_measurements, pcl_viewer);
+      std::make_shared<CheckerboardLidarExtractor>(
+          lidar_params, target_params, show_measurements, pcl_viewer);
+  REQUIRE_THROWS(checkerboard_extractor->ProcessMeasurement(
+      TA_INVALID1.matrix(), sim_cloud));
   REQUIRE_THROWS(
-      checkerboard_extractor->ProcessMeasurement(TA_INVALID1.matrix(), sim_cloud));
-  REQUIRE_THROWS(checkerboard_extractor->ProcessMeasurement(T_INVALID2, sim_cloud));
-  REQUIRE_THROWS(checkerboard_extractor->ProcessMeasurement(T_INVALID3, sim_cloud));
+      checkerboard_extractor->ProcessMeasurement(T_INVALID2, sim_cloud));
+  REQUIRE_THROWS(
+      checkerboard_extractor->ProcessMeasurement(T_INVALID3, sim_cloud));
 }
 
 TEST_CASE("Test extracting checkerboard target with and without diverged ICP "
@@ -205,15 +206,16 @@ TEST_CASE("Test extracting checkerboard target with and without diverged ICP "
   div_target_params->crop_scan = div_crop1;
 
   std::shared_ptr<LidarExtractor> checkerboard_extractor =
-      std::make_shared<CheckerboardLidarExtractor>(lidar_params, div_target_params,
-                                              show_measurements, pcl_viewer);
+      std::make_shared<CheckerboardLidarExtractor>(
+          lidar_params, div_target_params, show_measurements, pcl_viewer);
   REQUIRE_THROWS(checkerboard_extractor->GetMeasurementValid());
   checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud);
   REQUIRE(checkerboard_extractor->GetMeasurementValid() == false);
   div_target_params->crop_scan = good_crop;
   checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud);
   REQUIRE(checkerboard_extractor->GetMeasurementValid() == true);
-  checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST_CONV, sim_cloud);
+  checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST_CONV,
+                                             sim_cloud);
   REQUIRE(checkerboard_extractor->GetMeasurementValid() == true);
   checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST_DIV, sim_cloud);
   REQUIRE(checkerboard_extractor->GetMeasurementValid() == false);
@@ -223,7 +225,8 @@ TEST_CASE("Test extracting checkerboard target with and without diverged ICP "
   conv_target_params->crop_scan = good_crop2;
   checkerboard_extractor = std::make_shared<CheckerboardLidarExtractor>(
       lidar_params, conv_target_params, show_measurements, pcl_viewer);
-  checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET2_EST_CONV, sim_cloud);
+  checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET2_EST_CONV,
+                                             sim_cloud);
   REQUIRE(checkerboard_extractor->GetMeasurementValid() == true);
 }
 
@@ -241,8 +244,8 @@ TEST_CASE("Test best correspondence estimation") {
   target_params2->crop_scan = div_crop;
 
   std::shared_ptr<LidarExtractor> checkerboard_extractor =
-      std::make_shared<CheckerboardLidarExtractor>(lidar_params, target_params2,
-                                              show_measurements, pcl_viewer);
+      std::make_shared<CheckerboardLidarExtractor>(
+          lidar_params, target_params2, show_measurements, pcl_viewer);
 
   // view keypoints 1
   checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_TRUE, sim_cloud);
@@ -256,7 +259,8 @@ TEST_CASE("Test best correspondence estimation") {
   Eigen::VectorXf div_crop2(6);
   div_crop2 << -0.7, 0.7, -0.5, 0.5, -0.5, 0.5;
   target_params2->crop_scan = div_crop2;
-  checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST_CONV, sim_cloud);
+  checkerboard_extractor->ProcessMeasurement(T_SCAN_TARGET1_EST_CONV,
+                                             sim_cloud);
   std::shared_ptr<PointCloud> keypoints2 =
       checkerboard_extractor->GetMeasurement();
   pcl_viewer->AddPointCloudToViewer(keypoints2, "keypoints2",

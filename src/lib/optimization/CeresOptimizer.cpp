@@ -16,11 +16,18 @@ void CeresOptimizer::SetupProblem() {
   for (int i = 0; i < results_.size(); i++) {
     problem_->AddParameterBlock(&(results_[i][0]), 7, parameterization_.get());
   }
-  for (int i = 0; i < target_corrections_.size(); i++) {
-    problem_->AddParameterBlock(&(target_corrections_[i][0]), 7,
+  for (int i = 0; i < target_camera_corrections_.size(); i++) {
+    problem_->AddParameterBlock(&(target_camera_corrections_[i][0]), 7,
                                 parameterization_.get());
-    if (!optimizer_params_.estimate_target_corrections) {
-      problem_->SetParameterBlockConstant(&(target_corrections_[i][0]));
+    if (!optimizer_params_.estimate_target_camera_corrections) {
+      problem_->SetParameterBlockConstant(&(target_camera_corrections_[i][0]));
+    }
+  }
+  for (int i = 0; i < target_lidar_corrections_.size(); i++) {
+    problem_->AddParameterBlock(&(target_lidar_corrections_[i][0]), 7,
+                                parameterization_.get());
+    if (!optimizer_params_.estimate_target_lidar_corrections) {
+      problem_->SetParameterBlockConstant(&(target_lidar_corrections_[i][0]));
     }
   }
 }
@@ -40,7 +47,10 @@ void CeresOptimizer::AddInitials() {
 
   // add target corrections
   for (uint32_t i = 0; i < inputs_.target_params.size(); i++) {
-    target_corrections_.push_back(std::vector<double>{1, 0, 0, 0, 0, 0, 0});
+    target_camera_corrections_.push_back(
+        std::vector<double>{1, 0, 0, 0, 0, 0, 0});
+    target_lidar_corrections_.push_back(
+        std::vector<double>{1, 0, 0, 0, 0, 0, 0});
   }
 
   // copy arrays:
@@ -83,9 +93,19 @@ Eigen::Matrix4d CeresOptimizer::GetFinalPose(SensorType type, int id) {
   return utils::InvertTransform(T_Sensor_Robot);
 }
 
-std::vector<Eigen::Matrix4d> CeresOptimizer::GetTargetCorrections() {
+std::vector<Eigen::Matrix4d> CeresOptimizer::GetTargetCameraCorrections() {
   std::vector<Eigen::Matrix4d> corrections;
-  for (const auto& target_correction : target_corrections_) {
+  for (const auto& target_correction : target_camera_corrections_) {
+    Eigen::Matrix4d T =
+        utils::QuaternionAndTranslationToTransformMatrix(target_correction);
+    corrections.push_back(T);
+  }
+  return corrections;
+}
+
+std::vector<Eigen::Matrix4d> CeresOptimizer::GetTargetLidarCorrections() {
+  std::vector<Eigen::Matrix4d> corrections;
+  for (const auto& target_correction : target_lidar_corrections_) {
     Eigen::Matrix4d T =
         utils::QuaternionAndTranslationToTransformMatrix(target_correction);
     corrections.push_back(T);
@@ -128,7 +148,7 @@ void CeresOptimizer::AddImageMeasurements() {
 
     problem_->AddResidualBlock(cost_function.release(), loss_function_.get(),
                                &(results_[sensor_index][0]),
-                               &(target_corrections_[target_index][0]));
+                               &(target_camera_corrections_[target_index][0]));
   }
   LOG_INFO("Added %d image measurements.", counter);
 }
@@ -153,16 +173,17 @@ void CeresOptimizer::AddLidarMeasurements() {
           corr.target_point_index);
       P_Target = Eigen::Vector3d(p.x, p.y, p.z);
     }
-    Eigen::Vector3d P_Robot =
-        (measurement->T_Robot_Target * P_Target.homogeneous()).hnormalized();
+
     const auto& p = measurement->keypoints->at(corr.measured_point_index);
     Eigen::Vector3d point_measured(p.x, p.y, p.z);
 
     std::unique_ptr<ceres::CostFunction> cost_function(
-        CeresLidarCostFunction::Create(point_measured, P_Robot));
+        CeresLidarCostFunction::Create(point_measured, P_Target,
+                                       measurement->T_Robot_Target));
 
     problem_->AddResidualBlock(cost_function.release(), loss_function_.get(),
-                               &(results_[sensor_index][0]));
+                               &(results_[sensor_index][0]),
+                               &(target_lidar_corrections_[target_index][0]));
   }
   LOG_INFO("Added %d lidar measurements.", counter);
 }

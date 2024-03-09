@@ -161,7 +161,8 @@ std::shared_ptr<CalibratorConfig> JsonTools::LoadViconCalibratorParams() {
   try {
     params->min_target_motion = J["min_target_motion"];
     params->min_target_rotation = J["min_target_rotation"];
-    params->max_target_velocity = J["max_target_velocity"];
+    params->max_target_velocity_mps = J["max_target_velocity_mps"];
+    params->velocity_window_size_s = J["velocity_window_size_s"];
     params->vicon_baselink_frame = J["vicon_baselink_frame"];
     params->time_steps = J["time_steps"];
     params->max_measurements = J["max_measurements"];

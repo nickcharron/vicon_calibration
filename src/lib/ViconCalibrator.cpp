@@ -23,9 +23,12 @@
 #include <vicon_calibration/Params.h>
 #include <vicon_calibration/PclConversions.h>
 #include <vicon_calibration/Utils.h>
+#include <vicon_calibration/measurement_extractors/CameraExtractor.h>
 #include <vicon_calibration/measurement_extractors/CameraExtractors.h>
+#include <vicon_calibration/measurement_extractors/LidarExtractor.h>
 #include <vicon_calibration/measurement_extractors/LidarExtractors.h>
 #include <vicon_calibration/optimization/CeresOptimizer.h>
+#include <vicon_calibration/optimization/Optimizer.h>
 
 namespace vicon_calibration {
 
@@ -98,16 +101,13 @@ void ViconCalibrator::LoadEstimatedExtrinsics() {
   }
 }
 
-void ViconCalibrator::LoadLookupTree(const ros::Time& lookup_time) {
+void ViconCalibrator::LoadLookupTree() {
   lookup_tree_->Clear();
-  ros::Duration time_window_half(1); // Check two second time window
-  ros::Time start_time = lookup_time - time_window_half;
-  ros::Time time_zero(0, 0);
-  if (start_time <= time_zero) { start_time = time_zero; }
-  ros::Time end_time = lookup_time + time_window_half;
-  rosbag::View view(bag_, rosbag::TopicQuery("/tf"), start_time, end_time,
-                    true);
-  bool first_msg = true;
+
+  // add an extra second of time before and after time window
+  ros::Duration dt(1);
+  rosbag::View view(bag_, rosbag::TopicQuery("/tf"), time_start_ - dt,
+                    time_end_ + dt, true);
   for (const auto& msg_instance : view) {
     auto tf_message = msg_instance.instantiate<tf2_msgs::TFMessage>();
     if (tf_message != nullptr) {
@@ -144,42 +144,23 @@ void ViconCalibrator::GetInitialCalibrations() {
   }
 }
 
-std::vector<Eigen::Affine3d>
-    ViconCalibrator::GetInitialGuess(const ros::Time& lookup_time,
-                                     const std::string& sensor_frame,
-                                     SensorType type, int sensor_id) {
-  std::vector<Eigen::Affine3d> T_sensor_tgts_estimated;
-  for (uint8_t n = 0; n < params_->target_params.size(); n++) {
-    // get transform from sensor to target
-    Eigen::Affine3d T_Robot_TargetN = lookup_tree_->GetTransformEigen(
-        params_->vicon_baselink_frame, params_->target_params[n]->frame_id,
-        lookup_time);
-    Eigen::Affine3d T_Sensor_TargetN;
-    bool success;
-    Eigen::Affine3d TA_Robot_Sensor;
-    TA_Robot_Sensor.matrix() = utils::GetT_Robot_Sensor(
-        calibrations_initial_, type, sensor_id, success);
-    T_Sensor_TargetN = TA_Robot_Sensor.inverse() * T_Robot_TargetN;
-
-    if (!success) {
-      LOG_ERROR(
-          "Unable to find calibration with sensor type %d, and sensor id %d",
-          static_cast<int>(type), static_cast<int>(sensor_id));
-      throw std::runtime_error{"Unable to find calibration."};
-    }
-
-    T_sensor_tgts_estimated.push_back(T_Sensor_TargetN);
-  }
-  return T_sensor_tgts_estimated;
-}
-
 void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
   std::string topic = params_->lidar_params[lidar_iter]->topic;
   std::string sensor_frame = params_->lidar_params[lidar_iter]->frame;
   LOG_INFO("Getting lidar measurements for frame id: %s and topic: %s .",
            sensor_frame.c_str(), topic.c_str());
-  std::vector<Eigen::Affine3d> T_lidar_tgts_estimated_prev(
-      params_->target_params.size());
+
+  // get calibration
+  bool success;
+  Eigen::Matrix4d T_Robot_Sensor = utils::GetT_Robot_Sensor(
+      calibrations_initial_, SensorType::LIDAR, lidar_iter, success);
+
+  if (!success) {
+    LOG_ERROR("Unable to find calibration for lidar ID: %d",
+              static_cast<int>(lidar_iter));
+    throw std::runtime_error{"Unable to find calibration."};
+  }
+
   rosbag::View view(bag_, rosbag::TopicQuery(topic), time_start_, time_end_,
                     true);
 
@@ -192,10 +173,10 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
   int current_measurement = 0;
   ros::Duration time_step(params_->time_steps);
   ros::Time time_last(0, 0);
-
+  int num_tgts = params_->target_params.size();
+  std::vector<Eigen::Matrix4d> T_Sensor_Tgts_prev(num_tgts);
   for (auto iter = view.begin(); iter != view.end(); iter++) {
     auto lidar_msg = iter->instantiate<sensor_msgs::PointCloud2>();
-    PointCloud::Ptr cloud = std::make_shared<PointCloud>();
 
     if (lidar_msg == NULL) {
       LOG_ERROR(
@@ -203,97 +184,84 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
           "make sure your input topics are of correct type.");
       throw std::runtime_error{"Unable to instantiate message."};
     }
-
     ros::Time time_current = lidar_msg->header.stamp;
-    if (time_current <= time_last + time_step) { continue; }
-    LoadLookupTree(time_current);
-    time_last = time_current;
-    pcl::PCLPointCloud2 cloud_pc2;
-    pcl_conversions::toPCL(*lidar_msg, cloud_pc2);
-    PointCloud cloud_tmp;
-    pcl::fromPCLPointCloud2(cloud_pc2, cloud_tmp);
-    input_cropbox_.Filter(cloud_tmp, *cloud);
-    std::vector<Eigen::Affine3d> T_lidar_tgts_estimated;
-    std::vector<Eigen::Affine3d> T_Robot_Targets;
-    std::vector<Eigen::Affine3d> T_Robot_Targets_before;
-    std::vector<Eigen::Affine3d> T_Robot_Targets_after;
-    try {
-      T_lidar_tgts_estimated = GetInitialGuess(time_current, sensor_frame,
-                                               SensorType::LIDAR, lidar_iter);
-      T_Robot_Targets = utils::GetTargetLocation(params_->target_params,
-                                                 params_->vicon_baselink_frame,
-                                                 time_current, lookup_tree_);
 
-      // get transforms just before and after which will be used to calculate
-      // velocities
-      ros::Duration time_window_half(0.15);
-      if (time_current - time_window_half > view.getBeginTime()) {
-        T_Robot_Targets_before = utils::GetTargetLocation(
-            params_->target_params, params_->vicon_baselink_frame,
-            time_current - time_window_half, lookup_tree_);
-      }
-      if (time_current + time_window_half < view.getEndTime()) {
-        T_Robot_Targets_after = utils::GetTargetLocation(
-            params_->target_params, params_->vicon_baselink_frame,
-            time_current + time_window_half, lookup_tree_);
-      }
-    } catch (const std::exception err) {
-      LOG_WARN("Transform lookup failed for time: %.1f", time_current.toSec());
+    // check min and max of tf tree
+    if (time_current <= lookup_tree_->GetStartTime() ||
+        time_current >= lookup_tree_->GetEndTime()) {
       continue;
     }
-    for (int n = 0; n < T_lidar_tgts_estimated.size(); n++) {
-      lidar_counters_.at(lidar_iter).total++;
-      if (T_lidar_tgts_estimated_prev.size() > 0) {
-        if (!PassedMinMotion(T_lidar_tgts_estimated_prev[n],
-                             T_lidar_tgts_estimated[n])) {
-          lidar_counters_.at(lidar_iter).rejected_still++;
-          continue;
-        }
-      }
-      if (T_Robot_Targets_before.size() > 0 &&
-          T_Robot_Targets_after.size() > 0) {
-        if (!PassedMaxVelocity(T_Robot_Targets_before[n],
-                               T_Robot_Targets_after[n])) {
-          LOG_INFO("Target is moving too quickly. Skipping.");
-          lidar_counters_.at(lidar_iter).rejected_fast++;
-          continue;
-        }
+
+    // check time increment is greater than min
+    if (time_current <= time_last + time_step) { continue; }
+    time_last = time_current;
+
+    // iterate through all targets adding measurements for this device
+    for (int tgt_id = 0; tgt_id < num_tgts; tgt_id++) {
+      // get estimated target pose
+      Eigen::Matrix4d T_Robot_Target =
+          lookup_tree_
+              ->GetTransformEigen(params_->vicon_baselink_frame,
+                                  params_->target_params[tgt_id]->frame_id,
+                                  time_current)
+              .matrix();
+      Eigen::Matrix4d T_Sensor_Tgt =
+          T_Robot_Sensor.inverse().matrix() * T_Robot_Target;
+
+      // check min motion
+      if (!PassedMinMotion(T_Sensor_Tgt, T_Sensor_Tgts_prev[tgt_id])) {
+        lidar_counters_.at(lidar_iter).rejected_still++;
+        continue;
       }
 
-      lidar_extractor_ = LidarExtractor::Create(
-          params_->target_params[n]->lidar_extractor_type,
-          params_->lidar_params[lidar_iter], params_->target_params[n],
+      // check max velocity
+      if (!PassedVelocityThreshold(T_Robot_Target, time_current, tgt_id)) {
+        LOG_INFO("Target is moving too quickly. Skipping.");
+        lidar_counters_.at(lidar_iter).rejected_fast++;
+        continue;
+      }
+
+      // extract measurement
+      pcl::PCLPointCloud2 cloud_pc2;
+      pcl_conversions::toPCL(*lidar_msg, cloud_pc2);
+      PointCloud cloud_tmp;
+      pcl::fromPCLPointCloud2(cloud_pc2, cloud_tmp);
+      PointCloud::Ptr cloud = std::make_shared<PointCloud>();
+      input_cropbox_.Filter(cloud_tmp, *cloud);
+
+      std::shared_ptr<LidarExtractor> lidar_extractor = LidarExtractor::Create(
+          params_->target_params[tgt_id]->lidar_extractor_type,
+          params_->lidar_params[lidar_iter], params_->target_params[tgt_id],
           params_->show_lidar_measurements, pcl_viewer_);
 
       if (params_->show_lidar_measurements) {
         std::cout << "---------------------------------\n"
                   << "Processing measurement for: Lidar"
                   << std::to_string(lidar_iter + 1) << ", Tgt"
-                  << std::to_string(n + 1) << "\n"
-                  << "Timestamp: " << std::setprecision(10)
-                  << time_current.toSec() << "\n";
+                  << std::to_string(tgt_id + 1) << "\n"
+                  << "Timestamp: " << std::to_string(time_current.toSec())
+                  << "\n";
       }
-      lidar_extractor_->ProcessMeasurement(T_lidar_tgts_estimated[n].matrix(),
-                                           cloud,
-                                           params_->show_lidar_measurements);
+      lidar_extractor->ProcessMeasurement(T_Sensor_Tgt, cloud,
+                                          params_->show_lidar_measurements);
 
-      if (lidar_extractor_->GetMeasurementValid()) {
+      if (lidar_extractor->GetMeasurementValid()) {
         lidar_counters_.at(lidar_iter).accepted++;
         valid_measurements++;
-        std::shared_ptr<LidarMeasurement> lidar_measurement =
-            std::make_shared<LidarMeasurement>();
-        lidar_measurement->keypoints = lidar_extractor_->GetMeasurement();
-        lidar_measurement->T_Robot_Target = T_Robot_Targets[n].matrix();
+        auto lidar_measurement = std::make_shared<LidarMeasurement>();
+        lidar_measurement->keypoints = lidar_extractor->GetMeasurement();
+        lidar_measurement->T_Robot_Target = T_Robot_Target;
         lidar_measurement->lidar_id = lidar_iter;
-        lidar_measurement->target_id = n;
+        lidar_measurement->target_id = tgt_id;
         lidar_measurement->lidar_frame =
             params_->lidar_params[lidar_iter]->frame;
-        lidar_measurement->target_frame = params_->target_params[n]->frame_id;
+        lidar_measurement->target_frame =
+            params_->target_params[tgt_id]->frame_id;
         lidar_measurement->time_stamp = time_current;
         lidar_measurements_[lidar_iter][current_measurement] =
             lidar_measurement;
         LOG_INFO("Measurement accepted.");
-        T_lidar_tgts_estimated_prev[n] = T_lidar_tgts_estimated[n];
+        T_Sensor_Tgts_prev[tgt_id] = T_Sensor_Tgt;
       } else {
         lidar_counters_.at(lidar_iter).rejected_invalid++;
         LOG_INFO("Measurement rejected.");
@@ -301,11 +269,9 @@ void ViconCalibrator::GetLidarMeasurements(uint8_t& lidar_iter) {
       current_measurement++;
     }
 
-    if (lidar_counters_.at(lidar_iter).accepted != 0 &&
-        lidar_counters_.at(lidar_iter).accepted == params_->max_measurements) {
-      LOG_INFO("Stored %d measurements for lidar with frame id: %s",
-               valid_measurements, sensor_frame.c_str());
-      return;
+    // check max measurements
+    if (lidar_counters_.at(lidar_iter).accepted >= params_->max_measurements) {
+      break;
     }
   }
   LOG_INFO("Stored %d measurements for lidar with frame id: %s",
@@ -317,8 +283,18 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
   std::string sensor_frame = params_->camera_params[cam_iter]->frame;
   LOG_INFO("Getting camera measurements for frame id: %s and topic: %s .",
            sensor_frame.c_str(), topic.c_str());
-  std::vector<Eigen::Affine3d> T_cam_tgts_estimated_prev(
-      params_->target_params.size());
+
+  // get calibration
+  bool success;
+  Eigen::Matrix4d T_Robot_Sensor = utils::GetT_Robot_Sensor(
+      calibrations_initial_, SensorType::CAMERA, cam_iter, success);
+
+  if (!success) {
+    LOG_ERROR("Unable to find calibration for camera ID: %d",
+              static_cast<int>(cam_iter));
+    throw std::runtime_error{"Unable to find calibration."};
+  }
+
   rosbag::View view(bag_, rosbag::TopicQuery(topic), time_start_, time_end_,
                     true);
   if (view.size() == 0) {
@@ -329,11 +305,13 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
   int valid_measurements = 0;
   int current_measurement = 0;
   ros::Duration time_step(params_->time_steps);
-  ros::Time time_last = view.getBeginTime();
+  ros::Time time_last(0, 0);
+  int num_tgts = params_->target_params.size();
+  std::vector<Eigen::Matrix4d> T_Sensor_Tgts_prev(num_tgts);
 
-  sensor_msgs::ImageConstPtr img_msg;
   for (auto iter = view.begin(); iter != view.end(); iter++) {
-    img_msg = iter->instantiate<sensor_msgs::Image>();
+    sensor_msgs::ImageConstPtr img_msg =
+        iter->instantiate<sensor_msgs::Image>();
 
     if (img_msg == NULL) {
       LOG_ERROR("Unable to instantiate message of type sensor_msgs::Image, "
@@ -343,98 +321,82 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
 
     ros::Time time_current = img_msg->header.stamp;
 
-    if (time_current <= time_last + time_step) { continue; }
-
-    LoadLookupTree(time_current);
-
-    time_last = time_current;
-    std::vector<Eigen::Affine3d> T_cam_tgts_estimated;
-    std::vector<Eigen::Affine3d> T_Robot_Targets;
-    std::vector<Eigen::Affine3d> T_Robot_Targets_before;
-    std::vector<Eigen::Affine3d> T_Robot_Targets_after;
-    try {
-      T_cam_tgts_estimated = GetInitialGuess(time_current, sensor_frame,
-                                             SensorType::CAMERA, cam_iter);
-      T_Robot_Targets = utils::GetTargetLocation(params_->target_params,
-                                                 params_->vicon_baselink_frame,
-                                                 time_current, lookup_tree_);
-
-      // get transforms just before and after which will be used to
-      // calculate velocities
-      ros::Duration time_window_half(0.15);
-      if (time_current - time_window_half > view.getBeginTime()) {
-        T_Robot_Targets_before = utils::GetTargetLocation(
-            params_->target_params, params_->vicon_baselink_frame,
-            time_current - time_window_half, lookup_tree_);
-      }
-      if (time_current + time_window_half < view.getEndTime()) {
-        T_Robot_Targets_after = utils::GetTargetLocation(
-            params_->target_params, params_->vicon_baselink_frame,
-            time_current + time_window_half, lookup_tree_);
-      }
-    } catch (...) {
-      LOG_WARN("Transform lookup failed for time: %.1f", time_current.toSec());
+    // check min and max of tf tree
+    if (time_current <= lookup_tree_->GetStartTime() ||
+        time_current >= lookup_tree_->GetEndTime()) {
       continue;
     }
 
-    for (int n = 0; n < T_cam_tgts_estimated.size(); n++) {
-      camera_counters_.at(cam_iter).total++;
-      if (T_cam_tgts_estimated_prev.size() > 0) {
-        if (!PassedMinMotion(T_cam_tgts_estimated_prev[n],
-                             T_cam_tgts_estimated[n])) {
-          camera_counters_.at(cam_iter).rejected_still++;
-          continue;
-        }
+    // check time increment is greater than min
+    if (time_current <= time_last + time_step) { continue; }
+    time_last = time_current;
+
+    // iterate through all targets adding measurements for this device
+    for (int tgt_id = 0; tgt_id < num_tgts; tgt_id++) {
+      // get estimated target pose
+      Eigen::Matrix4d T_Robot_Target =
+          lookup_tree_
+              ->GetTransformEigen(params_->vicon_baselink_frame,
+                                  params_->target_params[tgt_id]->frame_id,
+                                  time_current)
+              .matrix();
+      Eigen::Matrix4d T_Sensor_Tgt =
+          T_Robot_Sensor.inverse().matrix() * T_Robot_Target;
+
+      // check min motion
+      if (!PassedMinMotion(T_Sensor_Tgt, T_Sensor_Tgts_prev[tgt_id])) {
+        camera_counters_.at(cam_iter).rejected_still++;
+        continue;
       }
 
-      if (T_Robot_Targets_before.size() > 0 &&
-          T_Robot_Targets_after.size() > 0) {
-        if (!PassedMaxVelocity(T_Robot_Targets_before[n],
-                               T_Robot_Targets_after[n])) {
-          camera_counters_.at(cam_iter).rejected_fast++;
-          continue;
-        }
+      // check max velocity
+      if (!PassedVelocityThreshold(T_Robot_Target, time_current, tgt_id)) {
+        LOG_INFO("Target is moving too quickly. Skipping.");
+        camera_counters_.at(cam_iter).rejected_fast++;
+        continue;
       }
 
-      camera_extractor_ = CameraExtractor::Create(
-          params_->target_params[n]->camera_extractor_type);
+      // extract measurement
+      std::shared_ptr<CameraExtractor> camera_extractor =
+          CameraExtractor::Create(
+              params_->target_params[tgt_id]->camera_extractor_type);
 
       if (params_->show_camera_measurements) {
         std::cout << "---------------------------------\n"
                   << "Processing measurement for: Cam"
                   << std::to_string(cam_iter + 1) << ", Tgt"
-                  << std::to_string(n + 1) << "\n"
-                  << "Timestamp: " << std::setprecision(10)
-                  << time_current.toSec() << "\n";
+                  << std::to_string(tgt_id + 1) << "\n"
+                  << "Timestamp: " << std::to_string(time_current.toSec())
+                  << "\n";
       }
-      camera_extractor_->SetCameraParams(params_->camera_params[cam_iter]);
-      camera_extractor_->SetTargetParams(params_->target_params[n]);
-      camera_extractor_->SetShowMeasurements(params_->show_camera_measurements);
+      camera_extractor->SetCameraParams(params_->camera_params[cam_iter]);
+      camera_extractor->SetTargetParams(params_->target_params[tgt_id]);
+      camera_extractor->SetShowMeasurements(params_->show_camera_measurements);
       auto img = utils::RosImgToMat(*img_msg);
-      camera_extractor_->ProcessMeasurement(T_cam_tgts_estimated[n].matrix(),
-                                            img);
+      camera_extractor->ProcessMeasurement(T_Sensor_Tgt, img);
       params_->show_camera_measurements =
-          camera_extractor_->GetShowMeasurements();
+          camera_extractor->GetShowMeasurements();
 
       // process measurement
-      if (camera_extractor_->GetMeasurementValid()) {
+      if (camera_extractor->GetMeasurementValid()) {
         camera_counters_.at(cam_iter).accepted++;
         valid_measurements++;
         std::shared_ptr<CameraMeasurement> camera_measurement =
             std::make_shared<CameraMeasurement>();
         camera_measurement->img = img.clone();
-        camera_measurement->keypoints = camera_extractor_->GetMeasurement();
-        camera_measurement->T_Robot_Target = T_Robot_Targets[n].matrix();
+        camera_measurement->keypoints = camera_extractor->GetMeasurement();
+        camera_measurement->T_Robot_Target = T_Robot_Target;
         camera_measurement->camera_id = cam_iter;
-        camera_measurement->target_id = n;
+        camera_measurement->target_id = tgt_id;
         camera_measurement->camera_frame =
             params_->camera_params[cam_iter]->frame;
-        camera_measurement->target_frame = params_->target_params[n]->frame_id;
+        camera_measurement->target_frame =
+            params_->target_params[tgt_id]->frame_id;
         camera_measurement->time_stamp = time_current;
         camera_measurements_[cam_iter][current_measurement] =
             camera_measurement;
         LOG_INFO("Measurement accepted.");
-        T_cam_tgts_estimated_prev[n] = T_cam_tgts_estimated[n];
+        T_Sensor_Tgts_prev[tgt_id] = T_Sensor_Tgt;
       } else {
         camera_counters_.at(cam_iter).rejected_invalid++;
         LOG_INFO("Measurement rejected.");
@@ -442,11 +404,9 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
       current_measurement++;
     }
 
-    if (camera_counters_.at(cam_iter).accepted != 0 &&
-        camera_counters_.at(cam_iter).accepted == params_->max_measurements) {
-      LOG_INFO("Stored %d measurements for camera with frame id: %s",
-               valid_measurements, sensor_frame.c_str());
-      return;
+    // check max measurements
+    if (camera_counters_.at(cam_iter).accepted >= params_->max_measurements) {
+      break;
     }
   }
 
@@ -454,12 +414,12 @@ void ViconCalibrator::GetCameraMeasurements(uint8_t& cam_iter) {
            valid_measurements, sensor_frame.c_str());
 }
 
-bool ViconCalibrator::PassedMinMotion(const Eigen::Affine3d& TA_S_T_prev,
-                                      const Eigen::Affine3d& TA_S_T_curr) {
+bool ViconCalibrator::PassedMinMotion(const Eigen::Matrix4d& TA_S_T_prev,
+                                      const Eigen::Matrix4d& TA_S_T_curr) {
   double error_t =
-      (TA_S_T_curr.translation() - TA_S_T_prev.translation()).norm();
-  double error_r = utils::CalculateRotationError(TA_S_T_prev.rotation(),
-                                                 TA_S_T_curr.rotation());
+      (TA_S_T_curr.block(0, 3, 3, 1) - TA_S_T_prev.block(0, 3, 3, 1)).norm();
+  double error_r = utils::CalculateRotationError(TA_S_T_prev.block(0, 0, 3, 3),
+                                                 TA_S_T_curr.block(0, 0, 3, 3));
   if (error_t > params_->min_target_motion) {
     return true;
   } else if (error_r > params_->min_target_motion) {
@@ -469,16 +429,35 @@ bool ViconCalibrator::PassedMinMotion(const Eigen::Affine3d& TA_S_T_prev,
   }
 }
 
-bool ViconCalibrator::PassedMaxVelocity(const Eigen::Affine3d& TA_S_T_before,
-                                        const Eigen::Affine3d& TA_S_T_after) {
-  Eigen::Vector3d velocities =
-      TA_S_T_after.translation() - TA_S_T_before.translation();
-  velocities[0] = std::abs(velocities[0]) / 0.3;
-  velocities[1] = std::abs(velocities[1]) / 0.3;
-  velocities[2] = std::abs(velocities[2]) / 0.3;
-  if (velocities[0] > params_->max_target_velocity ||
-      velocities[1] > params_->max_target_velocity ||
-      velocities[2] > params_->max_target_velocity) {
+bool ViconCalibrator::PassedVelocityThreshold(
+    const Eigen::Matrix4d& T_Robot_Target, const ros::Time& time_current,
+    int tgt_id) {
+  ros::Time time_prev =
+      time_current - ros::Duration(params_->velocity_window_size_s / 2);
+  ros::Time time_next =
+      time_current + ros::Duration(params_->velocity_window_size_s / 2);
+
+  if (time_prev <= lookup_tree_->GetStartTime() ||
+      time_next >= lookup_tree_->GetEndTime()) {
+    return false;
+  }
+
+  Eigen::Affine3d T_Robot_Target_Prev = lookup_tree_->GetTransformEigen(
+      params_->vicon_baselink_frame, params_->target_params[tgt_id]->frame_id,
+      time_prev);
+
+  Eigen::Affine3d T_Robot_Target_Next = lookup_tree_->GetTransformEigen(
+      params_->vicon_baselink_frame, params_->target_params[tgt_id]->frame_id,
+      time_next);
+
+  Eigen::Vector3d vel_mps =
+      T_Robot_Target_Prev.translation() - T_Robot_Target_Next.translation();
+
+  vel_mps[0] = std::abs(vel_mps[0]) / params_->velocity_window_size_s;
+  vel_mps[1] = std::abs(vel_mps[1]) / params_->velocity_window_size_s;
+  vel_mps[2] = std::abs(vel_mps[2]) / params_->velocity_window_size_s;
+
+  if (vel_mps.norm() > params_->max_target_velocity_mps) {
     return false;
   } else {
     return true;
@@ -567,6 +546,7 @@ void ViconCalibrator::Setup() {
   }
 
   GetTimeWindow();
+  LoadLookupTree();
 
   // initialize size of lidar measurement and camera measurement containers
   ros::Duration bag_length = time_end_ - time_start_;
@@ -652,7 +632,8 @@ void ViconCalibrator::Solve() {
 
   optimizer->Solve();
   calibrations_final_ = optimizer->GetResults();
-  target_corrections_ = optimizer->GetTargetCorrections();
+  target_camera_corrections_ = optimizer->GetTargetCameraCorrections();
+  target_lidar_corrections_ = optimizer->GetTargetLidarCorrections();
 }
 
 void ViconCalibrator::RunCalibration() {
@@ -668,7 +649,10 @@ void ViconCalibrator::RunVerification() {
     utils::OutputCalibrations(calibrations_initial_,
                               "Initial Calibration Estimates:");
     utils::OutputCalibrations(calibrations_final_, "Optimized Calibrations:");
-    utils::OutputTargetCorrections(target_corrections_);
+    std::cout << "Outputting Target Camera Corrections:\n\n";
+    utils::OutputTargetCorrections(target_camera_corrections_);
+    std::cout << "Outputting Target Lidar Corrections:\n\n";
+    utils::OutputTargetCorrections(target_lidar_corrections_);
     LOG_INFO("Skipping calibration verification since no config was input");
     return;
   }
@@ -681,7 +665,8 @@ void ViconCalibrator::RunVerification() {
   ver.SetCameraMeasurements(camera_measurements_);
   ver.SetInitialCalib(calibrations_initial_);
   ver.SetOptimizedCalib(calibrations_final_);
-  ver.SetTargetCorrections(target_corrections_);
+  ver.SetTargetCameraCorrections(target_camera_corrections_);
+  ver.SetTargetLidarCorrections(target_lidar_corrections_);
   ver.ProcessResults();
 }
 

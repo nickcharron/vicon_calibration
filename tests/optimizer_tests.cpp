@@ -381,13 +381,12 @@ TEST_CASE("Test with same data and not using Ceres Optimizer Class") {
   // get lidar measurements and add cost functions
   for (int i = 0; i < target_params[0]->keypoints_lidar.cols(); i++) {
     Eigen::Vector3d P_Target = target_params[0]->keypoints_lidar.col(i);
-    Eigen::Vector3d P_Robot = (T_VT * P_Target.homogeneous()).hnormalized();
     Eigen::Vector3d P_Lidar_perf =
         (T_LV * T_VT * P_Target.homogeneous()).hnormalized();
     Eigen::Vector3d P_Lidar_pert =
         (T_LV_pert * T_VT * P_Target.homogeneous()).hnormalized();
     std::unique_ptr<ceres::CostFunction> cost_function(
-        CeresLidarCostFunction::Create(P_Lidar_perf, P_Robot));
+        CeresLidarCostFunction::Create(P_Lidar_perf, P_Target, T_VT));
     problem->AddResidualBlock(cost_function.release(), loss_function_.get(),
                               &(results_perturbed_init[1][0]));
   }

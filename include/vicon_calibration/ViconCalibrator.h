@@ -9,9 +9,7 @@
 #include <vicon_calibration/Params.h>
 #include <vicon_calibration/TfTree.h>
 #include <vicon_calibration/Utils.h>
-#include <vicon_calibration/measurement_extractors/CameraExtractor.h>
-#include <vicon_calibration/measurement_extractors/LidarExtractor.h>
-#include <vicon_calibration/optimization/Optimizer.h>
+#include <vicon_calibration/Visualizer.h>
 
 namespace vicon_calibration {
 
@@ -48,42 +46,23 @@ private:
 
   void GetMeasurements();
 
-  void LoadLookupTree(const ros::Time& lookup_time);
+  void LoadLookupTree();
 
   void GetInitialCalibrations();
 
   void RunVerification();
 
-  /**
-   * @brief get initial guess of where the targets are located at the current
-   * time point
-   * @param sensor_frame
-   * @return T_sensor_tgts_estimated estimated transform from targets to sensor
-   * frame
-   */
-  std::vector<Eigen::Affine3d> GetInitialGuess(const ros::Time& lookup_time,
-                                               const std::string& sensor_frame,
-                                               SensorType type, int sensor_id);
-
-  /**
-   * @brief Compute the measurements from one lidar
-   * @param lidar_iter
-   */
   void GetLidarMeasurements(uint8_t& lidar_iter);
 
-  /**
-   * @brief Compute the measurements from the cameras
-   * @param cam_iter
-   */
   void GetCameraMeasurements(uint8_t& cam_iter);
 
   void SetCalibrationInitials();
 
-  bool PassedMinMotion(const Eigen::Affine3d& TA_S_T_prev,
-                       const Eigen::Affine3d& TA_S_T_curr);
+  bool PassedMinMotion(const Eigen::Matrix4d& TA_S_T_prev,
+                       const Eigen::Matrix4d& TA_S_T_curr);
 
-  bool PassedMaxVelocity(const Eigen::Affine3d& TA_S_T_before,
-                         const Eigen::Affine3d& TA_S_T_after);
+  bool PassedVelocityThreshold(const Eigen::Matrix4d& T_Robot_Target,
+                               const ros::Time& time_current, int tgt_id);
 
   void OutputMeasurementStats();
 
@@ -95,8 +74,6 @@ private:
   std::vector<vicon_calibration::Counters> camera_counters_;
   std::string results_directory_;
   std::string config_file_path_;
-  std::shared_ptr<LidarExtractor> lidar_extractor_;
-  std::shared_ptr<CameraExtractor> camera_extractor_;
   ros::Time time_start_;
   ros::Time time_end_;
   std::shared_ptr<TfTree> estimate_extrinsics_ = std::make_shared<TfTree>();
@@ -105,7 +82,8 @@ private:
   CameraMeasurements camera_measurements_;
   CalibrationResults calibrations_initial_;
   CalibrationResults calibrations_final_;
-  std::vector<Eigen::Matrix4d> target_corrections_;
+  std::vector<Eigen::Matrix4d> target_camera_corrections_;
+  std::vector<Eigen::Matrix4d> target_lidar_corrections_;
 
   rosbag::Bag bag_;
   std::shared_ptr<Visualizer> pcl_viewer_;

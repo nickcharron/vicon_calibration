@@ -134,9 +134,14 @@ void CalibrationVerification::SetOptimizedCalib(
   optimized_calib_set_ = true;
 }
 
-void CalibrationVerification::SetTargetCorrections(
+void CalibrationVerification::SetTargetCameraCorrections(
     const std::vector<Eigen::Matrix4d>& corrections) {
-  target_corrections_ = corrections;
+  target_camera_corrections_ = corrections;
+}
+
+void CalibrationVerification::SetTargetLidarCorrections(
+    const std::vector<Eigen::Matrix4d>& corrections) {
+  target_lidar_corrections_ = corrections;
 }
 
 void CalibrationVerification::SetParams(
@@ -200,7 +205,19 @@ void CalibrationVerification::PrintTargetCorrections(
     const std::string& file_name) {
   fs::path output_path = fs::path(results_directory_) / fs::path(file_name);
   std::ofstream file(output_path);
-  for (const auto& T : target_corrections_) {
+  file << "Target Camera Corrections: \n\n";
+  for (const auto& T : target_camera_corrections_) {
+    Eigen::Matrix3d R = T.block(0, 0, 3, 3);
+    Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
+    file << "T_TargetCorrected_Target\n"
+         << T << "\n"
+         << "rpy (deg): [" << utils::RadToDeg(utils::WrapToTwoPi(rpy[0]))
+         << ", " << utils::RadToDeg(utils::WrapToTwoPi(rpy[1])) << ", "
+         << utils::RadToDeg(utils::WrapToTwoPi(rpy[2])) << "]\n\n";
+  }
+
+  file << "Target Lidar Corrections: \n\n";
+  for (const auto& T : target_lidar_corrections_) {
     Eigen::Matrix3d R = T.block(0, 0, 3, 3);
     Eigen::Vector3d rpy = R.eulerAngles(0, 1, 2);
     file << "T_TargetCorrected_Target\n"
@@ -365,8 +382,10 @@ void CalibrationVerification::SaveLidarVisuals() {
         const PointCloud::Ptr target =
             params_->target_params[n]->template_cloud;
         PointCloud::Ptr target_transformed = std::make_shared<PointCloud>();
+        Eigen::Matrix4d T_Robot_Target =
+            T_Robot_Targets[n].matrix() * target_lidar_corrections_.at(n);
         pcl::transformPointCloud(*target, *target_transformed,
-                                 T_Robot_Targets[n]);
+                                 Eigen::Affine3d{T_Robot_Target});
         *targets_combined = *targets_combined + *target_transformed;
       }
       SaveScans(scan_trans_est, scan_trans_opt, targets_combined,
@@ -428,8 +447,9 @@ void CalibrationVerification::GetLidarErrors() {
   for (uint8_t lidar_iter = 0; lidar_iter < params_->lidar_params.size();
        lidar_iter++) {
     // get initial calibration and optimized calibration
-    Eigen::Affine3d TA_Robot_Sensor_est, TA_Robot_Sensor_true,
-        TA_Robot_Sensor_opt;
+    Eigen::Affine3d TA_Robot_Sensor_est;
+    Eigen::Affine3d TA_Robot_Sensor_true;
+    Eigen::Affine3d TA_Robot_Sensor_opt;
     if (ground_truth_calib_set_) {
       for (CalibrationResult calib : calibrations_ground_truth_) {
         if (calib.type == SensorType::LIDAR && calib.sensor_id == lidar_iter) {
@@ -452,29 +472,19 @@ void CalibrationVerification::GetLidarErrors() {
     }
 
     // iterate through all measurements for this lidar
-    LidarMeasurementPtr measurement;
-    PointCloud::Ptr measured_keypoints, estimated_keypoints_target;
-    PointCloud::Ptr estimated_keypoints_est = std::make_shared<PointCloud>();
-    PointCloud::Ptr estimated_keypoints_opt = std::make_shared<PointCloud>();
-    PointCloud::Ptr estimated_keypoints_true = std::make_shared<PointCloud>();
-    Eigen::Matrix4d T_Sensor_Target_opt;
-    Eigen::Matrix4d T_Sensor_Target_est;
-    Eigen::Matrix4d T_Sensor_Target_true;
-    std::vector<Eigen::Vector3d> lidar_errors_opt;
-    std::vector<Eigen::Vector3d> lidar_errors_init;
-    std::vector<Eigen::Vector3d> lidar_errors_true;
     for (int meas_iter = 0; meas_iter < lidar_measurements_[lidar_iter].size();
          meas_iter++) {
       if (lidar_measurements_[lidar_iter][meas_iter] == nullptr) { continue; }
-      measurement = lidar_measurements_[lidar_iter][meas_iter];
+      LidarMeasurementPtr measurement =
+          lidar_measurements_[lidar_iter][meas_iter];
 
-      T_Sensor_Target_opt =
+      Eigen::Matrix4d T_Sensor_Target_opt =
           TA_Robot_Sensor_opt.inverse().matrix() * measurement->T_Robot_Target;
-      T_Sensor_Target_est =
+      Eigen::Matrix4d T_Sensor_Target_est =
           TA_Robot_Sensor_est.inverse().matrix() * measurement->T_Robot_Target;
 
       // get estimated keypoints given calibrations
-      estimated_keypoints_target = std::make_shared<PointCloud>();
+      auto estimated_keypoints_target = std::make_shared<PointCloud>();
       const auto& kpts =
           params_->target_params[measurement->target_id]->keypoints_lidar;
       int num_keypoints = kpts.cols();
@@ -491,14 +501,20 @@ void CalibrationVerification::GetLidarErrors() {
             params_->target_params[measurement->target_id]->template_cloud;
       }
 
+      PointCloud::Ptr estimated_keypoints_est = std::make_shared<PointCloud>();
       pcl::transformPointCloud(*estimated_keypoints_target,
                                *estimated_keypoints_est, T_Sensor_Target_est);
-      pcl::transformPointCloud(*estimated_keypoints_target,
-                               *estimated_keypoints_opt, T_Sensor_Target_opt);
 
-      lidar_errors_init =
+      const auto& T_TargetCorrected_Target =
+          target_lidar_corrections_.at(measurement->target_id);
+      PointCloud::Ptr estimated_keypoints_opt = std::make_shared<PointCloud>();
+      pcl::transformPointCloud(
+          *estimated_keypoints_target, *estimated_keypoints_opt,
+          Eigen::Affine3d{T_Sensor_Target_opt * T_TargetCorrected_Target});
+
+      std::vector<Eigen::Vector3d> lidar_errors_init =
           CalculateLidarErrors(measurement->keypoints, estimated_keypoints_est);
-      lidar_errors_opt =
+      std::vector<Eigen::Vector3d> lidar_errors_opt =
           CalculateLidarErrors(measurement->keypoints, estimated_keypoints_opt);
 
       lidar_errors_opt_.insert(lidar_errors_opt_.end(),
@@ -510,13 +526,16 @@ void CalibrationVerification::GetLidarErrors() {
                                 lidar_errors_init.end());
 
       if (ground_truth_calib_set_) {
-        T_Sensor_Target_true = TA_Robot_Sensor_true.inverse().matrix() *
-                               measurement->T_Robot_Target;
+        Eigen::Matrix4d T_Sensor_Target_true =
+            TA_Robot_Sensor_true.inverse().matrix() *
+            measurement->T_Robot_Target;
+        PointCloud::Ptr estimated_keypoints_true =
+            std::make_shared<PointCloud>();
         pcl::transformPointCloud(*estimated_keypoints_target,
                                  *estimated_keypoints_true,
                                  T_Sensor_Target_true);
-        lidar_errors_true = CalculateLidarErrors(measurement->keypoints,
-                                                 estimated_keypoints_true);
+        std::vector<Eigen::Vector3d> lidar_errors_true = CalculateLidarErrors(
+            measurement->keypoints, estimated_keypoints_true);
 
         lidar_errors_true_.insert(lidar_errors_true_.end(),
                                   lidar_errors_true.begin(),
@@ -682,7 +701,9 @@ void CalibrationVerification::GetCameraErrors() {
       }
     }
 
-    float camera_pixel_angle = params_->camera_params[cam_iter]->camera_model->GetFOV() / params_->camera_params[cam_iter]->camera_model->GetWidth();
+    float camera_pixel_angle =
+        params_->camera_params[cam_iter]->camera_model->GetFOV() /
+        params_->camera_params[cam_iter]->camera_model->GetWidth();
 
     // iterate through all measurements for this camera
     for (int meas_iter = 0; meas_iter < camera_measurements_[cam_iter].size();
@@ -722,7 +743,7 @@ void CalibrationVerification::GetCameraErrors() {
                                  camera_errors_init.end());
 
       double camera_error = 0;
-      for(int i = 0; i < camera_errors_opt.size(); i++){
+      for (int i = 0; i < camera_errors_opt.size(); i++) {
         camera_error += camera_errors_opt[i].norm();
       }
       camera_error = camera_error / camera_errors_opt.size();
@@ -767,7 +788,7 @@ std::vector<Eigen::Vector2d> CalibrationVerification::CalculateCameraErrors(
 
   // project points to image plane and save as cloud
   Eigen::Matrix4d T_Sensor_TargetCorrected =
-      T_Sensor_Target * target_corrections_.at(target_id);
+      T_Sensor_Target * target_camera_corrections_.at(target_id);
   PointCloud::Ptr keypoints_projected = utils::ProjectPoints(
       keypoints_target_frame, params_->camera_params[camera_id]->camera_model,
       T_Sensor_TargetCorrected);
@@ -820,7 +841,8 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
     // check if target origin is in camera frame
     point_target = Eigen::Vector4d(0, 0, 0, 1);
     Eigen::Matrix4d T_Sensor_TargetCorrected =
-      utils::InvertTransform(T_Robot_Sensor) * T_Robot_Target.matrix() * target_corrections_.at(target_iter);
+        utils::InvertTransform(T_Robot_Sensor) * T_Robot_Target.matrix() *
+        target_camera_corrections_.at(target_iter);
     point_transformed = T_Sensor_TargetCorrected * point_target;
     bool origin_projection_valid;
     Eigen::Vector2d origin_projected;
@@ -839,9 +861,10 @@ std::shared_ptr<cv::Mat> CalibrationVerification::ProjectTargetToImage(
       Eigen::Vector3d point = kpts.col(k);
       point_target = point.homogeneous();
       Eigen::Matrix4d T_Sensor_TargetCorrected =
-        utils::InvertTransform(T_Robot_Sensor) * T_Robot_Target.matrix() * target_corrections_.at(target_iter);
+          utils::InvertTransform(T_Robot_Sensor) * T_Robot_Target.matrix() *
+          target_camera_corrections_.at(target_iter);
       point_transformed = T_Sensor_TargetCorrected * point_target;
- 
+
       bool point_projection_valid;
       Eigen::Vector2d point_projected;
       params_->camera_params[cam_iter]->camera_model->ProjectPoint(
@@ -1008,7 +1031,8 @@ void CalibrationVerification::PrintErrorsSummary() {
        << "Outputting Error Statistics for Optimized Camera Calibrations:\n"
        << "Average Error Norm (pixels): " << norms_averaged << "\n"
        << "Average Error Norm (rad): " << angular_averaged << "\n"
-       << "Average Error Norm (degree): " << utils::RadToDeg(angular_averaged) << "\n"
+       << "Average Error Norm (degree): " << utils::RadToDeg(angular_averaged)
+       << "\n"
        << "Samples Used: " << camera_errors_opt_.size() << "\n";
 
   // save to results summary

@@ -213,7 +213,8 @@ struct CalibratorConfig {
   int max_measurements{0};
   double min_target_motion{0.05};
   double min_target_rotation{5};
-  double max_target_velocity{0.7};
+  double max_target_velocity_mps{0.05};
+  double velocity_window_size_s{1};
   std::vector<double> crop_time{0, 0};
   std::string optimizer_type{"CERES"}; // Options: CERES
   std::vector<std::shared_ptr<vicon_calibration::TargetParams>> target_params;

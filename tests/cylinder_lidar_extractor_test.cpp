@@ -70,8 +70,6 @@ void LoadTransforms() {
   bag.open(bag_path, rosbag::bagmode::Read);
   rosbag::View tf_bag_view = {bag, rosbag::TopicQuery("/tf")};
 
-  tf_tree.GetStartTime() = tf_bag_view.getBeginTime();
-
   // Iterate over all message instances in our tf bag view
   std::cout << "Adding transforms" << std::endl;
   for (const auto& msg_instance : tf_bag_view) {

@@ -12,7 +12,7 @@
   "match_centroids": true,
   "match_centroids_on_first_iter_only": true,
   "print_results_to_terminal": true,
-  "estimate_target_lidar_corrections": true,
+  "estimate_target_lidar_corrections": false,
   "estimate_target_camera_corrections": true,
   "error_tol": [
     0.001,

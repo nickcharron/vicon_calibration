@@ -418,8 +418,8 @@ bool ViconCalibrator::PassedMinMotion(const Eigen::Matrix4d& TA_S_T_prev,
                                       const Eigen::Matrix4d& TA_S_T_curr) {
   double error_t =
       (TA_S_T_curr.block(0, 3, 3, 1) - TA_S_T_prev.block(0, 3, 3, 1)).norm();
-  double error_r = utils::CalculateRotationError(TA_S_T_prev.block(0, 0, 3, 0),
-                                                 TA_S_T_curr.block(0, 0, 3, 0));
+  double error_r = utils::CalculateRotationError(TA_S_T_prev.block(0, 0, 3, 3),
+                                                 TA_S_T_curr.block(0, 0, 3, 3));
   if (error_t > params_->min_target_motion) {
     return true;
   } else if (error_r > params_->min_target_motion) {

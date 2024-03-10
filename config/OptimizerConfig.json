@@ -3,7 +3,7 @@
   "viz_corr_line_width": 2,
   "max_correspondence_iterations": 30,
   "show_camera_measurements": false,
-  "show_lidar_measurements": false,
+  "show_lidar_measurements": true,
   "extract_image_target_perimeter": true,
   "output_errors": true,
   "concave_hull_alpha": 10,
@@ -19,9 +19,9 @@
     0.0001
   ],
   "template_downsample_size": [
-    0.002,
-    0.002,
-    0.002
+    0.005,
+    0.005,
+    0.005
   ],
   "viewer_backround_color": [
     255,

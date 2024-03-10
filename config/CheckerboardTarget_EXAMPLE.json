@@ -1,10 +1,20 @@
 {
-  "crop_scan": [-0.5, 0.75, -0.5, 0.75, -0.15, 0.15],
-  "crop_image": [0, 0],
+  "crop_scan": [
+    -0.5,
+    0.75,
+    -0.5,
+    0.75,
+    -0.15,
+    0.15
+  ],
+  "crop_image": [
+    0,
+    0
+  ],
   "template_cloud": "checkerboard_target_EXAMPLE.pcd",
   "is_target_2d": true,
-  "keypoints_lidar": [
-  ],
+  "use_lidar_keypoints": false,
+  "keypoints_lidar": [],
   "keypoints_camera": [
     {
       "x": 0.029,

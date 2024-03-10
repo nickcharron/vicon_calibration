@@ -77,6 +77,7 @@ struct TargetParams {
   std::string lidar_extractor_type;
   std::string camera_extractor_type;
   std::string target_config_path;
+  bool use_lidar_keypoints;
 
   // [min x, max x, min y, max y, min z, max z]
   Eigen::Matrix<float, 6, 1> crop_scan;
@@ -106,6 +107,7 @@ struct TargetParams {
               << crop_scan[2] << "]\n"
               << "Image Crop: [" << crop_image[0] << ", " << crop_image[1]
               << "]\n"
+              << "Use lidar keypoints: " << use_lidar_keypoints << "\n"
               << "Lidar keypoints size: " << keypoints_lidar.cols() << "\n"
               << "Camera keypoints size: " << keypoints_camera.cols() << "\n"
               << "Is target 2D: " << is_target_2d << "\n";

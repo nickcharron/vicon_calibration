@@ -1,8 +1,19 @@
 {
-  "crop_scan": [-0.5, 0.5, -0.3, 0.3, -0.3, 0.3],
-  "crop_image": [20, 20],
+  "crop_scan": [
+    -0.5,
+    0.5,
+    -0.3,
+    0.3,
+    -0.3,
+    0.3
+  ],
+  "crop_image": [
+    20,
+    20
+  ],
   "template_cloud": "",
   "keypoints_lidar": [],
   "keypoints_camera": [],
+  "use_lidar_keypoints": false,
   "is_target_2d": false
 }

@@ -171,8 +171,6 @@ void Optimizer::CheckInputs() {
 void Optimizer::GetImageCorrespondences() {
   LOG_INFO("Setting image correspondences");
   int counter = 0;
-  Eigen::Matrix4d T_Robot_Camera, T_Camera_Target;
-  std::shared_ptr<CameraMeasurement> measurement;
   for (uint8_t cam_iter = 0; cam_iter < inputs_.camera_measurements.size();
        cam_iter++) {
     for (uint32_t meas_iter = 0;
@@ -181,11 +179,12 @@ void Optimizer::GetImageCorrespondences() {
       if (inputs_.camera_measurements[cam_iter][meas_iter] == nullptr) {
         continue;
       }
-      measurement = inputs_.camera_measurements[cam_iter][meas_iter];
+      const auto& measurement =
+          inputs_.camera_measurements[cam_iter][meas_iter];
 
-      T_Robot_Camera =
+      Eigen::Matrix4d T_Robot_Camera =
           GetUpdatedInitialPose(SensorType::CAMERA, measurement->camera_id);
-      T_Camera_Target =
+      Eigen::Matrix4d T_Camera_Target =
           utils::InvertTransform(T_Robot_Camera) * measurement->T_Robot_Target;
 
       // convert measurement to 3D (set z to 0)
@@ -330,8 +329,6 @@ void Optimizer::GetImageCorrespondences() {
 void Optimizer::GetLidarCorrespondences() {
   LOG_INFO("Setting lidar correspondences");
   int counter = 0;
-  Eigen::Matrix4d T_Robot_Lidar, T_Lidar_Target;
-  std::shared_ptr<LidarMeasurement> measurement;
   for (uint8_t lidar_iter = 0; lidar_iter < inputs_.lidar_measurements.size();
        lidar_iter++) {
     for (uint32_t meas_iter = 0;
@@ -340,32 +337,32 @@ void Optimizer::GetLidarCorrespondences() {
       if (inputs_.lidar_measurements[lidar_iter][meas_iter] == nullptr) {
         continue;
       }
-      measurement = inputs_.lidar_measurements[lidar_iter][meas_iter];
-
-      T_Robot_Lidar =
+      const auto& measurement =
+          inputs_.lidar_measurements[lidar_iter][meas_iter];
+      const auto& target_params = inputs_.target_params[measurement->target_id];
+      Eigen::Matrix4d T_Robot_Lidar =
           GetUpdatedInitialPose(SensorType::LIDAR, measurement->lidar_id);
-      T_Lidar_Target =
+      Eigen::Matrix4d T_Lidar_Target =
           utils::InvertTransform(T_Robot_Lidar) * measurement->T_Robot_Target;
 
       // Check keypoints to see if we want to find correspondences between
       // keypoints or between all target points
       PointCloud::Ptr transformed_keypoints = std::make_shared<PointCloud>();
-      const auto& kpts =
-          inputs_.target_params[measurement->target_id]->keypoints_lidar;
-      for (int k = 0; k < kpts.cols(); k++) {
-        Eigen::Vector3d keypoint = kpts.col(k);
-        Eigen::Vector4d keypoint_transformed =
-            T_Lidar_Target * keypoint.homogeneous();
-        transformed_keypoints->emplace_back(keypoint_transformed[0],
-                                            keypoint_transformed[1],
-                                            keypoint_transformed[2]);
-      }
 
-      if (kpts.cols() == 0) {
+      if (target_params->use_lidar_keypoints) {
+        const auto& kpts = target_params->keypoints_lidar;
+        for (int k = 0; k < kpts.cols(); k++) {
+          Eigen::Vector3d keypoint = kpts.col(k);
+          Eigen::Vector4d keypoint_transformed =
+              T_Lidar_Target * keypoint.homogeneous();
+          transformed_keypoints->emplace_back(keypoint_transformed[0],
+                                              keypoint_transformed[1],
+                                              keypoint_transformed[2]);
+        }
+      } else {
         // use all points from template cloud
-        pcl::transformPointCloud(
-            *(inputs_.target_params[measurement->target_id]->template_cloud),
-            *transformed_keypoints, T_Lidar_Target);
+        pcl::transformPointCloud(*(target_params->template_cloud),
+                                 *transformed_keypoints, T_Lidar_Target);
       }
 
       // calculate centroids and translate target to match

@@ -165,12 +165,12 @@ void CeresOptimizer::AddLidarMeasurements() {
     int sensor_index = GetSensorIndex(SensorType::LIDAR, lidar_index);
 
     Eigen::Vector3d P_Target;
-    if (inputs_.target_params[target_index]->keypoints_lidar.cols() > 0) {
-      P_Target = inputs_.target_params[target_index]->keypoints_lidar.col(
-          corr.target_point_index);
+    const auto& target_params = inputs_.target_params[target_index];
+    if (target_params->use_lidar_keypoints) {
+      P_Target = target_params->keypoints_lidar.col(corr.target_point_index);
     } else {
-      const auto& p = inputs_.target_params[target_index]->template_cloud->at(
-          corr.target_point_index);
+      const auto& p =
+          target_params->template_cloud->at(corr.target_point_index);
       P_Target = Eigen::Vector3d(p.x, p.y, p.z);
     }
 

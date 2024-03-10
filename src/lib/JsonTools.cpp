@@ -25,6 +25,7 @@ std::shared_ptr<TargetParams> JsonTools::LoadTargetConfigFile(
     for (const auto& value : J_target["crop_image"]) { vect2.push_back(value); }
     template_name = J_target["template_cloud"];
     params->is_target_2d = J_target["is_target_2d"];
+    params->use_lidar_keypoints = J_target["use_lidar_keypoints"];
 
     for (const auto& keypoint : J_target["keypoints_lidar"]) {
       Eigen::Vector3d point;
@@ -32,6 +33,9 @@ std::shared_ptr<TargetParams> JsonTools::LoadTargetConfigFile(
       params->keypoints_lidar.conservativeResize(
           params->keypoints_lidar.rows(), params->keypoints_lidar.cols() + 1);
       params->keypoints_lidar.col(params->keypoints_lidar.cols() - 1) = point;
+    }
+    if (params->keypoints_lidar.cols() == 0) {
+      params->use_lidar_keypoints = false;
     }
 
     for (const auto& keypoint : J_target["keypoints_camera"]) {

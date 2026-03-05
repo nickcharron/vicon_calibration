@@ -1,8 +1,23 @@
-# vicon_calibration
+# A Target-Based Extrinsic Calibration Framework for Non-Overlapping Camera-Lidar Systems Using a Motion Capture System
+## [Vicon Calibration]
 
 Package to perform extrinsic calibration of any number of lidar/cameras (with or without overlapping FOV) using a motion capture system (e.g., Vicon System).
 
-See paper: COMING SOON....
+![cover image](ViconCalibration.png)
+
+**Citation**
+
+If you found this work useful, please consider leaving a star ⭐ on this repository and citing [our paper](https://crv.pubpub.org/pub/jd9ql2lj/release/1):
+
+```bibtex
+@inproceedings{charron2025target,
+  title={A Target-Based Extrinsic Calibration Framework for Non-Overlapping Camera-Lidar Systems Using a Motion Capture System},
+  author={Charron, Nicholas and Weng, Huaiyuan and Waslander, Steven L and Narasimhan, Sriram},
+  booktitle={Proceedings of the Conference on Robots and Vision},
+  year={2025},
+  organization={PubPub}
+}
+```
 
 ## Installing
 
@@ -93,27 +108,3 @@ cd /path_to/vicon_calibration
 ./build/vicon_calibration_main -bag /path_to_dataset/CheckerboardTargetDataset_EXAMPLE.bag -calibration_config ./config/ViconCalibrationConfigCheckerboard_EXAMPLE.json -initial_calibration ./data/initial_calibration_EXAMPLE.json -output_directory . -show_camera_measurements=true -show_lidar_measurements=true
 
 ```
-
-## Config Parameters
-
-This section will briefly go over all parameters in the configuration files.
-
-### ViconCalibrationConfig
-
-todo
-
-### OptimizerConfig
-
-todo
-
-### TargetConfig
-
-todo
-
-### IsolateTargetPointsConfig
-
-todo
-
-### CalibrationVerification
-
-todo
